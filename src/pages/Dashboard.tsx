@@ -34,7 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, ExternalLink, Instagram, Facebook, Users, Calendar, CheckCircle2, CalendarIcon, FileText, CheckSquare, X } from "lucide-react";
+import { Plus, ExternalLink, Instagram, Facebook, Users, Calendar, CheckCircle2, CalendarIcon, FileText, CheckSquare, X, Video } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -122,13 +122,38 @@ export default function Dashboard() {
         return;
       }
 
-      // Fetch clients
+      // Fetch clients with counts
       const { data: clientsData } = await supabase
         .from("clients")
-        .select("*, assets(count), ideas(count)")
+        .select("id, name, email, phone, company, status, created_at, logo_url, agency_id")
         .eq("agency_id", agencyId);
 
-      setClients(clientsData || []);
+      // Get asset counts and published video counts for each client
+      const clientsWithCounts = await Promise.all(
+        (clientsData || []).map(async (client) => {
+          // Total assets count
+          const { count: assetCount } = await supabase
+            .from("assets")
+            .select("*", { count: "exact", head: true })
+            .eq("client_id", client.id);
+
+          // Published videos count
+          const { count: publishedVideoCount } = await supabase
+            .from("assets")
+            .select("*", { count: "exact", head: true })
+            .eq("client_id", client.id)
+            .eq("status", "published")
+            .like("file_type", "video%");
+
+          return {
+            ...client,
+            assetCount: assetCount || 0,
+            publishedVideoCount: publishedVideoCount || 0,
+          };
+        })
+      );
+
+      setClients(clientsWithCounts);
 
       // Calculate metrics
       const now = new Date();
@@ -739,6 +764,18 @@ export default function Dashboard() {
                   </div>
                 </div>
               </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-1">
+                    <FileText className="h-4 w-4" />
+                    <span>{client.assetCount} assets</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Video className="h-4 w-4" />
+                    <span>{client.publishedVideoCount} published</span>
+                  </div>
+                </div>
+              </CardContent>
             </Card>
           ))}
         </div>

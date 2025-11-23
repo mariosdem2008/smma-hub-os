@@ -37,6 +37,7 @@ export function PortalAssets() {
       .from("assets")
       .select("*")
       .eq("client_id", clientId)
+      .eq("visible_to_client", true)
       .order("created_at", { ascending: false });
 
     setAssets(data || []);
