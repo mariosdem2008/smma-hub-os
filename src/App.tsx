@@ -44,7 +44,6 @@ const App = () => (
           <UpgradeModalProvider>
             <UpgradeAssistantProvider>
               <GlobalUpgradeModal />
-              <UpgradeAssistantBubble />
               <UpgradeAssistantCard />
               <Routes>
             {/* Public Routes */}

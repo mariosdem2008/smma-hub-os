@@ -707,6 +707,40 @@ export default function Dashboard() {
         </>
       )}
 
+      {/* Floating Action Button */}
+      {(canManageClients || canCreateContent) && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              size="lg"
+              className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg z-40"
+            >
+              <Plus className="h-6 w-6" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            {canManageClients && (
+              <DropdownMenuItem onClick={() => setShowNewClientDialog(true)}>
+                <Users className="mr-2 h-4 w-4" />
+                New Client
+              </DropdownMenuItem>
+            )}
+            {canCreateContent && (
+              <>
+                <DropdownMenuItem onClick={() => setShowTaskDialog(true)}>
+                  <CheckSquare className="mr-2 h-4 w-4" />
+                  New Task
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setShowPostDialog(true)}>
+                  <FileText className="mr-2 h-4 w-4" />
+                  New Post
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
+
       {/* New Task Dialog */}
       <Dialog open={showTaskDialog} onOpenChange={setShowTaskDialog}>
         <DialogContent className="max-w-md">
