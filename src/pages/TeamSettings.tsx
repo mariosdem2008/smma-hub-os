@@ -46,6 +46,16 @@ interface TeamMember {
   } | null;
 }
 
+interface PendingInvite {
+  id: string;
+  email: string;
+  role: string;
+  token: string;
+  created_at: string;
+  expires_at: string;
+  accepted: boolean;
+}
+
 const ROLES = ["manager", "creator", "viewer"];
 
 export default function TeamSettings() {
@@ -57,11 +67,13 @@ export default function TeamSettings() {
   const [agencyId, setAgencyId] = useState<string>("");
   const [isOwner, setIsOwner] = useState(false);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("member");
   const [inviteLink, setInviteLink] = useState("");
   const [showInviteLink, setShowInviteLink] = useState(false);
   const [memberToRemove, setMemberToRemove] = useState<string | null>(null);
+  const [inviteToCancel, setInviteToCancel] = useState<string | null>(null);
 
   useEffect(() => {
     fetchTeamData();
@@ -112,6 +124,17 @@ export default function TeamSettings() {
       } else {
         setTeamMembers([]);
       }
+
+      // Fetch pending invites
+      const { data: invites, error: invitesError } = await supabase
+        .from("agency_invites")
+        .select("*")
+        .eq("agency_id", agency.id)
+        .eq("accepted", false)
+        .order("created_at", { ascending: false });
+
+      if (invitesError) throw invitesError;
+      setPendingInvites(invites || []);
     } catch (error: any) {
       console.error("Error fetching team data:", error);
       toast({
@@ -170,6 +193,7 @@ export default function TeamSettings() {
 
       setInviteEmail("");
       setInviteRole("member");
+      fetchTeamData(); // Refresh to show new invite in pending list
     } catch (error: any) {
       toast({
         title: "Error",
@@ -187,6 +211,46 @@ export default function TeamSettings() {
       title: "Copied",
       description: "Invite link copied to clipboard",
     });
+  };
+
+  const handleCopyInviteLink = (token: string) => {
+    const link = `${window.location.origin}/invite/${token}`;
+    navigator.clipboard.writeText(link);
+    toast({
+      title: "Copied",
+      description: "Invite link copied to clipboard",
+    });
+  };
+
+  const handleCancelInvite = async (inviteId: string) => {
+    try {
+      const { error } = await supabase
+        .from("agency_invites")
+        .delete()
+        .eq("id", inviteId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Invitation cancelled",
+      });
+
+      setInviteToCancel(null);
+      fetchTeamData();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to cancel invitation",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const getInviteStatus = (expiresAt: string) => {
+    const now = new Date();
+    const expiry = new Date(expiresAt);
+    return expiry > now ? "Pending" : "Expired";
   };
 
   const handleRoleChange = async (memberId: string, newRole: string) => {
@@ -356,6 +420,68 @@ export default function TeamSettings() {
         </CardContent>
       </Card>
 
+      {/* Pending Invites Section */}
+      {isOwner && pendingInvites.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Pending Invites</CardTitle>
+            <CardDescription>Manage outstanding team invitations</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pendingInvites.map((invite) => {
+                  const status = getInviteStatus(invite.expires_at);
+                  return (
+                    <TableRow key={invite.id}>
+                      <TableCell className="font-medium">{invite.email}</TableCell>
+                      <TableCell>
+                        <Badge variant={getRoleBadgeVariant(invite.role)}>
+                          {invite.role}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={status === "Expired" ? "destructive" : "secondary"}>
+                          {status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleCopyInviteLink(invite.token)}
+                            title="Copy invite link"
+                          >
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setInviteToCancel(invite.id)}
+                            title="Cancel invite"
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Invite Team Member Section */}
       {isOwner && (
         <Card>
@@ -445,6 +571,27 @@ export default function TeamSettings() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Cancel Invite Confirmation Dialog */}
+      <AlertDialog open={!!inviteToCancel} onOpenChange={() => setInviteToCancel(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Invitation</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to cancel this invitation? The invite link will no longer work.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => inviteToCancel && handleCancelInvite(inviteToCancel)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Cancel Invite
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
