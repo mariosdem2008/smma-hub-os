@@ -486,9 +486,9 @@ export default function Dashboard() {
                         </TableCell>
                         <TableCell>
                           <Button
-                            variant="ghost"
+                            variant="outline"
                             size="icon"
-                            className="h-8 w-8"
+                            className="h-8 w-8 hover:bg-destructive hover:text-destructive-foreground"
                             onClick={(e) => handleDismissPost(post.id, e)}
                           >
                             <X className="h-4 w-4" />
@@ -553,9 +553,9 @@ export default function Dashboard() {
                         </TableCell>
                         <TableCell>
                           <Button
-                            variant="ghost"
+                            variant="outline"
                             size="icon"
-                            className="h-8 w-8"
+                            className="h-8 w-8 hover:bg-destructive hover:text-destructive-foreground"
                             onClick={(e) => handleDismissTask(task.id, e)}
                           >
                             <X className="h-4 w-4" />
