@@ -12,6 +12,13 @@ import OverviewTab from "@/components/client-tabs/OverviewTab";
 import TasksTab from "@/components/client-tabs/TasksTab";
 import ContentCalendarTab from "@/components/client-tabs/ContentCalendarTab";
 import NotesTab from "@/components/client-tabs/NotesTab";
+import BrandingTab from "@/components/client-tabs/BrandingTab";
+import IdeasTab from "@/components/client-tabs/IdeasTab";
+import ContentPillarsTab from "@/components/client-tabs/ContentPillarsTab";
+import AssetsTab from "@/components/client-tabs/AssetsTab";
+import InspirationTab from "@/components/client-tabs/InspirationTab";
+import HashtagsTab from "@/components/client-tabs/HashtagsTab";
+import SavedCaptionsTab from "@/components/client-tabs/SavedCaptionsTab";
 
 interface Client {
   id: string;
@@ -116,8 +123,15 @@ export default function ClientDetail() {
       />
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList>
+        <TabsList className="grid w-full grid-cols-6 lg:grid-cols-12">
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="branding">Branding</TabsTrigger>
+          <TabsTrigger value="ideas">Ideas</TabsTrigger>
+          <TabsTrigger value="pillars">Content Pillars</TabsTrigger>
+          <TabsTrigger value="assets">Assets</TabsTrigger>
+          <TabsTrigger value="inspiration">Inspiration</TabsTrigger>
+          <TabsTrigger value="hashtags">Hashtags</TabsTrigger>
+          <TabsTrigger value="captions">Saved Captions</TabsTrigger>
           <TabsTrigger value="social">Social Profiles</TabsTrigger>
           <TabsTrigger value="calendar">Content Calendar</TabsTrigger>
           <TabsTrigger value="tasks">Tasks</TabsTrigger>
@@ -150,6 +164,34 @@ export default function ClientDetail() {
             initialNotes={client.notes}
             onNotesUpdate={handleNotesUpdate}
           />
+        </TabsContent>
+
+        <TabsContent value="branding" className="space-y-4">
+          <BrandingTab clientId={clientId!} />
+        </TabsContent>
+
+        <TabsContent value="ideas" className="space-y-4">
+          <IdeasTab clientId={clientId!} />
+        </TabsContent>
+
+        <TabsContent value="pillars" className="space-y-4">
+          <ContentPillarsTab clientId={clientId!} />
+        </TabsContent>
+
+        <TabsContent value="assets" className="space-y-4">
+          <AssetsTab clientId={clientId!} />
+        </TabsContent>
+
+        <TabsContent value="inspiration" className="space-y-4">
+          <InspirationTab clientId={clientId!} />
+        </TabsContent>
+
+        <TabsContent value="hashtags" className="space-y-4">
+          <HashtagsTab clientId={clientId!} />
+        </TabsContent>
+
+        <TabsContent value="captions" className="space-y-4">
+          <SavedCaptionsTab clientId={clientId!} />
         </TabsContent>
       </Tabs>
     </div>
