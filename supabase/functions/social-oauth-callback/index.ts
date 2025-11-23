@@ -96,175 +96,25 @@ serve(async (req) => {
 });
 
 async function exchangeCodeForToken(platform: string, code: string): Promise<any> {
-  const redirectUri = `${Deno.env.get('SUPABASE_URL')}/functions/v1/social-oauth-callback`;
-
-  try {
-    switch (platform) {
-      case 'instagram': {
-        const clientId = Deno.env.get('INSTAGRAM_CLIENT_ID');
-        const clientSecret = Deno.env.get('INSTAGRAM_CLIENT_SECRET');
-        
-        const response = await fetch('https://api.instagram.com/oauth/access_token', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({
-            client_id: clientId!,
-            client_secret: clientSecret!,
-            grant_type: 'authorization_code',
-            redirect_uri: redirectUri,
-            code: code,
-          }),
-        });
-
-        return await response.json();
-      }
-
-      case 'facebook': {
-        const appId = Deno.env.get('FACEBOOK_APP_ID');
-        const appSecret = Deno.env.get('FACEBOOK_APP_SECRET');
-        
-        const response = await fetch(
-          `https://graph.facebook.com/v18.0/oauth/access_token?client_id=${appId}&client_secret=${appSecret}&redirect_uri=${redirectUri}&code=${code}`
-        );
-
-        return await response.json();
-      }
-
-      case 'tiktok': {
-        const clientKey = Deno.env.get('TIKTOK_CLIENT_KEY');
-        const clientSecret = Deno.env.get('TIKTOK_CLIENT_SECRET');
-        
-        const response = await fetch('https://open-api.tiktok.com/oauth/access_token/', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({
-            client_key: clientKey!,
-            client_secret: clientSecret!,
-            code: code,
-            grant_type: 'authorization_code',
-          }),
-        });
-
-        return await response.json();
-      }
-
-      case 'youtube': {
-        const clientId = Deno.env.get('YOUTUBE_CLIENT_ID');
-        const clientSecret = Deno.env.get('YOUTUBE_CLIENT_SECRET');
-        
-        const response = await fetch('https://oauth2.googleapis.com/token', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({
-            client_id: clientId!,
-            client_secret: clientSecret!,
-            code: code,
-            grant_type: 'authorization_code',
-            redirect_uri: redirectUri,
-          }),
-        });
-
-        return await response.json();
-      }
-
-      case 'linkedin': {
-        const clientId = Deno.env.get('LINKEDIN_CLIENT_ID');
-        const clientSecret = Deno.env.get('LINKEDIN_CLIENT_SECRET');
-        
-        const response = await fetch('https://www.linkedin.com/oauth/v2/accessToken', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({
-            client_id: clientId!,
-            client_secret: clientSecret!,
-            code: code,
-            grant_type: 'authorization_code',
-            redirect_uri: redirectUri,
-          }),
-        });
-
-        return await response.json();
-      }
-
-      default:
-        return null;
-    }
-  } catch (error) {
-    console.error(`Token exchange error for ${platform}:`, error);
-    return null;
-  }
+  // STUB: Simulating successful token exchange
+  // In production, this would make real API calls to each platform
+  console.log(`[STUB] Simulating token exchange for ${platform} with code: ${code}`);
+  
+  return {
+    access_token: `fake_access_token_${platform}_${Date.now()}`,
+    refresh_token: `fake_refresh_token_${platform}_${Date.now()}`,
+    expires_at: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(), // 60 days from now
+  };
 }
 
 async function fetchAccountInfo(platform: string, accessToken: string): Promise<any> {
-  try {
-    switch (platform) {
-      case 'instagram': {
-        const response = await fetch(
-          `https://graph.instagram.com/me?fields=id,username,account_type&access_token=${accessToken}`
-        );
-        const data = await response.json();
-        return {
-          id: data.id,
-          handle: data.username,
-          name: data.username,
-        };
-      }
-
-      case 'facebook': {
-        const response = await fetch(
-          `https://graph.facebook.com/me?fields=id,name&access_token=${accessToken}`
-        );
-        const data = await response.json();
-        return {
-          id: data.id,
-          name: data.name,
-          handle: data.name,
-        };
-      }
-
-      case 'tiktok': {
-        const response = await fetch('https://open-api.tiktok.com/user/info/', {
-          headers: { 'Authorization': `Bearer ${accessToken}` },
-        });
-        const data = await response.json();
-        return {
-          id: data.data?.user?.open_id,
-          handle: data.data?.user?.display_name,
-          name: data.data?.user?.display_name,
-        };
-      }
-
-      case 'youtube': {
-        const response = await fetch(
-          `https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true`,
-          { headers: { 'Authorization': `Bearer ${accessToken}` } }
-        );
-        const data = await response.json();
-        const channel = data.items?.[0];
-        return {
-          id: channel?.id,
-          name: channel?.snippet?.title,
-          handle: channel?.snippet?.customUrl || channel?.snippet?.title,
-        };
-      }
-
-      case 'linkedin': {
-        const response = await fetch('https://api.linkedin.com/v2/me', {
-          headers: { 'Authorization': `Bearer ${accessToken}` },
-        });
-        const data = await response.json();
-        return {
-          id: data.id,
-          name: `${data.localizedFirstName} ${data.localizedLastName}`,
-          handle: data.vanityName || `${data.localizedFirstName}${data.localizedLastName}`,
-        };
-      }
-
-      default:
-        return null;
-    }
-  } catch (error) {
-    console.error(`Account info fetch error for ${platform}:`, error);
-    return null;
-  }
+  // STUB: Simulating account info fetch
+  // In production, this would make real API calls to each platform
+  console.log(`[STUB] Simulating account info fetch for ${platform}`);
+  
+  return {
+    id: `fake_account_id_${platform}_${Math.random().toString(36).substring(7)}`,
+    handle: `@${platform}_user_${Math.random().toString(36).substring(7)}`,
+    name: `${platform.charAt(0).toUpperCase() + platform.slice(1)} Test Account`,
+  };
 }
