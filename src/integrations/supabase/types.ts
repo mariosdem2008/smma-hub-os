@@ -38,39 +38,151 @@ export type Database = {
         }
         Relationships: []
       }
-      clients: {
+      assets: {
         Row: {
-          agency_id: string
-          company: string | null
+          client_id: string
           created_at: string
-          email: string | null
+          file_size: number | null
+          file_type: string
+          file_url: string
+          filename: string
           id: string
-          name: string
-          phone: string | null
-          status: string | null
+          is_client_upload: boolean | null
+          updated_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          file_size?: number | null
+          file_type: string
+          file_url: string
+          filename: string
+          id?: string
+          is_client_upload?: boolean | null
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          file_size?: number | null
+          file_type?: string
+          file_url?: string
+          filename?: string
+          id?: string
+          is_client_upload?: boolean | null
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assets_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      captions: {
+        Row: {
+          client_id: string
+          content: string
+          created_at: string
+          id: string
+          tags: string[] | null
+          title: string
           updated_at: string
         }
         Insert: {
-          agency_id: string
-          company?: string | null
+          client_id: string
+          content: string
           created_at?: string
-          email?: string | null
           id?: string
-          name: string
-          phone?: string | null
-          status?: string | null
+          tags?: string[] | null
+          title: string
           updated_at?: string
         }
         Update: {
-          agency_id?: string
+          client_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "captions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clients: {
+        Row: {
+          agency_id: string
+          brand_colors: Json | null
+          company: string | null
+          created_at: string
+          email: string | null
+          facebook_url: string | null
+          id: string
+          instagram_url: string | null
+          linkedin_url: string | null
+          logo_url: string | null
+          name: string
+          notes: string | null
+          phone: string | null
+          status: string | null
+          tiktok_url: string | null
+          updated_at: string
+          website: string | null
+          youtube_url: string | null
+        }
+        Insert: {
+          agency_id: string
+          brand_colors?: Json | null
           company?: string | null
           created_at?: string
           email?: string | null
+          facebook_url?: string | null
           id?: string
-          name?: string
+          instagram_url?: string | null
+          linkedin_url?: string | null
+          logo_url?: string | null
+          name: string
+          notes?: string | null
           phone?: string | null
           status?: string | null
+          tiktok_url?: string | null
           updated_at?: string
+          website?: string | null
+          youtube_url?: string | null
+        }
+        Update: {
+          agency_id?: string
+          brand_colors?: Json | null
+          company?: string | null
+          created_at?: string
+          email?: string | null
+          facebook_url?: string | null
+          id?: string
+          instagram_url?: string | null
+          linkedin_url?: string | null
+          logo_url?: string | null
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          status?: string | null
+          tiktok_url?: string | null
+          updated_at?: string
+          website?: string | null
+          youtube_url?: string | null
         }
         Relationships: [
           {
@@ -78,6 +190,82 @@ export type Database = {
             columns: ["agency_id"]
             isOneToOne: false
             referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ideas: {
+        Row: {
+          client_id: string
+          created_at: string
+          description: string | null
+          id: string
+          status: string | null
+          tags: string[] | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          status?: string | null
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          status?: string | null
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ideas_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          attachment_url: string | null
+          client_id: string
+          content: string
+          created_at: string
+          id: string
+          sender_id: string
+        }
+        Insert: {
+          attachment_url?: string | null
+          client_id: string
+          content: string
+          created_at?: string
+          id?: string
+          sender_id: string
+        }
+        Update: {
+          attachment_url?: string | null
+          client_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
             referencedColumns: ["id"]
           },
         ]
@@ -197,15 +385,80 @@ export type Database = {
           },
         ]
       }
+      team_members: {
+        Row: {
+          agency_id: string
+          assigned_clients: string[] | null
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          agency_id: string
+          assigned_clients?: string[] | null
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          agency_id?: string
+          assigned_clients?: string[] | null
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_members_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "owner" | "manager" | "client"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -332,6 +585,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["owner", "manager", "client"],
+    },
   },
 } as const
