@@ -17,3 +17,9 @@ verify_jwt = true
 
 [functions.stripe-webhook]
 verify_jwt = false
+
+[functions.send-team-invite]
+verify_jwt = true
+
+[functions.send-portal-invite]
+verify_jwt = true
