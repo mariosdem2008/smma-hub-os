@@ -19,6 +19,12 @@ interface Client {
   name: string;
   logo_url: string | null;
   primary_font: string | null;
+  secondary_font: string | null;
+  brand_colors: any;
+  website: string | null;
+  notes: string | null;
+  niche: string | null;
+  tone_of_voice: string | null;
 }
 
 const navItems = [
@@ -53,9 +59,20 @@ export function ClientPortalLayout() {
 
     const { data } = await supabase
       .from("clients")
-      .select("id, name, logo_url, primary_font")
+      .select(`
+        id, 
+        name, 
+        logo_url, 
+        primary_font, 
+        secondary_font, 
+        brand_colors, 
+        website, 
+        notes,
+        niche,
+        tone_of_voice
+      `)
       .eq("id", clientId)
-      .single();
+      .maybeSingle();
 
     if (data) {
       setClient(data);

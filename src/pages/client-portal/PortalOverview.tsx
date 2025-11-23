@@ -12,6 +12,8 @@ interface Client {
   brand_colors: any;
   website: string | null;
   notes: string | null;
+  niche: string | null;
+  tone_of_voice: string | null;
 }
 
 interface OutletContext {
@@ -45,6 +47,14 @@ export function PortalOverview() {
                 alt={client.name}
                 className="h-20 w-auto object-contain bg-muted p-4 rounded-lg"
               />
+            </div>
+          )}
+
+          {/* Niche */}
+          {client.niche && (
+            <div>
+              <p className="text-sm font-medium mb-2">Industry / Niche</p>
+              <Badge variant="outline">{client.niche}</Badge>
             </div>
           )}
 
@@ -94,6 +104,16 @@ export function PortalOverview() {
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* Tone of Voice */}
+          {client.tone_of_voice && (
+            <div>
+              <p className="text-sm font-medium mb-2">Tone of Voice</p>
+              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                {client.tone_of_voice}
+              </p>
             </div>
           )}
 
