@@ -7,6 +7,7 @@ import { useRole } from "@/hooks/useRole";
 import { Button } from "@/components/ui/button";
 import { UserPlus } from "lucide-react";
 import { InviteTeamMemberDialog } from "./InviteTeamMemberDialog";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export function AppLayout() {
   const { user } = useAuth();
@@ -18,12 +19,13 @@ export function AppLayout() {
       <div className="flex min-h-screen w-full">
         <AppSidebar />
         <div className="flex flex-1 flex-col">
-          <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-card px-4">
+          <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-surface px-4 shadow-sm">
             <SidebarTrigger />
             <div className="flex-1">
-              <h2 className="text-lg font-semibold">SMMAHUB</h2>
+              <h2 className="text-lg font-semibold text-primary">SMMAHUB</h2>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
+              <ThemeToggle />
               {canManageTeam && (
                 <Button
                   variant="outline"

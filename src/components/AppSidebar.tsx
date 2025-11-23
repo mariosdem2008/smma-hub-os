@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const items = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
@@ -57,14 +58,17 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
-        <Button
-          variant="ghost"
-          className="w-full justify-start hover:bg-sidebar-accent"
-          onClick={signOut}
-        >
-          <LogOut className="h-4 w-4" />
-          {!isCollapsed && <span className="ml-2">Sign Out</span>}
-        </Button>
+        <div className="flex items-center gap-2 px-2 py-1">
+          <ThemeToggle />
+          <Button
+            variant="ghost"
+            className="flex-1 justify-start hover:bg-sidebar-accent"
+            onClick={signOut}
+          >
+            <LogOut className="h-4 w-4" />
+            {!isCollapsed && <span className="ml-2">Sign Out</span>}
+          </Button>
+        </div>
       </SidebarFooter>
     </Sidebar>
   );
