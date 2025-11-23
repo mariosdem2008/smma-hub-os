@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useRole } from "@/hooks/useRole";
 import { Palette, Plus, X, Save } from "lucide-react";
 
 interface BrandingTabProps {
@@ -25,6 +26,7 @@ interface ClientBranding {
 
 export default function BrandingTab({ clientId }: BrandingTabProps) {
   const { toast } = useToast();
+  const { canEditSettings, isViewer } = useRole();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [branding, setBranding] = useState<ClientBranding>({
@@ -148,6 +150,8 @@ export default function BrandingTab({ clientId }: BrandingTabProps) {
     );
   }
 
+  const canEdit = canEditSettings && !isViewer;
+
   return (
     <div className="space-y-6">
       {/* Brand Colors Section */}
@@ -157,10 +161,12 @@ export default function BrandingTab({ clientId }: BrandingTabProps) {
             <Palette className="h-5 w-5" />
             Brand Colors
           </CardTitle>
-          <Button onClick={handleSave} disabled={saving}>
-            <Save className="mr-2 h-4 w-4" />
-            {saving ? "Saving..." : "Save All Changes"}
-          </Button>
+          {canEdit && (
+            <Button onClick={handleSave} disabled={saving}>
+              <Save className="mr-2 h-4 w-4" />
+              {saving ? "Saving..." : "Save All Changes"}
+            </Button>
+          )}
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Main Colors */}
@@ -176,6 +182,7 @@ export default function BrandingTab({ clientId }: BrandingTabProps) {
                     setBranding({ ...branding, primary_color: e.target.value })
                   }
                   className="h-10 w-20 cursor-pointer"
+                  disabled={!canEdit}
                 />
                 <Input
                   type="text"
@@ -185,6 +192,7 @@ export default function BrandingTab({ clientId }: BrandingTabProps) {
                   }
                   placeholder="#000000"
                   className="flex-1 font-mono"
+                  disabled={!canEdit}
                 />
               </div>
             </div>
@@ -200,6 +208,7 @@ export default function BrandingTab({ clientId }: BrandingTabProps) {
                     setBranding({ ...branding, secondary_color: e.target.value })
                   }
                   className="h-10 w-20 cursor-pointer"
+                  disabled={!canEdit}
                 />
                 <Input
                   type="text"
@@ -209,6 +218,7 @@ export default function BrandingTab({ clientId }: BrandingTabProps) {
                   }
                   placeholder="#000000"
                   className="flex-1 font-mono"
+                  disabled={!canEdit}
                 />
               </div>
             </div>
@@ -224,6 +234,7 @@ export default function BrandingTab({ clientId }: BrandingTabProps) {
                     setBranding({ ...branding, accent_color: e.target.value })
                   }
                   className="h-10 w-20 cursor-pointer"
+                  disabled={!canEdit}
                 />
                 <Input
                   type="text"
@@ -233,6 +244,7 @@ export default function BrandingTab({ clientId }: BrandingTabProps) {
                   }
                   placeholder="#000000"
                   className="flex-1 font-mono"
+                  disabled={!canEdit}
                 />
               </div>
             </div>
@@ -243,25 +255,27 @@ export default function BrandingTab({ clientId }: BrandingTabProps) {
             <Label>Brand Palette (Additional Colors)</Label>
             
             {/* Add New Color */}
-            <div className="flex gap-2">
-              <Input
-                type="color"
-                value={newPaletteColor}
-                onChange={(e) => setNewPaletteColor(e.target.value)}
-                className="h-10 w-20 cursor-pointer"
-              />
-              <Input
-                type="text"
-                value={newPaletteColor}
-                onChange={(e) => setNewPaletteColor(e.target.value)}
-                placeholder="#000000"
-                className="flex-1 font-mono"
-              />
-              <Button onClick={addPaletteColor} variant="outline">
-                <Plus className="mr-2 h-4 w-4" />
-                Add Color
-              </Button>
-            </div>
+            {canEdit && (
+              <div className="flex gap-2">
+                <Input
+                  type="color"
+                  value={newPaletteColor}
+                  onChange={(e) => setNewPaletteColor(e.target.value)}
+                  className="h-10 w-20 cursor-pointer"
+                />
+                <Input
+                  type="text"
+                  value={newPaletteColor}
+                  onChange={(e) => setNewPaletteColor(e.target.value)}
+                  placeholder="#000000"
+                  className="flex-1 font-mono"
+                />
+                <Button onClick={addPaletteColor} variant="outline">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Color
+                </Button>
+              </div>
+            )}
 
             {/* Display Palette Colors */}
             {branding.brand_palette && branding.brand_palette.length > 0 ? (
@@ -276,13 +290,15 @@ export default function BrandingTab({ clientId }: BrandingTabProps) {
                       style={{ backgroundColor: color }}
                     />
                     <span className="flex-1 text-sm font-mono">{color}</span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removePaletteColor(color)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
+                    {canEdit && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removePaletteColor(color)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -311,6 +327,7 @@ export default function BrandingTab({ clientId }: BrandingTabProps) {
               }
               placeholder="Describe the brand's voice (e.g., friendly, professional, casual, authoritative...)"
               rows={4}
+              disabled={!canEdit}
             />
             <p className="text-xs text-muted-foreground">
               The personality and character of the brand
@@ -327,6 +344,7 @@ export default function BrandingTab({ clientId }: BrandingTabProps) {
               }
               placeholder="Describe the brand's tone (e.g., warm, serious, playful, empathetic...)"
               rows={4}
+              disabled={!canEdit}
             />
             <p className="text-xs text-muted-foreground">
               The emotional inflection applied to the voice
@@ -352,6 +370,7 @@ export default function BrandingTab({ clientId }: BrandingTabProps) {
               placeholder="Add comprehensive brand guidelines, usage rules, do's and don'ts, typography preferences, imagery style, etc."
               rows={12}
               className="font-mono text-sm"
+              disabled={!canEdit}
             />
             <p className="text-xs text-muted-foreground">
               Detailed documentation for maintaining brand consistency
@@ -361,12 +380,24 @@ export default function BrandingTab({ clientId }: BrandingTabProps) {
       </Card>
 
       {/* Bottom Save Button */}
-      <div className="flex justify-end">
-        <Button onClick={handleSave} disabled={saving} size="lg">
-          <Save className="mr-2 h-4 w-4" />
-          {saving ? "Saving..." : "Save All Changes"}
-        </Button>
-      </div>
+      {canEdit && (
+        <div className="flex justify-end">
+          <Button onClick={handleSave} disabled={saving} size="lg">
+            <Save className="mr-2 h-4 w-4" />
+            {saving ? "Saving..." : "Save All Changes"}
+          </Button>
+        </div>
+      )}
+      
+      {!canEdit && (
+        <Card className="border-yellow-500/50 bg-yellow-500/10">
+          <CardContent className="py-4">
+            <p className="text-sm text-muted-foreground">
+              You have read-only access to branding settings. Only agency owners and managers can edit brand identity.
+            </p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

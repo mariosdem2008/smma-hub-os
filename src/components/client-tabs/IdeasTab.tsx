@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useRole } from "@/hooks/useRole";
 import { Lightbulb, Plus, Calendar } from "lucide-react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { format } from "date-fns";
@@ -44,6 +45,7 @@ const STATUS_COLUMNS: { id: IdeaStatus; label: string; color: string }[] = [
 
 export default function IdeasTab({ clientId }: IdeasTabProps) {
   const { toast } = useToast();
+  const { canCreateContent, isViewer } = useRole();
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [loading, setLoading] = useState(true);
   const [isNewIdeaOpen, setIsNewIdeaOpen] = useState(false);
@@ -174,7 +176,8 @@ export default function IdeasTab({ clientId }: IdeasTabProps) {
           <Lightbulb className="h-5 w-5" />
           <h2 className="text-lg font-semibold">Content Ideas Board</h2>
         </div>
-        <Dialog open={isNewIdeaOpen} onOpenChange={setIsNewIdeaOpen}>
+        {canCreateContent && !isViewer && (
+          <Dialog open={isNewIdeaOpen} onOpenChange={setIsNewIdeaOpen}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="mr-2 h-4 w-4" />
@@ -235,10 +238,20 @@ export default function IdeasTab({ clientId }: IdeasTabProps) {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        )}
       </div>
 
       {/* Kanban Board */}
-      <DragDropContext onDragEnd={handleDragEnd}>
+      {isViewer && (
+        <Card className="border-yellow-500/50 bg-yellow-500/10 mb-4">
+          <CardContent className="py-4">
+            <p className="text-sm text-muted-foreground">
+              You have read-only access. You cannot move or create ideas.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+      <DragDropContext onDragEnd={canCreateContent && !isViewer ? handleDragEnd : () => {}}>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {STATUS_COLUMNS.map((column) => {
             const columnIdeas = getIdeasByStatus(column.id);
@@ -269,6 +282,7 @@ export default function IdeasTab({ clientId }: IdeasTabProps) {
                             key={idea.id}
                             draggableId={idea.id}
                             index={index}
+                            isDragDisabled={isViewer || !canCreateContent}
                           >
                             {(provided, snapshot) => (
                               <Card

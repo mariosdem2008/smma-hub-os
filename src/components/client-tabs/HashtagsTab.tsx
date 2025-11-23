@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useRole } from "@/hooks/useRole";
 import { Hash, Plus, Upload, Trash2, Copy } from "lucide-react";
 
 interface HashtagsTabProps {
@@ -56,6 +57,7 @@ interface Hashtag {
 
 export default function HashtagsTab({ clientId }: HashtagsTabProps) {
   const { toast } = useToast();
+  const { canCreateContent, canDeleteContent, isViewer } = useRole();
   const [hashtags, setHashtags] = useState<Hashtag[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -257,7 +259,8 @@ export default function HashtagsTab({ clientId }: HashtagsTabProps) {
           <Hash className="h-5 w-5" />
           <h2 className="text-lg font-semibold">Hashtag Library</h2>
         </div>
-        <div className="flex gap-2">
+        {canCreateContent && !isViewer && (
+          <div className="flex gap-2">
           <Dialog open={isBulkOpen} onOpenChange={setIsBulkOpen}>
             <DialogTrigger asChild>
               <Button variant="outline">
@@ -355,10 +358,20 @@ export default function HashtagsTab({ clientId }: HashtagsTabProps) {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Filter and Actions */}
+      {isViewer && (
+        <Card className="border-yellow-500/50 bg-yellow-500/10">
+          <CardContent className="py-4">
+            <p className="text-sm text-muted-foreground">
+              You have read-only access to hashtags.
+            </p>
+          </CardContent>
+        </Card>
+      )}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-2">
           <Label className="text-sm">Filter:</Label>
@@ -426,13 +439,15 @@ export default function HashtagsTab({ clientId }: HashtagsTabProps) {
                       >
                         <Copy className="h-4 w-4" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setDeleteHashtag(hashtag)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      {canDeleteContent && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setDeleteHashtag(hashtag)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
