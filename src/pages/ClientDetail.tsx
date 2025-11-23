@@ -29,10 +29,15 @@ interface Client {
   notes: string | null;
 }
 
+interface ClientBranding {
+  primary_color: string | null;
+}
+
 export default function ClientDetail() {
   const { clientId } = useParams();
   const { toast } = useToast();
   const [client, setClient] = useState<Client | null>(null);
+  const [branding, setBranding] = useState<ClientBranding | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -58,6 +63,17 @@ export default function ClientDetail() {
             ? (data.brand_colors as string[]) 
             : null,
         });
+      }
+
+      // Fetch branding data
+      const { data: brandingData } = await supabase
+        .from("client_branding")
+        .select("primary_color")
+        .eq("client_id", clientId)
+        .maybeSingle();
+
+      if (brandingData) {
+        setBranding(brandingData);
       }
 
       setLoading(false);
@@ -108,11 +124,12 @@ export default function ClientDetail() {
       </Link>
 
       <ClientHeader
+        clientId={clientId!}
         name={client.name}
         logoUrl={client.logo_url}
         niche={client.niche}
         website={client.website}
-        brandColors={client.brand_colors}
+        primaryColor={branding?.primary_color}
       />
 
       <Tabs defaultValue="overview" className="w-full">
