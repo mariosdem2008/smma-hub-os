@@ -430,6 +430,44 @@ export type Database = {
           },
         ]
       }
+      client_portal_users: {
+        Row: {
+          client_id: string
+          created_at: string
+          email: string
+          id: string
+          name: string | null
+          role: string
+          user_id: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          email: string
+          id?: string
+          name?: string | null
+          role?: string
+          user_id: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string | null
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_portal_users_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_saved_captions: {
         Row: {
           caption: string
@@ -472,6 +510,9 @@ export type Database = {
           niche: string | null
           notes: string | null
           phone: string | null
+          portal_enabled: boolean
+          portal_share_token: string | null
+          portal_slug: string | null
           primary_font: string | null
           secondary_font: string | null
           status: string | null
@@ -491,6 +532,9 @@ export type Database = {
           niche?: string | null
           notes?: string | null
           phone?: string | null
+          portal_enabled?: boolean
+          portal_share_token?: string | null
+          portal_slug?: string | null
           primary_font?: string | null
           secondary_font?: string | null
           status?: string | null
@@ -510,6 +554,9 @@ export type Database = {
           niche?: string | null
           notes?: string | null
           phone?: string | null
+          portal_enabled?: boolean
+          portal_share_token?: string | null
+          portal_slug?: string | null
           primary_font?: string | null
           secondary_font?: string | null
           status?: string | null
@@ -909,6 +956,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_portal_slug: { Args: never; Returns: string }
+      generate_portal_token: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

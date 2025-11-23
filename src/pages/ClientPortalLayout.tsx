@@ -1,0 +1,150 @@
+import { useParams, Link, Outlet, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth";
+import { useClientPortalAccess } from "@/hooks/useClientPortalAccess";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import {
+  LayoutDashboard,
+  Palette,
+  Share2,
+  Lightbulb,
+  FolderOpen,
+  LogOut,
+} from "lucide-react";
+
+interface Client {
+  id: string;
+  name: string;
+  logo_url: string | null;
+  primary_font: string | null;
+}
+
+const navItems = [
+  { path: "", label: "Overview", icon: LayoutDashboard },
+  { path: "branding", label: "Branding", icon: Palette },
+  { path: "social", label: "Social Profiles", icon: Share2 },
+  { path: "ideas", label: "Ideas", icon: Lightbulb },
+  { path: "assets", label: "Assets", icon: FolderOpen },
+];
+
+export function ClientPortalLayout() {
+  const { portalSlug } = useParams();
+  const navigate = useNavigate();
+  const { user, signOut } = useAuth();
+  const { clientId, loading, hasAccess } = useClientPortalAccess(portalSlug);
+  const [client, setClient] = useState<Client | null>(null);
+
+  useEffect(() => {
+    if (!loading && !hasAccess) {
+      navigate(`/client-portal/${portalSlug}/login`);
+    }
+  }, [loading, hasAccess, navigate, portalSlug]);
+
+  useEffect(() => {
+    if (clientId) {
+      fetchClient();
+    }
+  }, [clientId]);
+
+  const fetchClient = async () => {
+    if (!clientId) return;
+
+    const { data } = await supabase
+      .from("clients")
+      .select("id, name, logo_url, primary_font")
+      .eq("id", clientId)
+      .single();
+
+    if (data) {
+      setClient(data);
+    }
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate(`/client-portal/${portalSlug}/login`);
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-pulse text-muted-foreground">Loading portal...</div>
+      </div>
+    );
+  }
+
+  if (!hasAccess || !clientId || !client) {
+    return null;
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Top Nav */}
+      <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container flex h-16 items-center justify-between px-6">
+          <div className="flex items-center gap-4">
+            {client.logo_url && (
+              <img
+                src={client.logo_url}
+                alt={client.name}
+                className="h-10 w-10 object-contain"
+              />
+            )}
+            <div>
+              <h1 className="text-xl font-semibold">{client.name}</h1>
+              <p className="text-xs text-muted-foreground">Client Portal</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-muted-foreground">
+              Powered by SMMAHUB
+            </span>
+            {user && (
+              <Button variant="ghost" size="sm" onClick={handleSignOut}>
+                <LogOut className="h-4 w-4 mr-2" />
+                Sign Out
+              </Button>
+            )}
+          </div>
+        </div>
+      </header>
+
+      <div className="container flex px-6 py-6">
+        {/* Sidebar */}
+        <aside className="w-64 shrink-0 pr-6">
+          <nav className="space-y-1">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive =
+                window.location.pathname ===
+                `/client-portal/${portalSlug}${item.path ? `/${item.path}` : ""}`;
+
+              return (
+                <Link
+                  key={item.path}
+                  to={`/client-portal/${portalSlug}${item.path ? `/${item.path}` : ""}`}
+                  className={cn(
+                    "flex items-center gap-3 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
+                    isActive
+                      ? "bg-accent text-accent-foreground"
+                      : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                  )}
+                >
+                  <Icon className="h-4 w-4" />
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+        </aside>
+
+        {/* Main Content */}
+        <main className="flex-1 min-w-0">
+          <Outlet context={{ client, clientId }} />
+        </main>
+      </div>
+    </div>
+  );
+}

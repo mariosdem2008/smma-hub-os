@@ -24,6 +24,13 @@ import Billing from "./pages/Billing";
 import BillingOverview from "./pages/BillingOverview";
 import InviteAccept from "./pages/InviteAccept";
 import NotFound from "./pages/NotFound";
+import { ClientPortalLayout } from "./pages/ClientPortalLayout";
+import { ClientPortalLogin } from "./pages/ClientPortalLogin";
+import { PortalOverview } from "./pages/client-portal/PortalOverview";
+import { PortalBranding } from "./pages/client-portal/PortalBranding";
+import { PortalSocial } from "./pages/client-portal/PortalSocial";
+import { PortalIdeas } from "./pages/client-portal/PortalIdeas";
+import { PortalAssets } from "./pages/client-portal/PortalAssets";
 
 const queryClient = new QueryClient();
 
@@ -45,6 +52,16 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/pricing" element={<Pricing />} />
             <Route path="/invite/:token" element={<InviteAccept />} />
+            
+            {/* Client Portal Routes */}
+            <Route path="/client-portal/:portalSlug/login" element={<ClientPortalLogin />} />
+            <Route path="/client-portal/:portalSlug" element={<ClientPortalLayout />}>
+              <Route index element={<PortalOverview />} />
+              <Route path="branding" element={<PortalBranding />} />
+              <Route path="social" element={<PortalSocial />} />
+              <Route path="ideas" element={<PortalIdeas />} />
+              <Route path="assets" element={<PortalAssets />} />
+            </Route>
             
             {/* Onboarding */}
             <Route
