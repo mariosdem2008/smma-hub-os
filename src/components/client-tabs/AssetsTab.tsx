@@ -67,11 +67,10 @@ interface Asset {
   status: string;
   visible_to_client: boolean;
   custom_category: string | null;
-  is_client_upload: boolean | null;
 }
 
 type FilterType = "all" | "images" | "videos" | "documents";
-type StatusFilter = "all" | "draft" | "ready" | "published" | "client_uploads";
+type StatusFilter = "all" | "draft" | "ready" | "published";
 
 export default function AssetsTab({ clientId }: AssetsTabProps) {
   const { toast } = useToast();
@@ -320,16 +319,7 @@ export default function AssetsTab({ clientId }: AssetsTabProps) {
     if (filter !== "all" && getFileCategory(asset.file_type) !== filter) return false;
     
     // Filter by status
-    if (statusFilter === "client_uploads") {
-      // Show only client uploads
-      if (!asset.is_client_upload) return false;
-    } else if (statusFilter !== "all") {
-      // Show specific status, but exclude client uploads
-      if (asset.status !== statusFilter || asset.is_client_upload) return false;
-    } else {
-      // "all" filter should exclude client uploads
-      if (asset.is_client_upload) return false;
-    }
+    if (statusFilter !== "all" && asset.status !== statusFilter) return false;
     
     // Filter by category
     if (categoryFilter && asset.custom_category !== categoryFilter) return false;
@@ -337,18 +327,11 @@ export default function AssetsTab({ clientId }: AssetsTabProps) {
     return true;
   });
 
-  const filterCounts = {
-    all: assets.filter(a => !a.is_client_upload).length,
-    images: assets.filter((a) => !a.is_client_upload && a.file_type?.startsWith("image/")).length,
-    videos: assets.filter((a) => !a.is_client_upload && a.file_type?.startsWith("video/")).length,
-    documents: assets.filter((a) => !a.is_client_upload && !a.file_type?.startsWith("image/") && !a.file_type?.startsWith("video/")).length,
-  };
-
   const statusCounts = {
-    all: assets.filter(a => !a.is_client_upload).length,
-    draft: assets.filter(a => !a.is_client_upload && a.status === 'draft').length,
-    ready: assets.filter(a => !a.is_client_upload && a.status === 'ready').length,
-    published: assets.filter(a => !a.is_client_upload && a.status === 'published').length,
+    all: assets.length,
+    draft: assets.filter(a => a.status === 'draft').length,
+    ready: assets.filter(a => a.status === 'ready').length,
+    published: assets.filter(a => a.status === 'published').length,
   };
 
   if (loading) {
@@ -416,10 +399,6 @@ export default function AssetsTab({ clientId }: AssetsTabProps) {
           <TabsTrigger value="published">
             <Rocket className="h-4 w-4 mr-2" />
             Published <Badge variant="secondary" className="ml-2">{statusCounts.published}</Badge>
-          </TabsTrigger>
-          <TabsTrigger value="client_uploads">
-            <Upload className="h-4 w-4 mr-2" />
-            Client Uploads <Badge variant="secondary" className="ml-2">{assets.filter(a => a.is_client_upload).length}</Badge>
           </TabsTrigger>
         </TabsList>
       </Tabs>
