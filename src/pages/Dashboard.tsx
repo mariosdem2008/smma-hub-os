@@ -449,7 +449,7 @@ export default function Dashboard() {
 
           {/* Upcoming Posts */}
           {!dismissedPostsSection && (
-            <Card>
+            <Card className="animate-fade-in">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
@@ -457,12 +457,12 @@ export default function Dashboard() {
                     <CardDescription>Next 10 scheduled posts across all clients</CardDescription>
                   </div>
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     size="icon"
-                    className="h-8 w-8 hover:bg-destructive hover:text-destructive-foreground"
+                    className="h-6 w-6 hover:bg-muted"
                     onClick={() => setDismissedPostsSection(true)}
                   >
-                    <X className="h-4 w-4" />
+                    <X className="h-3 w-3" />
                   </Button>
                 </div>
               </CardHeader>
@@ -501,12 +501,12 @@ export default function Dashboard() {
                         </TableCell>
                         <TableCell>
                           <Button
-                            variant="outline"
+                            variant="ghost"
                             size="icon"
-                            className="h-8 w-8 hover:bg-destructive hover:text-destructive-foreground"
+                            className="h-6 w-6 hover:bg-muted"
                             onClick={(e) => handleDismissPost(post.id, e)}
                           >
-                            <X className="h-4 w-4" />
+                            <X className="h-3 w-3" />
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -526,7 +526,7 @@ export default function Dashboard() {
 
           {/* Overdue Tasks */}
           {!dismissedTasksSection && (
-            <Card>
+            <Card className="animate-fade-in">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
@@ -534,12 +534,12 @@ export default function Dashboard() {
                     <CardDescription>Tasks that need immediate attention</CardDescription>
                   </div>
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     size="icon"
-                    className="h-8 w-8 hover:bg-destructive hover:text-destructive-foreground"
+                    className="h-6 w-6 hover:bg-muted"
                     onClick={() => setDismissedTasksSection(true)}
                   >
-                    <X className="h-4 w-4" />
+                    <X className="h-3 w-3" />
                   </Button>
                 </div>
               </CardHeader>
@@ -582,12 +582,12 @@ export default function Dashboard() {
                         </TableCell>
                         <TableCell>
                           <Button
-                            variant="outline"
+                            variant="ghost"
                             size="icon"
-                            className="h-8 w-8 hover:bg-destructive hover:text-destructive-foreground"
+                            className="h-6 w-6 hover:bg-muted"
                             onClick={(e) => handleDismissTask(task.id, e)}
                           >
-                            <X className="h-4 w-4" />
+                            <X className="h-3 w-3" />
                           </Button>
                         </TableCell>
                       </TableRow>

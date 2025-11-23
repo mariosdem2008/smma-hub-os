@@ -191,19 +191,91 @@ html {
   }
 
   /* ===== SMOOTH TRANSITIONS (PREMIUM) ===== */
-  * {
-    transition-property: all;
+  /* Only animate specific properties to avoid jank */
+  *,
+  *::before,
+  *::after {
+    transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-    transition-duration: 200ms;
+    transition-duration: 150ms;
   }
   
-  button, a, [role="button"], .hover-scale {
-    transition-duration: 200ms;
+  /* Faster transitions for interactive elements */
+  button, 
+  a, 
+  [role="button"],
+  input,
+  select,
+  textarea {
+    transition-duration: 150ms;
   }
   
-  /* Global hover scale effect */
+  /* GPU acceleration for better performance */
+  button,
+  a,
+  .hover-scale,
+  [data-radix-collection-item] {
+    will-change: transform;
+    transform: translateZ(0);
+  }
+  
+  /* Smooth hover scale with optimized transform */
   .hover-scale:hover {
-    transform: scale(1.01);
+    transform: scale(1.01) translateZ(0);
+  }
+  
+  /* Fade animations */
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  @keyframes fadeOut {
+    from {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+  }
+  
+  /* Slide animations */
+  @keyframes slideInRight {
+    from {
+      transform: translateX(100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+  
+  @keyframes slideOutRight {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(100%);
+    }
+  }
+  
+  /* Scale animations */
+  @keyframes scaleIn {
+    from {
+      transform: scale(0.95);
+      opacity: 0;
+    }
+    to {
+      transform: scale(1);
+      opacity: 1;
+    }
   }
 
   /* ===== SCROLLBAR STYLING ===== */
