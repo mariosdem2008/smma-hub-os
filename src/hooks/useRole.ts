@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 
-type UserRole = "owner" | "manager" | "creator" | "viewer" | null;
+type UserRole = "owner" | "admin" | "manager" | "creator" | "viewer" | null;
 
 export function useRole() {
   const { user } = useAuth();
@@ -52,18 +52,24 @@ export function useRole() {
     fetchRole();
   }, [user]);
 
-  const canManageTeam = role === "owner";
-  const canManageClients = role === "owner" || role === "manager";
-  const canDeleteClients = role === "owner" || role === "manager";
-  const canEditSettings = role === "owner" || role === "manager" || role === "creator";
-  const canCreateContent = role === "owner" || role === "manager" || role === "creator";
-  const canEditContent = role === "owner" || role === "manager" || role === "creator";
-  const canDeleteContent = role === "owner" || role === "manager";
+  const isOwner = role === "owner";
+  const isAdmin = role === "admin";
+  const isManager = role === "manager";
+  const canManageTeam = isOwner || isAdmin; // Admins can manage team
+  const canManageClients = isOwner || isAdmin || isManager;
+  const canDeleteClients = isOwner || isAdmin || isManager;
+  const canEditSettings = isOwner || isAdmin || isManager || role === "creator";
+  const canCreateContent = isOwner || isAdmin || isManager || role === "creator";
+  const canEditContent = isOwner || isAdmin || isManager || role === "creator";
+  const canDeleteContent = isOwner || isAdmin || isManager;
   const isViewer = role === "viewer";
 
   return {
     role,
     loading,
+    isOwner,
+    isAdmin,
+    isManager,
     canManageTeam,
     canManageClients,
     canDeleteClients,

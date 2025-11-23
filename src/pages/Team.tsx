@@ -59,11 +59,11 @@ interface PendingInvite {
   accepted: boolean;
 }
 
-const ROLES = ["manager", "creator", "viewer"];
+const ROLES = ["admin", "manager", "creator", "viewer"];
 
 export default function Team() {
   const { user } = useAuth();
-  const { canManageTeam, loading: roleLoading } = useRole();
+  const { canManageTeam, isOwner: userIsOwner, loading: roleLoading } = useRole();
   const { limits } = usePlanLimits();
   const { openUpgradeModal } = useUpgradeModal();
   const { toast } = useToast();
@@ -71,6 +71,7 @@ export default function Team() {
   const [submitting, setSubmitting] = useState(false);
   const [agencyId, setAgencyId] = useState<string>("");
   const [isOwner, setIsOwner] = useState(false);
+  const [currentUserPlan, setCurrentUserPlan] = useState<string>("");
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -94,7 +95,7 @@ export default function Team() {
       // Get agency
       const { data: agency, error: agencyError } = await supabase
         .from("agencies")
-        .select("id")
+        .select("id, user_id")
         .eq("user_id", user.id)
         .single();
 
@@ -102,6 +103,15 @@ export default function Team() {
 
       setAgencyId(agency.id);
       setIsOwner(true); // User who owns the agency is the owner
+      
+      // Get owner's subscription plan
+      const { data: subscription } = await supabase
+        .from("subscriptions")
+        .select("plan_type")
+        .eq("user_id", agency.user_id)
+        .single();
+      
+      setCurrentUserPlan(subscription?.plan_type || 'free');
 
       // Fetch team members
       const { data: members, error: membersError } = await supabase
@@ -261,13 +271,36 @@ export default function Team() {
   };
 
   const handleRoleChange = async (memberId: string, newRole: string) => {
+    // Check if trying to promote to admin and user doesn't have Agency Plus
+    if (newRole === 'admin' && currentUserPlan !== 'agency_plus') {
+      toast({
+        title: "Upgrade Required",
+        description: "Multi-admin feature requires Agency Plus plan",
+        variant: "destructive",
+      });
+      openUpgradeModal({ feature: 'Multi-admin', suggestedPlan: 'agency_plus' });
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from("agency_members")
         .update({ role: newRole })
         .eq("id", memberId);
 
-      if (error) throw error;
+      if (error) {
+        // Check if it's the multi-admin limit error
+        if (error.message.includes('Multi-admin feature requires Agency Plus plan')) {
+          toast({
+            title: "Upgrade Required",
+            description: "Multi-admin feature requires Agency Plus plan",
+            variant: "destructive",
+          });
+          openUpgradeModal({ feature: 'Multi-admin', suggestedPlan: 'agency_plus' });
+          return;
+        }
+        throw error;
+      }
 
       toast({
         title: "Success",
@@ -278,7 +311,7 @@ export default function Team() {
     } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to update role",
+        description: error.message || "Failed to update role",
         variant: "destructive",
       });
     }
@@ -313,6 +346,8 @@ export default function Team() {
     switch (role) {
       case "owner":
         return "default";
+      case "admin":
+        return "default"; // Same as owner
       case "manager":
         return "secondary";
       case "creator":
@@ -346,6 +381,24 @@ export default function Team() {
         <h1 className="text-3xl font-bold">Team Management</h1>
         <p className="text-muted-foreground">Manage your agency team members and invitations</p>
       </div>
+
+      {/* Multi-Admin Feature Info for Agency Plus */}
+      {currentUserPlan === 'agency_plus' && (
+        <Card className="border-primary bg-primary/5">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-4">
+              <Users className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
+              <div>
+                <h3 className="font-semibold text-lg mb-1">Multi-Admin Enabled</h3>
+                <p className="text-sm text-muted-foreground">
+                  Your Agency Plus plan allows you to promote team members to Admin role. 
+                  Admins have full management permissions including inviting members, managing roles, and editing agency settings.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Upgrade Prompt - Team Member Limit Reached */}
       {isAtLimit && (
@@ -424,6 +477,9 @@ export default function Team() {
                                   {ROLES.map((role) => (
                                     <SelectItem key={role} value={role}>
                                       {role.charAt(0).toUpperCase() + role.slice(1)}
+                                      {role === 'admin' && currentUserPlan !== 'agency_plus' && (
+                                        <span className="text-xs text-muted-foreground ml-1">(Agency Plus)</span>
+                                      )}
                                     </SelectItem>
                                   ))}
                                 </SelectContent>
@@ -436,6 +492,11 @@ export default function Team() {
                                 <Trash2 className="h-4 w-4 text-destructive" />
                               </Button>
                             </>
+                          )}
+                          {member.role === "admin" && (
+                            <Badge variant="secondary" className="ml-2">
+                              Agency Plus Feature
+                            </Badge>
                           )}
                         </div>
                       </TableCell>
@@ -540,12 +601,24 @@ export default function Team() {
                   </SelectTrigger>
                   <SelectContent>
                     {ROLES.map((role) => (
-                      <SelectItem key={role} value={role}>
+                      <SelectItem 
+                        key={role} 
+                        value={role}
+                        disabled={role === 'admin' && currentUserPlan !== 'agency_plus'}
+                      >
                         {role.charAt(0).toUpperCase() + role.slice(1)}
+                        {role === 'admin' && currentUserPlan !== 'agency_plus' && (
+                          <span className="text-xs text-muted-foreground ml-1">(Agency Plus)</span>
+                        )}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {inviteRole === 'admin' && currentUserPlan === 'agency_plus' && (
+                  <p className="text-xs text-muted-foreground">
+                    Admins have full management permissions like owners
+                  </p>
+                )}
               </div>
             </div>
 

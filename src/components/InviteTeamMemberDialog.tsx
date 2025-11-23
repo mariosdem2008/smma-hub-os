@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useUpgradeModal } from "@/contexts/UpgradeModalContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,7 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { Copy, UserPlus } from "lucide-react";
 
-const ROLES = ["manager", "creator", "viewer"];
+const ROLES = ["admin", "manager", "creator", "viewer"];
 
 interface InviteTeamMemberDialogProps {
   open: boolean;
@@ -32,11 +33,31 @@ interface InviteTeamMemberDialogProps {
 export function InviteTeamMemberDialog({ open, onOpenChange }: InviteTeamMemberDialogProps) {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { openUpgradeModal } = useUpgradeModal();
   const [submitting, setSubmitting] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("manager");
   const [inviteLink, setInviteLink] = useState("");
   const [showInviteLink, setShowInviteLink] = useState(false);
+  const [currentUserPlan, setCurrentUserPlan] = useState<string>("");
+
+  useEffect(() => {
+    async function fetchPlan() {
+      if (!user) return;
+      
+      const { data: subscription } = await supabase
+        .from("subscriptions")
+        .select("plan_type")
+        .eq("user_id", user.id)
+        .single();
+      
+      setCurrentUserPlan(subscription?.plan_type || 'free');
+    }
+    
+    if (open) {
+      fetchPlan();
+    }
+  }, [user, open]);
 
   const handleInvite = async () => {
     if (!inviteEmail || !user) {
@@ -45,6 +66,17 @@ export function InviteTeamMemberDialog({ open, onOpenChange }: InviteTeamMemberD
         description: "Please enter an email address",
         variant: "destructive",
       });
+      return;
+    }
+
+    // Check if trying to invite as admin without Agency Plus
+    if (inviteRole === 'admin' && currentUserPlan !== 'agency_plus') {
+      toast({
+        title: "Upgrade Required",
+        description: "Multi-admin feature requires Agency Plus plan",
+        variant: "destructive",
+      });
+      openUpgradeModal({ feature: 'Multi-admin', suggestedPlan: 'agency_plus' });
       return;
     }
 
@@ -158,12 +190,24 @@ export function InviteTeamMemberDialog({ open, onOpenChange }: InviteTeamMemberD
                 </SelectTrigger>
                 <SelectContent>
                   {ROLES.map((role) => (
-                    <SelectItem key={role} value={role}>
+                    <SelectItem 
+                      key={role} 
+                      value={role}
+                      disabled={role === 'admin' && currentUserPlan !== 'agency_plus'}
+                    >
                       {role.charAt(0).toUpperCase() + role.slice(1)}
+                      {role === 'admin' && currentUserPlan !== 'agency_plus' && (
+                        <span className="text-xs text-muted-foreground ml-1">(Agency Plus)</span>
+                      )}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {inviteRole === 'admin' && currentUserPlan === 'agency_plus' && (
+                <p className="text-xs text-muted-foreground">
+                  Admins have full management permissions like owners
+                </p>
+              )}
             </div>
           </div>
 

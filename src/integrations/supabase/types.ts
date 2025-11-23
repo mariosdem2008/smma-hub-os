@@ -916,6 +916,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_agency_admin: {
+        Args: { _agency_id: string; _user_id: string }
+        Returns: boolean
+      }
       is_agency_owner: {
         Args: { _agency_id: string; _user_id: string }
         Returns: boolean
