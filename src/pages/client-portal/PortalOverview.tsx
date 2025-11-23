@@ -1,7 +1,18 @@
+import { useEffect, useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { Card } from "@/components/ui/card";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ExternalLink } from "lucide-react";
+import { 
+  Palette, 
+  Globe, 
+  MessageSquare, 
+  CalendarDays,
+  CheckCircle2,
+  Lightbulb,
+  FileText,
+  FolderOpen
+} from "lucide-react";
 
 interface Client {
   id: string;
@@ -21,160 +32,268 @@ interface OutletContext {
   clientId: string;
 }
 
+interface Stats {
+  totalPosts: number;
+  totalIdeas: number;
+  totalAssets: number;
+}
+
 export function PortalOverview() {
-  const { client } = useOutletContext<OutletContext>();
-  const brandColors = Array.isArray(client.brand_colors) ? client.brand_colors : [];
+  const { client, clientId } = useOutletContext<OutletContext>();
+  const [stats, setStats] = useState<Stats>({
+    totalPosts: 0,
+    totalIdeas: 0,
+    totalAssets: 0,
+  });
+  const [brandColors, setBrandColors] = useState<string[]>([]);
+  const brandColorsFallback = Array.isArray(client.brand_colors) ? client.brand_colors : [];
+
+  useEffect(() => {
+    fetchStats();
+    fetchBrandColors();
+  }, [clientId]);
+
+  const fetchBrandColors = async () => {
+    const { data } = await supabase
+      .from("client_branding")
+      .select("primary_color, secondary_color, accent_color, brand_palette")
+      .eq("client_id", clientId)
+      .maybeSingle();
+    
+    if (data) {
+      const colors = [];
+      if (data.primary_color) colors.push(data.primary_color);
+      if (data.secondary_color) colors.push(data.secondary_color);
+      if (data.accent_color) colors.push(data.accent_color);
+      if (data.brand_palette) colors.push(...data.brand_palette);
+      setBrandColors(colors);
+    }
+  };
+
+  const fetchStats = async () => {
+    // Fetch total posts
+    const { count: postsCount } = await supabase
+      .from("posts")
+      .select("*", { count: "exact", head: true })
+      .eq("client_id", clientId);
+
+    // Fetch total ideas
+    const { count: ideasCount } = await supabase
+      .from("client_ideas")
+      .select("*", { count: "exact", head: true })
+      .eq("client_id", clientId);
+
+    // Fetch total assets
+    const { count: assetsCount } = await supabase
+      .from("assets")
+      .select("*", { count: "exact", head: true })
+      .eq("client_id", clientId);
+
+    setStats({
+      totalPosts: postsCount || 0,
+      totalIdeas: ideasCount || 0,
+      totalAssets: assetsCount || 0,
+    });
+  };
+
+  const displayColors = brandColors.length > 0 ? brandColors : brandColorsFallback;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold mb-2">Welcome to Your Brand Hub</h1>
-        <p className="text-muted-foreground">
-          This is your centralized space to view brand details, add ideas, and manage assets.
-        </p>
+    <div className="grid gap-6 md:grid-cols-2">
+      {/* Left Column */}
+      <div className="space-y-6">
+        {/* Brand Information Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Brand Information</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {client.website && (
+              <div className="flex items-start gap-3">
+                <Globe className="h-5 w-5 text-muted-foreground mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium">Website</p>
+                  <a
+                    href={client.website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-primary hover:underline"
+                  >
+                    {client.website}
+                  </a>
+                </div>
+              </div>
+            )}
+
+            {client.niche && (
+              <div className="flex items-start gap-3">
+                <FileText className="h-5 w-5 text-muted-foreground mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium">Niche</p>
+                  <p className="text-sm text-muted-foreground">{client.niche}</p>
+                </div>
+              </div>
+            )}
+
+            {client.tone_of_voice && (
+              <div className="flex items-start gap-3">
+                <MessageSquare className="h-5 w-5 text-muted-foreground mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium">Tone of Voice</p>
+                  <p className="text-sm text-muted-foreground">{client.tone_of_voice}</p>
+                </div>
+              </div>
+            )}
+
+            {client.primary_font && (
+              <div className="flex items-start gap-3">
+                <FileText className="h-5 w-5 text-muted-foreground mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium mb-2">Primary Font</p>
+                  <p 
+                    className="text-lg" 
+                    style={{ fontFamily: client.primary_font }}
+                  >
+                    {client.primary_font}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {client.secondary_font && (
+              <div className="flex items-start gap-3">
+                <FileText className="h-5 w-5 text-muted-foreground mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium mb-2">Secondary Font</p>
+                  <p 
+                    className="text-lg" 
+                    style={{ fontFamily: client.secondary_font }}
+                  >
+                    {client.secondary_font}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {displayColors && displayColors.length > 0 && (
+              <div className="flex items-start gap-3">
+                <Palette className="h-5 w-5 text-muted-foreground mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium mb-2">Brand Colors</p>
+                  <div className="flex flex-wrap gap-2">
+                    {displayColors.map((color, index) => (
+                      <div key={index} className="flex items-center gap-2 rounded-md border px-3 py-1.5">
+                        <div
+                          className="h-4 w-4 rounded"
+                          style={{ backgroundColor: color }}
+                        />
+                        <span className="text-xs font-mono">{color}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Notes Card */}
+        {client.notes && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Notes</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-sm text-muted-foreground whitespace-pre-wrap">
+                {client.notes}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
-      {/* Brand Overview Card */}
-      <Card className="p-6">
-        <h2 className="text-xl font-semibold mb-4">Brand Overview</h2>
-        <div className="space-y-6">
-          {/* Logo */}
-          {client.logo_url && (
-            <div>
-              <p className="text-sm font-medium mb-2">Logo</p>
-              <img
-                src={client.logo_url}
-                alt={client.name}
-                className="h-20 w-auto object-contain bg-muted p-4 rounded-lg"
-              />
-            </div>
-          )}
-
-          {/* Niche */}
-          {client.niche && (
-            <div>
-              <p className="text-sm font-medium mb-2">Industry / Niche</p>
-              <Badge variant="outline">{client.niche}</Badge>
-            </div>
-          )}
-
-          {/* Brand Colors */}
-          {brandColors.length > 0 && (
-            <div>
-              <p className="text-sm font-medium mb-3">Brand Colors</p>
-              <div className="flex flex-wrap gap-3">
-                {brandColors.map((color: string, index: number) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <div
-                      className="w-12 h-12 rounded-lg border shadow-sm"
-                      style={{ backgroundColor: color }}
-                    />
-                    <span className="text-xs text-muted-foreground font-mono">
-                      {color}
-                    </span>
-                  </div>
-                ))}
+      {/* Right Column */}
+      <div className="space-y-6">
+        {/* Key Stats Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Your Content</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between rounded-lg border p-4">
+              <div className="flex items-center gap-3">
+                <div className="rounded-full bg-primary/10 p-2">
+                  <CalendarDays className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Scheduled Posts</p>
+                  <p className="text-2xl font-bold">{stats.totalPosts}</p>
+                </div>
               </div>
             </div>
-          )}
 
-          {/* Fonts */}
-          {(client.primary_font || client.secondary_font) && (
-            <div>
-              <p className="text-sm font-medium mb-3">Typography</p>
-              <div className="space-y-2">
-                {client.primary_font && (
-                  <div>
-                    <Badge variant="outline" className="mb-1">
-                      Primary Font
-                    </Badge>
-                    <p className="text-lg" style={{ fontFamily: client.primary_font }}>
-                      {client.primary_font}
-                    </p>
-                  </div>
-                )}
-                {client.secondary_font && (
-                  <div>
-                    <Badge variant="outline" className="mb-1">
-                      Secondary Font
-                    </Badge>
-                    <p className="text-lg" style={{ fontFamily: client.secondary_font }}>
-                      {client.secondary_font}
-                    </p>
-                  </div>
-                )}
+            <div className="flex items-center justify-between rounded-lg border p-4">
+              <div className="flex items-center gap-3">
+                <div className="rounded-full bg-yellow-500/10 p-2">
+                  <Lightbulb className="h-5 w-5 text-yellow-500" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Ideas</p>
+                  <p className="text-2xl font-bold">{stats.totalIdeas}</p>
+                </div>
               </div>
             </div>
-          )}
 
-          {/* Tone of Voice */}
-          {client.tone_of_voice && (
-            <div>
-              <p className="text-sm font-medium mb-2">Tone of Voice</p>
-              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                {client.tone_of_voice}
-              </p>
+            <div className="flex items-center justify-between rounded-lg border p-4">
+              <div className="flex items-center gap-3">
+                <div className="rounded-full bg-blue-500/10 p-2">
+                  <FolderOpen className="h-5 w-5 text-blue-500" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Assets</p>
+                  <p className="text-2xl font-bold">{stats.totalAssets}</p>
+                </div>
+              </div>
             </div>
-          )}
+          </CardContent>
+        </Card>
 
-          {/* Website */}
-          {client.website && (
-            <div>
-              <p className="text-sm font-medium mb-2">Website</p>
-              <a
-                href={client.website}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary hover:underline inline-flex items-center gap-1"
-              >
-                {client.website}
-                <ExternalLink className="h-3 w-3" />
-              </a>
+        {/* Quick Actions Info Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Portal Features</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-start gap-3 rounded-lg border p-3">
+              <Lightbulb className="h-5 w-5 text-primary mt-0.5" />
+              <div>
+                <p className="text-sm font-medium">Share Ideas</p>
+                <p className="text-xs text-muted-foreground">
+                  Submit content ideas for your campaigns
+                </p>
+              </div>
             </div>
-          )}
-
-          {/* Notes */}
-          {client.notes && (
-            <div>
-              <p className="text-sm font-medium mb-2">Notes</p>
-              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                {client.notes}
-              </p>
+            <div className="flex items-start gap-3 rounded-lg border p-3">
+              <FolderOpen className="h-5 w-5 text-primary mt-0.5" />
+              <div>
+                <p className="text-sm font-medium">Upload & Download</p>
+                <p className="text-xs text-muted-foreground">
+                  Manage all your brand assets
+                </p>
+              </div>
             </div>
-          )}
-        </div>
-      </Card>
-
-      {/* Quick Actions Card */}
-      <Card className="p-6 bg-accent/50">
-        <h2 className="text-xl font-semibold mb-4">What You Can Do</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <h3 className="font-medium">✨ Add Ideas</h3>
-            <p className="text-sm text-muted-foreground">
-              Share your content ideas and inspiration with your agency team.
-            </p>
-          </div>
-          <div className="space-y-2">
-            <h3 className="font-medium">📁 Upload Assets</h3>
-            <p className="text-sm text-muted-foreground">
-              Upload images, videos, and documents for your campaigns.
-            </p>
-          </div>
-          <div className="space-y-2">
-            <h3 className="font-medium">📥 Download Files</h3>
-            <p className="text-sm text-muted-foreground">
-              Access and download all your brand assets anytime.
-            </p>
-          </div>
-          <div className="space-y-2">
-            <h3 className="font-medium">👀 View Progress</h3>
-            <p className="text-sm text-muted-foreground">
-              See your ideas and content as they move through production.
-            </p>
-          </div>
-        </div>
-      </Card>
+            <div className="flex items-start gap-3 rounded-lg border p-3">
+              <CheckCircle2 className="h-5 w-5 text-primary mt-0.5" />
+              <div>
+                <p className="text-sm font-medium">Track Progress</p>
+                <p className="text-xs text-muted-foreground">
+                  Monitor your content status
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
