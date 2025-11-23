@@ -9,7 +9,6 @@ import { useToast } from "@/hooks/use-toast";
 import ClientHeader from "@/components/ClientHeader";
 import SocialProfilesTab from "@/components/SocialProfilesTab";
 import OverviewTab from "@/components/client-tabs/OverviewTab";
-import NotesTab from "@/components/client-tabs/NotesTab";
 import TasksTab from "@/components/client-tabs/TasksTab";
 import ContentCalendarTab from "@/components/client-tabs/ContentCalendarTab";
 
@@ -121,11 +120,14 @@ export default function ClientDetail() {
           <TabsTrigger value="social">Social Profiles</TabsTrigger>
           <TabsTrigger value="calendar">Content Calendar</TabsTrigger>
           <TabsTrigger value="tasks">Tasks</TabsTrigger>
-          <TabsTrigger value="notes">Notes</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
-          <OverviewTab client={client} />
+          <OverviewTab 
+            clientId={clientId!} 
+            client={client} 
+            onNotesUpdate={handleNotesUpdate}
+          />
         </TabsContent>
 
         <TabsContent value="social" className="space-y-4">
@@ -138,14 +140,6 @@ export default function ClientDetail() {
 
         <TabsContent value="tasks" className="space-y-4">
           <TasksTab />
-        </TabsContent>
-
-        <TabsContent value="notes" className="space-y-4">
-          <NotesTab
-            clientId={clientId!}
-            initialNotes={client.notes}
-            onUpdate={handleNotesUpdate}
-          />
         </TabsContent>
       </Tabs>
     </div>
