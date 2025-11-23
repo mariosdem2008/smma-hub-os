@@ -16,25 +16,34 @@ export type Database = {
     Tables: {
       agencies: {
         Row: {
+          brand_color: string | null
           created_at: string
           id: string
           name: string
+          niche: string | null
           updated_at: string
           user_id: string
+          website: string | null
         }
         Insert: {
+          brand_color?: string | null
           created_at?: string
           id?: string
           name: string
+          niche?: string | null
           updated_at?: string
           user_id: string
+          website?: string | null
         }
         Update: {
+          brand_color?: string | null
           created_at?: string
           id?: string
           name?: string
+          niche?: string | null
           updated_at?: string
           user_id?: string
+          website?: string | null
         }
         Relationships: []
       }
