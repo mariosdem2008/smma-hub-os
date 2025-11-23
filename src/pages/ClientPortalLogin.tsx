@@ -81,61 +81,74 @@ export function ClientPortalLogin() {
 
     try {
       const normalizedEmail = email.toLowerCase().trim();
-      
+
+      // 1) Sign in
       const { data, error } = await supabase.auth.signInWithPassword({
         email: normalizedEmail,
         password,
       });
-
       if (error) throw error;
+      if (!data.user) throw new Error("Login failed");
 
-      if (!data.user) {
-        throw new Error("Login failed");
-      }
-
-      // Verify user has portal access
-      const { data: client } = await supabase
+      // 2) Resolve portal client
+      const { data: client, error: clientError } = await supabase
         .from("clients")
-        .select("id")
+        .select("id, portal_enabled")
         .eq("portal_slug", portalSlug)
         .single();
 
-      if (!client) {
-        throw new Error("Portal not found");
-      }
+      if (clientError || !client) throw new Error("Portal not found");
+      if (!client.portal_enabled) throw new Error("This portal is not enabled");
 
-      const { data: portalAccess } = await supabase
+      console.log("Portal login debug", {
+        portalSlug,
+        clientId: client.id,
+        normalizedEmail,
+        userId: data.user.id,
+      });
+
+      // 3) Check or create linkage in client_portal_users
+      const { data: portalUser, error: portalError } = await supabase
         .from("client_portal_users")
-        .select("id")
+        .select("id, user_id, email")
         .eq("client_id", client.id)
-        .eq("user_id", data.user.id)
+        .or(`email.eq.${normalizedEmail},email.eq.${email}`)
         .maybeSingle();
 
-      if (!portalAccess) {
-        // Try to link if email matches an invitation
+      if (portalError) {
+        console.error("Error fetching portal user:", portalError);
+        throw new Error("Failed to verify portal access");
+      }
+
+      console.log("Portal user found:", portalUser);
+
+      if (!portalUser) {
+        // No invite row for this email
+        await supabase.auth.signOut();
+        throw new Error("You must be invited by your agency to access this portal. Please contact them for an invitation.");
+      }
+
+      // 4) If invite exists but user_id is null, link it now
+      if (!portalUser.user_id) {
         const { error: linkError } = await supabase
           .from("client_portal_users")
           .update({ user_id: data.user.id })
-          .eq("client_id", client.id)
-          .eq("email", normalizedEmail)
+          .eq("id", portalUser.id)
           .is("user_id", null);
 
         if (linkError) {
+          console.error("Error linking user to portal:", linkError);
           await supabase.auth.signOut();
           throw new Error("You don't have access to this portal");
         }
+        console.log("User linked to portal successfully");
       }
 
-      toast({
-        title: "Welcome back!",
-        description: "Logging you in...",
-      });
+      toast({ title: "Welcome back!", description: "Logging you in..." });
 
-      // Wait for database propagation then redirect
       setTimeout(() => {
         navigate(`/client-portal/${portalSlug}`);
       }, 500);
-
     } catch (error: any) {
       console.error("Login error:", error);
       toast({
@@ -152,8 +165,8 @@ export function ClientPortalLogin() {
 
     if (password !== confirmPassword) {
       toast({
-        title: "Error",
-        description: "Passwords do not match.",
+        title: "Passwords don't match",
+        description: "Please make sure your passwords match",
         variant: "destructive",
       });
       return;
@@ -161,8 +174,8 @@ export function ClientPortalLogin() {
 
     if (password.length < 6) {
       toast({
-        title: "Error",
-        description: "Password must be at least 6 characters.",
+        title: "Password too short",
+        description: "Password must be at least 6 characters long",
         variant: "destructive",
       });
       return;
@@ -171,22 +184,22 @@ export function ClientPortalLogin() {
     setLoading(true);
 
     try {
-      // First verify user is invited to this portal
-      const { data: client } = await supabase
+      const normalizedEmail = email.toLowerCase().trim();
+
+      // 1) Resolve portal client
+      const { data: client, error: clientError } = await supabase
         .from("clients")
-        .select("id")
+        .select("id, portal_enabled")
         .eq("portal_slug", portalSlug)
         .single();
 
-      if (!client) {
-        throw new Error("Portal not found");
-      }
+      if (clientError || !client) throw new Error("Portal not found");
+      if (!client.portal_enabled) throw new Error("This portal is not enabled");
 
-      // Check invitation with normalized email
-      const normalizedEmail = email.toLowerCase().trim();
+      // 2) Check invitation for this email
       const { data: invitation, error: inviteError } = await supabase
         .from("client_portal_users")
-        .select("id, email")
+        .select("id, email, user_id")
         .eq("client_id", client.id)
         .eq("email", normalizedEmail)
         .maybeSingle();
@@ -195,6 +208,13 @@ export function ClientPortalLogin() {
         console.error("Error checking invitation:", inviteError);
         throw new Error("Failed to verify invitation");
       }
+
+      console.log("Portal signup debug", {
+        portalSlug,
+        clientId: client.id,
+        normalizedEmail,
+        invitation,
+      });
 
       if (!invitation) {
         toast({
@@ -206,33 +226,29 @@ export function ClientPortalLogin() {
         return;
       }
 
-      // Create auth account
+      // 3) Create auth account
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email: normalizedEmail,
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/client-portal/${portalSlug}`,
-          data: {
-            full_name: fullName,
-          },
+          data: { full_name: fullName },
         },
       });
 
       if (signUpError) throw signUpError;
+      if (!authData.user) throw new Error("Failed to create account");
 
-      if (!authData.user) {
-        throw new Error("Failed to create account");
-      }
+      console.log("Auth account created:", authData.user.id);
 
-      // Link the new user account to the portal invitation
+      // 4) Link new user to invitation
       const { error: linkError } = await supabase
         .from("client_portal_users")
-        .update({ 
+        .update({
           user_id: authData.user.id,
-          name: fullName 
+          name: fullName,
         })
-        .eq("client_id", client.id)
-        .eq("email", normalizedEmail)
+        .eq("id", invitation.id)
         .is("user_id", null);
 
       if (linkError) {
@@ -240,16 +256,16 @@ export function ClientPortalLogin() {
         throw new Error("Failed to link account to portal");
       }
 
+      console.log("User linked to portal successfully");
+
       toast({
         title: "Welcome!",
         description: "Your account has been created successfully.",
       });
 
-      // Wait for database propagation then redirect
       setTimeout(() => {
         navigate(`/client-portal/${portalSlug}`);
       }, 1000);
-
     } catch (error: any) {
       console.error("Signup error:", error);
       toast({
