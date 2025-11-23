@@ -717,10 +717,11 @@ export default function Dashboard() {
           {clients.map((client) => (
             <Card 
               key={client.id} 
-              className="overflow-hidden hover:border-primary/50 transition-colors"
+              className="overflow-hidden hover:border-primary/50 transition-colors cursor-pointer"
+              onClick={() => navigate(`/clients/${client.id}`)}
             >
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
+              <CardHeader>
+                <div className="flex items-center gap-3">
                   {client.logo_url ? (
                     <img
                       src={client.logo_url}
@@ -732,42 +733,12 @@ export default function Dashboard() {
                       {client.name.charAt(0)}
                     </div>
                   )}
+                  <div className="flex-1 min-w-0">
+                    <CardTitle className="truncate">{client.name}</CardTitle>
+                    {client.company && <CardDescription className="truncate">{client.company}</CardDescription>}
+                  </div>
                 </div>
-                <CardTitle className="mt-3">{client.name}</CardTitle>
-                {client.company && <CardDescription>{client.company}</CardDescription>}
               </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex gap-2">
-                  {client.instagram_url && (
-                    <Button size="icon" variant="outline" asChild>
-                      <a href={client.instagram_url} target="_blank" rel="noopener noreferrer">
-                        <Instagram className="h-4 w-4" />
-                      </a>
-                    </Button>
-                  )}
-                  {client.facebook_url && (
-                    <Button size="icon" variant="outline" asChild>
-                      <a href={client.facebook_url} target="_blank" rel="noopener noreferrer">
-                        <Facebook className="h-4 w-4" />
-                      </a>
-                    </Button>
-                  )}
-                  {client.website && (
-                    <Button size="icon" variant="outline" asChild>
-                      <a href={client.website} target="_blank" rel="noopener noreferrer">
-                        <ExternalLink className="h-4 w-4" />
-                      </a>
-                    </Button>
-                  )}
-                </div>
-                <div className="flex gap-4 text-sm text-muted-foreground">
-                  <span>{client.assets?.[0]?.count || 0} Assets</span>
-                  <span>{client.ideas?.[0]?.count || 0} Ideas</span>
-                </div>
-                <Button className="w-full" onClick={() => navigate(`/clients/${client.id}`)}>
-                  View Workspace
-                </Button>
-              </CardContent>
             </Card>
           ))}
         </div>
