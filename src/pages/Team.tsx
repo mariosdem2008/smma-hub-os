@@ -6,6 +6,7 @@ import { useUpgradeModal } from "@/contexts/UpgradeModalContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { PlanGuard } from "@/components/PlanGuard";
+import { sendTeamInviteEmail } from "@/lib/invitations";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -70,6 +71,7 @@ export default function Team() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [agencyId, setAgencyId] = useState<string>("");
+  const [agencyName, setAgencyName] = useState<string>("");
   const [isOwner, setIsOwner] = useState(false);
   const [currentUserPlan, setCurrentUserPlan] = useState<string>("");
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
@@ -95,13 +97,14 @@ export default function Team() {
       // Get agency
       const { data: agency, error: agencyError } = await supabase
         .from("agencies")
-        .select("id, user_id")
+        .select("id, user_id, name")
         .eq("user_id", user.id)
         .single();
 
       if (agencyError) throw agencyError;
 
       setAgencyId(agency.id);
+      setAgencyName(agency.name);
       setIsOwner(true); // User who owns the agency is the owner
       
       // Get owner's subscription plan
@@ -203,10 +206,33 @@ export default function Team() {
       setInviteLink(link);
       setShowInviteLink(true);
 
-      toast({
-        title: "Success",
-        description: "Invitation created successfully",
+      // Get user's profile for name
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", user?.id)
+        .single();
+
+      // Send email invitation
+      const emailResult = await sendTeamInviteEmail({
+        email: inviteEmail,
+        inviteToken: invite.token,
+        agencyName: agencyName,
+        role: inviteRole,
+        inviterName: profile?.full_name || user?.email || "Your Team",
       });
+
+      if (emailResult.success) {
+        toast({
+          title: "Success",
+          description: "Invitation created and email sent successfully",
+        });
+      } else {
+        toast({
+          title: "Invitation Created",
+          description: "Invitation link created, but email could not be sent. Please share the link manually.",
+        });
+      }
 
       setInviteEmail("");
       setInviteRole("member");
