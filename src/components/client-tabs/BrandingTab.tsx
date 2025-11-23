@@ -31,9 +31,9 @@ export default function BrandingTab({ clientId, clientName = "Client Name" }: Br
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [branding, setBranding] = useState<ClientBranding>({
-    primary_color: "#3B82F6",
-    secondary_color: "#10B981",
-    accent_color: "#F59E0B",
+    primary_color: "#06B6D4",
+    secondary_color: "#0891B2",
+    accent_color: "#10B981",
     brand_palette: [],
     brand_voice: "",
     brand_tone: "",
@@ -57,14 +57,36 @@ export default function BrandingTab({ clientId, clientName = "Client Name" }: Br
     } else if (data) {
       setBranding({
         id: data.id,
-        primary_color: data.primary_color || "#3B82F6",
-        secondary_color: data.secondary_color || "#10B981",
-        accent_color: data.accent_color || "#F59E0B",
+        primary_color: data.primary_color || "#06B6D4",
+        secondary_color: data.secondary_color || "#0891B2",
+        accent_color: data.accent_color || "#10B981",
         brand_palette: data.brand_palette || [],
         brand_voice: data.brand_voice || "",
         brand_tone: data.brand_tone || "",
         brand_guidelines: data.brand_guidelines || "",
       });
+    } else {
+      // Auto-save SMMAHUB defaults if no branding exists
+      const defaultBranding = {
+        client_id: clientId,
+        primary_color: "#06B6D4",
+        secondary_color: "#0891B2",
+        accent_color: "#10B981",
+        brand_palette: [],
+        brand_voice: "",
+        brand_tone: "",
+        brand_guidelines: "",
+      };
+      
+      const { data: newData } = await supabase
+        .from("client_branding")
+        .insert(defaultBranding)
+        .select()
+        .single();
+      
+      if (newData) {
+        setBranding({ ...defaultBranding, id: newData.id });
+      }
     }
     setLoading(false);
   };
@@ -174,7 +196,7 @@ export default function BrandingTab({ clientId, clientName = "Client Name" }: Br
         <CardContent className="p-0">
           {/* Banner Preview */}
           <div 
-            className="relative h-48 flex items-center justify-center overflow-hidden"
+            className="relative h-24 flex items-center justify-center overflow-hidden"
             style={{
               background: `linear-gradient(135deg, ${branding.primary_color} 0%, ${branding.secondary_color} 100%)`
             }}
@@ -188,25 +210,16 @@ export default function BrandingTab({ clientId, clientName = "Client Name" }: Br
             />
             
             {/* Content */}
-            <div className="relative z-10 text-center space-y-2 px-4">
+            <div className="relative z-10 text-center px-4">
               <h2 
-                className="text-4xl font-bold drop-shadow-lg"
+                className="text-2xl font-bold drop-shadow-lg"
                 style={{
-                  color: branding.accent_color,
+                  color: '#FFFFFF',
                   textShadow: '2px 2px 4px rgba(0,0,0,0.3)'
                 }}
               >
                 {clientName}
               </h2>
-              <p 
-                className="text-lg drop-shadow-md"
-                style={{
-                  color: '#FFFFFF',
-                  textShadow: '1px 1px 2px rgba(0,0,0,0.5)'
-                }}
-              >
-                Your Brand Identity
-              </p>
             </div>
           </div>
           
@@ -258,7 +271,7 @@ export default function BrandingTab({ clientId, clientName = "Client Name" }: Br
                   <Input
                     id="primary_color"
                     type="color"
-                    value={branding.primary_color || "#3B82F6"}
+                    value={branding.primary_color || "#06B6D4"}
                     onChange={(e) =>
                       setBranding({ ...branding, primary_color: e.target.value })
                     }
@@ -271,7 +284,7 @@ export default function BrandingTab({ clientId, clientName = "Client Name" }: Br
                     onChange={(e) =>
                       setBranding({ ...branding, primary_color: e.target.value })
                     }
-                    placeholder="#3B82F6"
+                    placeholder="#06B6D4"
                     className="flex-1 font-mono"
                     disabled={!canEdit}
                   />
@@ -299,7 +312,7 @@ export default function BrandingTab({ clientId, clientName = "Client Name" }: Br
                   <Input
                     id="secondary_color"
                     type="color"
-                    value={branding.secondary_color || "#10B981"}
+                    value={branding.secondary_color || "#0891B2"}
                     onChange={(e) =>
                       setBranding({ ...branding, secondary_color: e.target.value })
                     }
@@ -312,7 +325,7 @@ export default function BrandingTab({ clientId, clientName = "Client Name" }: Br
                     onChange={(e) =>
                       setBranding({ ...branding, secondary_color: e.target.value })
                     }
-                    placeholder="#10B981"
+                    placeholder="#0891B2"
                     className="flex-1 font-mono"
                     disabled={!canEdit}
                   />
@@ -340,7 +353,7 @@ export default function BrandingTab({ clientId, clientName = "Client Name" }: Br
                   <Input
                     id="accent_color"
                     type="color"
-                    value={branding.accent_color || "#F59E0B"}
+                    value={branding.accent_color || "#10B981"}
                     onChange={(e) =>
                       setBranding({ ...branding, accent_color: e.target.value })
                     }
@@ -353,7 +366,7 @@ export default function BrandingTab({ clientId, clientName = "Client Name" }: Br
                     onChange={(e) =>
                       setBranding({ ...branding, accent_color: e.target.value })
                     }
-                    placeholder="#F59E0B"
+                    placeholder="#10B981"
                     className="flex-1 font-mono"
                     disabled={!canEdit}
                   />
