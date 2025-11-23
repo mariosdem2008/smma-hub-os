@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
+import { useRole } from "@/hooks/useRole";
 import {
   Dialog,
   DialogContent,
@@ -70,6 +71,7 @@ const STATUSES = ["pending", "in_progress", "completed"];
 
 export default function TasksTab({ clientId }: TasksTabProps) {
   const { toast } = useToast();
+  const { canCreateContent, canEditContent, canDeleteContent, isViewer } = useRole();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
@@ -278,16 +280,17 @@ export default function TasksTab({ clientId }: TasksTabProps) {
         <div>
           <h3 className="text-lg font-semibold">Tasks</h3>
           <p className="text-sm text-muted-foreground">
-            Manage tasks and assignments
+            {isViewer ? "View tasks and assignments" : "Manage tasks and assignments"}
           </p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              New Task
-            </Button>
-          </DialogTrigger>
+        {canCreateContent && (
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                New Task
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>Create New Task</DialogTitle>
@@ -428,8 +431,9 @@ export default function TasksTab({ clientId }: TasksTabProps) {
                 {submitting ? "Creating..." : "Create Task"}
               </Button>
             </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       {tasks.length === 0 ? (
@@ -482,6 +486,7 @@ export default function TasksTab({ clientId }: TasksTabProps) {
                         onValueChange={(value) =>
                           handleStatusChange(task.id, value)
                         }
+                        disabled={isViewer || !canEditContent}
                       >
                         <SelectTrigger className="w-[140px]">
                           <SelectValue />

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
+import { useRole } from "@/hooks/useRole";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -49,6 +50,7 @@ const ROLES = ["manager", "creator", "viewer"];
 
 export default function TeamSettings() {
   const { user } = useAuth();
+  const { canManageTeam, loading: roleLoading } = useRole();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -249,10 +251,20 @@ export default function TeamSettings() {
     }
   };
 
-  if (loading) {
+  if (loading || roleLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-pulse text-muted-foreground">Loading team...</div>
+      </div>
+    );
+  }
+
+  if (!canManageTeam) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <p className="text-lg text-muted-foreground">You don't have permission to manage team members.</p>
+        </div>
       </div>
     );
   }
