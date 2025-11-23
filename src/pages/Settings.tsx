@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/auth";
 import { useRole } from "@/hooks/useRole";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,7 +12,7 @@ import { Palette } from "lucide-react";
 
 export default function Settings() {
   const { user } = useAuth();
-  const { canManageTeam, canEditSettings } = useRole();
+  const { canManageTeam, canEditSettings, isAdmin } = useRole();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -143,6 +144,16 @@ export default function Settings() {
                 className="bg-muted"
               />
             </div>
+            {isAdmin && (
+              <div className="pt-2">
+                <Badge variant="default" className="bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF]">
+                  Admin
+                </Badge>
+                <p className="text-xs text-muted-foreground mt-2">
+                  You have admin privileges in this agency (Agency Plus feature)
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -181,7 +192,7 @@ export default function Settings() {
               </Button>
             )}
             {!canEditSettings && (
-              <p className="text-sm text-muted-foreground">Only owners can edit agency settings</p>
+              <p className="text-sm text-muted-foreground">Only owners and admins can edit agency settings</p>
             )}
           </CardContent>
         </Card>
