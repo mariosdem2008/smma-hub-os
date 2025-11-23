@@ -135,7 +135,7 @@ export default function ClientDetail() {
         </TabsContent>
 
         <TabsContent value="calendar" className="space-y-4">
-          <ContentCalendarTab />
+          <ContentCalendarTab clientId={clientId!} />
         </TabsContent>
 
         <TabsContent value="tasks" className="space-y-4">
