@@ -40,6 +40,7 @@ import {
   Facebook,
   Linkedin
 } from "lucide-react";
+import { PLAN_NAMES, PLAN_PRICES } from "@/lib/plan-limits";
 
 // Animation variants
 const fadeInUp = {
@@ -495,42 +496,59 @@ export default function Landing() {
             </div>
           </AnimatedSection>
 
-          <AnimatedSection className="grid gap-8 lg:grid-cols-3 mx-auto max-w-6xl">
+          <AnimatedSection className="grid gap-8 lg:grid-cols-4 mx-auto max-w-7xl">
             {[
               {
-                name: "Starter",
-                price: 49,
+                name: PLAN_NAMES.free,
+                price: 0,
+                currency: "Free",
                 features: [
-                  "Up to 5 clients",
-                  "2 team members",
-                  "5GB storage",
-                  "Basic analytics",
-                  "Email support"
+                  "1 client workspace",
+                  "3 team members",
+                  "10GB storage",
+                  "Unlimited scheduled posts",
+                  "All tools unlocked",
+                  "Analytics (7 days)"
                 ]
               },
               {
-                name: "Pro",
-                price: 99,
+                name: PLAN_NAMES.starter,
+                price: PLAN_PRICES.starter.monthly,
+                currency: PLAN_PRICES.starter.currency,
                 features: [
-                  "Up to 20 clients",
-                  "10 team members",
-                  "50GB storage",
-                  "Advanced analytics",
-                  "Priority support",
-                  "Custom branding"
+                  "Up to 3 clients",
+                  "Up to 5 team members",
+                  "100GB storage",
+                  "Full analytics",
+                  "Bulk scheduling",
+                  "Templates library"
+                ]
+              },
+              {
+                name: PLAN_NAMES.pro,
+                price: PLAN_PRICES.pro.monthly,
+                currency: PLAN_PRICES.pro.currency,
+                features: [
+                  "Up to 10 clients",
+                  "Up to 10 team members",
+                  "500GB storage",
+                  "White-label",
+                  "Approval workflows",
+                  "Advanced automation"
                 ],
                 popular: true
               },
               {
-                name: "Agency+",
-                price: 199,
+                name: PLAN_NAMES.agency_plus,
+                price: PLAN_PRICES.agency_plus.monthly,
+                currency: PLAN_PRICES.agency_plus.currency,
                 features: [
                   "Unlimited clients",
                   "Unlimited team members",
-                  "500GB storage",
-                  "White-label options",
+                  "2TB storage",
+                  "Multi-admin",
                   "Dedicated support",
-                  "API access"
+                  "Priority features"
                 ]
               }
             ].map((tier, index) => (
@@ -542,12 +560,18 @@ export default function Landing() {
                     <div className="flex items-center justify-between">
                       <CardTitle>{tier.name}</CardTitle>
                       {tier.popular && (
-                        <Badge className="bg-primary">Popular</Badge>
+                        <Badge className="bg-primary">Most Popular</Badge>
                       )}
                     </div>
                     <div className="mt-4">
-                      <span className="text-4xl font-bold">${tier.price}</span>
-                      <span className="text-muted-foreground">/month</span>
+                      {tier.price === 0 ? (
+                        <span className="text-4xl font-bold">Free</span>
+                      ) : (
+                        <>
+                          <span className="text-4xl font-bold">€{tier.price}</span>
+                          <span className="text-muted-foreground">/month</span>
+                        </>
+                      )}
                     </div>
                   </CardHeader>
                   <CardContent className="flex-1">
@@ -561,7 +585,7 @@ export default function Landing() {
                     </ul>
                     <Link to="/auth" className="block">
                       <Button className="w-full" variant={tier.popular ? "default" : "outline"}>
-                        Get Started Free
+                        {tier.price === 0 ? "Get Started" : "Start Free Trial"}
                       </Button>
                     </Link>
                   </CardContent>
@@ -595,11 +619,11 @@ export default function Landing() {
                     },
                     {
                       q: "Can I invite my team members?",
-                      a: "Yes! You can invite unlimited team members on the Agency+ plan, with role-based permissions to control access to clients and features."
+                      a: "Yes! You can invite up to 3 team members on Freemium, 5 on Starter, 10 on Pro, and unlimited on Agency Plus, with role-based permissions to control access to clients and features."
                     },
                     {
                       q: "How many clients can I manage?",
-                      a: "It depends on your plan: Starter (5 clients), Pro (20 clients), Agency+ (unlimited clients)."
+                      a: "It depends on your plan: Freemium (1 client), Starter (3 clients), Pro (10 clients), Agency Plus (unlimited clients)."
                     },
                     {
                       q: "Do you support AI-powered features?",
