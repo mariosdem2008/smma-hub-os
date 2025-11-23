@@ -82,7 +82,7 @@ export function ClientPortalLogin() {
     try {
       const normalizedEmail = email.toLowerCase().trim();
 
-      // 1) Sign in
+      // Sign in
       const { data, error } = await supabase.auth.signInWithPassword({
         email: normalizedEmail,
         password,
@@ -90,7 +90,7 @@ export function ClientPortalLogin() {
       if (error) throw error;
       if (!data.user) throw new Error("Login failed");
 
-      // 2) Resolve portal client
+      // Verify portal exists and is enabled
       const { data: client, error: clientError } = await supabase
         .from("clients")
         .select("id, portal_enabled")
@@ -100,48 +100,23 @@ export function ClientPortalLogin() {
       if (clientError || !client) throw new Error("Portal not found");
       if (!client.portal_enabled) throw new Error("This portal is not enabled");
 
-      console.log("Portal login debug", {
-        portalSlug,
-        clientId: client.id,
-        normalizedEmail,
-        userId: data.user.id,
-      });
-
-      // 3) Check or create linkage in client_portal_users
-      const { data: portalUser, error: portalError } = await supabase
+      // Auto-grant access by creating portal user entry if not exists
+      const { data: existingAccess } = await supabase
         .from("client_portal_users")
-        .select("id, user_id, email")
+        .select("id")
         .eq("client_id", client.id)
-        .or(`email.eq.${normalizedEmail},email.eq.${email}`)
+        .eq("user_id", data.user.id)
         .maybeSingle();
 
-      if (portalError) {
-        console.error("Error fetching portal user:", portalError);
-        throw new Error("Failed to verify portal access");
-      }
-
-      console.log("Portal user found:", portalUser);
-
-      if (!portalUser) {
-        // No invite row for this email
-        await supabase.auth.signOut();
-        throw new Error("You must be invited by your agency to access this portal. Please contact them for an invitation.");
-      }
-
-      // 4) If invite exists but user_id is null, link it now
-      if (!portalUser.user_id) {
-        const { error: linkError } = await supabase
+      if (!existingAccess) {
+        await supabase
           .from("client_portal_users")
-          .update({ user_id: data.user.id })
-          .eq("id", portalUser.id)
-          .is("user_id", null);
-
-        if (linkError) {
-          console.error("Error linking user to portal:", linkError);
-          await supabase.auth.signOut();
-          throw new Error("You don't have access to this portal");
-        }
-        console.log("User linked to portal successfully");
+          .insert({
+            client_id: client.id,
+            user_id: data.user.id,
+            email: normalizedEmail,
+            role: "client_viewer",
+          });
       }
 
       toast({ title: "Welcome back!", description: "Logging you in..." });
@@ -186,7 +161,7 @@ export function ClientPortalLogin() {
     try {
       const normalizedEmail = email.toLowerCase().trim();
 
-      // 1) Resolve portal client
+      // Verify portal exists and is enabled
       const { data: client, error: clientError } = await supabase
         .from("clients")
         .select("id, portal_enabled")
@@ -196,37 +171,7 @@ export function ClientPortalLogin() {
       if (clientError || !client) throw new Error("Portal not found");
       if (!client.portal_enabled) throw new Error("This portal is not enabled");
 
-      // 2) Check invitation for this email
-      const { data: invitation, error: inviteError } = await supabase
-        .from("client_portal_users")
-        .select("id, email, user_id")
-        .eq("client_id", client.id)
-        .eq("email", normalizedEmail)
-        .maybeSingle();
-
-      if (inviteError) {
-        console.error("Error checking invitation:", inviteError);
-        throw new Error("Failed to verify invitation");
-      }
-
-      console.log("Portal signup debug", {
-        portalSlug,
-        clientId: client.id,
-        normalizedEmail,
-        invitation,
-      });
-
-      if (!invitation) {
-        toast({
-          title: "Not Invited",
-          description: "You must be invited by your agency to access this portal. Please contact them for an invitation.",
-          variant: "destructive",
-        });
-        setLoading(false);
-        return;
-      }
-
-      // 3) Create auth account
+      // Create auth account
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email: normalizedEmail,
         password,
@@ -239,24 +184,16 @@ export function ClientPortalLogin() {
       if (signUpError) throw signUpError;
       if (!authData.user) throw new Error("Failed to create account");
 
-      console.log("Auth account created:", authData.user.id);
-
-      // 4) Link new user to invitation
-      const { error: linkError } = await supabase
+      // Auto-grant portal access
+      await supabase
         .from("client_portal_users")
-        .update({
+        .insert({
+          client_id: client.id,
           user_id: authData.user.id,
+          email: normalizedEmail,
           name: fullName,
-        })
-        .eq("id", invitation.id)
-        .is("user_id", null);
-
-      if (linkError) {
-        console.error("Error linking user to portal:", linkError);
-        throw new Error("Failed to link account to portal");
-      }
-
-      console.log("User linked to portal successfully");
+          role: "client_viewer",
+        });
 
       toast({
         title: "Welcome!",
@@ -402,7 +339,7 @@ export function ClientPortalLogin() {
               </Button>
 
               <p className="text-xs text-muted-foreground text-center">
-                You must be invited by your agency to create an account
+                Anyone with this portal link can create an account
               </p>
             </form>
           </TabsContent>
