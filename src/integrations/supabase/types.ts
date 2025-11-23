@@ -665,6 +665,62 @@ export type Database = {
         }
         Relationships: []
       }
+      social_connections: {
+        Row: {
+          access_token: string | null
+          account_handle: string | null
+          account_id: string | null
+          account_name: string | null
+          client_id: string
+          created_at: string
+          id: string
+          last_synced_at: string | null
+          platform: string
+          refresh_token: string | null
+          status: string
+          token_expires_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          access_token?: string | null
+          account_handle?: string | null
+          account_id?: string | null
+          account_name?: string | null
+          client_id: string
+          created_at?: string
+          id?: string
+          last_synced_at?: string | null
+          platform: string
+          refresh_token?: string | null
+          status?: string
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          access_token?: string | null
+          account_handle?: string | null
+          account_id?: string | null
+          account_name?: string | null
+          client_id?: string
+          created_at?: string
+          id?: string
+          last_synced_at?: string | null
+          platform?: string
+          refresh_token?: string | null
+          status?: string
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_connections_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       social_profiles: {
         Row: {
           client_id: string
