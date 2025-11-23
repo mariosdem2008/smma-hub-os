@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { useRole } from "@/hooks/useRole";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
+import { useUpgradeModal } from "@/contexts/UpgradeModalContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { PlanGuard } from "@/components/PlanGuard";
@@ -34,7 +36,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Users, Copy, Trash2 } from "lucide-react";
+import { Users, Copy, Trash2, AlertCircle, ArrowRight } from "lucide-react";
 
 interface TeamMember {
   id: string;
@@ -62,6 +64,8 @@ const ROLES = ["manager", "creator", "viewer"];
 export default function Team() {
   const { user } = useAuth();
   const { canManageTeam, loading: roleLoading } = useRole();
+  const { limits } = usePlanLimits();
+  const { openUpgradeModal } = useUpgradeModal();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -75,6 +79,8 @@ export default function Team() {
   const [showInviteLink, setShowInviteLink] = useState(false);
   const [memberToRemove, setMemberToRemove] = useState<string | null>(null);
   const [inviteToCancel, setInviteToCancel] = useState<string | null>(null);
+
+  const isAtLimit = limits?.teamMembers !== null && teamMembers.length >= limits.teamMembers;
 
   useEffect(() => {
     fetchTeamData();
@@ -340,6 +346,27 @@ export default function Team() {
         <h1 className="text-3xl font-bold">Team Management</h1>
         <p className="text-muted-foreground">Manage your agency team members and invitations</p>
       </div>
+
+      {/* Upgrade Prompt - Team Member Limit Reached */}
+      {isAtLimit && (
+        <Card className="border-primary bg-primary/5 animate-fade-in">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-4">
+              <AlertCircle className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
+              <div className="flex-1">
+                <h3 className="font-semibold text-lg mb-1">Team member limit reached</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Add unlimited team members with Pro or Agency Plus plans.
+                </p>
+                <Button onClick={() => openUpgradeModal({ feature: 'More team members' })} size="sm">
+                  Upgrade Now
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Current Team Section */}
       <Card>
