@@ -56,7 +56,13 @@ export default function Dashboard() {
   const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNewClientDialog, setShowNewClientDialog] = useState(false);
-  const [newClientName, setNewClientName] = useState("");
+  const [clientFormData, setClientFormData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    company: "",
+    status: "active",
+  });
   const [metrics, setMetrics] = useState({
     totalClients: 0,
     postsThisWeek: 0,
@@ -340,7 +346,16 @@ export default function Dashboard() {
   };
 
   const handleCreateClient = async () => {
-    if (!user || !newClientName.trim()) return;
+    if (!user || !clientFormData.name.trim()) {
+      toast({
+        title: "Error",
+        description: "Client name is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSubmitting(true);
 
     try {
       // Get agency ID for the current user (either as owner or team member)
@@ -371,8 +386,11 @@ export default function Dashboard() {
         .from("clients")
         .insert({
           agency_id: agencyId,
-          name: newClientName,
-          status: "active",
+          name: clientFormData.name,
+          email: clientFormData.email || null,
+          phone: clientFormData.phone || null,
+          company: clientFormData.company || null,
+          status: clientFormData.status,
         })
         .select()
         .single();
@@ -380,12 +398,12 @@ export default function Dashboard() {
       if (error) throw error;
 
       toast({
-        title: "Client created",
-        description: "Your new client has been added successfully.",
+        title: "Success",
+        description: "Client created successfully",
       });
 
       setShowNewClientDialog(false);
-      setNewClientName("");
+      setClientFormData({ name: "", email: "", phone: "", company: "", status: "active" });
       fetchDashboardData();
       navigate(`/clients/${client.id}`);
     } catch (error: any) {
@@ -394,6 +412,8 @@ export default function Dashboard() {
         description: error.message,
         variant: "destructive",
       });
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -414,22 +434,71 @@ export default function Dashboard() {
             </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Create New Client</DialogTitle>
+              <DialogTitle>Add New Client</DialogTitle>
+              <DialogDescription>
+                Create a new client workspace for your agency
+              </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="clientName">Client Name</Label>
+              <div>
+                <Label htmlFor="name">Client Name *</Label>
                 <Input
-                  id="clientName"
-                  value={newClientName}
-                  onChange={(e) => setNewClientName(e.target.value)}
+                  id="name"
+                  value={clientFormData.name}
+                  onChange={(e) => setClientFormData({ ...clientFormData, name: e.target.value })}
                   placeholder="Enter client name"
                 />
               </div>
-              <Button onClick={handleCreateClient} className="w-full">
-                Create Client
-              </Button>
+              <div>
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={clientFormData.email}
+                  onChange={(e) => setClientFormData({ ...clientFormData, email: e.target.value })}
+                  placeholder="client@example.com"
+                />
+              </div>
+              <div>
+                <Label htmlFor="phone">Phone</Label>
+                <Input
+                  id="phone"
+                  value={clientFormData.phone}
+                  onChange={(e) => setClientFormData({ ...clientFormData, phone: e.target.value })}
+                  placeholder="+1 234 567 8900"
+                />
+              </div>
+              <div>
+                <Label htmlFor="company">Company</Label>
+                <Input
+                  id="company"
+                  value={clientFormData.company}
+                  onChange={(e) => setClientFormData({ ...clientFormData, company: e.target.value })}
+                  placeholder="Company name"
+                />
+              </div>
+              <div>
+                <Label htmlFor="status">Status</Label>
+                <Select value={clientFormData.status} onValueChange={(value) => setClientFormData({ ...clientFormData, status: value })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                    <SelectItem value="paused">Paused</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowNewClientDialog(false)} disabled={submitting}>
+                Cancel
+              </Button>
+              <Button onClick={handleCreateClient} disabled={submitting}>
+                {submitting ? "Creating..." : "Create Client"}
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
         )}
