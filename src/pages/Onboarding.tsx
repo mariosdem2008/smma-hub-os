@@ -7,115 +7,177 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { Upload } from "lucide-react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import { Upload, ChevronRight, ChevronLeft } from "lucide-react";
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
-const urlSchema = z.string().optional().refine(
-  (val) => !val || val === "" || /^https?:\/\/.+/.test(val),
-  { message: "Must be a valid URL starting with http:// or https://" }
-);
-
-const hexColorSchema = z.string().regex(/^#[0-9A-Fa-f]{6}$/, {
-  message: "Must be a valid hex color code (e.g., #000000)",
-});
-
-const formSchema = z.object({
-  brandName: z.string().min(1, "Brand name is required"),
-  website: urlSchema,
-  niche: z.string().optional(),
-  toneOfVoice: z.string().optional(),
-  brandColor: hexColorSchema,
-  instagram: urlSchema,
-  facebook: urlSchema,
-  tiktok: urlSchema,
-  linkedin: urlSchema,
-  youtube: urlSchema,
-  notes: z.string().optional(),
-});
-
-type FormValues = z.infer<typeof formSchema>;
+const NICHES = [
+  "Real Estate",
+  "E-commerce",
+  "Beauty",
+  "Medical",
+  "Local Business",
+  "General",
+  "Other",
+];
 
 export default function Onboarding() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
+  const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+
+  // Step 1: User Identity
+  const [fullName, setFullName] = useState("");
+  const [isOwner, setIsOwner] = useState("yes");
+  const [userRole, setUserRole] = useState("owner");
+
+  // Step 2: Agency Setup
+  const [agencyName, setAgencyName] = useState("");
+  const [agencyWebsite, setAgencyWebsite] = useState("");
+  const [agencyNiche, setAgencyNiche] = useState("");
+  const [agencyBrandColor, setAgencyBrandColor] = useState("#000000");
+  const [createdAgencyId, setCreatedAgencyId] = useState<string | null>(null);
+
+  // Step 3: First Client (Optional)
+  const [wantsClient, setWantsClient] = useState<boolean | null>(null);
+  const [clientName, setClientName] = useState("");
+  const [clientWebsite, setClientWebsite] = useState("");
+  const [clientBrandColor, setClientBrandColor] = useState("#000000");
+  const [clientNotes, setClientNotes] = useState("");
   const [logoFile, setLogoFile] = useState<File | null>(null);
 
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      brandName: "",
-      website: "",
-      niche: "",
-      toneOfVoice: "",
-      brandColor: "#000000",
-      instagram: "",
-      facebook: "",
-      tiktok: "",
-      linkedin: "",
-      youtube: "",
-      notes: "",
-    },
-  });
-
   useEffect(() => {
-    const checkExistingClients = async () => {
+    const checkExistingMembership = async () => {
       if (!user) return;
 
-      // Get agency
-      const { data: agencies } = await supabase
-        .from("agencies")
-        .select("id")
+      const { data: membership } = await supabase
+        .from("agency_members")
+        .select("agency_id")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
 
-      if (!agencies) return;
-
-      // Check if agency has clients
-      const { data: clients, error } = await supabase
-        .from("clients")
-        .select("id")
-        .eq("agency_id", agencies.id)
-        .limit(1);
-
-      if (!error && clients && clients.length > 0) {
+      if (membership) {
         navigate("/dashboard");
       }
     };
 
-    checkExistingClients();
+    checkExistingMembership();
   }, [user, navigate]);
 
-  const onSubmit = async (values: FormValues) => {
-    if (!user) return;
+  const handleStep1Continue = async () => {
+    if (!fullName.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter your full name",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setLoading(true);
-
     try {
-      // Get agency
-      const { data: agencies } = await supabase
+      // Update profile with full name
+      const { error } = await supabase
+        .from("profiles")
+        .update({ full_name: fullName })
+        .eq("id", user?.id);
+
+      if (error) throw error;
+
+      setStep(2);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStep2Continue = async () => {
+    if (!agencyName.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter your agency name",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Create agency
+      const { data: agency, error: agencyError } = await supabase
         .from("agencies")
-        .select("id")
-        .eq("user_id", user.id)
+        .insert({
+          user_id: user?.id,
+          name: agencyName,
+          website: agencyWebsite || null,
+          niche: agencyNiche || null,
+          brand_color: agencyBrandColor,
+        })
+        .select()
         .single();
 
-      if (!agencies) {
-        throw new Error("Agency not found");
-      }
+      if (agencyError) throw agencyError;
 
+      // Create agency_members entry (owner role)
+      const { error: memberError } = await supabase
+        .from("agency_members")
+        .insert({
+          agency_id: agency.id,
+          user_id: user?.id,
+          role: "owner",
+        });
+
+      if (memberError) throw memberError;
+
+      setCreatedAgencyId(agency.id);
+
+      toast({
+        title: "Success",
+        description: "Agency created successfully!",
+      });
+
+      setStep(3);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStep3Skip = () => {
+    navigate("/dashboard");
+  };
+
+  const handleStep3CreateClient = async () => {
+    if (!clientName.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter client brand name",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
       // Upload logo if provided
       let logoUrl = null;
       if (logoFile) {
@@ -127,9 +189,9 @@ export default function Onboarding() {
 
         if (uploadError) throw uploadError;
 
-        const { data: { publicUrl } } = supabase.storage
-          .from("client-logos")
-          .getPublicUrl(fileName);
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from("client-logos").getPublicUrl(fileName);
 
         logoUrl = publicUrl;
       }
@@ -138,14 +200,12 @@ export default function Onboarding() {
       const { data: client, error: clientError } = await supabase
         .from("clients")
         .insert({
-          agency_id: agencies.id,
-          name: values.brandName,
+          agency_id: createdAgencyId,
+          name: clientName,
           logo_url: logoUrl,
-          brand_colors: [values.brandColor],
-          website: values.website || null,
-          niche: values.niche || null,
-          tone_of_voice: values.toneOfVoice || null,
-          notes: values.notes || null,
+          brand_colors: [clientBrandColor],
+          website: clientWebsite || null,
+          notes: clientNotes || null,
           status: "active",
         })
         .select()
@@ -153,32 +213,9 @@ export default function Onboarding() {
 
       if (clientError) throw clientError;
 
-      // Insert social profiles
-      const socialProfiles = [
-        { platform: "Instagram", url: values.instagram },
-        { platform: "Facebook", url: values.facebook },
-        { platform: "TikTok", url: values.tiktok },
-        { platform: "LinkedIn", url: values.linkedin },
-        { platform: "YouTube", url: values.youtube },
-      ].filter(profile => profile.url && profile.url.trim() !== "");
-
-      if (socialProfiles.length > 0) {
-        const { error: profilesError } = await supabase
-          .from("social_profiles")
-          .insert(
-            socialProfiles.map(profile => ({
-              client_id: client.id,
-              platform: profile.platform,
-              url: profile.url,
-            }))
-          );
-
-        if (profilesError) throw profilesError;
-      }
-
       toast({
-        title: "Client created!",
-        description: "Your first client has been set up successfully.",
+        title: "Success",
+        description: "First client created successfully!",
       });
 
       navigate(`/clients/${client.id}`);
@@ -195,36 +232,237 @@ export default function Onboarding() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-4xl">
+      <Card className="w-full max-w-2xl">
         <CardHeader>
-          <CardTitle className="text-3xl">Welcome — Let's set up your first client</CardTitle>
+          <div className="flex items-center justify-center gap-2 mb-4">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className={`h-2 w-12 rounded-full transition-colors ${
+                  i === step
+                    ? "bg-primary"
+                    : i < step
+                    ? "bg-primary/50"
+                    : "bg-muted"
+                }`}
+              />
+            ))}
+          </div>
+          <CardTitle className="text-2xl">
+            {step === 1 && "Welcome to SMMAHUB"}
+            {step === 2 && "Set Up Your Agency"}
+            {step === 3 && "Create Your First Client"}
+          </CardTitle>
           <CardDescription>
-            Add your client's brand information to get started
+            {step === 1 && "Let's get to know you"}
+            {step === 2 && "Tell us about your agency"}
+            {step === 3 && "Optional: Add your first client now"}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-              {/* Brand Information Section */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Brand Information</h3>
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                  <FormField
-                    control={form.control}
-                    name="brandName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Brand Name *</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Enter brand name" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+          {/* STEP 1: User Identity */}
+          {step === 1 && (
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="fullName">Full Name *</Label>
+                <Input
+                  id="fullName"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="Enter your full name"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Are you the owner of this agency? *</Label>
+                <RadioGroup value={isOwner} onValueChange={setIsOwner}>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="yes" id="yes" />
+                    <Label htmlFor="yes">Yes</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="no" id="no" />
+                    <Label htmlFor="no">No</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="role">What is your role? *</Label>
+                <Select value={userRole} onValueChange={setUserRole}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="owner">Owner</SelectItem>
+                    <SelectItem value="manager">Manager</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Button
+                onClick={handleStep1Continue}
+                disabled={loading}
+                className="w-full"
+                size="lg"
+              >
+                {loading ? "Saving..." : "Continue"}
+                <ChevronRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
+          )}
+
+          {/* STEP 2: Agency Setup */}
+          {step === 2 && (
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="agencyName">Agency Name *</Label>
+                <Input
+                  id="agencyName"
+                  value={agencyName}
+                  onChange={(e) => setAgencyName(e.target.value)}
+                  placeholder="Enter your agency name"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="agencyWebsite">Website</Label>
+                <Input
+                  id="agencyWebsite"
+                  type="url"
+                  value={agencyWebsite}
+                  onChange={(e) => setAgencyWebsite(e.target.value)}
+                  placeholder="https://yoursite.com"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="agencyNiche">Agency Niche</Label>
+                <Select value={agencyNiche} onValueChange={setAgencyNiche}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a niche" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {NICHES.map((niche) => (
+                      <SelectItem key={niche} value={niche}>
+                        {niche}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="agencyBrandColor">Agency Brand Color</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="color"
+                    value={agencyBrandColor}
+                    onChange={(e) => setAgencyBrandColor(e.target.value)}
+                    className="h-10 w-20"
                   />
+                  <Input
+                    type="text"
+                    value={agencyBrandColor}
+                    onChange={(e) => setAgencyBrandColor(e.target.value)}
+                    placeholder="#000000"
+                    className="flex-1"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => setStep(1)}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  <ChevronLeft className="mr-2 h-4 w-4" />
+                  Back
+                </Button>
+                <Button
+                  onClick={handleStep2Continue}
+                  disabled={loading}
+                  className="flex-1"
+                  size="lg"
+                >
+                  {loading ? "Creating Agency..." : "Continue"}
+                  <ChevronRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 3: First Client (Optional) */}
+          {step === 3 && (
+            <div className="space-y-6">
+              {wantsClient === null ? (
+                <>
+                  <p className="text-center text-muted-foreground">
+                    Do you want to create your first client now?
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleStep3Skip}
+                      variant="outline"
+                      className="flex-1"
+                      size="lg"
+                    >
+                      Skip for now
+                    </Button>
+                    <Button
+                      onClick={() => setWantsClient(true)}
+                      className="flex-1"
+                      size="lg"
+                    >
+                      Yes, create client
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="clientName">Brand Name *</Label>
+                    <Input
+                      id="clientName"
+                      value={clientName}
+                      onChange={(e) => setClientName(e.target.value)}
+                      placeholder="Enter client brand name"
+                    />
+                  </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="logo">Logo</Label>
+                    <Label htmlFor="clientWebsite">Website</Label>
+                    <Input
+                      id="clientWebsite"
+                      type="url"
+                      value={clientWebsite}
+                      onChange={(e) => setClientWebsite(e.target.value)}
+                      placeholder="https://clientsite.com"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="clientBrandColor">Main Brand Color</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="color"
+                        value={clientBrandColor}
+                        onChange={(e) => setClientBrandColor(e.target.value)}
+                        className="h-10 w-20"
+                      />
+                      <Input
+                        type="text"
+                        value={clientBrandColor}
+                        onChange={(e) => setClientBrandColor(e.target.value)}
+                        placeholder="#000000"
+                        className="flex-1"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="logo">Logo Upload</Label>
                     <Input
                       id="logo"
                       type="file"
@@ -243,177 +481,38 @@ export default function Onboarding() {
                     </Button>
                   </div>
 
-                  <FormField
-                    control={form.control}
-                    name="brandColor"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Brand Color</FormLabel>
-                        <FormControl>
-                          <div className="flex gap-2">
-                            <Input type="color" {...field} className="h-10 w-20" />
-                            <Input 
-                              type="text" 
-                              value={field.value}
-                              onChange={field.onChange}
-                              placeholder="#000000"
-                              className="flex-1"
-                            />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div className="space-y-2">
+                    <Label htmlFor="clientNotes">Notes</Label>
+                    <Textarea
+                      id="clientNotes"
+                      value={clientNotes}
+                      onChange={(e) => setClientNotes(e.target.value)}
+                      placeholder="Any additional notes..."
+                      rows={3}
+                    />
+                  </div>
 
-                  <FormField
-                    control={form.control}
-                    name="website"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Website URL</FormLabel>
-                        <FormControl>
-                          <Input type="url" placeholder="https://example.com" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="niche"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Niche</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., Fashion, Tech, Food" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="toneOfVoice"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Tone of Voice</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., Professional, Casual, Fun" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Social Profiles Section */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Social Profiles</h3>
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                  <FormField
-                    control={form.control}
-                    name="instagram"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Instagram</FormLabel>
-                        <FormControl>
-                          <Input placeholder="https://instagram.com/..." {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="facebook"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Facebook</FormLabel>
-                        <FormControl>
-                          <Input placeholder="https://facebook.com/..." {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="tiktok"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>TikTok</FormLabel>
-                        <FormControl>
-                          <Input placeholder="https://tiktok.com/@..." {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="linkedin"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>LinkedIn</FormLabel>
-                        <FormControl>
-                          <Input placeholder="https://linkedin.com/..." {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="youtube"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>YouTube</FormLabel>
-                        <FormControl>
-                          <Input placeholder="https://youtube.com/..." {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Additional Notes Section */}
-              <FormField
-                control={form.control}
-                name="notes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Notes</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Any additional notes about this client..."
-                        rows={4}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <Button type="submit" className="w-full" size="lg" disabled={loading}>
-                {loading ? "Creating..." : "Continue"}
-              </Button>
-            </form>
-          </Form>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleStep3Skip}
+                      variant="outline"
+                      className="flex-1"
+                    >
+                      Skip
+                    </Button>
+                    <Button
+                      onClick={handleStep3CreateClient}
+                      disabled={loading}
+                      className="flex-1"
+                      size="lg"
+                    >
+                      {loading ? "Creating..." : "Create Client"}
+                    </Button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
