@@ -1,8 +1,12 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useRole } from "@/hooks/useRole";
@@ -28,8 +32,18 @@ export default function Clients() {
   const { limits } = usePlanLimits();
   const { openUpgradeModal } = useUpgradeModal();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showDialog, setShowDialog] = useState(false);
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    company: "",
+    status: "active",
+  });
+  const [submitting, setSubmitting] = useState(false);
 
   const isAtLimit = limits?.clients !== null && clients.length >= limits.clients;
 
@@ -89,6 +103,73 @@ export default function Clients() {
     fetchClients();
   }, [user, toast]);
 
+  const handleCreateClient = async () => {
+    if (!formData.name.trim()) {
+      toast({
+        title: "Error",
+        description: "Client name is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSubmitting(true);
+
+    try {
+      // Get agency
+      const { data: agency } = await supabase
+        .from("agencies")
+        .select("id")
+        .eq("user_id", user?.id)
+        .single();
+
+      if (!agency) {
+        toast({
+          title: "Error",
+          description: "Agency not found",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Create client
+      const { data: newClient, error } = await supabase
+        .from("clients")
+        .insert({
+          agency_id: agency.id,
+          name: formData.name,
+          email: formData.email || null,
+          phone: formData.phone || null,
+          company: formData.company || null,
+          status: formData.status,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Client created successfully",
+      });
+
+      setShowDialog(false);
+      setFormData({ name: "", email: "", phone: "", company: "", status: "active" });
+      
+      // Navigate to new client
+      navigate(`/clients/${newClient.id}`);
+    } catch (error) {
+      console.error("Error creating client:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create client",
+        variant: "destructive",
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "active":
@@ -119,7 +200,7 @@ export default function Clients() {
         </div>
         {canManageClients && (
           <PlanGuard feature="clients" requiredPlan="starter">
-            <Button>
+            <Button onClick={() => isAtLimit ? openUpgradeModal({ feature: 'More clients' }) : setShowDialog(true)}>
               <Plus className="mr-2 h-4 w-4" />
               Add Client
             </Button>
@@ -159,7 +240,7 @@ export default function Clients() {
                 : "No clients have been added yet"}
             </p>
             {canManageClients && (
-              <Button>
+              <Button onClick={() => setShowDialog(true)}>
                 <Plus className="mr-2 h-4 w-4" />
                 Add Client
               </Button>
@@ -205,6 +286,78 @@ export default function Clients() {
           ))}
         </div>
       )}
+
+      {/* Add Client Dialog */}
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Client</DialogTitle>
+            <DialogDescription>
+              Create a new client workspace for your agency
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="name">Client Name *</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="Enter client name"
+              />
+            </div>
+            <div>
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                placeholder="client@example.com"
+              />
+            </div>
+            <div>
+              <Label htmlFor="phone">Phone</Label>
+              <Input
+                id="phone"
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                placeholder="+1 234 567 8900"
+              />
+            </div>
+            <div>
+              <Label htmlFor="company">Company</Label>
+              <Input
+                id="company"
+                value={formData.company}
+                onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                placeholder="Company name"
+              />
+            </div>
+            <div>
+              <Label htmlFor="status">Status</Label>
+              <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                  <SelectItem value="paused">Paused</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDialog(false)} disabled={submitting}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateClient} disabled={submitting}>
+              {submitting ? "Creating..." : "Create Client"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
