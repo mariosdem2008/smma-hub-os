@@ -1,5 +1,5 @@
 // Plan limits and feature configuration
-export type PlanType = 'free' | 'starter' | 'pro' | 'agency_plus' | 'ltd_starter' | 'ltd_pro';
+export type PlanType = 'free' | 'starter' | 'pro' | 'agency_plus';
 
 export interface PlanLimits {
   clients: number | null; // null = unlimited
@@ -98,44 +98,6 @@ export const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
       compression: false,
     },
   },
-  ltd_starter: {
-    clients: 3,
-    teamMembers: 5,
-    storage: 100 * 1024 * 1024 * 1024,
-    analyticsHistoryDays: null,
-    features: {
-      whiteLabel: false,
-      approvalWorkflows: false,
-      bulkActions: true,
-      templates: true,
-      automation: false,
-      multiAdmin: false,
-      dedicatedSupport: false,
-    },
-    fileUpload: {
-      maxSize: 500 * 1024 * 1024,
-      compression: false,
-    },
-  },
-  ltd_pro: {
-    clients: 10,
-    teamMembers: 10,
-    storage: 500 * 1024 * 1024 * 1024,
-    analyticsHistoryDays: null,
-    features: {
-      whiteLabel: true,
-      approvalWorkflows: true,
-      bulkActions: true,
-      templates: true,
-      automation: true,
-      multiAdmin: false,
-      dedicatedSupport: false,
-    },
-    fileUpload: {
-      maxSize: 1024 * 1024 * 1024,
-      compression: false,
-    },
-  },
 };
 
 export const PLAN_NAMES: Record<PlanType, string> = {
@@ -143,16 +105,12 @@ export const PLAN_NAMES: Record<PlanType, string> = {
   starter: 'Starter',
   pro: 'Pro',
   agency_plus: 'Agency Plus',
-  ltd_starter: 'Lifetime Starter',
-  ltd_pro: 'Lifetime Pro',
 };
 
 export const PLAN_PRICES: Record<Exclude<PlanType, 'free'>, { monthly: number; yearly?: number; currency: string }> = {
   starter: { monthly: 29, yearly: 290, currency: 'EUR' },
   pro: { monthly: 59, yearly: 590, currency: 'EUR' },
   agency_plus: { monthly: 129, yearly: 1290, currency: 'EUR' },
-  ltd_starter: { monthly: 147, currency: 'EUR' },
-  ltd_pro: { monthly: 247, currency: 'EUR' },
 };
 
 export function formatStorageSize(bytes: number): string {
