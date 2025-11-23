@@ -331,58 +331,32 @@ export default function ContentCalendarTab({ clientId }: ContentCalendarTabProps
       </div>
 
       {viewMode === "calendar" ? (
-        <Card className="mx-auto max-w-7xl">
-          <CardContent className="p-8">
-            <div className="flex justify-center gap-8">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={handleDateClick}
-                month={calendarMonth}
-                onMonthChange={setCalendarMonth}
-                className="scale-150"
-                components={{
-                  DayContent: ({ date }) => {
-                    const count = getPostCountForDate(date);
-                    return (
-                      <div className="relative w-full h-full flex items-center justify-center">
-                        <span>{date.getDate()}</span>
-                        {count > 0 && (
-                          <span className="absolute bottom-0 right-1/2 translate-x-1/2 flex h-1.5 w-1.5">
-                            <span className="absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-primary"></span>
-                          </span>
-                        )}
-                      </div>
-                    );
-                  },
-                }}
-              />
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={handleDateClick}
-                month={new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1)}
-                onMonthChange={(date) => setCalendarMonth(new Date(date.getFullYear(), date.getMonth() - 1))}
-                className="scale-150"
-                components={{
-                  DayContent: ({ date }) => {
-                    const count = getPostCountForDate(date);
-                    return (
-                      <div className="relative w-full h-full flex items-center justify-center">
-                        <span>{date.getDate()}</span>
-                        {count > 0 && (
-                          <span className="absolute bottom-0 right-1/2 translate-x-1/2 flex h-1.5 w-1.5">
-                            <span className="absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-primary"></span>
-                          </span>
-                        )}
-                      </div>
-                    );
-                  },
-                }}
-              />
-            </div>
+        <Card>
+          <CardContent className="p-6 flex justify-center">
+            <Calendar
+              mode="single"
+              selected={selectedDate}
+              onSelect={handleDateClick}
+              month={calendarMonth}
+              onMonthChange={setCalendarMonth}
+              className="mx-auto"
+              components={{
+                DayContent: ({ date }) => {
+                  const count = getPostCountForDate(date);
+                  return (
+                    <div className="relative w-full h-full flex items-center justify-center">
+                      <span>{date.getDate()}</span>
+                      {count > 0 && (
+                        <span className="absolute bottom-0 right-1/2 translate-x-1/2 flex h-1.5 w-1.5">
+                          <span className="absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-primary"></span>
+                        </span>
+                      )}
+                    </div>
+                  );
+                },
+              }}
+            />
           </CardContent>
         </Card>
       ) : posts.length === 0 ? (
