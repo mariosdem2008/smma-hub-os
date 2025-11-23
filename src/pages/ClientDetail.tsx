@@ -1,13 +1,17 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Mail, Phone, Calendar } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import ClientHeader from "@/components/ClientHeader";
 import SocialProfilesTab from "@/components/SocialProfilesTab";
+import OverviewTab from "@/components/client-tabs/OverviewTab";
+import NotesTab from "@/components/client-tabs/NotesTab";
+import TasksTab from "@/components/client-tabs/TasksTab";
+import ContentCalendarTab from "@/components/client-tabs/ContentCalendarTab";
 
 interface Client {
   id: string;
@@ -17,6 +21,12 @@ interface Client {
   company: string | null;
   status: string;
   created_at: string;
+  logo_url: string | null;
+  niche: string | null;
+  website: string | null;
+  brand_colors: string[] | null;
+  tone_of_voice: string | null;
+  notes: string | null;
 }
 
 export default function ClientDetail() {
@@ -42,7 +52,12 @@ export default function ClientDetail() {
           variant: "destructive",
         });
       } else {
-        setClient(data);
+        setClient({
+          ...data,
+          brand_colors: Array.isArray(data.brand_colors) 
+            ? (data.brand_colors as string[]) 
+            : null,
+        });
       }
 
       setLoading(false);
@@ -50,6 +65,12 @@ export default function ClientDetail() {
 
     fetchClient();
   }, [clientId, toast]);
+
+  const handleNotesUpdate = (notes: string) => {
+    if (client) {
+      setClient({ ...client, notes });
+    }
+  };
 
   if (loading) {
     return (
@@ -86,104 +107,45 @@ export default function ClientDetail() {
         </Button>
       </Link>
 
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">{client.name}</h1>
-          {client.company && (
-            <p className="text-lg text-muted-foreground">{client.company}</p>
-          )}
-        </div>
-        <Badge className={client.status === "active" ? "bg-status-active" : "bg-status-inactive"}>
-          {client.status}
-        </Badge>
-      </div>
+      <ClientHeader
+        name={client.name}
+        logoUrl={client.logo_url}
+        niche={client.niche}
+        website={client.website}
+        brandColors={client.brand_colors}
+      />
 
-      <div className="grid gap-4 md:grid-cols-3">
-        {client.email && (
-          <Card>
-            <CardHeader className="flex flex-row items-center space-y-0 pb-2">
-              <Mail className="mr-2 h-4 w-4 text-muted-foreground" />
-              <CardTitle className="text-sm font-medium">Email</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm">{client.email}</p>
-            </CardContent>
-          </Card>
-        )}
-        {client.phone && (
-          <Card>
-            <CardHeader className="flex flex-row items-center space-y-0 pb-2">
-              <Phone className="mr-2 h-4 w-4 text-muted-foreground" />
-              <CardTitle className="text-sm font-medium">Phone</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm">{client.phone}</p>
-            </CardContent>
-          </Card>
-        )}
-        <Card>
-          <CardHeader className="flex flex-row items-center space-y-0 pb-2">
-            <Calendar className="mr-2 h-4 w-4 text-muted-foreground" />
-            <CardTitle className="text-sm font-medium">Client Since</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm">
-              {new Date(client.created_at).toLocaleDateString()}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Tabs defaultValue="posts" className="w-full">
+      <Tabs defaultValue="overview" className="w-full">
         <TabsList>
-          <TabsTrigger value="posts">Posts</TabsTrigger>
-          <TabsTrigger value="tasks">Tasks</TabsTrigger>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="social">Social Profiles</TabsTrigger>
-          <TabsTrigger value="details">Details</TabsTrigger>
+          <TabsTrigger value="calendar">Content Calendar</TabsTrigger>
+          <TabsTrigger value="tasks">Tasks</TabsTrigger>
+          <TabsTrigger value="notes">Notes</TabsTrigger>
         </TabsList>
-        <TabsContent value="posts" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Scheduled Posts</CardTitle>
-              <CardDescription>Manage content for this client</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">No posts scheduled</p>
-            </CardContent>
-          </Card>
+
+        <TabsContent value="overview" className="space-y-4">
+          <OverviewTab client={client} />
         </TabsContent>
-        <TabsContent value="tasks" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Tasks</CardTitle>
-              <CardDescription>Track work for this client</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">No active tasks</p>
-            </CardContent>
-          </Card>
-        </TabsContent>
+
         <TabsContent value="social" className="space-y-4">
           <SocialProfilesTab clientId={clientId!} />
         </TabsContent>
-        <TabsContent value="details" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Client Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <p className="text-sm font-medium">Status</p>
-                <p className="text-sm text-muted-foreground capitalize">{client.status}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium">Created</p>
-                <p className="text-sm text-muted-foreground">
-                  {new Date(client.created_at).toLocaleString()}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+
+        <TabsContent value="calendar" className="space-y-4">
+          <ContentCalendarTab />
+        </TabsContent>
+
+        <TabsContent value="tasks" className="space-y-4">
+          <TasksTab />
+        </TabsContent>
+
+        <TabsContent value="notes" className="space-y-4">
+          <NotesTab
+            clientId={clientId!}
+            initialNotes={client.notes}
+            onUpdate={handleNotesUpdate}
+          />
         </TabsContent>
       </Tabs>
     </div>
