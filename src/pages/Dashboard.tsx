@@ -445,13 +445,13 @@ export default function Dashboard() {
           </div>
 
           {/* Upcoming Posts */}
-          {upcomingPosts.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Upcoming Posts</CardTitle>
-                <CardDescription>Next 10 scheduled posts across all clients</CardDescription>
-              </CardHeader>
-              <CardContent>
+          <Card>
+            <CardHeader>
+              <CardTitle>Upcoming Posts</CardTitle>
+              <CardDescription>Next 10 scheduled posts across all clients</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {upcomingPosts.length > 0 ? (
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -486,18 +486,24 @@ export default function Dashboard() {
                     ))}
                   </TableBody>
                 </Table>
-              </CardContent>
-            </Card>
-          )}
+              ) : (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground mb-2">No upcoming posts scheduled</p>
+                  <p className="text-sm text-muted-foreground">Schedule posts in your client workspaces</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Overdue Tasks */}
-          {overdueTasks.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Overdue Tasks</CardTitle>
-                <CardDescription>Tasks that need immediate attention</CardDescription>
-              </CardHeader>
-              <CardContent>
+          <Card>
+            <CardHeader>
+              <CardTitle>Overdue Tasks</CardTitle>
+              <CardDescription>Tasks that need immediate attention</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {overdueTasks.length > 0 ? (
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -536,9 +542,15 @@ export default function Dashboard() {
                     ))}
                   </TableBody>
                 </Table>
-              </CardContent>
-            </Card>
-          )}
+              ) : (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <CheckSquare className="h-12 w-12 text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground mb-2">No overdue tasks</p>
+                  <p className="text-sm text-muted-foreground">Great job staying on top of everything!</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Clients Grid */}
           {clients.length === 0 ? (
