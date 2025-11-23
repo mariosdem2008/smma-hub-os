@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,7 +13,7 @@ import { useAuth } from "@/lib/auth";
 import { useRole } from "@/hooks/useRole";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useUpgradeModal } from "@/contexts/UpgradeModalContext";
-import { Plus, Mail, Phone, Users, AlertCircle, ArrowRight } from "lucide-react";
+import { Plus, Users, AlertCircle, ArrowRight } from "lucide-react";
 import { PlanGuard } from "@/components/PlanGuard";
 import { useToast } from "@/hooks/use-toast";
 
@@ -24,6 +25,7 @@ interface Client {
   company: string | null;
   status: string;
   created_at: string;
+  logo_url: string | null;
 }
 
 export default function Clients() {
@@ -253,11 +255,17 @@ export default function Clients() {
             <Link key={client.id} to={`/clients/${client.id}`}>
               <Card className="hover:bg-card/80 cursor-pointer">
                 <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle>{client.name}</CardTitle>
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-12 w-12">
+                      <AvatarImage src={client.logo_url || undefined} alt={client.name} />
+                      <AvatarFallback>
+                        {client.name.substring(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <CardTitle className="truncate">{client.name}</CardTitle>
                       {client.company && (
-                        <CardDescription>{client.company}</CardDescription>
+                        <CardDescription className="truncate">{client.company}</CardDescription>
                       )}
                     </div>
                     <Badge className={getStatusColor(client.status)}>
@@ -265,22 +273,6 @@ export default function Clients() {
                     </Badge>
                   </div>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-2 text-sm">
-                    {client.email && (
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Mail className="h-3 w-3" />
-                        {client.email}
-                      </div>
-                    )}
-                    {client.phone && (
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Phone className="h-3 w-3" />
-                        {client.phone}
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
               </Card>
             </Link>
           ))}
