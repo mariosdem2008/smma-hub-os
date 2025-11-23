@@ -82,7 +82,7 @@ export const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
   agency_plus: {
     clients: null, // unlimited
     teamMembers: null,
-    storage: null,
+    storage: 2 * 1024 * 1024 * 1024 * 1024, // 2TB
     analyticsHistoryDays: null,
     features: {
       whiteLabel: true,
