@@ -65,6 +65,7 @@ export default function OverviewTab({ clientId, client, onNotesUpdate }: Overvie
   const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
   const [notes, setNotes] = useState(client.notes || "");
   const [saving, setSaving] = useState(false);
+  const [brandColors, setBrandColors] = useState<string[]>([]);
   
   // Task form state
   const [taskTitle, setTaskTitle] = useState("");
@@ -75,7 +76,25 @@ export default function OverviewTab({ clientId, client, onNotesUpdate }: Overvie
 
   useEffect(() => {
     fetchStats();
+    fetchBrandColors();
   }, [clientId]);
+  
+  const fetchBrandColors = async () => {
+    const { data } = await supabase
+      .from("client_branding")
+      .select("primary_color, secondary_color, accent_color, brand_palette")
+      .eq("client_id", clientId)
+      .maybeSingle();
+    
+    if (data) {
+      const colors = [];
+      if (data.primary_color) colors.push(data.primary_color);
+      if (data.secondary_color) colors.push(data.secondary_color);
+      if (data.accent_color) colors.push(data.accent_color);
+      if (data.brand_palette) colors.push(...data.brand_palette);
+      setBrandColors(colors);
+    }
+  };
 
   const fetchStats = async () => {
     // Fetch total posts
@@ -226,13 +245,13 @@ export default function OverviewTab({ clientId, client, onNotesUpdate }: Overvie
               </div>
             )}
 
-            {client.brand_colors && client.brand_colors.length > 0 && (
+            {brandColors && brandColors.length > 0 && (
               <div className="flex items-start gap-3">
                 <Palette className="h-5 w-5 text-muted-foreground mt-0.5" />
                 <div className="flex-1">
                   <p className="text-sm font-medium mb-2">Brand Colors</p>
                   <div className="flex flex-wrap gap-2">
-                    {client.brand_colors.map((color, index) => (
+                    {brandColors.map((color, index) => (
                       <div key={index} className="flex items-center gap-2 rounded-md border px-3 py-1.5">
                         <div
                           className="h-4 w-4 rounded"
