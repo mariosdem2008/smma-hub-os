@@ -155,8 +155,15 @@ export default function Settings() {
         {/* Agency Settings */}
         <Card>
           <CardHeader>
-            <CardTitle>Agency Settings</CardTitle>
-            <CardDescription>Configure your agency details</CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Agency Settings</CardTitle>
+                <CardDescription>Configure your agency details</CardDescription>
+              </div>
+              <Button variant="outline" onClick={() => window.location.href = "/settings/team"}>
+                Manage Team
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
