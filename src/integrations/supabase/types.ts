@@ -38,6 +38,79 @@ export type Database = {
         }
         Relationships: []
       }
+      agency_invites: {
+        Row: {
+          accepted: boolean
+          agency_id: string
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          role: string
+          token: string
+        }
+        Insert: {
+          accepted?: boolean
+          agency_id: string
+          created_at?: string
+          email: string
+          expires_at?: string
+          id?: string
+          role?: string
+          token?: string
+        }
+        Update: {
+          accepted?: boolean
+          agency_id?: string
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          role?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agency_invites_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agency_members: {
+        Row: {
+          agency_id: string
+          created_at: string
+          id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          agency_id: string
+          created_at?: string
+          id?: string
+          role?: string
+          user_id: string
+        }
+        Update: {
+          agency_id?: string
+          created_at?: string
+          id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agency_members_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assets: {
         Row: {
           client_id: string
@@ -477,6 +550,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_agency_owner: {
+        Args: { _agency_id: string; _user_id: string }
         Returns: boolean
       }
     }
