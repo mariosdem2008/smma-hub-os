@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { useRole } from "@/hooks/useRole";
 import { Plus, Mail, Phone, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -20,6 +21,7 @@ interface Client {
 
 export default function Clients() {
   const { user } = useAuth();
+  const { canManageClients } = useRole();
   const { toast } = useToast();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
@@ -108,10 +110,12 @@ export default function Clients() {
           <h1 className="text-3xl font-bold">Clients</h1>
           <p className="text-muted-foreground">Manage your client accounts</p>
         </div>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Client
-        </Button>
+        {canManageClients && (
+          <Button>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Client
+          </Button>
+        )}
       </div>
 
       {clients.length === 0 ? (
@@ -119,11 +123,17 @@ export default function Clients() {
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Users className="h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold mb-2">No clients yet</h3>
-            <p className="text-sm text-muted-foreground mb-4">Get started by adding your first client</p>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Client
-            </Button>
+            <p className="text-sm text-muted-foreground mb-4">
+              {canManageClients 
+                ? "Get started by adding your first client"
+                : "No clients have been added yet"}
+            </p>
+            {canManageClients && (
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Client
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : (

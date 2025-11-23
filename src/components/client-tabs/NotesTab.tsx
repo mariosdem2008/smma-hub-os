@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useRole } from "@/hooks/useRole";
 import { Save } from "lucide-react";
 
 interface NotesTabProps {
@@ -14,6 +15,7 @@ interface NotesTabProps {
 
 export default function NotesTab({ clientId, initialNotes, onNotesUpdate }: NotesTabProps) {
   const { toast } = useToast();
+  const { canEditContent, isViewer } = useRole();
   const [notes, setNotes] = useState(initialNotes || "");
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
@@ -54,25 +56,30 @@ export default function NotesTab({ clientId, initialNotes, onNotesUpdate }: Note
           <div>
             <CardTitle>Client Notes</CardTitle>
             <CardDescription>
-              Keep important notes and information about this client
+              {isViewer 
+                ? "View notes about this client"
+                : "Keep important notes and information about this client"}
             </CardDescription>
           </div>
-          <Button
-            onClick={handleSave}
-            disabled={saving || !hasChanges}
-            size="sm"
-          >
-            <Save className="mr-2 h-4 w-4" />
-            {saving ? "Saving..." : "Save Notes"}
-          </Button>
+          {canEditContent && (
+            <Button
+              onClick={handleSave}
+              disabled={saving || !hasChanges}
+              size="sm"
+            >
+              <Save className="mr-2 h-4 w-4" />
+              {saving ? "Saving..." : "Save Notes"}
+            </Button>
+          )}
         </div>
       </CardHeader>
       <CardContent>
         <Textarea
           value={notes}
           onChange={(e) => handleNotesChange(e.target.value)}
-          placeholder="Add notes about this client..."
+          placeholder={isViewer ? "No notes available" : "Add notes about this client..."}
           className="min-h-[400px] resize-y"
+          disabled={isViewer || !canEditContent}
         />
       </CardContent>
     </Card>

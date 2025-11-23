@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useRole } from "@/hooks/useRole";
 import {
   Sheet,
   SheetContent,
@@ -66,6 +67,7 @@ const STATUSES = ["draft", "scheduled", "published"];
 
 export default function ContentCalendarTab({ clientId }: ContentCalendarTabProps) {
   const { toast } = useToast();
+  const { canCreateContent, isViewer } = useRole();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -189,7 +191,7 @@ export default function ContentCalendarTab({ clientId }: ContentCalendarTabProps
         <div>
           <h3 className="text-lg font-semibold">Content Calendar</h3>
           <p className="text-sm text-muted-foreground">
-            Schedule and manage content posts
+            {isViewer ? "View scheduled content posts" : "Schedule and manage content posts"}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -205,13 +207,14 @@ export default function ContentCalendarTab({ clientId }: ContentCalendarTabProps
               </TabsTrigger>
             </TabsList>
           </Tabs>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              New Post
-            </Button>
-          </DialogTrigger>
+          {canCreateContent && (
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  New Post
+                </Button>
+              </DialogTrigger>
           <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>Create New Post</DialogTitle>
@@ -323,6 +326,7 @@ export default function ContentCalendarTab({ clientId }: ContentCalendarTabProps
             </DialogFooter>
           </DialogContent>
         </Dialog>
+          )}
         </div>
       </div>
 

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
+import { useRole } from "@/hooks/useRole";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -48,6 +49,7 @@ const TASK_STATUSES = ["pending", "in_progress", "completed"];
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const { canManageClients, canCreateContent } = useRole();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [clients, setClients] = useState<any[]>([]);
@@ -349,13 +351,14 @@ export default function Dashboard() {
           <h1 className="text-3xl font-bold">Welcome, {user?.user_metadata?.full_name || "User"}</h1>
           <p className="text-muted-foreground">Manage your clients and their projects</p>
         </div>
-        <Dialog open={showNewClientDialog} onOpenChange={setShowNewClientDialog}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              New Client
-            </Button>
-          </DialogTrigger>
+        {canManageClients && (
+          <Dialog open={showNewClientDialog} onOpenChange={setShowNewClientDialog}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                New Client
+              </Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Create New Client</DialogTitle>
@@ -376,6 +379,7 @@ export default function Dashboard() {
             </div>
           </DialogContent>
         </Dialog>
+        )}
       </div>
 
       {loading ? (
@@ -593,30 +597,38 @@ export default function Dashboard() {
       )}
 
       {/* Floating Action Button */}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            size="lg"
-            className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg"
-          >
-            <Plus className="h-6 w-6" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-48">
-          <DropdownMenuItem onClick={() => setShowNewClientDialog(true)}>
-            <Users className="mr-2 h-4 w-4" />
-            New Client
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setShowTaskDialog(true)}>
-            <CheckSquare className="mr-2 h-4 w-4" />
-            New Task
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setShowPostDialog(true)}>
-            <FileText className="mr-2 h-4 w-4" />
-            New Post
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      {(canManageClients || canCreateContent) && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              size="lg"
+              className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg"
+            >
+              <Plus className="h-6 w-6" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48 bg-popover z-50">
+            {canManageClients && (
+              <DropdownMenuItem onClick={() => setShowNewClientDialog(true)}>
+                <Users className="mr-2 h-4 w-4" />
+                New Client
+              </DropdownMenuItem>
+            )}
+            {canCreateContent && (
+              <>
+                <DropdownMenuItem onClick={() => setShowTaskDialog(true)}>
+                  <CheckSquare className="mr-2 h-4 w-4" />
+                  New Task
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setShowPostDialog(true)}>
+                  <FileText className="mr-2 h-4 w-4" />
+                  New Post
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
 
       {/* New Task Dialog */}
       <Dialog open={showTaskDialog} onOpenChange={setShowTaskDialog}>

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/lib/auth";
+import { useRole } from "@/hooks/useRole";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useTheme } from "next-themes";
@@ -13,6 +14,7 @@ import { Sun, Moon, Palette } from "lucide-react";
 
 export default function Settings() {
   const { user } = useAuth();
+  const { canManageTeam, canEditSettings } = useRole();
   const { toast } = useToast();
   const { theme, setTheme } = useTheme();
   const [loading, setLoading] = useState(true);
@@ -160,9 +162,11 @@ export default function Settings() {
                 <CardTitle>Agency Settings</CardTitle>
                 <CardDescription>Configure your agency details</CardDescription>
               </div>
-              <Button variant="outline" onClick={() => window.location.href = "/settings/team"}>
-                Manage Team
-              </Button>
+              {canManageTeam && (
+                <Button variant="outline" onClick={() => window.location.href = "/settings/team"}>
+                  Manage Team
+                </Button>
+              )}
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -176,11 +180,17 @@ export default function Settings() {
                 value={agencyName}
                 onChange={(e) => setAgencyName(e.target.value)}
                 placeholder="Your Agency Name"
+                disabled={!canEditSettings}
               />
             </div>
-            <Button onClick={handleUpdateAgency} disabled={saving}>
-              {saving ? "Updating..." : "Update Agency"}
-            </Button>
+            {canEditSettings && (
+              <Button onClick={handleUpdateAgency} disabled={saving}>
+                {saving ? "Updating..." : "Update Agency"}
+              </Button>
+            )}
+            {!canEditSettings && (
+              <p className="text-sm text-muted-foreground">Only owners can edit agency settings</p>
+            )}
           </CardContent>
         </Card>
 
