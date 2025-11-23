@@ -14,6 +14,7 @@ import ClientDetail from "./pages/ClientDetail";
 import Team from "./pages/Team";
 import Settings from "./pages/Settings";
 import TeamSettings from "./pages/TeamSettings";
+import InviteAccept from "./pages/InviteAccept";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +29,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/invite/:token" element={<InviteAccept />} />
             <Route
               path="/onboarding"
               element={
