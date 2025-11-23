@@ -1,16 +1,19 @@
 import { useState } from "react";
+import { format } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useRole } from "@/hooks/useRole";
-import { ExternalLink, FileText, Upload } from "lucide-react";
+import { ExternalLink, FileText, Upload, CalendarIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 import ClientSearchBar from "./ClientSearchBar";
 
 interface ClientHeaderProps {
@@ -37,10 +40,9 @@ export default function ClientHeader({
   const [postForm, setPostForm] = useState({
     title: "",
     platform: "",
-    content: "",
-    scheduled_for: "",
     status: "draft",
   });
+  const [scheduledDate, setScheduledDate] = useState<Date | undefined>();
   const [uploading, setUploading] = useState(false);
 
   const getInitials = (name: string) => {
@@ -55,8 +57,8 @@ export default function ClientHeader({
   const handleCreatePost = async () => {
     if (!postForm.title || !postForm.platform) {
       toast({
-        title: "Missing fields",
-        description: "Title and platform are required",
+        title: "Validation Error",
+        description: "Please fill in all required fields",
         variant: "destructive",
       });
       return;
@@ -66,8 +68,7 @@ export default function ClientHeader({
       client_id: clientId,
       title: postForm.title,
       platform: postForm.platform,
-      content: postForm.content,
-      scheduled_for: postForm.scheduled_for || null,
+      scheduled_for: scheduledDate?.toISOString() || null,
       status: postForm.status,
     });
 
@@ -86,10 +87,9 @@ export default function ClientHeader({
       setPostForm({
         title: "",
         platform: "",
-        content: "",
-        scheduled_for: "",
         status: "draft",
       });
+      setScheduledDate(undefined);
     }
   };
 
@@ -224,32 +224,39 @@ export default function ClientHeader({
 
       {/* New Post Dialog */}
       <Dialog open={showPostDialog} onOpenChange={setShowPostDialog}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Create New Post</DialogTitle>
+            <DialogDescription>
+              Schedule a new post for this client
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <Label htmlFor="title">Title</Label>
+            <div className="space-y-2">
+              <Label htmlFor="title">
+                Title <span className="text-destructive">*</span>
+              </Label>
               <Input
                 id="title"
                 value={postForm.title}
                 onChange={(e) =>
                   setPostForm({ ...postForm, title: e.target.value })
                 }
-                placeholder="Post title"
+                placeholder="Enter post title"
               />
             </div>
 
-            <div>
-              <Label htmlFor="platform">Platform</Label>
+            <div className="space-y-2">
+              <Label htmlFor="platform">
+                Platform <span className="text-destructive">*</span>
+              </Label>
               <Select
                 value={postForm.platform}
                 onValueChange={(value) =>
                   setPostForm({ ...postForm, platform: value })
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger id="platform">
                   <SelectValue placeholder="Select platform" />
                 </SelectTrigger>
                 <SelectContent>
@@ -262,41 +269,65 @@ export default function ClientHeader({
               </Select>
             </div>
 
-            <div>
-              <Label htmlFor="content">Content</Label>
-              <Textarea
-                id="content"
-                value={postForm.content}
-                onChange={(e) =>
-                  setPostForm({ ...postForm, content: e.target.value })
-                }
-                placeholder="Post content"
-                rows={4}
-              />
+            <div className="space-y-2">
+              <Label>Scheduled Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !scheduledDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {scheduledDate ? (
+                      format(scheduledDate, "PPP")
+                    ) : (
+                      <span>Pick a date</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={scheduledDate}
+                    onSelect={setScheduledDate}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
 
-            <div>
-              <Label htmlFor="scheduled_for">Scheduled Date</Label>
-              <Input
-                id="scheduled_for"
-                type="datetime-local"
-                value={postForm.scheduled_for}
-                onChange={(e) =>
-                  setPostForm({ ...postForm, scheduled_for: e.target.value })
+            <div className="space-y-2">
+              <Label htmlFor="status">Status</Label>
+              <Select
+                value={postForm.status}
+                onValueChange={(value) =>
+                  setPostForm({ ...postForm, status: value })
                 }
-              />
-            </div>
-
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setShowPostDialog(false)}
               >
-                Cancel
-              </Button>
-              <Button onClick={handleCreatePost}>Create Post</Button>
+                <SelectTrigger id="status">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="scheduled">Scheduled</SelectItem>
+                  <SelectItem value="published">Published</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowPostDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleCreatePost}>Create Post</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -305,6 +336,9 @@ export default function ClientHeader({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Upload Asset</DialogTitle>
+            <DialogDescription>
+              Upload files to the asset library
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -322,19 +356,21 @@ export default function ClientHeader({
             </div>
 
             {uploading && (
-              <p className="text-sm text-muted-foreground">Uploading...</p>
+              <div className="flex items-center gap-2">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                <p className="text-sm text-muted-foreground">Uploading...</p>
+              </div>
             )}
-
-            <div className="flex justify-end">
-              <Button
-                variant="outline"
-                onClick={() => setShowAssetDialog(false)}
-                disabled={uploading}
-              >
-                Cancel
-              </Button>
-            </div>
           </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowAssetDialog(false)}
+              disabled={uploading}
+            >
+              Close
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
