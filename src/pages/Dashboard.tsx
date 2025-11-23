@@ -84,6 +84,8 @@ export default function Dashboard() {
   const [submitting, setSubmitting] = useState(false);
   const [dismissedPosts, setDismissedPosts] = useState<Set<string>>(new Set());
   const [dismissedTasks, setDismissedTasks] = useState<Set<string>>(new Set());
+  const [dismissedPostsSection, setDismissedPostsSection] = useState(false);
+  const [dismissedTasksSection, setDismissedTasksSection] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
@@ -446,11 +448,24 @@ export default function Dashboard() {
           </div>
 
           {/* Upcoming Posts */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Upcoming Posts</CardTitle>
-              <CardDescription>Next 10 scheduled posts across all clients</CardDescription>
-            </CardHeader>
+          {!dismissedPostsSection && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Upcoming Posts</CardTitle>
+                    <CardDescription>Next 10 scheduled posts across all clients</CardDescription>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8 hover:bg-destructive hover:text-destructive-foreground"
+                    onClick={() => setDismissedPostsSection(true)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardHeader>
             <CardContent>
               {visibleUpcomingPosts.length > 0 ? (
                 <Table>
@@ -507,13 +522,27 @@ export default function Dashboard() {
               )}
             </CardContent>
           </Card>
+          )}
 
           {/* Overdue Tasks */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Overdue Tasks</CardTitle>
-              <CardDescription>Tasks that need immediate attention</CardDescription>
-            </CardHeader>
+          {!dismissedTasksSection && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Overdue Tasks</CardTitle>
+                    <CardDescription>Tasks that need immediate attention</CardDescription>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8 hover:bg-destructive hover:text-destructive-foreground"
+                    onClick={() => setDismissedTasksSection(true)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardHeader>
             <CardContent>
               {visibleOverdueTasks.length > 0 ? (
                 <Table>
@@ -574,6 +603,7 @@ export default function Dashboard() {
               )}
             </CardContent>
           </Card>
+          )}
 
           {/* Clients Grid */}
           {clients.length === 0 ? (
