@@ -90,9 +90,9 @@ export function ClientPortalLogin() {
       // Link user_id to client_portal_users if not already linked
       if (data.user) {
         await linkUserToPortal(data.user.id, email.toLowerCase());
+        // Explicitly navigate after linking
+        navigate(`/client-portal/${portalSlug}`);
       }
-
-      // The redirect will happen via the useEffect
     } catch (error: any) {
       toast({
         title: "Login Failed",
@@ -170,12 +170,17 @@ export function ClientPortalLogin() {
       // Link user_id to client_portal_users
       if (data.user) {
         await linkUserToPortal(data.user.id, email.toLowerCase());
+        
+        toast({
+          title: "Account Created",
+          description: "Welcome! Redirecting to your portal...",
+        });
+        
+        // Navigate to portal after successful signup with auto-confirm
+        setTimeout(() => {
+          navigate(`/client-portal/${portalSlug}`);
+        }, 1000);
       }
-
-      toast({
-        title: "Account Created",
-        description: "Please check your email to confirm your account.",
-      });
     } catch (error: any) {
       toast({
         title: "Signup Failed",
