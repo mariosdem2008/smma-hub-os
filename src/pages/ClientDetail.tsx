@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import ClientHeader from "@/components/ClientHeader";
 import OverviewTab from "@/components/client-tabs/OverviewTab";
 import BrandIdentityTab from "@/components/client-tabs/BrandIdentityTab";
+import SocialProfilesTab from "@/components/SocialProfilesTab";
 import ContentPlanningTab from "@/components/client-tabs/ContentPlanningTab";
 import ContentLibraryTab from "@/components/client-tabs/ContentLibraryTab";
 import WorkspaceTab from "@/components/client-tabs/WorkspaceTab";
@@ -133,9 +134,10 @@ export default function ClientDetail() {
       />
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="brand">Brand Identity</TabsTrigger>
+          <TabsTrigger value="social">Social Profiles</TabsTrigger>
           <TabsTrigger value="planning">Content Planning</TabsTrigger>
           <TabsTrigger value="library">Content Library</TabsTrigger>
           <TabsTrigger value="workspace">Workspace</TabsTrigger>
@@ -151,6 +153,10 @@ export default function ClientDetail() {
 
         <TabsContent value="brand" className="space-y-4">
           <BrandIdentityTab clientId={clientId!} />
+        </TabsContent>
+
+        <TabsContent value="social" className="space-y-4">
+          <SocialProfilesTab clientId={clientId!} />
         </TabsContent>
 
         <TabsContent value="planning" className="space-y-4">
