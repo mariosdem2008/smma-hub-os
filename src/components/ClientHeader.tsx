@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useRole } from "@/hooks/useRole";
 import { ExternalLink, Plus, Upload, FileText } from "lucide-react";
+import ClientSearchBar from "./ClientSearchBar";
 
 interface ClientHeaderProps {
   clientId: string;
@@ -161,6 +162,10 @@ export default function ClientHeader({
                 {niche}
               </Badge>
             )}
+          </div>
+
+          <div className="ml-4">
+            <ClientSearchBar clientId={clientId} />
           </div>
         </div>
 
