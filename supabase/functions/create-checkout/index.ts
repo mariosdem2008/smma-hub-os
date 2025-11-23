@@ -56,19 +56,19 @@ serve(async (req) => {
       customerId = customer.id;
     }
 
-    // Map plan types to Stripe price IDs (you'll need to create these in Stripe)
+    // Map plan types to Stripe price IDs
     const priceMap: Record<string, { monthly?: string; yearly?: string }> = {
       starter: {
-        monthly: 'price_starter_monthly', // Replace with actual Stripe price ID
-        yearly: 'price_starter_yearly',
+        monthly: 'price_1SWbiSQsImWyBLnG44NzwvMS',
+        yearly: 'price_1SWbjjQsImWyBLnGnYhllBID',
       },
       pro: {
-        monthly: 'price_pro_monthly',
-        yearly: 'price_pro_yearly',
+        monthly: 'price_1SWbipQsImWyBLnGyitLXEpL',
+        yearly: 'price_1SWbk4QsImWyBLnG2l13pz4N',
       },
       agency_plus: {
-        monthly: 'price_agency_monthly',
-        yearly: 'price_agency_yearly',
+        monthly: 'price_1SWbjIQsImWyBLnGPSGxm4Uj',
+        yearly: 'price_1SWblxQsImWyBLnGu2BOdFwR',
       },
     };
 
