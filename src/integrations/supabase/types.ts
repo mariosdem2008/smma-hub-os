@@ -121,38 +121,47 @@ export type Database = {
         Row: {
           client_id: string
           created_at: string
+          custom_category: string | null
           file_size: number | null
           file_type: string
           file_url: string
           filename: string
           id: string
           is_client_upload: boolean | null
+          status: string | null
           updated_at: string
           uploaded_by: string | null
+          visible_to_client: boolean | null
         }
         Insert: {
           client_id: string
           created_at?: string
+          custom_category?: string | null
           file_size?: number | null
           file_type: string
           file_url: string
           filename: string
           id?: string
           is_client_upload?: boolean | null
+          status?: string | null
           updated_at?: string
           uploaded_by?: string | null
+          visible_to_client?: boolean | null
         }
         Update: {
           client_id?: string
           created_at?: string
+          custom_category?: string | null
           file_size?: number | null
           file_type?: string
           file_url?: string
           filename?: string
           id?: string
           is_client_upload?: boolean | null
+          status?: string | null
           updated_at?: string
           uploaded_by?: string | null
+          visible_to_client?: boolean | null
         }
         Relationships: [
           {

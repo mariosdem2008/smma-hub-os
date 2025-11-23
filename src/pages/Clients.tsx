@@ -13,7 +13,7 @@ import { useAuth } from "@/lib/auth";
 import { useRole } from "@/hooks/useRole";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useUpgradeModal } from "@/contexts/UpgradeModalContext";
-import { Plus, Users, AlertCircle, ArrowRight } from "lucide-react";
+import { Plus, Users, AlertCircle, ArrowRight, FileText, Video } from "lucide-react";
 import { PlanGuard } from "@/components/PlanGuard";
 import { useToast } from "@/hooks/use-toast";
 
@@ -26,6 +26,8 @@ interface Client {
   status: string;
   created_at: string;
   logo_url: string | null;
+  assetCount?: number;
+  publishedVideoCount?: number;
 }
 
 export default function Clients() {
@@ -82,10 +84,10 @@ export default function Clients() {
         return;
       }
 
-      // Get clients
+      // Get clients with counts
       const { data, error } = await supabase
         .from("clients")
-        .select("*")
+        .select("id, name, email, phone, company, status, created_at, logo_url")
         .eq("agency_id", agency.id)
         .order("created_at", { ascending: false });
 
@@ -96,7 +98,31 @@ export default function Clients() {
           variant: "destructive",
         });
       } else {
-        setClients(data || []);
+        // Get asset counts for each client
+        const clientsWithCounts = await Promise.all(
+          (data || []).map(async (client) => {
+            // Total assets count
+            const { count: assetCount } = await supabase
+              .from("assets")
+              .select("*", { count: "exact", head: true })
+              .eq("client_id", client.id);
+
+            // Published videos count
+            const { count: publishedVideoCount } = await supabase
+              .from("assets")
+              .select("*", { count: "exact", head: true })
+              .eq("client_id", client.id)
+              .eq("status", "published")
+              .like("file_type", "video%");
+
+            return {
+              ...client,
+              assetCount: assetCount || 0,
+              publishedVideoCount: publishedVideoCount || 0,
+            };
+          })
+        );
+        setClients(clientsWithCounts);
       }
 
       setLoading(false);
@@ -273,6 +299,18 @@ export default function Clients() {
                     </Badge>
                   </div>
                 </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-1">
+                      <FileText className="h-4 w-4" />
+                      <span>{client.assetCount || 0} assets</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Video className="h-4 w-4" />
+                      <span>{client.publishedVideoCount || 0} published</span>
+                    </div>
+                  </div>
+                </CardContent>
               </Card>
             </Link>
           ))}
