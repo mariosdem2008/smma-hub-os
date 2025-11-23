@@ -197,22 +197,22 @@ export default function ClientSearchBar({ clientId }: ClientSearchBarProps) {
   };
 
   return (
-    <div className="relative w-full max-w-md">
+    <div className="relative w-full sm:max-w-md">
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
           type="text"
-          placeholder="Search ideas, assets, hashtags..."
+          placeholder="Search..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => query.trim().length >= 2 && setShowResults(true)}
           onBlur={() => setTimeout(() => setShowResults(false), 200)}
-          className="pl-10 h-9"
+          className="pl-10 h-9 w-full"
         />
       </div>
 
       {showResults && (
-        <Card className="absolute top-full mt-2 w-full max-h-96 overflow-auto z-50 shadow-lg">
+        <Card className="absolute top-full mt-2 w-full sm:max-w-md max-h-[70vh] sm:max-h-96 overflow-auto z-50 shadow-lg">
           <CardContent className="p-2">
             {isSearching ? (
               <div className="py-8 text-center text-sm text-muted-foreground">
