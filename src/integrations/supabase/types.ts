@@ -430,6 +430,35 @@ export type Database = {
           },
         ]
       }
+      client_saved_captions: {
+        Row: {
+          caption: string
+          client_id: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          caption: string
+          client_id: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          caption?: string
+          client_id?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_saved_captions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           agency_id: string
