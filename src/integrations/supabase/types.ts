@@ -438,7 +438,7 @@ export type Database = {
           id: string
           name: string | null
           role: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           client_id: string
@@ -447,7 +447,7 @@ export type Database = {
           id?: string
           name?: string | null
           role?: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           client_id?: string
@@ -456,7 +456,7 @@ export type Database = {
           id?: string
           name?: string | null
           role?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: [
           {

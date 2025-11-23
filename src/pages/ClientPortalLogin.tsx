@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Mail } from "lucide-react";
 
@@ -16,9 +17,12 @@ export function ClientPortalLogin() {
   const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
   const [portalEnabled, setPortalEnabled] = useState<boolean | null>(null);
   const [clientName, setClientName] = useState("");
+  const [mode, setMode] = useState<"login" | "signup">("login");
 
   useEffect(() => {
     checkPortalStatus();
@@ -76,12 +80,17 @@ export function ClientPortalLogin() {
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.toLowerCase(),
         password,
       });
 
       if (error) throw error;
+
+      // Link user_id to client_portal_users if not already linked
+      if (data.user) {
+        await linkUserToPortal(data.user.id, email.toLowerCase());
+      }
 
       // The redirect will happen via the useEffect
     } catch (error: any) {
@@ -92,6 +101,111 @@ export function ClientPortalLogin() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (password !== confirmPassword) {
+      toast({
+        title: "Error",
+        description: "Passwords do not match.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (password.length < 6) {
+      toast({
+        title: "Error",
+        description: "Password must be at least 6 characters.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // Check if user is invited
+      const { data: client } = await supabase
+        .from("clients")
+        .select("id")
+        .eq("portal_slug", portalSlug)
+        .single();
+
+      if (!client) throw new Error("Portal not found");
+
+      const { data: invited } = await supabase
+        .from("client_portal_users")
+        .select("id")
+        .eq("client_id", client.id)
+        .eq("email", email.toLowerCase())
+        .maybeSingle();
+
+      if (!invited) {
+        toast({
+          title: "Not Invited",
+          description: "You must be invited by the agency to access this portal.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      const { data, error } = await supabase.auth.signUp({
+        email: email.toLowerCase(),
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/client-portal/${portalSlug}`,
+          data: {
+            full_name: fullName,
+          },
+        },
+      });
+
+      if (error) throw error;
+
+      // Link user_id to client_portal_users
+      if (data.user) {
+        await linkUserToPortal(data.user.id, email.toLowerCase());
+      }
+
+      toast({
+        title: "Account Created",
+        description: "Please check your email to confirm your account.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Signup Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const linkUserToPortal = async (userId: string, userEmail: string) => {
+    try {
+      const { data: client } = await supabase
+        .from("clients")
+        .select("id")
+        .eq("portal_slug", portalSlug)
+        .single();
+
+      if (!client) return;
+
+      // Update client_portal_users with the authenticated user_id
+      await supabase
+        .from("client_portal_users")
+        .update({ user_id: userId })
+        .eq("client_id", client.id)
+        .eq("email", userEmail)
+        .is("user_id", null);
+    } catch (error) {
+      console.error("Error linking user to portal:", error);
     }
   };
 
@@ -126,35 +240,104 @@ export function ClientPortalLogin() {
           )}
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="your@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
+        <Tabs value={mode} onValueChange={(v) => setMode(v as "login" | "signup")} className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-6">
+            <TabsTrigger value="login">Login</TabsTrigger>
+            <TabsTrigger value="signup">Sign Up</TabsTrigger>
+          </TabsList>
 
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
+          <TabsContent value="login">
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="login-email">Email</Label>
+                <Input
+                  id="login-email"
+                  type="email"
+                  placeholder="your@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
 
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Signing in..." : "Sign In"}
-          </Button>
-        </form>
+              <div className="space-y-2">
+                <Label htmlFor="login-password">Password</Label>
+                <Input
+                  id="login-password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? "Signing in..." : "Sign In"}
+              </Button>
+            </form>
+          </TabsContent>
+
+          <TabsContent value="signup">
+            <form onSubmit={handleSignup} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="signup-name">Full Name</Label>
+                <Input
+                  id="signup-name"
+                  type="text"
+                  placeholder="John Doe"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="signup-email">Email</Label>
+                <Input
+                  id="signup-email"
+                  type="email"
+                  placeholder="your@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="signup-password">Password</Label>
+                <Input
+                  id="signup-password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="confirm-password">Confirm Password</Label>
+                <Input
+                  id="confirm-password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                />
+              </div>
+
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? "Creating account..." : "Create Account"}
+              </Button>
+
+              <p className="text-xs text-muted-foreground text-center">
+                You must be invited by your agency to create an account
+              </p>
+            </form>
+          </TabsContent>
+        </Tabs>
 
         <div className="mt-6 text-center">
           <p className="text-sm text-muted-foreground">
