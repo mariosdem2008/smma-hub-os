@@ -5,6 +5,8 @@ import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { sendPortalInviteEmail } from "@/lib/invitations";
+import { useAuth } from "@/lib/auth";
 import {
   Dialog,
   DialogContent,
@@ -46,6 +48,7 @@ interface PortalUser {
 
 export function ClientPortalTab({ clientId }: ClientPortalTabProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [portalEnabled, setPortalEnabled] = useState(false);
   const [portalSlug, setPortalSlug] = useState<string | null>(null);
   const [portalUsers, setPortalUsers] = useState<PortalUser[]>([]);
@@ -54,6 +57,8 @@ export function ClientPortalTab({ clientId }: ClientPortalTabProps) {
   const [inviteName, setInviteName] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
+  const [clientName, setClientName] = useState<string>("");
+  const [agencyName, setAgencyName] = useState<string>("");
 
   const portalUrl = portalSlug
     ? `${window.location.origin}/client-portal/${portalSlug}`
@@ -67,13 +72,25 @@ export function ClientPortalTab({ clientId }: ClientPortalTabProps) {
     try {
       const { data: client } = await supabase
         .from("clients")
-        .select("portal_enabled, portal_slug")
+        .select("portal_enabled, portal_slug, name, agency_id")
         .eq("id", clientId)
         .single();
 
       if (client) {
         setPortalEnabled(client.portal_enabled);
         setPortalSlug(client.portal_slug);
+        setClientName(client.name);
+
+        // Get agency name
+        const { data: agency } = await supabase
+          .from("agencies")
+          .select("name")
+          .eq("id", client.agency_id)
+          .single();
+        
+        if (agency) {
+          setAgencyName(agency.name);
+        }
       }
 
       const { data: users } = await supabase
@@ -172,10 +189,33 @@ export function ClientPortalTab({ clientId }: ClientPortalTabProps) {
 
       if (insertError) throw insertError;
 
-      toast({
-        title: "Invite Sent",
-        description: `${inviteEmail} has been invited. Share the portal link with them so they can create an account and access the portal.`,
+      // Get user's profile for name
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", user?.id)
+        .single();
+
+      // Send email invitation
+      const emailResult = await sendPortalInviteEmail({
+        email: inviteEmail,
+        clientName: clientName,
+        portalUrl: portalUrl,
+        agencyName: agencyName,
+        inviterName: profile?.full_name || user?.email || "Your Agency",
       });
+
+      if (emailResult.success) {
+        toast({
+          title: "Invite Sent",
+          description: `${inviteEmail} has been invited and will receive an email with portal access instructions.`,
+        });
+      } else {
+        toast({
+          title: "Portal Access Granted",
+          description: `${inviteEmail} has been granted access. Email could not be sent, please share the portal link manually.`,
+        });
+      }
 
       setInviteOpen(false);
       setInviteName("");
