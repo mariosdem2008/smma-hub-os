@@ -23,6 +23,8 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
+import { useRole } from "@/hooks/useRole";
+import { Badge } from "@/components/ui/badge";
 import { 
   Palette, 
   Globe, 
@@ -32,7 +34,10 @@ import {
   Clock,
   Plus,
   Edit,
-  FileText
+  FileText,
+  Mail,
+  Phone,
+  Building
 } from "lucide-react";
 
 interface OverviewTabProps {
@@ -43,6 +48,10 @@ interface OverviewTabProps {
     tone_of_voice: string | null;
     brand_colors: string[] | null;
     notes: string | null;
+    company: string | null;
+    email: string | null;
+    phone: string | null;
+    status: string | null;
   };
   onNotesUpdate: (notes: string) => void;
 }
@@ -56,6 +65,7 @@ interface Stats {
 export default function OverviewTab({ clientId, client, onNotesUpdate }: OverviewTabProps) {
   const { toast } = useToast();
   const { user } = useAuth();
+  const { isOwner, isAdmin } = useRole();
   const [stats, setStats] = useState<Stats>({
     totalPosts: 0,
     completedTasks: 0,
@@ -198,10 +208,75 @@ export default function OverviewTab({ clientId, client, onNotesUpdate }: Overvie
     setSaving(false);
   };
 
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "active":
+        return "bg-status-active";
+      case "inactive":
+        return "bg-status-inactive";
+      case "paused":
+        return "bg-status-paused";
+      default:
+        return "bg-muted";
+    }
+  };
+
   return (
     <div className="grid gap-6 md:grid-cols-2">
       {/* Left Column */}
       <div className="space-y-6">
+        {/* Client Details Card - Only for Owners and Admins */}
+        {(isOwner || isAdmin) && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Client Details</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {client.company && (
+                <div className="flex items-start gap-3">
+                  <Building className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">Company</p>
+                    <p className="text-sm text-muted-foreground">{client.company}</p>
+                  </div>
+                </div>
+              )}
+
+              {client.email && (
+                <div className="flex items-start gap-3">
+                  <Mail className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">Email</p>
+                    <p className="text-sm text-muted-foreground">{client.email}</p>
+                  </div>
+                </div>
+              )}
+
+              {client.phone && (
+                <div className="flex items-start gap-3">
+                  <Phone className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">Phone</p>
+                    <p className="text-sm text-muted-foreground">{client.phone}</p>
+                  </div>
+                </div>
+              )}
+
+              {client.status && (
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">Status</p>
+                    <Badge className={getStatusColor(client.status)}>
+                      {client.status}
+                    </Badge>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+        
         {/* Brand Information Card */}
         <Card>
           <CardHeader>
