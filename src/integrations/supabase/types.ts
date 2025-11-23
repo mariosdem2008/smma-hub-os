@@ -472,6 +472,8 @@ export type Database = {
           niche: string | null
           notes: string | null
           phone: string | null
+          primary_font: string | null
+          secondary_font: string | null
           status: string | null
           tone_of_voice: string | null
           updated_at: string
@@ -489,6 +491,8 @@ export type Database = {
           niche?: string | null
           notes?: string | null
           phone?: string | null
+          primary_font?: string | null
+          secondary_font?: string | null
           status?: string | null
           tone_of_voice?: string | null
           updated_at?: string
@@ -506,6 +510,8 @@ export type Database = {
           niche?: string | null
           notes?: string | null
           phone?: string | null
+          primary_font?: string | null
+          secondary_font?: string | null
           status?: string | null
           tone_of_voice?: string | null
           updated_at?: string

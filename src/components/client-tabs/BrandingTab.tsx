@@ -7,11 +7,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useRole } from "@/hooks/useRole";
-import { Palette, Plus, X, Save, Eye } from "lucide-react";
+import { Palette, Plus, X, Save, Eye, Type } from "lucide-react";
+import FontPicker from "./FontPicker";
+import { useClientFonts } from "@/hooks/useClientFonts";
 
 interface BrandingTabProps {
   clientId: string;
   clientName?: string;
+}
+
+interface ClientData {
+  primary_font: string | null;
+  secondary_font: string | null;
 }
 
 interface ClientBranding {
@@ -39,11 +46,37 @@ export default function BrandingTab({ clientId, clientName = "Client Name" }: Br
     brand_tone: "",
     brand_guidelines: "",
   });
+  const [clientData, setClientData] = useState<ClientData>({
+    primary_font: null,
+    secondary_font: null,
+  });
   const [newPaletteColor, setNewPaletteColor] = useState("#000000");
+
+  // Load fonts dynamically
+  const { primaryFontFamily, secondaryFontFamily } = useClientFonts({
+    primaryFont: clientData.primary_font,
+    secondaryFont: clientData.secondary_font,
+  });
 
   useEffect(() => {
     fetchBranding();
+    fetchClientData();
   }, [clientId]);
+
+  const fetchClientData = async () => {
+    const { data, error } = await supabase
+      .from("clients")
+      .select("primary_font, secondary_font")
+      .eq("id", clientId)
+      .single();
+
+    if (!error && data) {
+      setClientData({
+        primary_font: data.primary_font,
+        secondary_font: data.secondary_font,
+      });
+    }
+  };
 
   const fetchBranding = async () => {
     const { data, error } = await supabase
@@ -93,6 +126,25 @@ export default function BrandingTab({ clientId, clientName = "Client Name" }: Br
 
   const handleSave = async () => {
     setSaving(true);
+
+    // Save fonts to clients table
+    const { error: clientError } = await supabase
+      .from("clients")
+      .update({
+        primary_font: clientData.primary_font,
+        secondary_font: clientData.secondary_font,
+      })
+      .eq("id", clientId);
+
+    if (clientError) {
+      toast({
+        title: "Error",
+        description: "Failed to update fonts",
+        variant: "destructive",
+      });
+      setSaving(false);
+      return;
+    }
 
     const brandingData = {
       client_id: clientId,
@@ -488,6 +540,66 @@ export default function BrandingTab({ clientId, clientName = "Client Name" }: Br
               The emotional inflection applied to the voice
             </p>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Brand Typography Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Type className="h-5 w-5" />
+            Brand Typography
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Font Preview */}
+          <Card className="p-6 bg-muted/50">
+            <div className="space-y-4">
+              <div>
+                <p className="text-xs text-muted-foreground mb-2">Headline Preview (Primary Font)</p>
+                <h2 
+                  className="text-3xl font-bold"
+                  style={{ fontFamily: primaryFontFamily || 'inherit' }}
+                >
+                  {clientName}
+                </h2>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-2">Body Text Preview (Secondary Font)</p>
+                <p 
+                  className="text-base"
+                  style={{ fontFamily: secondaryFontFamily || 'inherit' }}
+                >
+                  This is how your brand's body text will appear across all content. 
+                  Clear typography enhances readability and reinforces brand identity.
+                </p>
+              </div>
+            </div>
+          </Card>
+
+          {/* Font Pickers */}
+          <div className="grid gap-6 md:grid-cols-2">
+            <FontPicker
+              clientId={clientId}
+              label="Primary Font (Headings)"
+              value={clientData.primary_font}
+              onChange={(font) => setClientData({ ...clientData, primary_font: font })}
+              disabled={!canEdit}
+            />
+            
+            <FontPicker
+              clientId={clientId}
+              label="Secondary Font (Body Text)"
+              value={clientData.secondary_font}
+              onChange={(font) => setClientData({ ...clientData, secondary_font: font })}
+              disabled={!canEdit}
+            />
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            💡 Tip: Choose complementary fonts that reflect your brand personality. 
+            Primary font is used for headings and titles, secondary for body text and paragraphs.
+          </p>
         </CardContent>
       </Card>
 
