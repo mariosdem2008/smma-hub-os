@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useState } from "react";
+import { useParams, Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -15,6 +15,7 @@ import ContentPlanningTab from "@/components/client-tabs/ContentPlanningTab";
 import ContentLibraryTab from "@/components/client-tabs/ContentLibraryTab";
 import WorkspaceTab from "@/components/client-tabs/WorkspaceTab";
 import { ClientPortalTab } from "@/components/client-tabs/ClientPortalTab";
+import { useEffect } from "react";
 
 interface Client {
   id: string;
@@ -40,16 +41,26 @@ interface ClientBranding {
 
 export default function ClientDetail() {
   const { clientId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
   const [client, setClient] = useState<Client | null>(null);
   const [branding, setBranding] = useState<ClientBranding | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("overview");
 
   // Load client fonts dynamically
   useClientFonts({
     primaryFont: client?.primary_font,
     secondaryFont: client?.secondary_font,
   });
+
+  // Handle URL-based tab navigation
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const fetchClient = async () => {
@@ -149,7 +160,7 @@ export default function ClientDetail() {
         primaryColor={branding?.primary_color}
       />
 
-      <Tabs defaultValue="overview" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="overflow-x-auto">
           <TabsList className="inline-flex w-auto min-w-full md:grid md:grid-cols-7">
             <TabsTrigger value="overview" className="flex-shrink-0">Overview</TabsTrigger>

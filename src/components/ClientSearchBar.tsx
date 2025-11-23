@@ -1,18 +1,20 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Search, FileText, Image, Lightbulb, Hash, Target, MessageSquare } from "lucide-react";
+import { Search, FileText, Image, Lightbulb, Hash, Target, MessageSquare, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface SearchResult {
   id: string;
-  type: "idea" | "asset" | "inspiration" | "hashtag" | "pillar" | "caption";
+  type: "idea" | "asset" | "inspiration" | "hashtag" | "pillar" | "caption" | "post";
   title: string;
   description?: string;
   icon: React.ReactNode;
   color: string;
+  tab: string;
 }
 
 interface ClientSearchBarProps {
@@ -20,10 +22,57 @@ interface ClientSearchBarProps {
 }
 
 export default function ClientSearchBar({ clientId }: ClientSearchBarProps) {
+  const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
+
+  // Map keywords to tabs
+  const keywordToTab: Record<string, { tab: string; subtab?: string }> = {
+    // Content Library
+    "assets": { tab: "library" },
+    "images": { tab: "library" },
+    "videos": { tab: "library" },
+    "files": { tab: "library" },
+    "inspiration": { tab: "library" },
+    "captions": { tab: "library" },
+    "hashtags": { tab: "library" },
+    
+    // Content Planning
+    "posts": { tab: "planning" },
+    "calendar": { tab: "planning" },
+    "ideas": { tab: "planning" },
+    "pillars": { tab: "planning" },
+    "content pillars": { tab: "planning" },
+    
+    // Workspace
+    "tasks": { tab: "workspace" },
+    "notes": { tab: "workspace" },
+    
+    // Other tabs
+    "brand": { tab: "brand" },
+    "branding": { tab: "brand" },
+    "social": { tab: "social" },
+    "portal": { tab: "portal" },
+  };
+
+  const handleResultClick = (result: SearchResult) => {
+    navigate(`/clients/${clientId}?tab=${result.tab}&search=${encodeURIComponent(result.title)}`);
+    setShowResults(false);
+    setQuery("");
+  };
+
+  const handleKeywordSearch = (keyword: string) => {
+    const mapping = keywordToTab[keyword.toLowerCase()];
+    if (mapping) {
+      navigate(`/clients/${clientId}?tab=${mapping.tab}`);
+      setShowResults(false);
+      setQuery("");
+      return true;
+    }
+    return false;
+  };
 
   useEffect(() => {
     const searchContent = async () => {
@@ -33,10 +82,37 @@ export default function ClientSearchBar({ clientId }: ClientSearchBarProps) {
         return;
       }
 
+      // Check for keyword matches first
+      const isKeyword = handleKeywordSearch(query.trim());
+      if (isKeyword) {
+        return;
+      }
+
       setIsSearching(true);
       setShowResults(true);
       const searchTerm = `%${query.toLowerCase()}%`;
       const allResults: SearchResult[] = [];
+
+      // Search Posts
+      const { data: posts } = await supabase
+        .from("posts")
+        .select("id, title, platform")
+        .eq("client_id", clientId)
+        .ilike("title", searchTerm);
+
+      if (posts) {
+        posts.forEach((post) => {
+          allResults.push({
+            id: post.id,
+            type: "post",
+            title: post.title,
+            description: post.platform || undefined,
+            icon: <Calendar className="h-4 w-4" />,
+            color: "text-blue-500",
+            tab: "planning",
+          });
+        });
+      }
 
       // Search Ideas
       const { data: ideas } = await supabase
@@ -54,6 +130,7 @@ export default function ClientSearchBar({ clientId }: ClientSearchBarProps) {
             description: idea.description || undefined,
             icon: <Lightbulb className="h-4 w-4" />,
             color: "text-yellow-500",
+            tab: "planning",
           });
         });
       }
@@ -73,6 +150,7 @@ export default function ClientSearchBar({ clientId }: ClientSearchBarProps) {
             title: asset.filename,
             icon: <FileText className="h-4 w-4" />,
             color: "text-blue-500",
+            tab: "library",
           });
         });
       }
@@ -93,6 +171,7 @@ export default function ClientSearchBar({ clientId }: ClientSearchBarProps) {
               title: item.description,
               icon: <Image className="h-4 w-4" />,
               color: "text-purple-500",
+              tab: "library",
             });
           }
         });
@@ -114,6 +193,7 @@ export default function ClientSearchBar({ clientId }: ClientSearchBarProps) {
             description: hashtag.category || undefined,
             icon: <Hash className="h-4 w-4" />,
             color: "text-green-500",
+            tab: "library",
           });
         });
       }
@@ -134,6 +214,7 @@ export default function ClientSearchBar({ clientId }: ClientSearchBarProps) {
             description: pillar.description || undefined,
             icon: <Target className="h-4 w-4" />,
             color: "text-orange-500",
+            tab: "planning",
           });
         });
       }
@@ -153,6 +234,7 @@ export default function ClientSearchBar({ clientId }: ClientSearchBarProps) {
             title: caption.caption.substring(0, 100) + (caption.caption.length > 100 ? "..." : ""),
             icon: <MessageSquare className="h-4 w-4" />,
             color: "text-pink-500",
+            tab: "library",
           });
         });
       }
@@ -186,6 +268,7 @@ export default function ClientSearchBar({ clientId }: ClientSearchBarProps) {
 
   const getTypeBadge = (type: SearchResult["type"]) => {
     const badges = {
+      post: { label: "Post", variant: "default" as const },
       idea: { label: "Idea", variant: "default" as const },
       asset: { label: "Asset", variant: "secondary" as const },
       inspiration: { label: "Inspiration", variant: "outline" as const },
@@ -230,6 +313,7 @@ export default function ClientSearchBar({ clientId }: ClientSearchBarProps) {
                     <button
                       key={`${result.type}-${result.id}`}
                       className="w-full text-left p-3 rounded-md hover:bg-accent transition-colors"
+                      onClick={() => handleResultClick(result)}
                     >
                       <div className="flex items-start gap-3">
                         <div className={cn("mt-0.5", result.color)}>
