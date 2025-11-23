@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { createContext, useContext, useState, ReactNode } from 'react';
+import { useRole } from '@/hooks/useRole';
 import type { PlanType } from '@/lib/plan-limits';
 
 export type AssistantReason = 
@@ -32,14 +33,18 @@ export function UpgradeAssistantProvider({ children }: { children: ReactNode }) 
   const [isBubbleVisible, setIsBubbleVisible] = useState(true);
   const [isPulsing, setIsPulsing] = useState(false);
   const [currentReason, setCurrentReason] = useState<AssistantReason | null>(null);
+  const { role, loading: roleLoading } = useRole();
 
   const triggerAssistant = (reason: AssistantReason) => {
+    // Don't show assistant if role is not loaded yet
+    if (roleLoading) return;
+    
     setCurrentReason(reason);
     setIsPulsing(true);
     setIsBubbleVisible(true);
     
-    // Track analytics
-    console.log('[Upgrade Assistant] Triggered:', reason);
+    // Track analytics with role context
+    console.log('[Upgrade Assistant] Triggered:', reason, 'Role:', role);
     
     // Stop pulsing after 5 seconds
     setTimeout(() => setIsPulsing(false), 5000);
