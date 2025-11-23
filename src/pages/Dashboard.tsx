@@ -221,6 +221,23 @@ export default function Dashboard() {
     }
   };
 
+  const getPlatformColor = (platform: string | null) => {
+    switch (platform?.toLowerCase()) {
+      case "instagram":
+        return "bg-gradient-to-r from-accent-purple to-accent-pink text-white";
+      case "facebook":
+        return "bg-accent-teal text-white";
+      case "tiktok":
+        return "bg-gradient-to-r from-gray-900 to-accent-teal text-white";
+      case "linkedin":
+        return "bg-accent-teal text-white";
+      case "youtube":
+        return "bg-destructive text-white";
+      default:
+        return "bg-muted text-muted-foreground";
+    }
+  };
+
   const handleDismissPost = (postId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setDismissedPosts(prev => new Set(prev).add(postId));
@@ -488,7 +505,15 @@ export default function Dashboard() {
                       >
                         <TableCell className="font-medium">{post.client.name}</TableCell>
                         <TableCell>{post.title}</TableCell>
-                        <TableCell>{post.platform || "-"}</TableCell>
+                        <TableCell>
+                          {post.platform ? (
+                            <Badge className={cn("font-medium", getPlatformColor(post.platform))}>
+                              {post.platform}
+                            </Badge>
+                          ) : (
+                            "-"
+                          )}
+                        </TableCell>
                         <TableCell>
                           {post.scheduled_for
                             ? format(new Date(post.scheduled_for), "MMM d, yyyy")
@@ -680,40 +705,6 @@ export default function Dashboard() {
             </div>
           )}
         </>
-      )}
-
-      {/* Floating Action Button */}
-      {(canManageClients || canCreateContent) && (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              size="lg"
-              className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg"
-            >
-              <Plus className="h-6 w-6" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48 bg-popover z-50">
-            {canManageClients && (
-              <DropdownMenuItem onClick={() => setShowNewClientDialog(true)}>
-                <Users className="mr-2 h-4 w-4" />
-                New Client
-              </DropdownMenuItem>
-            )}
-            {canCreateContent && (
-              <>
-                <DropdownMenuItem onClick={() => setShowTaskDialog(true)}>
-                  <CheckSquare className="mr-2 h-4 w-4" />
-                  New Task
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setShowPostDialog(true)}>
-                  <FileText className="mr-2 h-4 w-4" />
-                  New Post
-                </DropdownMenuItem>
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
       )}
 
       {/* New Task Dialog */}
