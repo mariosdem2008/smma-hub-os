@@ -8,7 +8,6 @@ import { useAuth } from "@/lib/auth";
 import { useRole } from "@/hooks/useRole";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Palette } from "lucide-react";
 
 export default function Settings() {
   const { user } = useAuth();
@@ -18,7 +17,6 @@ export default function Settings() {
   const [saving, setSaving] = useState(false);
   const [agencyId, setAgencyId] = useState<string>("");
   const [agencyName, setAgencyName] = useState("");
-  const [primaryColor, setPrimaryColor] = useState("#3b82f6");
 
   useEffect(() => {
     fetchSettings();
@@ -40,12 +38,6 @@ export default function Settings() {
       if (agency) {
         setAgencyId(agency.id);
         setAgencyName(agency.name);
-      }
-
-      // Get stored brand color from localStorage
-      const storedColor = localStorage.getItem("brand-color");
-      if (storedColor) {
-        setPrimaryColor(storedColor);
       }
     } catch (error: any) {
       console.error("Error fetching settings:", error);
@@ -83,19 +75,6 @@ export default function Settings() {
       });
     }
     setSaving(false);
-  };
-
-  const handleColorChange = (color: string) => {
-    setPrimaryColor(color);
-    localStorage.setItem("brand-color", color);
-    
-    // Apply color to CSS variable
-    document.documentElement.style.setProperty("--primary", color);
-    
-    toast({
-      title: "Color Updated",
-      description: "Brand color will be applied across the app",
-    });
   };
 
   if (loading) {
@@ -194,54 +173,6 @@ export default function Settings() {
             {!canEditSettings && (
               <p className="text-sm text-muted-foreground">Only owners and admins can edit agency settings</p>
             )}
-          </CardContent>
-        </Card>
-
-        {/* Brand Theme */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Brand Theme</CardTitle>
-            <CardDescription>Customize your app appearance</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Primary Brand Color */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <Palette className="h-4 w-4 text-muted-foreground" />
-                <Label htmlFor="brand-color">Primary Brand Color</Label>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Choose a color that represents your brand
-              </p>
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <Input
-                    id="brand-color"
-                    type="color"
-                    value={primaryColor}
-                    onChange={(e) => handleColorChange(e.target.value)}
-                    className="w-20 h-10 cursor-pointer"
-                  />
-                  <Input
-                    type="text"
-                    value={primaryColor}
-                    onChange={(e) => handleColorChange(e.target.value)}
-                    className="w-32 font-mono text-sm"
-                    placeholder="#3b82f6"
-                  />
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleColorChange("#3b82f6")}
-                >
-                  Reset to Default
-                </Button>
-              </div>
-              <div className="flex items-center gap-2 p-4 rounded-lg border" style={{ backgroundColor: primaryColor }}>
-                <div className="text-sm font-medium text-white">Preview Color</div>
-              </div>
-            </div>
           </CardContent>
         </Card>
       </div>
