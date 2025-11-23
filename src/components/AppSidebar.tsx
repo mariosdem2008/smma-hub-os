@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, UsersRound, Settings, LogOut, CreditCard } from "lucide-react";
+import { LayoutDashboard, Users, UsersRound, Settings, LogOut, CreditCard, ArrowUpCircle } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import {
@@ -16,6 +16,8 @@ import {
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { useSubscription } from "@/hooks/useSubscription";
+import { useUpgradeModal } from "@/contexts/UpgradeModalContext";
 
 const items = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
@@ -29,9 +31,14 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const location = useLocation();
   const { signOut } = useAuth();
+  const { subscription } = useSubscription();
+  const { openUpgradeModal } = useUpgradeModal();
 
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + "/");
   const isCollapsed = state === "collapsed";
+
+  // Show upgrade button for free, starter, and LTD starter users
+  const showUpgradeButton = subscription && ['free', 'starter', 'ltd_starter'].includes(subscription.plan_type);
 
   return (
     <Sidebar collapsible="icon">
@@ -57,6 +64,21 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {/* Upgrade CTA */}
+        {showUpgradeButton && (
+          <SidebarGroup className="mt-auto">
+            <SidebarGroupContent>
+              <Button
+                onClick={() => openUpgradeModal()}
+                className="w-full bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-white shadow-lg"
+              >
+                <ArrowUpCircle className="h-4 w-4" />
+                {!isCollapsed && <span className="ml-2 font-semibold">Upgrade</span>}
+              </Button>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
       <SidebarFooter>
         <div className="flex items-center gap-2 px-2 py-1">

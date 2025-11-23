@@ -4,15 +4,29 @@ import { AppSidebar } from "./AppSidebar";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { useAuth } from "@/lib/auth";
 import { useRole } from "@/hooks/useRole";
+import { useSubscription } from "@/hooks/useSubscription";
+import { useUpgradeModal } from "@/contexts/UpgradeModalContext";
 import { Button } from "@/components/ui/button";
-import { UserPlus } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { UserPlus, Sparkles } from "lucide-react";
 import { InviteTeamMemberDialog } from "./InviteTeamMemberDialog";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 export function AppLayout() {
   const { user } = useAuth();
   const { canManageTeam } = useRole();
+  const { subscription } = useSubscription();
+  const { openUpgradeModal } = useUpgradeModal();
   const [showInviteDialog, setShowInviteDialog] = useState(false);
+
+  const getUpgradeBadgeText = () => {
+    if (!subscription) return null;
+    if (subscription.plan_type === 'free') return 'Free Plan — Upgrade';
+    if (subscription.plan_type === 'starter' || subscription.plan_type === 'ltd_starter') return 'Upgrade to Pro';
+    return null;
+  };
+
+  const upgradeBadgeText = getUpgradeBadgeText();
 
   return (
     <SidebarProvider>
@@ -26,6 +40,16 @@ export function AppLayout() {
             </div>
             <div className="flex items-center gap-3">
               <ThemeToggle />
+              {upgradeBadgeText && (
+                <Badge
+                  variant="secondary"
+                  className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors animate-pulse"
+                  onClick={() => openUpgradeModal()}
+                >
+                  <Sparkles className="mr-1 h-3 w-3" />
+                  {upgradeBadgeText}
+                </Badge>
+              )}
               {canManageTeam && (
                 <Button
                   variant="outline"

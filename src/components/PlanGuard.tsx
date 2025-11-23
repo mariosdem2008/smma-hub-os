@@ -3,7 +3,7 @@ import { usePlanLimits } from '@/hooks/usePlanLimits';
 import { useSubscription } from '@/hooks/useSubscription';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
-import { UpgradeModal } from './UpgradeModal';
+import { useUpgradeModal } from '@/contexts/UpgradeModalContext';
 import { toast } from 'sonner';
 
 interface PlanGuardProps {
@@ -17,7 +17,7 @@ export function PlanGuard({ children, feature, requiredPlan = 'starter', onBlock
   const { user } = useAuth();
   const { limits, loading } = usePlanLimits();
   const { subscription } = useSubscription();
-  const [showUpgrade, setShowUpgrade] = useState(false);
+  const { openUpgradeModal } = useUpgradeModal();
   const [currentUsage, setCurrentUsage] = useState(0);
   const [checking, setChecking] = useState(true);
 
@@ -72,7 +72,7 @@ export function PlanGuard({ children, feature, requiredPlan = 'starter', onBlock
       e.preventDefault();
       e.stopPropagation();
       toast.error('White-label requires ' + requiredPlan + ' plan or higher');
-      setShowUpgrade(true);
+      openUpgradeModal({ suggestedPlan: requiredPlan, feature: 'White-label' });
       onBlock?.();
       return;
     }
@@ -81,7 +81,7 @@ export function PlanGuard({ children, feature, requiredPlan = 'starter', onBlock
       e.preventDefault();
       e.stopPropagation();
       toast.error('Approval workflows require ' + requiredPlan + ' plan or higher');
-      setShowUpgrade(true);
+      openUpgradeModal({ suggestedPlan: requiredPlan, feature: 'Approval workflows' });
       onBlock?.();
       return;
     }
@@ -90,7 +90,7 @@ export function PlanGuard({ children, feature, requiredPlan = 'starter', onBlock
       e.preventDefault();
       e.stopPropagation();
       toast.error('Bulk actions require ' + requiredPlan + ' plan or higher');
-      setShowUpgrade(true);
+      openUpgradeModal({ suggestedPlan: requiredPlan, feature: 'Bulk actions' });
       onBlock?.();
       return;
     }
@@ -100,7 +100,7 @@ export function PlanGuard({ children, feature, requiredPlan = 'starter', onBlock
       e.preventDefault();
       e.stopPropagation();
       toast.error('You have reached your client limit (' + limits.clients + '). Upgrade to add more clients.');
-      setShowUpgrade(true);
+      openUpgradeModal({ suggestedPlan: 'starter', feature: 'More clients' });
       onBlock?.();
       return;
     }
@@ -109,7 +109,7 @@ export function PlanGuard({ children, feature, requiredPlan = 'starter', onBlock
       e.preventDefault();
       e.stopPropagation();
       toast.error('You have reached your team member limit (' + limits.teamMembers + '). Upgrade to add more members.');
-      setShowUpgrade(true);
+      openUpgradeModal({ suggestedPlan: 'starter', feature: 'More team members' });
       onBlock?.();
       return;
     }
@@ -118,23 +118,15 @@ export function PlanGuard({ children, feature, requiredPlan = 'starter', onBlock
       e.preventDefault();
       e.stopPropagation();
       toast.error('You have reached your storage limit. Upgrade to get more storage.');
-      setShowUpgrade(true);
+      openUpgradeModal({ suggestedPlan: 'pro', feature: 'More storage' });
       onBlock?.();
       return;
     }
   };
 
   return (
-    <>
-      <div onClick={handleClick}>
-        {children}
-      </div>
-      <UpgradeModal
-        open={showUpgrade}
-        onOpenChange={setShowUpgrade}
-        feature={feature}
-        requiredPlan={requiredPlan}
-      />
-    </>
+    <div onClick={handleClick}>
+      {children}
+    </div>
   );
 }
