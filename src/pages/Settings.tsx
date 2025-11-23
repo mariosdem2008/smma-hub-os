@@ -3,20 +3,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/lib/auth";
 import { useRole } from "@/hooks/useRole";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useTheme } from "next-themes";
-import { Sun, Moon, Palette } from "lucide-react";
+import { Palette } from "lucide-react";
 
 export default function Settings() {
   const { user } = useAuth();
   const { canManageTeam, canEditSettings } = useRole();
   const { toast } = useToast();
-  const { theme, setTheme } = useTheme();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [agencyId, setAgencyId] = useState<string>("");
@@ -101,10 +97,6 @@ export default function Settings() {
     });
   };
 
-  const toggleTheme = () => {
-    setTheme(theme === "dark" ? "light" : "dark");
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -163,7 +155,7 @@ export default function Settings() {
                 <CardDescription>Configure your agency details</CardDescription>
               </div>
               {canManageTeam && (
-                <Button variant="outline" onClick={() => window.location.href = "/settings/team"}>
+                <Button variant="outline" onClick={() => window.location.href = "/team"}>
                   Manage Team
                 </Button>
               )}
@@ -201,27 +193,6 @@ export default function Settings() {
             <CardDescription>Customize your app appearance</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Theme Mode Toggle */}
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label htmlFor="theme-mode">Dark Mode</Label>
-                <p className="text-sm text-muted-foreground">
-                  Switch between light and dark theme
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Sun className="h-4 w-4" />
-                <Switch
-                  id="theme-mode"
-                  checked={theme === "dark"}
-                  onCheckedChange={toggleTheme}
-                />
-                <Moon className="h-4 w-4" />
-              </div>
-            </div>
-
-            <Separator />
-
             {/* Primary Brand Color */}
             <div className="space-y-3">
               <div className="flex items-center gap-2">

@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -11,8 +13,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/lib/auth";
 import { 
   Palette, 
   Globe, 
@@ -45,14 +55,23 @@ interface Stats {
 
 export default function OverviewTab({ clientId, client, onNotesUpdate }: OverviewTabProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [stats, setStats] = useState<Stats>({
     totalPosts: 0,
     completedTasks: 0,
     upcomingPosts: 0,
   });
   const [isEditNotesOpen, setIsEditNotesOpen] = useState(false);
+  const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
   const [notes, setNotes] = useState(client.notes || "");
   const [saving, setSaving] = useState(false);
+  
+  // Task form state
+  const [taskTitle, setTaskTitle] = useState("");
+  const [taskDescription, setTaskDescription] = useState("");
+  const [taskDueDate, setTaskDueDate] = useState("");
+  const [taskPriority, setTaskPriority] = useState("medium");
+  const [taskStatus, setTaskStatus] = useState("pending");
 
   useEffect(() => {
     fetchStats();
@@ -110,6 +129,52 @@ export default function OverviewTab({ clientId, client, onNotesUpdate }: Overvie
       });
       onNotesUpdate(notes);
       setIsEditNotesOpen(false);
+    }
+    setSaving(false);
+  };
+
+  const handleAddTask = async () => {
+    if (!taskTitle.trim()) {
+      toast({
+        title: "Error",
+        description: "Task title is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSaving(true);
+    const { error } = await supabase
+      .from("tasks")
+      .insert({
+        client_id: clientId,
+        title: taskTitle,
+        description: taskDescription || null,
+        due_date: taskDueDate || null,
+        priority: taskPriority,
+        status: taskStatus,
+        assigned_to: user?.id || null,
+      });
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create task",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Success",
+        description: "Task created successfully",
+      });
+      // Reset form
+      setTaskTitle("");
+      setTaskDescription("");
+      setTaskDueDate("");
+      setTaskPriority("medium");
+      setTaskStatus("pending");
+      setIsAddTaskOpen(false);
+      fetchStats(); // Refresh stats
     }
     setSaving(false);
   };
@@ -289,10 +354,93 @@ export default function OverviewTab({ clientId, client, onNotesUpdate }: Overvie
             <CardTitle>Quick Actions</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Button className="w-full justify-start" variant="outline">
-              <Plus className="mr-2 h-4 w-4" />
-              Add Task
-            </Button>
+            <Dialog open={isAddTaskOpen} onOpenChange={setIsAddTaskOpen}>
+              <DialogTrigger asChild>
+                <Button className="w-full justify-start" variant="outline">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Task
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>Add New Task</DialogTitle>
+                  <DialogDescription>
+                    Create a new task for this client
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="task-title">Title *</Label>
+                    <Input
+                      id="task-title"
+                      value={taskTitle}
+                      onChange={(e) => setTaskTitle(e.target.value)}
+                      placeholder="Task title"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="task-description">Description</Label>
+                    <Textarea
+                      id="task-description"
+                      value={taskDescription}
+                      onChange={(e) => setTaskDescription(e.target.value)}
+                      placeholder="Task description (optional)"
+                      rows={3}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="task-priority">Priority</Label>
+                      <Select value={taskPriority} onValueChange={setTaskPriority}>
+                        <SelectTrigger id="task-priority">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="low">Low</SelectItem>
+                          <SelectItem value="medium">Medium</SelectItem>
+                          <SelectItem value="high">High</SelectItem>
+                          <SelectItem value="urgent">Urgent</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="task-status">Status</Label>
+                      <Select value={taskStatus} onValueChange={setTaskStatus}>
+                        <SelectTrigger id="task-status">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pending">Pending</SelectItem>
+                          <SelectItem value="in_progress">In Progress</SelectItem>
+                          <SelectItem value="completed">Completed</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="task-due-date">Due Date</Label>
+                    <Input
+                      id="task-due-date"
+                      type="date"
+                      value={taskDueDate}
+                      onChange={(e) => setTaskDueDate(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsAddTaskOpen(false)}
+                    disabled={saving}
+                  >
+                    Cancel
+                  </Button>
+                  <Button onClick={handleAddTask} disabled={saving}>
+                    {saving ? "Creating..." : "Create Task"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
             <Button 
               className="w-full justify-start" 
               variant="outline"
