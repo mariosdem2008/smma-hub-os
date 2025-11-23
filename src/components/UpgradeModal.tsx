@@ -3,10 +3,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Check, Sparkles, Zap, ArrowRight, Star, Flame } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Check, Sparkles, Zap, ArrowRight, Star, Flame, Lock, AlertCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { useSubscription } from '@/hooks/useSubscription';
+import { useRole } from '@/hooks/useRole';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { PLAN_NAMES } from '@/lib/plan-limits';
@@ -22,6 +24,7 @@ interface UpgradeModalProps {
 export function UpgradeModal({ open, onOpenChange, feature, suggestedPlan }: UpgradeModalProps) {
   const navigate = useNavigate();
   const { subscription } = useSubscription();
+  const { role, isOwner } = useRole();
   const [selectedPlan, setSelectedPlan] = useState<PlanType | null>(null);
   const [billingInterval, setBillingInterval] = useState<'monthly' | 'yearly'>('monthly');
   const [upgrading, setUpgrading] = useState(false);
@@ -47,6 +50,16 @@ export function UpgradeModal({ open, onOpenChange, feature, suggestedPlan }: Upg
 
   const handleUpgrade = async (planType: PlanType) => {
     if (planType === 'free') return;
+    
+    // Role-based access control
+    if (!isOwner) {
+      if (role === 'admin') {
+        toast.error('Only the agency owner can upgrade the plan.');
+      } else {
+        toast.error('Contact your agency owner to upgrade the plan.');
+      }
+      return;
+    }
     
     setUpgrading(true);
     try {
@@ -121,6 +134,29 @@ export function UpgradeModal({ open, onOpenChange, feature, suggestedPlan }: Upg
     { quote: "Best investment for our agency. The white-label feature makes us look even more professional.", author: "Lisa M., Social Media Manager" },
   ];
 
+  // Role-based messaging
+  const getRoleMessage = () => {
+    if (isOwner) return null;
+    if (role === 'admin') {
+      return (
+        <Alert className="border-primary/20 bg-primary/5">
+          <Lock className="h-4 w-4 text-primary" />
+          <AlertDescription>
+            You can view pricing information, but only the agency owner can complete the upgrade process.
+          </AlertDescription>
+        </Alert>
+      );
+    }
+    return (
+      <Alert className="border-primary/20 bg-primary/5">
+        <AlertCircle className="h-4 w-4 text-primary" />
+        <AlertDescription>
+          Contact your agency owner to request a plan upgrade. You'll be able to access these features once they upgrade.
+        </AlertDescription>
+      </Alert>
+    );
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto animate-scale-in">
@@ -135,6 +171,8 @@ export function UpgradeModal({ open, onOpenChange, feature, suggestedPlan }: Upg
               : 'Scale your agency with the right plan for your needs.'}
           </DialogDescription>
         </DialogHeader>
+
+        {getRoleMessage()}
 
         {/* Billing Toggle */}
         <div className="flex items-center justify-center gap-4 py-4">
@@ -192,12 +230,19 @@ export function UpgradeModal({ open, onOpenChange, feature, suggestedPlan }: Upg
                   className="w-full mt-4"
                   variant={currentPlan === plan.type ? 'default' : 'outline'}
                   onClick={() => !plan.disabled && handleUpgrade(plan.type)}
-                  disabled={plan.disabled || upgrading || subscription?.plan_type === plan.type}
+                  disabled={plan.disabled || upgrading || subscription?.plan_type === plan.type || !isOwner}
                 >
-                  {subscription?.plan_type === plan.type ? 'Current Plan' : plan.disabled ? 'Current' : 'Upgrade Now'}
-                  {!plan.disabled && subscription?.plan_type !== plan.type && (
+                  {subscription?.plan_type === plan.type 
+                    ? 'Current Plan' 
+                    : plan.disabled 
+                    ? 'Current' 
+                    : !isOwner 
+                    ? (role === 'admin' ? 'Owner Only' : 'Contact Owner')
+                    : 'Upgrade Now'}
+                  {!plan.disabled && subscription?.plan_type !== plan.type && isOwner && (
                     <ArrowRight className="ml-2 h-4 w-4" />
                   )}
+                  {!isOwner && !plan.disabled && <Lock className="ml-2 h-4 w-4" />}
                 </Button>
               </CardContent>
             </Card>

@@ -21,6 +21,7 @@ import Team from "./pages/Team";
 import Settings from "./pages/Settings";
 import Pricing from "./pages/Pricing";
 import Billing from "./pages/Billing";
+import BillingOverview from "./pages/BillingOverview";
 import InviteAccept from "./pages/InviteAccept";
 import NotFound from "./pages/NotFound";
 
@@ -68,6 +69,7 @@ const App = () => (
               <Route path="/clients/:clientId" element={<ClientDetail />} />
               <Route path="/team" element={<Team />} />
               <Route path="/billing" element={<Billing />} />
+              <Route path="/billing/overview" element={<BillingOverview />} />
               <Route path="/settings" element={<Settings />} />
             </Route>
             

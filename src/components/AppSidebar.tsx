@@ -18,12 +18,12 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useUpgradeModal } from "@/contexts/UpgradeModalContext";
+import { useRole } from "@/hooks/useRole";
 
 const items = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Clients", url: "/clients", icon: Users },
   { title: "Team", url: "/team", icon: UsersRound },
-  { title: "Billing", url: "/billing", icon: CreditCard },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 
@@ -33,12 +33,27 @@ export function AppSidebar() {
   const { signOut } = useAuth();
   const { subscription } = useSubscription();
   const { openUpgradeModal } = useUpgradeModal();
+  const { role, isOwner, isAdmin } = useRole();
 
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + "/");
   const isCollapsed = state === "collapsed";
 
   // Show upgrade button for free, starter, and LTD starter users
   const showUpgradeButton = subscription && ['free', 'starter', 'ltd_starter'].includes(subscription.plan_type);
+
+  // Dynamic navigation items based on role
+  const navigationItems = [
+    { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
+    { title: "Clients", url: "/clients", icon: Users },
+    { title: "Team", url: "/team", icon: UsersRound },
+    // Billing: Show different links based on role
+    ...(isOwner
+      ? [{ title: "Billing", url: "/billing", icon: CreditCard }]
+      : isAdmin
+      ? [{ title: "Billing", url: "/billing/overview", icon: CreditCard }]
+      : []),
+    { title: "Settings", url: "/settings", icon: Settings },
+  ];
 
   return (
     <Sidebar collapsible="icon">
@@ -47,7 +62,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {items.map((item) => {
+              {navigationItems.map((item) => {
                 const active = isActive(item.url);
                 return (
                   <SidebarMenuItem key={item.title}>
