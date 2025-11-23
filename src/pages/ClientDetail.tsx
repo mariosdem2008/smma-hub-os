@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useClientFonts } from "@/hooks/useClientFonts";
 import ClientHeader from "@/components/ClientHeader";
 import OverviewTab from "@/components/client-tabs/OverviewTab";
 import BrandIdentityTab from "@/components/client-tabs/BrandIdentityTab";
@@ -28,6 +29,8 @@ interface Client {
   brand_colors: string[] | null;
   tone_of_voice: string | null;
   notes: string | null;
+  primary_font: string | null;
+  secondary_font: string | null;
 }
 
 interface ClientBranding {
@@ -40,6 +43,12 @@ export default function ClientDetail() {
   const [client, setClient] = useState<Client | null>(null);
   const [branding, setBranding] = useState<ClientBranding | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Load client fonts dynamically
+  useClientFonts({
+    primaryFont: client?.primary_font,
+    secondaryFont: client?.secondary_font,
+  });
 
   useEffect(() => {
     const fetchClient = async () => {
@@ -116,7 +125,7 @@ export default function ClientDetail() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 client-workspace">
       <Link to="/clients">
         <Button variant="ghost">
           <ArrowLeft className="mr-2 h-4 w-4" />
