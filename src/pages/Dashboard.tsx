@@ -1,128 +1,210 @@
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
-import { Users, FileText, CheckSquare, TrendingUp } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Plus, ExternalLink, Instagram, Facebook } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const [stats, setStats] = useState({
-    clients: 0,
-    posts: 0,
-    tasks: 0,
-  });
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const [clients, setClients] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showNewClientDialog, setShowNewClientDialog] = useState(false);
+  const [newClientName, setNewClientName] = useState("");
 
   useEffect(() => {
-    const fetchStats = async () => {
-      if (!user) return;
+    fetchClients();
+  }, [user]);
 
-      // Get agency
-      const { data: agency } = await supabase
+  const fetchClients = async () => {
+    if (!user) return;
+
+    setLoading(true);
+    try {
+      const { data: agencies } = await supabase
         .from("agencies")
         .select("id")
         .eq("user_id", user.id)
         .single();
 
-      if (!agency) return;
+      if (!agencies) {
+        setLoading(false);
+        return;
+      }
 
-      // Get clients count
-      const { count: clientsCount } = await supabase
+      const { data: clientsData } = await supabase
         .from("clients")
-        .select("*", { count: "exact", head: true })
-        .eq("agency_id", agency.id);
+        .select("*, assets(count), ideas(count)")
+        .eq("agency_id", agencies.id);
 
-      // Get posts count
-      const { count: postsCount } = await supabase
-        .from("posts")
-        .select("*, clients!inner(agency_id)", { count: "exact", head: true })
-        .eq("clients.agency_id", agency.id);
+      setClients(clientsData || []);
+    } catch (error) {
+      console.error("Error fetching clients:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      // Get tasks count
-      const { count: tasksCount } = await supabase
-        .from("tasks")
-        .select("*, clients!inner(agency_id)", { count: "exact", head: true })
-        .eq("clients.agency_id", agency.id);
+  const handleCreateClient = async () => {
+    if (!user || !newClientName.trim()) return;
 
-      setStats({
-        clients: clientsCount || 0,
-        posts: postsCount || 0,
-        tasks: tasksCount || 0,
+    try {
+      const { data: agencies } = await supabase
+        .from("agencies")
+        .select("id")
+        .eq("user_id", user.id)
+        .single();
+
+      if (!agencies) {
+        toast({
+          title: "Error",
+          description: "Agency not found. Please contact support.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { data: client, error } = await supabase
+        .from("clients")
+        .insert({
+          agency_id: agencies.id,
+          name: newClientName,
+          status: "active",
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast({
+        title: "Client created",
+        description: "Your new client has been added successfully.",
       });
-    };
 
-    fetchStats();
-  }, [user]);
-
-  const statCards = [
-    {
-      title: "Total Clients",
-      value: stats.clients,
-      description: "Active client accounts",
-      icon: Users,
-    },
-    {
-      title: "Scheduled Posts",
-      value: stats.posts,
-      description: "Content in pipeline",
-      icon: FileText,
-    },
-    {
-      title: "Active Tasks",
-      value: stats.tasks,
-      description: "Tasks in progress",
-      icon: CheckSquare,
-    },
-    {
-      title: "Growth Rate",
-      value: "+12%",
-      description: "Month over month",
-      icon: TrendingUp,
-    },
-  ];
+      setShowNewClientDialog(false);
+      setNewClientName("");
+      navigate(`/clients/${client.id}`);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground">Welcome back! Here's your agency overview.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Welcome, {user?.user_metadata?.full_name || "User"}</h1>
+          <p className="text-muted-foreground">Manage your clients and their projects</p>
+        </div>
+        <Dialog open={showNewClientDialog} onOpenChange={setShowNewClientDialog}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              New Client
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create New Client</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="clientName">Client Name</Label>
+                <Input
+                  id="clientName"
+                  value={newClientName}
+                  onChange={(e) => setNewClientName(e.target.value)}
+                  placeholder="Enter client name"
+                />
+              </div>
+              <Button onClick={handleCreateClient} className="w-full">
+                Create Client
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {statCards.map((stat) => (
-          <Card key={stat.title}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-              <stat.icon className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stat.value}</div>
-              <p className="text-xs text-muted-foreground">{stat.description}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
+      {loading ? (
+        <div className="text-center text-muted-foreground">Loading clients...</div>
+      ) : clients.length === 0 ? (
         <Card>
-          <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
-            <CardDescription>Latest updates across your clients</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">No recent activity</p>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <p className="mb-4 text-muted-foreground">No clients yet</p>
+            <Button onClick={() => setShowNewClientDialog(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Create Your First Client
+            </Button>
           </CardContent>
         </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Upcoming Deadlines</CardTitle>
-            <CardDescription>Tasks and posts due soon</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">No upcoming deadlines</p>
-          </CardContent>
-        </Card>
-      </div>
+      ) : (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {clients.map((client) => (
+            <Card key={client.id} className="overflow-hidden hover:border-primary/50 transition-colors">
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between">
+                  {client.logo_url ? (
+                    <img
+                      src={client.logo_url}
+                      alt={client.name}
+                      className="h-12 w-12 rounded-lg object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-lg font-bold text-primary">
+                      {client.name.charAt(0)}
+                    </div>
+                  )}
+                </div>
+                <CardTitle className="mt-3">{client.name}</CardTitle>
+                {client.company && <CardDescription>{client.company}</CardDescription>}
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex gap-2">
+                  {client.instagram_url && (
+                    <Button size="icon" variant="outline" asChild>
+                      <a href={client.instagram_url} target="_blank" rel="noopener noreferrer">
+                        <Instagram className="h-4 w-4" />
+                      </a>
+                    </Button>
+                  )}
+                  {client.facebook_url && (
+                    <Button size="icon" variant="outline" asChild>
+                      <a href={client.facebook_url} target="_blank" rel="noopener noreferrer">
+                        <Facebook className="h-4 w-4" />
+                      </a>
+                    </Button>
+                  )}
+                  {client.website && (
+                    <Button size="icon" variant="outline" asChild>
+                      <a href={client.website} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="h-4 w-4" />
+                      </a>
+                    </Button>
+                  )}
+                </div>
+                <div className="flex gap-4 text-sm text-muted-foreground">
+                  <span>{client.assets?.[0]?.count || 0} Assets</span>
+                  <span>{client.ideas?.[0]?.count || 0} Ideas</span>
+                </div>
+                <Button className="w-full" onClick={() => navigate(`/clients/${client.id}`)}>
+                  View Workspace
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
