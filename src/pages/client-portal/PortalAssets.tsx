@@ -17,6 +17,9 @@ interface Asset {
   file_size: number | null;
   created_at: string;
   status: string;
+  uploaded_by: string | null;
+  visible_to_client: boolean | null;
+  is_client_upload: boolean | null;
 }
 
 interface OutletContext {
@@ -31,6 +34,7 @@ export function PortalAssets() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [viewFilter, setViewFilter] = useState<"agency" | "my_uploads">("agency");
 
   useEffect(() => {
     fetchAssets();
@@ -41,7 +45,7 @@ export function PortalAssets() {
       .from("assets")
       .select("*")
       .eq("client_id", clientId)
-      .eq("visible_to_client", true)
+      .or("visible_to_client.eq.true,is_client_upload.eq.true")
       .order("created_at", { ascending: false });
 
     setAssets(data || []);
@@ -84,6 +88,8 @@ export function PortalAssets() {
           file_size: file.size,
           uploaded_by: user?.id,
           is_client_upload: true,
+          visible_to_client: true,
+          status: 'draft',
         });
 
         if (dbError) throw dbError;
@@ -147,14 +153,25 @@ export function PortalAssets() {
   };
 
   const filteredAssets = assets.filter((asset) => {
+    // First filter by view type
+    const matchesView = viewFilter === "my_uploads" 
+      ? asset.uploaded_by === user?.id 
+      : !asset.uploaded_by || asset.uploaded_by !== user?.id || asset.visible_to_client;
+    
+    if (!matchesView) return false;
+    
+    // Then filter by status
     if (statusFilter === "all") return true;
     return asset.status === statusFilter;
   });
 
+  const agencyAssets = assets.filter(a => !a.uploaded_by || a.uploaded_by !== user?.id || a.visible_to_client);
+  const myUploads = assets.filter(a => a.uploaded_by === user?.id);
+
   const statusCounts = {
-    all: assets.length,
-    ready: assets.filter(a => a.status === 'ready').length,
-    published: assets.filter(a => a.status === 'published').length,
+    all: filteredAssets.length,
+    ready: filteredAssets.filter(a => a.status === 'ready').length,
+    published: filteredAssets.filter(a => a.status === 'published').length,
   };
 
   if (loading) {
@@ -185,11 +202,25 @@ export function PortalAssets() {
         </Button>
       </div>
 
+      {/* View Filter */}
+      <Tabs value={viewFilter} onValueChange={(v) => setViewFilter(v as "agency" | "my_uploads")}>
+        <TabsList>
+          <TabsTrigger value="agency">
+            <FolderOpen className="h-4 w-4 mr-2" />
+            Agency Assets <Badge variant="secondary" className="ml-2">{agencyAssets.length}</Badge>
+          </TabsTrigger>
+          <TabsTrigger value="my_uploads">
+            <Upload className="h-4 w-4 mr-2" />
+            My Uploads <Badge variant="secondary" className="ml-2">{myUploads.length}</Badge>
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+
       {/* Status Tabs */}
       <Tabs value={statusFilter} onValueChange={setStatusFilter}>
         <TabsList>
           <TabsTrigger value="all">
-            All Assets <Badge variant="secondary" className="ml-2">{statusCounts.all}</Badge>
+            All <Badge variant="secondary" className="ml-2">{statusCounts.all}</Badge>
           </TabsTrigger>
           <TabsTrigger value="ready">
             <CheckCircle className="h-4 w-4 mr-2" />
