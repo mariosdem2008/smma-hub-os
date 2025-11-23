@@ -50,7 +50,7 @@ const handler = async (req: Request): Promise<Response> => {
       : '';
 
     const emailResponse = await resend.emails.send({
-      from: "SMMAHUB <onboarding@resend.dev>",
+      from: "SMMAHUB <invites@smmahub.net>",
       to: [email],
       subject: `Access Your Client Portal - ${clientName}`,
       html: `
