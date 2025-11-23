@@ -27,7 +27,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     };
 
     checkMembership();
-  }, [user]);
+  }, [user, location.pathname]); // Re-check membership when route changes
 
   if (loading || checkingMembership) {
     return (
