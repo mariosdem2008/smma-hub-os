@@ -91,13 +91,22 @@ export default function Dashboard() {
 
     setLoading(true);
     try {
-      const { data: agencies } = await supabase
+      // Get agency IDs for the current user (either as owner or team member)
+      const { data: agencyOwner } = await supabase
         .from("agencies")
         .select("id")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
 
-      if (!agencies) {
+      const { data: agencyMember } = await supabase
+        .from("agency_members")
+        .select("agency_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      const agencyId = agencyOwner?.id || agencyMember?.agency_id;
+
+      if (!agencyId) {
         setLoading(false);
         return;
       }
@@ -106,7 +115,7 @@ export default function Dashboard() {
       const { data: clientsData } = await supabase
         .from("clients")
         .select("*, assets(count), ideas(count)")
-        .eq("agency_id", agencies.id);
+        .eq("agency_id", agencyId);
 
       setClients(clientsData || []);
 
@@ -299,13 +308,22 @@ export default function Dashboard() {
     if (!user || !newClientName.trim()) return;
 
     try {
-      const { data: agencies } = await supabase
+      // Get agency ID for the current user (either as owner or team member)
+      const { data: agencyOwner } = await supabase
         .from("agencies")
         .select("id")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
 
-      if (!agencies) {
+      const { data: agencyMember } = await supabase
+        .from("agency_members")
+        .select("agency_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      const agencyId = agencyOwner?.id || agencyMember?.agency_id;
+
+      if (!agencyId) {
         toast({
           title: "Error",
           description: "Agency not found. Please contact support.",
@@ -317,7 +335,7 @@ export default function Dashboard() {
       const { data: client, error } = await supabase
         .from("clients")
         .insert({
-          agency_id: agencies.id,
+          agency_id: agencyId,
           name: newClientName,
           status: "active",
         })
