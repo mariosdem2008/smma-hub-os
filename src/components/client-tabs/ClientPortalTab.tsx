@@ -161,37 +161,20 @@ export function ClientPortalTab({ clientId }: ClientPortalTabProps) {
         return;
       }
 
-      // Create auth user with temporary password
-      const tempPassword = Math.random().toString(36).slice(-12) + "Aa1!";
-      
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: inviteEmail.toLowerCase(),
-        password: tempPassword,
-        options: {
-          emailRedirectTo: `${window.location.origin}/client-portal/${portalSlug}`,
-          data: {
-            full_name: inviteName || inviteEmail.split("@")[0],
-          },
-        },
-      });
-
-      if (authError) throw authError;
-
-      // Create portal user record with the new user_id
+      // Create portal user record (user_id will be set when they sign up)
       const { error: insertError } = await supabase
         .from("client_portal_users")
         .insert({
           client_id: clientId,
           email: inviteEmail.toLowerCase(),
           name: inviteName || null,
-          user_id: authData.user?.id || "",
         });
 
       if (insertError) throw insertError;
 
       toast({
         title: "Invite Sent",
-        description: `Invitation sent to ${inviteEmail}. They'll receive a confirmation email with login instructions.`,
+        description: `${inviteEmail} has been invited. Share the portal link with them so they can create an account and access the portal.`,
       });
 
       setInviteOpen(false);
@@ -268,6 +251,9 @@ export function ClientPortalTab({ clientId }: ClientPortalTabProps) {
           {portalEnabled && portalSlug && (
             <div className="space-y-2 pt-4 border-t">
               <Label>Portal Link</Label>
+              <p className="text-xs text-muted-foreground mb-2">
+                Share this link with invited clients so they can create an account and access the portal
+              </p>
               <div className="flex gap-2">
                 <Input value={portalUrl} readOnly className="flex-1" />
                 <Button onClick={copyPortalLink} variant="outline" size="icon">
@@ -308,6 +294,9 @@ export function ClientPortalTab({ clientId }: ClientPortalTabProps) {
                   <DialogTitle>Invite Client User</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    Add a client user who can access this portal. After inviting, share the portal link with them.
+                  </p>
                   <div className="space-y-2">
                     <Label htmlFor="name">Name</Label>
                     <Input
@@ -328,7 +317,7 @@ export function ClientPortalTab({ clientId }: ClientPortalTabProps) {
                     />
                   </div>
                   <Button onClick={handleInviteUser} className="w-full">
-                    Send Invitation
+                    Add to Portal Access
                   </Button>
                 </div>
               </DialogContent>
