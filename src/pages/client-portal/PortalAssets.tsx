@@ -4,8 +4,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, Download, FileText, Image, Film, FolderOpen } from "lucide-react";
+import { Upload, Download, FileText, Image, Film, FolderOpen, CheckCircle, Clock, Rocket } from "lucide-react";
 
 interface Asset {
   id: string;
@@ -14,6 +16,7 @@ interface Asset {
   file_type: string;
   file_size: number | null;
   created_at: string;
+  status: string;
 }
 
 interface OutletContext {
@@ -27,6 +30,7 @@ export function PortalAssets() {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
 
   useEffect(() => {
     fetchAssets();
@@ -142,6 +146,17 @@ export function PortalAssets() {
     return `${mb.toFixed(1)} MB`;
   };
 
+  const filteredAssets = assets.filter((asset) => {
+    if (statusFilter === "all") return true;
+    return asset.status === statusFilter;
+  });
+
+  const statusCounts = {
+    all: assets.length,
+    ready: assets.filter(a => a.status === 'ready').length,
+    published: assets.filter(a => a.status === 'published').length,
+  };
+
   if (loading) {
     return <div>Loading assets...</div>;
   }
@@ -152,7 +167,7 @@ export function PortalAssets() {
         <div>
           <h1 className="text-3xl font-bold mb-2">Assets</h1>
           <p className="text-muted-foreground">
-            Upload and download your brand assets
+            Your brand assets and content
           </p>
         </div>
         <Button disabled={uploading} asChild>
@@ -170,9 +185,26 @@ export function PortalAssets() {
         </Button>
       </div>
 
-      {assets.length > 0 ? (
+      {/* Status Tabs */}
+      <Tabs value={statusFilter} onValueChange={setStatusFilter}>
+        <TabsList>
+          <TabsTrigger value="all">
+            All Assets <Badge variant="secondary" className="ml-2">{statusCounts.all}</Badge>
+          </TabsTrigger>
+          <TabsTrigger value="ready">
+            <CheckCircle className="h-4 w-4 mr-2" />
+            Ready <Badge variant="secondary" className="ml-2">{statusCounts.ready}</Badge>
+          </TabsTrigger>
+          <TabsTrigger value="published">
+            <Rocket className="h-4 w-4 mr-2" />
+            Published <Badge variant="secondary" className="ml-2">{statusCounts.published}</Badge>
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+
+      {filteredAssets.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {assets.map((asset) => {
+          {filteredAssets.map((asset) => {
             const Icon = getFileIcon(asset.file_type);
             return (
               <Card key={asset.id} className="p-4 space-y-3">
@@ -190,6 +222,20 @@ export function PortalAssets() {
                     <p className="text-xs text-muted-foreground">
                       {new Date(asset.created_at).toLocaleDateString()}
                     </p>
+                    <div className="mt-1">
+                      {asset.status === 'ready' && (
+                        <Badge variant="outline" className="text-xs">
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Ready
+                        </Badge>
+                      )}
+                      {asset.status === 'published' && (
+                        <Badge variant="default" className="text-xs">
+                          <Rocket className="h-3 w-3 mr-1" />
+                          Published
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                 </div>
                 {asset.file_type.startsWith("image/") && (
