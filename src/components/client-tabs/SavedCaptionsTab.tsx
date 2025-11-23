@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useRole } from "@/hooks/useRole";
 import { FileText, Plus, Trash2, Copy } from "lucide-react";
 import { format } from "date-fns";
 
@@ -39,6 +40,7 @@ interface SavedCaption {
 
 export default function SavedCaptionsTab({ clientId }: SavedCaptionsTabProps) {
   const { toast } = useToast();
+  const { canCreateContent, canDeleteContent, isViewer } = useRole();
   const [captions, setCaptions] = useState<SavedCaption[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -157,7 +159,8 @@ export default function SavedCaptionsTab({ clientId }: SavedCaptionsTabProps) {
           <FileText className="h-5 w-5" />
           <h2 className="text-lg font-semibold">Saved Captions</h2>
         </div>
-        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+        {canCreateContent && !isViewer && (
+          <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="mr-2 h-4 w-4" />
@@ -201,9 +204,19 @@ export default function SavedCaptionsTab({ clientId }: SavedCaptionsTabProps) {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        )}
       </div>
 
       {/* Captions List */}
+      {isViewer && captions.length > 0 && (
+        <Card className="border-yellow-500/50 bg-yellow-500/10">
+          <CardContent className="py-4">
+            <p className="text-sm text-muted-foreground">
+              You have read-only access to saved captions.
+            </p>
+          </CardContent>
+        </Card>
+      )}
       {captions.length > 0 ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {captions.map((caption) => (
@@ -273,13 +286,15 @@ export default function SavedCaptionsTab({ clientId }: SavedCaptionsTabProps) {
               </div>
 
               <div className="flex justify-between gap-2 pt-4 border-t">
-                <Button
-                  variant="destructive"
-                  onClick={() => setDeleteCaption(viewCaption)}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete
-                </Button>
+                {canDeleteContent && (
+                  <Button
+                    variant="destructive"
+                    onClick={() => setDeleteCaption(viewCaption)}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete
+                  </Button>
+                )}
                 <Button
                   onClick={() => handleCopyCaption(viewCaption.caption)}
                 >

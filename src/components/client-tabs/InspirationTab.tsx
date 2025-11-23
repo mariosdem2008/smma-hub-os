@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useRole } from "@/hooks/useRole";
 import { Sparkles, Plus, ExternalLink, Trash2, Upload, Link as LinkIcon } from "lucide-react";
 import { format } from "date-fns";
 
@@ -43,6 +44,7 @@ interface Inspiration {
 
 export default function InspirationTab({ clientId }: InspirationTabProps) {
   const { toast } = useToast();
+  const { canCreateContent, canDeleteContent, isViewer } = useRole();
   const [inspirations, setInspirations] = useState<Inspiration[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -206,7 +208,8 @@ export default function InspirationTab({ clientId }: InspirationTabProps) {
           <Sparkles className="h-5 w-5" />
           <h2 className="text-lg font-semibold">Inspiration Board</h2>
         </div>
-        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+        {canCreateContent && !isViewer && (
+          <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="mr-2 h-4 w-4" />
@@ -313,9 +316,19 @@ export default function InspirationTab({ clientId }: InspirationTabProps) {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        )}
       </div>
 
       {/* Inspiration Grid */}
+      {isViewer && inspirations.length > 0 && (
+        <Card className="border-yellow-500/50 bg-yellow-500/10">
+          <CardContent className="py-4">
+            <p className="text-sm text-muted-foreground">
+              You have read-only access to inspiration.
+            </p>
+          </CardContent>
+        </Card>
+      )}
       {inspirations.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           {inspirations.map((inspiration) => (
@@ -429,13 +442,15 @@ export default function InspirationTab({ clientId }: InspirationTabProps) {
 
               {/* Actions */}
               <div className="flex justify-end gap-2 pt-4 border-t">
-                <Button
-                  variant="destructive"
-                  onClick={() => setDeleteInspiration(previewInspiration)}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete
-                </Button>
+                {canDeleteContent && (
+                  <Button
+                    variant="destructive"
+                    onClick={() => setDeleteInspiration(previewInspiration)}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete
+                  </Button>
+                )}
               </div>
             </div>
           )}

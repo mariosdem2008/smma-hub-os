@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useRole } from "@/hooks/useRole";
 import { 
   FolderOpen, 
   Upload, 
@@ -50,6 +51,7 @@ type FilterType = "all" | "images" | "videos" | "documents";
 
 export default function AssetsTab({ clientId }: AssetsTabProps) {
   const { toast } = useToast();
+  const { canCreateContent, canDeleteContent, isViewer } = useRole();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -229,24 +231,37 @@ export default function AssetsTab({ clientId }: AssetsTabProps) {
           <FolderOpen className="h-5 w-5" />
           <h2 className="text-lg font-semibold">Assets Library</h2>
         </div>
-        <div>
-          <input
-            type="file"
-            id="file-upload"
-            multiple
-            accept="image/*,video/*,.pdf,.doc,.docx,.csv,.txt"
-            onChange={handleFileUpload}
-            className="hidden"
-          />
-          <Button
-            onClick={() => document.getElementById("file-upload")?.click()}
-            disabled={uploading}
-          >
-            <Upload className="mr-2 h-4 w-4" />
-            {uploading ? "Uploading..." : "Upload Files"}
-          </Button>
-        </div>
+        {canCreateContent && !isViewer && (
+          <div>
+            <input
+              type="file"
+              id="file-upload"
+              multiple
+              accept="image/*,video/*,.pdf,.doc,.docx,.csv,.txt"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
+            <Button
+              onClick={() => document.getElementById("file-upload")?.click()}
+              disabled={uploading}
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              {uploading ? "Uploading..." : "Upload Files"}
+            </Button>
+          </div>
+        )}
       </div>
+
+      {/* Viewer Notice */}
+      {isViewer && (
+        <Card className="border-yellow-500/50 bg-yellow-500/10">
+          <CardContent className="py-4">
+            <p className="text-sm text-muted-foreground">
+              You have read-only access to assets.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Filters */}
       <div className="flex gap-2 flex-wrap">
@@ -399,17 +414,19 @@ export default function AssetsTab({ clientId }: AssetsTabProps) {
                     <Download className="mr-2 h-4 w-4" />
                     Download
                   </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDeleteAsset(previewAsset);
-                    }}
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Delete
-                  </Button>
+                  {canDeleteContent && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteAsset(previewAsset);
+                      }}
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>

@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useRole } from "@/hooks/useRole";
 import { Columns3, Plus, Trash2 } from "lucide-react";
 
 interface ContentPillarsTabProps {
@@ -40,6 +41,7 @@ interface Pillar {
 
 export default function ContentPillarsTab({ clientId }: ContentPillarsTabProps) {
   const { toast } = useToast();
+  const { canCreateContent, canDeleteContent, isViewer } = useRole();
   const [pillars, setPillars] = useState<Pillar[]>([]);
   const [loading, setLoading] = useState(true);
   const [isNewPillarOpen, setIsNewPillarOpen] = useState(false);
@@ -186,6 +188,14 @@ export default function ContentPillarsTab({ clientId }: ContentPillarsTabProps) 
   };
 
   const openEditDialog = (pillar: Pillar) => {
+    if (isViewer) {
+      toast({
+        title: "Access Denied",
+        description: "You don't have permission to edit pillars",
+        variant: "destructive",
+      });
+      return;
+    }
     setSelectedPillar(pillar);
     setPillarForm({
       title: pillar.title,
@@ -212,7 +222,8 @@ export default function ContentPillarsTab({ clientId }: ContentPillarsTabProps) 
           <Columns3 className="h-5 w-5" />
           <h2 className="text-lg font-semibold">Content Pillars</h2>
         </div>
-        <Dialog open={isNewPillarOpen} onOpenChange={setIsNewPillarOpen}>
+        {canCreateContent && !isViewer && (
+          <Dialog open={isNewPillarOpen} onOpenChange={setIsNewPillarOpen}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="mr-2 h-4 w-4" />
@@ -265,9 +276,19 @@ export default function ContentPillarsTab({ clientId }: ContentPillarsTabProps) 
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        )}
       </div>
 
       {/* Pillars Grid */}
+      {isViewer && pillars.length > 0 && (
+        <Card className="border-yellow-500/50 bg-yellow-500/10">
+          <CardContent className="py-4">
+            <p className="text-sm text-muted-foreground">
+              You have read-only access to content pillars.
+            </p>
+          </CardContent>
+        </Card>
+      )}
       {pillars.length > 0 ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {pillars.map((pillar) => (
@@ -344,13 +365,15 @@ export default function ContentPillarsTab({ clientId }: ContentPillarsTabProps) 
             </div>
           </div>
           <DialogFooter className="flex justify-between">
-            <Button
-              variant="destructive"
-              onClick={() => setIsDeleteDialogOpen(true)}
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete
-            </Button>
+            {canDeleteContent && (
+              <Button
+                variant="destructive"
+                onClick={() => setIsDeleteDialogOpen(true)}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </Button>
+            )}
             <div className="flex gap-2">
               <Button
                 variant="outline"
