@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Trash2, ExternalLink } from "lucide-react";
+import SocialConnectionsSection from "./SocialConnectionsSection";
 
 interface SocialProfile {
   id: string;
@@ -137,8 +139,15 @@ export default function SocialProfilesTab({ clientId }: SocialProfilesTabProps) 
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="space-y-8">
+      {/* API Connections Section */}
+      <SocialConnectionsSection clientId={clientId} />
+
+      <Separator />
+
+      {/* Manual Social Profiles Section */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold">Social Profiles</h3>
           <p className="text-sm text-muted-foreground">Manage social media links for this client</p>
@@ -244,6 +253,7 @@ export default function SocialProfilesTab({ clientId }: SocialProfilesTabProps) 
           ))}
         </div>
       )}
+      </div>
     </div>
   );
 }

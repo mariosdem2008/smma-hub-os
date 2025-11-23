@@ -1,1 +1,7 @@
 project_id = "dzyhrzdwwuaorruscxcn"
+
+[functions.social-oauth]
+verify_jwt = true
+
+[functions.social-oauth-callback]
+verify_jwt = false
