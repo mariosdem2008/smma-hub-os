@@ -144,21 +144,54 @@ export function ClientPortalTab({ clientId }: ClientPortalTabProps) {
     }
 
     try {
-      // Create portal user record
+      // Check if user already has access
+      const { data: existing } = await supabase
+        .from("client_portal_users")
+        .select("id")
+        .eq("client_id", clientId)
+        .eq("email", inviteEmail.toLowerCase())
+        .maybeSingle();
+
+      if (existing) {
+        toast({
+          title: "Already Invited",
+          description: "This user already has access to the portal.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Create auth user with temporary password
+      const tempPassword = Math.random().toString(36).slice(-12) + "Aa1!";
+      
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: inviteEmail.toLowerCase(),
+        password: tempPassword,
+        options: {
+          emailRedirectTo: `${window.location.origin}/client-portal/${portalSlug}`,
+          data: {
+            full_name: inviteName || inviteEmail.split("@")[0],
+          },
+        },
+      });
+
+      if (authError) throw authError;
+
+      // Create portal user record with the new user_id
       const { error: insertError } = await supabase
         .from("client_portal_users")
         .insert({
           client_id: clientId,
-          email: inviteEmail,
+          email: inviteEmail.toLowerCase(),
           name: inviteName || null,
-          user_id: null, // Will be set when they sign up
+          user_id: authData.user?.id || "",
         });
 
       if (insertError) throw insertError;
 
       toast({
         title: "Invite Sent",
-        description: `Invitation sent to ${inviteEmail}. They'll receive login instructions via email.`,
+        description: `Invitation sent to ${inviteEmail}. They'll receive a confirmation email with login instructions.`,
       });
 
       setInviteOpen(false);
