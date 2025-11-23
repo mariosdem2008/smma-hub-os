@@ -14,6 +14,8 @@ import Clients from "./pages/Clients";
 import ClientDetail from "./pages/ClientDetail";
 import Team from "./pages/Team";
 import Settings from "./pages/Settings";
+import Pricing from "./pages/Pricing";
+import Billing from "./pages/Billing";
 import InviteAccept from "./pages/InviteAccept";
 import NotFound from "./pages/NotFound";
 
@@ -30,6 +32,7 @@ const App = () => (
             {/* Public Routes */}
             <Route path="/" element={<Landing />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/pricing" element={<Pricing />} />
             <Route path="/invite/:token" element={<InviteAccept />} />
             
             {/* Onboarding */}
@@ -54,6 +57,7 @@ const App = () => (
               <Route path="/clients" element={<Clients />} />
               <Route path="/clients/:clientId" element={<ClientDetail />} />
               <Route path="/team" element={<Team />} />
+              <Route path="/billing" element={<Billing />} />
               <Route path="/settings" element={<Settings />} />
             </Route>
             

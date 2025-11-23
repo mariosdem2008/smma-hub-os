@@ -3,6 +3,7 @@ import { useAuth } from "@/lib/auth";
 import { useRole } from "@/hooks/useRole";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { PlanGuard } from "@/components/PlanGuard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -521,9 +522,11 @@ export default function Team() {
               </div>
             </div>
 
-            <Button onClick={handleInvite} disabled={submitting}>
-              {submitting ? "Sending..." : "Send Invitation"}
-            </Button>
+            <PlanGuard feature="teamMembers" requiredPlan="starter">
+              <Button onClick={handleInvite} disabled={submitting}>
+                {submitting ? "Sending..." : "Send Invitation"}
+              </Button>
+            </PlanGuard>
 
             {showInviteLink && (
               <Card className="bg-muted">

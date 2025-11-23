@@ -5,3 +5,9 @@ verify_jwt = true
 
 [functions.social-oauth-callback]
 verify_jwt = false
+
+[functions.create-checkout]
+verify_jwt = true
+
+[functions.stripe-webhook]
+verify_jwt = false

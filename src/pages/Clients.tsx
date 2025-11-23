@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useRole } from "@/hooks/useRole";
 import { Plus, Mail, Phone, Users } from "lucide-react";
+import { PlanGuard } from "@/components/PlanGuard";
 import { useToast } from "@/hooks/use-toast";
 
 interface Client {
@@ -111,10 +112,12 @@ export default function Clients() {
           <p className="text-muted-foreground">Manage your client accounts</p>
         </div>
         {canManageClients && (
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Client
-          </Button>
+          <PlanGuard feature="clients" requiredPlan="starter">
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Client
+            </Button>
+          </PlanGuard>
         )}
       </div>
 
