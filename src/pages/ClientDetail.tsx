@@ -139,7 +139,7 @@ export default function ClientDetail() {
         </TabsContent>
 
         <TabsContent value="tasks" className="space-y-4">
-          <TasksTab />
+          <TasksTab clientId={clientId!} />
         </TabsContent>
       </Tabs>
     </div>
