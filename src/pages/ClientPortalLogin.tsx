@@ -89,9 +89,19 @@ export function ClientPortalLogin() {
 
       // Link user_id to client_portal_users if not already linked
       if (data.user) {
-        await linkUserToPortal(data.user.id, email.toLowerCase());
-        // Explicitly navigate after linking
-        navigate(`/client-portal/${portalSlug}`);
+        try {
+          await linkUserToPortal(data.user.id, email.toLowerCase());
+          // Add small delay to ensure database update propagates
+          await new Promise(resolve => setTimeout(resolve, 500));
+          navigate(`/client-portal/${portalSlug}`);
+        } catch (linkError) {
+          console.error("Failed to link user:", linkError);
+          toast({
+            title: "Access Error",
+            description: "Failed to link your account. Please contact support.",
+            variant: "destructive",
+          });
+        }
       }
     } catch (error: any) {
       toast({
@@ -169,17 +179,25 @@ export function ClientPortalLogin() {
 
       // Link user_id to client_portal_users
       if (data.user) {
-        await linkUserToPortal(data.user.id, email.toLowerCase());
-        
-        toast({
-          title: "Account Created",
-          description: "Welcome! Redirecting to your portal...",
-        });
-        
-        // Navigate to portal after successful signup with auto-confirm
-        setTimeout(() => {
+        try {
+          await linkUserToPortal(data.user.id, email.toLowerCase());
+          
+          toast({
+            title: "Account Created",
+            description: "Welcome! Redirecting to your portal...",
+          });
+          
+          // Add delay to ensure database update propagates before redirect
+          await new Promise(resolve => setTimeout(resolve, 500));
           navigate(`/client-portal/${portalSlug}`);
-        }, 1000);
+        } catch (linkError) {
+          console.error("Failed to link user:", linkError);
+          toast({
+            title: "Access Error",
+            description: "Failed to link your account. Please contact support.",
+            variant: "destructive",
+          });
+        }
       }
     } catch (error: any) {
       toast({
@@ -200,17 +218,25 @@ export function ClientPortalLogin() {
         .eq("portal_slug", portalSlug)
         .single();
 
-      if (!client) return;
+      if (!client) {
+        throw new Error("Client not found");
+      }
 
       // Update client_portal_users with the authenticated user_id
-      await supabase
+      const { error } = await supabase
         .from("client_portal_users")
         .update({ user_id: userId })
         .eq("client_id", client.id)
         .eq("email", userEmail)
         .is("user_id", null);
+
+      if (error) throw error;
+
+      // Return the client id for verification
+      return client.id;
     } catch (error) {
       console.error("Error linking user to portal:", error);
+      throw error;
     }
   };
 
