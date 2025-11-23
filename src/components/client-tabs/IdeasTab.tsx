@@ -252,7 +252,7 @@ export default function IdeasTab({ clientId }: IdeasTabProps) {
         </Card>
       )}
       <DragDropContext onDragEnd={canCreateContent && !isViewer ? handleDragEnd : () => {}}>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="flex flex-col gap-4 lg:grid lg:gap-4 lg:grid-cols-4">
           {STATUS_COLUMNS.map((column) => {
             const columnIdeas = getIdeasByStatus(column.id);
             return (

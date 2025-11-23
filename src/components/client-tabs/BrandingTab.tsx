@@ -170,7 +170,7 @@ export default function BrandingTab({ clientId }: BrandingTabProps) {
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Main Colors */}
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
             <div className="space-y-2">
               <Label htmlFor="primary_color">Primary Color</Label>
               <div className="flex gap-2">

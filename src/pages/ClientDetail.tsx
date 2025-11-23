@@ -134,14 +134,16 @@ export default function ClientDetail() {
       />
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-6">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="brand">Brand Identity</TabsTrigger>
-          <TabsTrigger value="social">Social Profiles</TabsTrigger>
-          <TabsTrigger value="planning">Content Planning</TabsTrigger>
-          <TabsTrigger value="library">Content Library</TabsTrigger>
-          <TabsTrigger value="workspace">Workspace</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto">
+          <TabsList className="inline-flex w-auto min-w-full md:grid md:grid-cols-6">
+            <TabsTrigger value="overview" className="flex-shrink-0">Overview</TabsTrigger>
+            <TabsTrigger value="brand" className="flex-shrink-0">Brand Identity</TabsTrigger>
+            <TabsTrigger value="social" className="flex-shrink-0">Social Profiles</TabsTrigger>
+            <TabsTrigger value="planning" className="flex-shrink-0">Content Planning</TabsTrigger>
+            <TabsTrigger value="library" className="flex-shrink-0">Content Library</TabsTrigger>
+            <TabsTrigger value="workspace" className="flex-shrink-0">Workspace</TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="overview" className="space-y-4">
           <OverviewTab 
