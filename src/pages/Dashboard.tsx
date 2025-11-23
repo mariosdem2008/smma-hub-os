@@ -34,7 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, ExternalLink, Instagram, Facebook, Users, Calendar, CheckCircle2, CalendarIcon, FileText, CheckSquare } from "lucide-react";
+import { Plus, ExternalLink, Instagram, Facebook, Users, Calendar, CheckCircle2, CalendarIcon, FileText, CheckSquare, X } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -82,6 +82,8 @@ export default function Dashboard() {
   const [taskDueDate, setTaskDueDate] = useState<Date | undefined>();
   const [postScheduledDate, setPostScheduledDate] = useState<Date | undefined>();
   const [submitting, setSubmitting] = useState(false);
+  const [dismissedPosts, setDismissedPosts] = useState<Set<string>>(new Set());
+  const [dismissedTasks, setDismissedTasks] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchDashboardData();
@@ -216,6 +218,19 @@ export default function Dashboard() {
         return "outline";
     }
   };
+
+  const handleDismissPost = (postId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDismissedPosts(prev => new Set(prev).add(postId));
+  };
+
+  const handleDismissTask = (taskId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDismissedTasks(prev => new Set(prev).add(taskId));
+  };
+
+  const visibleUpcomingPosts = upcomingPosts.filter(post => !dismissedPosts.has(post.id));
+  const visibleOverdueTasks = overdueTasks.filter(task => !dismissedTasks.has(task.id));
 
   const handleCreateTask = async () => {
     if (!taskFormData.title || !taskFormData.client_id) {
@@ -437,7 +452,7 @@ export default function Dashboard() {
               <CardDescription>Next 10 scheduled posts across all clients</CardDescription>
             </CardHeader>
             <CardContent>
-              {upcomingPosts.length > 0 ? (
+              {visibleUpcomingPosts.length > 0 ? (
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -446,10 +461,11 @@ export default function Dashboard() {
                       <TableHead>Platform</TableHead>
                       <TableHead>Scheduled</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead className="w-[50px]"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {upcomingPosts.map((post) => (
+                    {visibleUpcomingPosts.map((post) => (
                       <TableRow
                         key={post.id}
                         className="cursor-pointer hover:bg-muted/50"
@@ -467,6 +483,16 @@ export default function Dashboard() {
                           <Badge variant={getStatusBadgeVariant(post.status)}>
                             {post.status || "draft"}
                           </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={(e) => handleDismissPost(post.id, e)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -489,7 +515,7 @@ export default function Dashboard() {
               <CardDescription>Tasks that need immediate attention</CardDescription>
             </CardHeader>
             <CardContent>
-              {overdueTasks.length > 0 ? (
+              {visibleOverdueTasks.length > 0 ? (
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -498,10 +524,11 @@ export default function Dashboard() {
                       <TableHead>Due Date</TableHead>
                       <TableHead>Priority</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead className="w-[50px]"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {overdueTasks.map((task) => (
+                    {visibleOverdueTasks.map((task) => (
                       <TableRow
                         key={task.id}
                         className="cursor-pointer hover:bg-muted/50"
@@ -523,6 +550,16 @@ export default function Dashboard() {
                           <Badge variant="outline">
                             {task.status?.replace("_", " ") || "pending"}
                           </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={(e) => handleDismissTask(task.id, e)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
