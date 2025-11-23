@@ -6,6 +6,11 @@ import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import HeroMockup from "@/components/mockups/HeroMockup";
+import ClientCommandMockup from "@/components/mockups/ClientCommandMockup";
+import CalendarMockup from "@/components/mockups/CalendarMockup";
+import TeamMockup from "@/components/mockups/TeamMockup";
+import MobileMockup from "@/components/mockups/MobileMockup";
 import { 
   Accordion,
   AccordionContent,
@@ -139,108 +144,105 @@ export default function Landing() {
       {/* SECTION 1 - HERO */}
       <section ref={heroRef} className="relative overflow-hidden py-20 sm:py-32">
         <div className="container mx-auto px-4">
-          <div className="mx-auto max-w-4xl text-center">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.1 }}
-            >
-              <Badge variant="secondary" className="mb-6 text-sm">
-                <Zap className="mr-2 h-3 w-3" />
-                The Operating System for Modern Agencies
-              </Badge>
-            </motion.div>
-
-            <motion.h1 
-              className="mb-6 text-4xl font-bold tracking-tight sm:text-6xl lg:text-7xl"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-            >
-              The Operating System for{" "}
-              <span className="text-primary">Modern Social Media Agencies</span>
-            </motion.h1>
-
-            <motion.p 
-              className="mb-8 text-lg text-muted-foreground sm:text-xl"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.4 }}
-            >
-              Run your entire agency — clients, content, branding, assets, inspiration, 
-              calendar, and team — all in one powerful workspace.
-            </motion.p>
-
-            <motion.div 
-              className="flex flex-col sm:flex-row items-center justify-center gap-4"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.6, delay: 0.5 }}
-            >
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            {/* Left Column - Text */}
+            <div className="text-center lg:text-left">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.6 }}
+                transition={{ duration: 0.6, delay: 0.1 }}
               >
-                <Link to="/auth">
-                  <Button size="lg" className="text-base px-8">
-                    Get Started Free
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </Link>
+                <Badge variant="secondary" className="mb-6 text-sm">
+                  <Zap className="mr-2 h-3 w-3" />
+                  The Operating System for Modern Agencies
+                </Badge>
               </motion.div>
-              
-              <motion.div
+
+              <motion.h1 
+                className="mb-6 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.8 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
               >
-                <Button 
-                  size="lg" 
-                  variant="outline" 
-                  className="text-base px-8"
-                  onClick={() => setShowVideoDialog(true)}
+                The Operating System for{" "}
+                <span className="text-primary">Modern Social Media Agencies</span>
+              </motion.h1>
+
+              <motion.p 
+                className="mb-8 text-lg text-muted-foreground"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.4 }}
+              >
+                Run your entire agency — clients, content, branding, assets, inspiration, 
+                calendar, and team — all in one powerful workspace.
+              </motion.p>
+
+              <motion.div 
+                className="flex flex-col sm:flex-row items-center lg:items-start justify-center lg:justify-start gap-4 mb-8"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.6, delay: 0.5 }}
+              >
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: 0.6 }}
                 >
-                  <Play className="mr-2 h-4 w-4" />
-                  Watch Demo
-                </Button>
+                  <Link to="/auth">
+                    <Button size="lg" className="text-base px-8">
+                      Get Started Free
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </Link>
+                </motion.div>
+                
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: 0.8 }}
+                >
+                  <Button 
+                    size="lg" 
+                    variant="outline" 
+                    className="text-base px-8"
+                    onClick={() => setShowVideoDialog(true)}
+                  >
+                    <Play className="mr-2 h-4 w-4" />
+                    Watch Demo
+                  </Button>
+                </motion.div>
               </motion.div>
-            </motion.div>
 
-            {/* Hero Mockup with Parallax */}
-            <motion.div 
-              className="mt-16 rounded-xl border bg-card p-2 shadow-2xl"
-              style={{ y: heroImageY }}
-              initial={{ opacity: 0, y: 40 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.9 }}
-            >
-              <div className="aspect-video rounded-lg bg-muted flex items-center justify-center">
-                <div className="text-center">
-                  <LayoutGrid className="mx-auto h-16 w-16 text-primary mb-4" />
-                  <p className="text-muted-foreground">Dashboard Preview</p>
-                </div>
-              </div>
-            </motion.div>
+              {/* Trust Badges */}
+              <motion.div 
+                className="flex flex-wrap items-center justify-center lg:justify-start gap-4 text-sm text-muted-foreground"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.6, delay: 1.0 }}
+              >
+                <span className="flex items-center gap-2">
+                  <Instagram className="h-4 w-4" /> Instagram
+                </span>
+                <span className="flex items-center gap-2">
+                  <Facebook className="h-4 w-4" /> Facebook
+                </span>
+                <span className="flex items-center gap-2">
+                  <Linkedin className="h-4 w-4" /> LinkedIn
+                </span>
+                <span>& TikTok</span>
+              </motion.div>
+            </div>
 
-            {/* Trust Badges */}
-            <motion.div 
-              className="mt-12 flex flex-wrap items-center justify-center gap-4 text-sm text-muted-foreground"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.6, delay: 1.2 }}
-            >
-              <span className="flex items-center gap-2">
-                <Instagram className="h-4 w-4" /> Instagram
-              </span>
-              <span className="flex items-center gap-2">
-                <Facebook className="h-4 w-4" /> Facebook
-              </span>
-              <span className="flex items-center gap-2">
-                <Linkedin className="h-4 w-4" /> LinkedIn
-              </span>
-              <span>& TikTok</span>
-            </motion.div>
+            {/* Right Column - Hero Mockup */}
+            <div>
+              <HeroMockup />
+            </div>
+          </div>
+
+          {/* Mobile Mockup - Below Hero */}
+          <div className="mt-20 lg:hidden">
+            <MobileMockup />
           </div>
         </div>
       </section>
@@ -358,14 +360,7 @@ export default function Landing() {
                   </ul>
                 </motion.div>
                 <motion.div variants={fadeInRight} className="order-1 lg:order-2">
-                  <Card className="p-4 shadow-xl">
-                    <div className="aspect-video rounded-lg bg-muted flex items-center justify-center">
-                      <div className="text-center">
-                        <Palette className="mx-auto h-12 w-12 text-primary mb-2" />
-                        <p className="text-sm text-muted-foreground">Client Dashboard</p>
-                      </div>
-                    </div>
-                  </Card>
+                  <ClientCommandMockup />
                 </motion.div>
               </div>
             </AnimatedSection>
@@ -374,14 +369,7 @@ export default function Landing() {
             <AnimatedSection>
               <div className="grid gap-12 lg:grid-cols-2 lg:gap-16 items-center">
                 <motion.div variants={fadeInLeft}>
-                  <Card className="p-4 shadow-xl">
-                    <div className="aspect-video rounded-lg bg-muted flex items-center justify-center">
-                      <div className="text-center">
-                        <Calendar className="mx-auto h-12 w-12 text-primary mb-2" />
-                        <p className="text-sm text-muted-foreground">Content Calendar</p>
-                      </div>
-                    </div>
-                  </Card>
+                  <CalendarMockup />
                 </motion.div>
                 <motion.div variants={fadeInRight}>
                   <Badge className="mb-4">Content Planning</Badge>
@@ -410,60 +398,27 @@ export default function Landing() {
               </div>
             </AnimatedSection>
 
-            {/* Feature 3 - Asset Management */}
+            {/* Feature 3 - Mobile Mockup Showcase */}
             <AnimatedSection>
-              <div className="grid gap-12 lg:grid-cols-2 lg:gap-16 items-center">
-                <motion.div variants={fadeInLeft} className="order-2 lg:order-1">
-                  <Badge className="mb-4">Asset Library</Badge>
-                  <h3 className="mb-4 text-3xl font-bold">
-                    Smart Asset Management
-                  </h3>
-                  <p className="mb-6 text-lg text-muted-foreground">
-                    Upload, organize, and access all your client assets in one place. 
-                    Images, videos, documents — everything is searchable and ready to use.
-                  </p>
-                  <ul className="space-y-3">
-                    <li className="flex items-start gap-3">
-                      <CheckCircle2 className="h-5 w-5 text-primary mt-0.5" />
-                      <span>Auto-preview for all file types</span>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <CheckCircle2 className="h-5 w-5 text-primary mt-0.5" />
-                      <span>Smart filtering and search</span>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <CheckCircle2 className="h-5 w-5 text-primary mt-0.5" />
-                      <span>Organized per client</span>
-                    </li>
-                  </ul>
-                </motion.div>
-                <motion.div variants={fadeInRight} className="order-1 lg:order-2">
-                  <Card className="p-4 shadow-xl">
-                    <div className="aspect-video rounded-lg bg-muted flex items-center justify-center">
-                      <div className="text-center">
-                        <FolderOpen className="mx-auto h-12 w-12 text-primary mb-2" />
-                        <p className="text-sm text-muted-foreground">Asset Library</p>
-                      </div>
-                    </div>
-                  </Card>
-                </motion.div>
+              <div className="text-center mb-12">
+                <Badge className="mb-4">Mobile First</Badge>
+                <h3 className="mb-4 text-3xl font-bold">
+                  Manage Your Agency On The Go
+                </h3>
+                <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                  Full mobile experience with native-like performance. Access clients, 
+                  schedule posts, and collaborate with your team from anywhere.
+                </p>
+              </div>
+              <div className="flex justify-center">
+                <MobileMockup />
               </div>
             </AnimatedSection>
 
             {/* Feature 4 - Team Collaboration */}
             <AnimatedSection>
               <div className="grid gap-12 lg:grid-cols-2 lg:gap-16 items-center">
-                <motion.div variants={fadeInLeft}>
-                  <Card className="p-4 shadow-xl">
-                    <div className="aspect-video rounded-lg bg-muted flex items-center justify-center">
-                      <div className="text-center">
-                        <Users className="mx-auto h-12 w-12 text-primary mb-2" />
-                        <p className="text-sm text-muted-foreground">Team Workspace</p>
-                      </div>
-                    </div>
-                  </Card>
-                </motion.div>
-                <motion.div variants={fadeInRight}>
+                <motion.div variants={fadeInLeft} className="order-2 lg:order-1">
                   <Badge className="mb-4">Collaboration</Badge>
                   <h3 className="mb-4 text-3xl font-bold">
                     Team Collaboration Made Easy
@@ -486,6 +441,9 @@ export default function Landing() {
                       <span>Shared workflows and templates</span>
                     </li>
                   </ul>
+                </motion.div>
+                <motion.div variants={fadeInRight} className="order-1 lg:order-2">
+                  <TeamMockup />
                 </motion.div>
               </div>
             </AnimatedSection>
