@@ -7,18 +7,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ClientHeader from "@/components/ClientHeader";
-import SocialProfilesTab from "@/components/SocialProfilesTab";
 import OverviewTab from "@/components/client-tabs/OverviewTab";
-import TasksTab from "@/components/client-tabs/TasksTab";
-import ContentCalendarTab from "@/components/client-tabs/ContentCalendarTab";
-import NotesTab from "@/components/client-tabs/NotesTab";
-import BrandingTab from "@/components/client-tabs/BrandingTab";
-import IdeasTab from "@/components/client-tabs/IdeasTab";
-import ContentPillarsTab from "@/components/client-tabs/ContentPillarsTab";
-import AssetsTab from "@/components/client-tabs/AssetsTab";
-import InspirationTab from "@/components/client-tabs/InspirationTab";
-import HashtagsTab from "@/components/client-tabs/HashtagsTab";
-import SavedCaptionsTab from "@/components/client-tabs/SavedCaptionsTab";
+import BrandIdentityTab from "@/components/client-tabs/BrandIdentityTab";
+import ContentPlanningTab from "@/components/client-tabs/ContentPlanningTab";
+import ContentLibraryTab from "@/components/client-tabs/ContentLibraryTab";
+import WorkspaceTab from "@/components/client-tabs/WorkspaceTab";
 
 interface Client {
   id: string;
@@ -123,19 +116,12 @@ export default function ClientDetail() {
       />
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-6 lg:grid-cols-12">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="branding">Branding</TabsTrigger>
-          <TabsTrigger value="ideas">Ideas</TabsTrigger>
-          <TabsTrigger value="pillars">Content Pillars</TabsTrigger>
-          <TabsTrigger value="assets">Assets</TabsTrigger>
-          <TabsTrigger value="inspiration">Inspiration</TabsTrigger>
-          <TabsTrigger value="hashtags">Hashtags</TabsTrigger>
-          <TabsTrigger value="captions">Saved Captions</TabsTrigger>
-          <TabsTrigger value="social">Social Profiles</TabsTrigger>
-          <TabsTrigger value="calendar">Content Calendar</TabsTrigger>
-          <TabsTrigger value="tasks">Tasks</TabsTrigger>
-          <TabsTrigger value="notes">Notes</TabsTrigger>
+          <TabsTrigger value="brand">Brand Identity</TabsTrigger>
+          <TabsTrigger value="planning">Content Planning</TabsTrigger>
+          <TabsTrigger value="library">Content Library</TabsTrigger>
+          <TabsTrigger value="workspace">Workspace</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
@@ -146,52 +132,24 @@ export default function ClientDetail() {
           />
         </TabsContent>
 
-        <TabsContent value="social" className="space-y-4">
-          <SocialProfilesTab clientId={clientId!} />
+        <TabsContent value="brand" className="space-y-4">
+          <BrandIdentityTab clientId={clientId!} />
         </TabsContent>
 
-        <TabsContent value="calendar" className="space-y-4">
-          <ContentCalendarTab clientId={clientId!} />
+        <TabsContent value="planning" className="space-y-4">
+          <ContentPlanningTab clientId={clientId!} />
         </TabsContent>
 
-        <TabsContent value="tasks" className="space-y-4">
-          <TasksTab clientId={clientId!} />
+        <TabsContent value="library" className="space-y-4">
+          <ContentLibraryTab clientId={clientId!} />
         </TabsContent>
 
-        <TabsContent value="notes" className="space-y-4">
-          <NotesTab 
-            clientId={clientId!} 
+        <TabsContent value="workspace" className="space-y-4">
+          <WorkspaceTab 
+            clientId={clientId!}
             initialNotes={client.notes}
             onNotesUpdate={handleNotesUpdate}
           />
-        </TabsContent>
-
-        <TabsContent value="branding" className="space-y-4">
-          <BrandingTab clientId={clientId!} />
-        </TabsContent>
-
-        <TabsContent value="ideas" className="space-y-4">
-          <IdeasTab clientId={clientId!} />
-        </TabsContent>
-
-        <TabsContent value="pillars" className="space-y-4">
-          <ContentPillarsTab clientId={clientId!} />
-        </TabsContent>
-
-        <TabsContent value="assets" className="space-y-4">
-          <AssetsTab clientId={clientId!} />
-        </TabsContent>
-
-        <TabsContent value="inspiration" className="space-y-4">
-          <InspirationTab clientId={clientId!} />
-        </TabsContent>
-
-        <TabsContent value="hashtags" className="space-y-4">
-          <HashtagsTab clientId={clientId!} />
-        </TabsContent>
-
-        <TabsContent value="captions" className="space-y-4">
-          <SavedCaptionsTab clientId={clientId!} />
         </TabsContent>
       </Tabs>
     </div>
