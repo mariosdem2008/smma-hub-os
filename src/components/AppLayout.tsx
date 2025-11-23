@@ -47,7 +47,7 @@ export function AppLayout() {
               {upgradeBadgeText && (
                 <Badge
                   variant="secondary"
-                  className="cursor-pointer bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] text-white hover:opacity-90 transition-all duration-200 animate-pulse border-0"
+                  className="cursor-pointer bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] text-white hover:opacity-90 transition-all duration-200 border-0"
                   onClick={() => openUpgradeModal()}
                 >
                   <Sparkles className="mr-1 h-3 w-3" />
