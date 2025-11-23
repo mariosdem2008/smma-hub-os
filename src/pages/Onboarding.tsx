@@ -55,23 +55,8 @@ export default function Onboarding() {
   const [clientNotes, setClientNotes] = useState("");
   const [logoFile, setLogoFile] = useState<File | null>(null);
 
-  useEffect(() => {
-    const checkExistingMembership = async () => {
-      if (!user) return;
-
-      const { data: membership } = await supabase
-        .from("agency_members")
-        .select("agency_id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (membership) {
-        navigate("/dashboard");
-      }
-    };
-
-    checkExistingMembership();
-  }, [user, navigate]);
+  // ProtectedRoute already handles membership checking and redirection
+  // No need for duplicate logic here
 
   const handleStep1Continue = async () => {
     if (!fullName.trim()) {
