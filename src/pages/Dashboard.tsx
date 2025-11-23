@@ -449,7 +449,7 @@ export default function Dashboard() {
 
           {/* Upcoming Posts */}
           {!dismissedPostsSection && (
-            <Card className="animate-fade-in">
+            <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
@@ -526,7 +526,7 @@ export default function Dashboard() {
 
           {/* Overdue Tasks */}
           {!dismissedTasksSection && (
-            <Card className="animate-fade-in">
+            <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
@@ -620,11 +620,10 @@ export default function Dashboard() {
             <div>
               <h2 className="text-2xl font-bold mb-4">Your Clients</h2>
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {clients.map((client, index) => (
+          {clients.map((client) => (
             <Card 
               key={client.id} 
-              className="overflow-hidden hover:border-primary/50 transition-colors animate-fade-in"
-              style={{ animationDelay: `${index * 100}ms` }}
+              className="overflow-hidden hover:border-primary/50 transition-colors"
             >
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
