@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 const items = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Clients", url: "/clients", icon: Users },
-  { title: "Team", url: "/team", icon: UsersRound },
+  { title: "Team", url: "/settings/team", icon: UsersRound },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 
