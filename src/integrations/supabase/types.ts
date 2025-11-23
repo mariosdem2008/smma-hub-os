@@ -130,19 +130,16 @@ export type Database = {
           company: string | null
           created_at: string
           email: string | null
-          facebook_url: string | null
           id: string
-          instagram_url: string | null
-          linkedin_url: string | null
           logo_url: string | null
           name: string
+          niche: string | null
           notes: string | null
           phone: string | null
           status: string | null
-          tiktok_url: string | null
+          tone_of_voice: string | null
           updated_at: string
           website: string | null
-          youtube_url: string | null
         }
         Insert: {
           agency_id: string
@@ -150,19 +147,16 @@ export type Database = {
           company?: string | null
           created_at?: string
           email?: string | null
-          facebook_url?: string | null
           id?: string
-          instagram_url?: string | null
-          linkedin_url?: string | null
           logo_url?: string | null
           name: string
+          niche?: string | null
           notes?: string | null
           phone?: string | null
           status?: string | null
-          tiktok_url?: string | null
+          tone_of_voice?: string | null
           updated_at?: string
           website?: string | null
-          youtube_url?: string | null
         }
         Update: {
           agency_id?: string
@@ -170,19 +164,16 @@ export type Database = {
           company?: string | null
           created_at?: string
           email?: string | null
-          facebook_url?: string | null
           id?: string
-          instagram_url?: string | null
-          linkedin_url?: string | null
           logo_url?: string | null
           name?: string
+          niche?: string | null
           notes?: string | null
           phone?: string | null
           status?: string | null
-          tiktok_url?: string | null
+          tone_of_voice?: string | null
           updated_at?: string
           website?: string | null
-          youtube_url?: string | null
         }
         Relationships: [
           {
@@ -337,6 +328,38 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      social_profiles: {
+        Row: {
+          client_id: string
+          created_at: string
+          id: string
+          platform: string
+          url: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          id?: string
+          platform: string
+          url: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          id?: string
+          platform?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_profiles_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tasks: {
         Row: {

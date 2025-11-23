@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Mail, Phone, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import SocialProfilesTab from "@/components/SocialProfilesTab";
 
 interface Client {
   id: string;
@@ -137,6 +138,7 @@ export default function ClientDetail() {
         <TabsList>
           <TabsTrigger value="posts">Posts</TabsTrigger>
           <TabsTrigger value="tasks">Tasks</TabsTrigger>
+          <TabsTrigger value="social">Social Profiles</TabsTrigger>
           <TabsTrigger value="details">Details</TabsTrigger>
         </TabsList>
         <TabsContent value="posts" className="space-y-4">
@@ -160,6 +162,9 @@ export default function ClientDetail() {
               <p className="text-sm text-muted-foreground">No active tasks</p>
             </CardContent>
           </Card>
+        </TabsContent>
+        <TabsContent value="social" className="space-y-4">
+          <SocialProfilesTab clientId={clientId!} />
         </TabsContent>
         <TabsContent value="details" className="space-y-4">
           <Card>
