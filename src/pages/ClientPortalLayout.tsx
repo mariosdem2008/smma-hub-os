@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useClientPortalAccess } from "@/hooks/useClientPortalAccess";
+import { useClientFonts } from "@/hooks/useClientFonts";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -12,6 +13,7 @@ import {
   Lightbulb,
   FolderOpen,
   LogOut,
+  CalendarDays,
 } from "lucide-react";
 
 interface Client {
@@ -29,10 +31,11 @@ interface Client {
 
 const navItems = [
   { path: "", label: "Overview", icon: LayoutDashboard },
-  { path: "branding", label: "Branding", icon: Palette },
-  { path: "social", label: "Social Profiles", icon: Share2 },
+  { path: "content-calendar", label: "Content Calendar", icon: CalendarDays },
   { path: "ideas", label: "Ideas", icon: Lightbulb },
   { path: "assets", label: "Assets", icon: FolderOpen },
+  { path: "branding", label: "Branding", icon: Palette },
+  { path: "social", label: "Social Profiles", icon: Share2 },
 ];
 
 export function ClientPortalLayout() {
@@ -41,6 +44,12 @@ export function ClientPortalLayout() {
   const { user, signOut } = useAuth();
   const { clientId, loading, hasAccess } = useClientPortalAccess(portalSlug);
   const [client, setClient] = useState<Client | null>(null);
+
+  // Load client fonts dynamically
+  useClientFonts({
+    primaryFont: client?.primary_font,
+    secondaryFont: client?.secondary_font,
+  });
 
   useEffect(() => {
     if (!loading && !hasAccess) {
@@ -75,7 +84,12 @@ export function ClientPortalLayout() {
       .maybeSingle();
 
     if (data) {
-      setClient(data);
+      setClient({
+        ...data,
+        brand_colors: Array.isArray(data.brand_colors) 
+          ? data.brand_colors 
+          : data.brand_colors,
+      });
     }
   };
 
