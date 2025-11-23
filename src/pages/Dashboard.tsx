@@ -5,6 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import {
   Table,
   TableBody,
@@ -13,12 +15,36 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, ExternalLink, Instagram, Facebook, Users, Calendar, CheckCircle2 } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Plus, ExternalLink, Instagram, Facebook, Users, Calendar, CheckCircle2, CalendarIcon, FileText, CheckSquare } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { format, startOfWeek, endOfWeek, isPast } from "date-fns";
+import { cn } from "@/lib/utils";
+
+const PLATFORMS = ["Instagram", "Facebook", "TikTok", "LinkedIn", "YouTube"];
+const STATUSES = ["draft", "scheduled", "published"];
+const PRIORITIES = ["low", "medium", "high", "urgent"];
+const TASK_STATUSES = ["pending", "in_progress", "completed"];
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -35,6 +61,24 @@ export default function Dashboard() {
   });
   const [upcomingPosts, setUpcomingPosts] = useState<any[]>([]);
   const [overdueTasks, setOverdueTasks] = useState<any[]>([]);
+  const [showTaskDialog, setShowTaskDialog] = useState(false);
+  const [showPostDialog, setShowPostDialog] = useState(false);
+  const [taskFormData, setTaskFormData] = useState({
+    title: "",
+    description: "",
+    client_id: "",
+    priority: "medium",
+    status: "pending",
+  });
+  const [postFormData, setPostFormData] = useState({
+    title: "",
+    client_id: "",
+    platform: "",
+    status: "draft",
+  });
+  const [taskDueDate, setTaskDueDate] = useState<Date | undefined>();
+  const [postScheduledDate, setPostScheduledDate] = useState<Date | undefined>();
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
@@ -159,6 +203,94 @@ export default function Dashboard() {
       default:
         return "outline";
     }
+  };
+
+  const handleCreateTask = async () => {
+    if (!taskFormData.title || !taskFormData.client_id) {
+      toast({
+        title: "Validation Error",
+        description: "Task title and client are required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSubmitting(true);
+    const { error } = await supabase.from("tasks").insert({
+      title: taskFormData.title,
+      description: taskFormData.description || null,
+      client_id: taskFormData.client_id,
+      due_date: taskDueDate?.toISOString() || null,
+      priority: taskFormData.priority,
+      status: taskFormData.status,
+    });
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create task",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Success",
+        description: "Task created successfully",
+      });
+      setTaskFormData({
+        title: "",
+        description: "",
+        client_id: "",
+        priority: "medium",
+        status: "pending",
+      });
+      setTaskDueDate(undefined);
+      setShowTaskDialog(false);
+      fetchDashboardData();
+    }
+    setSubmitting(false);
+  };
+
+  const handleCreatePost = async () => {
+    if (!postFormData.title || !postFormData.client_id || !postFormData.platform) {
+      toast({
+        title: "Validation Error",
+        description: "Title, client, and platform are required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSubmitting(true);
+    const { error } = await supabase.from("posts").insert({
+      title: postFormData.title,
+      client_id: postFormData.client_id,
+      platform: postFormData.platform,
+      scheduled_for: postScheduledDate?.toISOString() || null,
+      status: postFormData.status,
+    });
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create post",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Success",
+        description: "Post created successfully",
+      });
+      setPostFormData({
+        title: "",
+        client_id: "",
+        platform: "",
+        status: "draft",
+      });
+      setPostScheduledDate(undefined);
+      setShowPostDialog(false);
+      fetchDashboardData();
+    }
+    setSubmitting(false);
   };
 
   const handleCreateClient = async () => {
@@ -459,6 +591,312 @@ export default function Dashboard() {
           )}
         </>
       )}
+
+      {/* Floating Action Button */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            size="lg"
+            className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg"
+          >
+            <Plus className="h-6 w-6" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuItem onClick={() => setShowNewClientDialog(true)}>
+            <Users className="mr-2 h-4 w-4" />
+            New Client
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setShowTaskDialog(true)}>
+            <CheckSquare className="mr-2 h-4 w-4" />
+            New Task
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setShowPostDialog(true)}>
+            <FileText className="mr-2 h-4 w-4" />
+            New Post
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      {/* New Task Dialog */}
+      <Dialog open={showTaskDialog} onOpenChange={setShowTaskDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create New Task</DialogTitle>
+            <DialogDescription>Add a new task for a client</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="task-client">
+                Client <span className="text-destructive">*</span>
+              </Label>
+              <Select
+                value={taskFormData.client_id}
+                onValueChange={(value) =>
+                  setTaskFormData({ ...taskFormData, client_id: value })
+                }
+              >
+                <SelectTrigger id="task-client">
+                  <SelectValue placeholder="Select client" />
+                </SelectTrigger>
+                <SelectContent>
+                  {clients.map((client) => (
+                    <SelectItem key={client.id} value={client.id}>
+                      {client.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="task-title">
+                Title <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="task-title"
+                value={taskFormData.title}
+                onChange={(e) =>
+                  setTaskFormData({ ...taskFormData, title: e.target.value })
+                }
+                placeholder="Enter task title"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="task-description">Description</Label>
+              <Textarea
+                id="task-description"
+                value={taskFormData.description}
+                onChange={(e) =>
+                  setTaskFormData({ ...taskFormData, description: e.target.value })
+                }
+                placeholder="Enter task description"
+                rows={3}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Due Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !taskDueDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {taskDueDate ? format(taskDueDate, "PPP") : <span>Pick a date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={taskDueDate}
+                    onSelect={setTaskDueDate}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="task-priority">Priority</Label>
+                <Select
+                  value={taskFormData.priority}
+                  onValueChange={(value) =>
+                    setTaskFormData({ ...taskFormData, priority: value })
+                  }
+                >
+                  <SelectTrigger id="task-priority">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PRIORITIES.map((priority) => (
+                      <SelectItem key={priority} value={priority}>
+                        {priority.charAt(0).toUpperCase() + priority.slice(1)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="task-status">Status</Label>
+                <Select
+                  value={taskFormData.status}
+                  onValueChange={(value) =>
+                    setTaskFormData({ ...taskFormData, status: value })
+                  }
+                >
+                  <SelectTrigger id="task-status">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TASK_STATUSES.map((status) => (
+                      <SelectItem key={status} value={status}>
+                        {status.replace("_", " ").charAt(0).toUpperCase() +
+                          status.replace("_", " ").slice(1)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowTaskDialog(false)}
+              disabled={submitting}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleCreateTask} disabled={submitting}>
+              {submitting ? "Creating..." : "Create Task"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* New Post Dialog */}
+      <Dialog open={showPostDialog} onOpenChange={setShowPostDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create New Post</DialogTitle>
+            <DialogDescription>Schedule a new post for a client</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="post-client">
+                Client <span className="text-destructive">*</span>
+              </Label>
+              <Select
+                value={postFormData.client_id}
+                onValueChange={(value) =>
+                  setPostFormData({ ...postFormData, client_id: value })
+                }
+              >
+                <SelectTrigger id="post-client">
+                  <SelectValue placeholder="Select client" />
+                </SelectTrigger>
+                <SelectContent>
+                  {clients.map((client) => (
+                    <SelectItem key={client.id} value={client.id}>
+                      {client.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="post-title">
+                Title <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="post-title"
+                value={postFormData.title}
+                onChange={(e) =>
+                  setPostFormData({ ...postFormData, title: e.target.value })
+                }
+                placeholder="Enter post title"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="post-platform">
+                Platform <span className="text-destructive">*</span>
+              </Label>
+              <Select
+                value={postFormData.platform}
+                onValueChange={(value) =>
+                  setPostFormData({ ...postFormData, platform: value })
+                }
+              >
+                <SelectTrigger id="post-platform">
+                  <SelectValue placeholder="Select platform" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PLATFORMS.map((platform) => (
+                    <SelectItem key={platform} value={platform}>
+                      {platform}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Scheduled Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !postScheduledDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {postScheduledDate ? (
+                      format(postScheduledDate, "PPP")
+                    ) : (
+                      <span>Pick a date</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={postScheduledDate}
+                    onSelect={setPostScheduledDate}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="post-status">Status</Label>
+              <Select
+                value={postFormData.status}
+                onValueChange={(value) =>
+                  setPostFormData({ ...postFormData, status: value })
+                }
+              >
+                <SelectTrigger id="post-status">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUSES.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {status.charAt(0).toUpperCase() + status.slice(1)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowPostDialog(false)}
+              disabled={submitting}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleCreatePost} disabled={submitting}>
+              {submitting ? "Creating..." : "Create Post"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
