@@ -7,10 +7,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useRole } from "@/hooks/useRole";
-import { Palette, Plus, X, Save } from "lucide-react";
+import { Palette, Plus, X, Save, Eye } from "lucide-react";
 
 interface BrandingTabProps {
   clientId: string;
+  clientName?: string;
 }
 
 interface ClientBranding {
@@ -24,15 +25,15 @@ interface ClientBranding {
   brand_guidelines: string | null;
 }
 
-export default function BrandingTab({ clientId }: BrandingTabProps) {
+export default function BrandingTab({ clientId, clientName = "Client Name" }: BrandingTabProps) {
   const { toast } = useToast();
   const { canEditSettings, isViewer } = useRole();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [branding, setBranding] = useState<ClientBranding>({
-    primary_color: "#000000",
-    secondary_color: "#000000",
-    accent_color: "#000000",
+    primary_color: "#3B82F6",
+    secondary_color: "#10B981",
+    accent_color: "#F59E0B",
     brand_palette: [],
     brand_voice: "",
     brand_tone: "",
@@ -56,9 +57,9 @@ export default function BrandingTab({ clientId }: BrandingTabProps) {
     } else if (data) {
       setBranding({
         id: data.id,
-        primary_color: data.primary_color || "#000000",
-        secondary_color: data.secondary_color || "#000000",
-        accent_color: data.accent_color || "#000000",
+        primary_color: data.primary_color || "#3B82F6",
+        secondary_color: data.secondary_color || "#10B981",
+        accent_color: data.accent_color || "#F59E0B",
         brand_palette: data.brand_palette || [],
         brand_voice: data.brand_voice || "",
         brand_tone: data.brand_tone || "",
@@ -151,9 +152,88 @@ export default function BrandingTab({ clientId }: BrandingTabProps) {
   }
 
   const canEdit = canEditSettings && !isViewer;
+  
+  // Preset color suggestions
+  const presetColors = [
+    "#EF4444", "#F59E0B", "#10B981", "#3B82F6", "#8B5CF6", "#EC4899",
+    "#14B8A6", "#F97316", "#06B6D4", "#6366F1", "#84CC16", "#F43F5E"
+  ];
 
   return (
     <div className="space-y-6">
+      {/* Visual Preview Banner */}
+      <Card className="overflow-hidden">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Eye className="h-5 w-5" />
+              Brand Preview
+            </CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          {/* Banner Preview */}
+          <div 
+            className="relative h-48 flex items-center justify-center overflow-hidden"
+            style={{
+              background: `linear-gradient(135deg, ${branding.primary_color} 0%, ${branding.secondary_color} 100%)`
+            }}
+          >
+            {/* Accent overlay */}
+            <div 
+              className="absolute inset-0 opacity-20"
+              style={{
+                background: `radial-gradient(circle at top right, ${branding.accent_color}, transparent 60%)`
+              }}
+            />
+            
+            {/* Content */}
+            <div className="relative z-10 text-center space-y-2 px-4">
+              <h2 
+                className="text-4xl font-bold drop-shadow-lg"
+                style={{
+                  color: branding.accent_color,
+                  textShadow: '2px 2px 4px rgba(0,0,0,0.3)'
+                }}
+              >
+                {clientName}
+              </h2>
+              <p 
+                className="text-lg drop-shadow-md"
+                style={{
+                  color: '#FFFFFF',
+                  textShadow: '1px 1px 2px rgba(0,0,0,0.5)'
+                }}
+              >
+                Your Brand Identity
+              </p>
+            </div>
+          </div>
+          
+          {/* Color Swatches Row */}
+          <div className="flex border-t">
+            <div 
+              className="flex-1 h-16 flex items-center justify-center border-r"
+              style={{ backgroundColor: branding.primary_color }}
+            >
+              <span className="text-xs font-mono text-white drop-shadow-md">Primary</span>
+            </div>
+            <div 
+              className="flex-1 h-16 flex items-center justify-center border-r"
+              style={{ backgroundColor: branding.secondary_color }}
+            >
+              <span className="text-xs font-mono text-white drop-shadow-md">Secondary</span>
+            </div>
+            <div 
+              className="flex-1 h-16 flex items-center justify-center"
+              style={{ backgroundColor: branding.accent_color }}
+            >
+              <span className="text-xs font-mono text-white drop-shadow-md">Accent</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Brand Colors Section */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
@@ -170,82 +250,127 @@ export default function BrandingTab({ clientId }: BrandingTabProps) {
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Main Colors */}
-          <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
-            <div className="space-y-2">
+          <div className="grid gap-6 grid-cols-1 md:grid-cols-3">
+            <div className="space-y-3">
               <Label htmlFor="primary_color">Primary Color</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="primary_color"
-                  type="color"
-                  value={branding.primary_color || "#000000"}
-                  onChange={(e) =>
-                    setBranding({ ...branding, primary_color: e.target.value })
-                  }
-                  className="h-10 w-20 cursor-pointer"
-                  disabled={!canEdit}
-                />
-                <Input
-                  type="text"
-                  value={branding.primary_color || ""}
-                  onChange={(e) =>
-                    setBranding({ ...branding, primary_color: e.target.value })
-                  }
-                  placeholder="#000000"
-                  className="flex-1 font-mono"
-                  disabled={!canEdit}
-                />
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <Input
+                    id="primary_color"
+                    type="color"
+                    value={branding.primary_color || "#3B82F6"}
+                    onChange={(e) =>
+                      setBranding({ ...branding, primary_color: e.target.value })
+                    }
+                    className="h-12 w-24 cursor-pointer"
+                    disabled={!canEdit}
+                  />
+                  <Input
+                    type="text"
+                    value={branding.primary_color || ""}
+                    onChange={(e) =>
+                      setBranding({ ...branding, primary_color: e.target.value })
+                    }
+                    placeholder="#3B82F6"
+                    className="flex-1 font-mono"
+                    disabled={!canEdit}
+                  />
+                </div>
+                {canEdit && (
+                  <div className="flex flex-wrap gap-1">
+                    {presetColors.slice(0, 4).map((color) => (
+                      <button
+                        key={color}
+                        className="h-6 w-6 rounded border-2 border-border hover:scale-110 transition-transform"
+                        style={{ backgroundColor: color }}
+                        onClick={() => setBranding({ ...branding, primary_color: color })}
+                        type="button"
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-3">
               <Label htmlFor="secondary_color">Secondary Color</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="secondary_color"
-                  type="color"
-                  value={branding.secondary_color || "#000000"}
-                  onChange={(e) =>
-                    setBranding({ ...branding, secondary_color: e.target.value })
-                  }
-                  className="h-10 w-20 cursor-pointer"
-                  disabled={!canEdit}
-                />
-                <Input
-                  type="text"
-                  value={branding.secondary_color || ""}
-                  onChange={(e) =>
-                    setBranding({ ...branding, secondary_color: e.target.value })
-                  }
-                  placeholder="#000000"
-                  className="flex-1 font-mono"
-                  disabled={!canEdit}
-                />
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <Input
+                    id="secondary_color"
+                    type="color"
+                    value={branding.secondary_color || "#10B981"}
+                    onChange={(e) =>
+                      setBranding({ ...branding, secondary_color: e.target.value })
+                    }
+                    className="h-12 w-24 cursor-pointer"
+                    disabled={!canEdit}
+                  />
+                  <Input
+                    type="text"
+                    value={branding.secondary_color || ""}
+                    onChange={(e) =>
+                      setBranding({ ...branding, secondary_color: e.target.value })
+                    }
+                    placeholder="#10B981"
+                    className="flex-1 font-mono"
+                    disabled={!canEdit}
+                  />
+                </div>
+                {canEdit && (
+                  <div className="flex flex-wrap gap-1">
+                    {presetColors.slice(4, 8).map((color) => (
+                      <button
+                        key={color}
+                        className="h-6 w-6 rounded border-2 border-border hover:scale-110 transition-transform"
+                        style={{ backgroundColor: color }}
+                        onClick={() => setBranding({ ...branding, secondary_color: color })}
+                        type="button"
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-3">
               <Label htmlFor="accent_color">Accent Color</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="accent_color"
-                  type="color"
-                  value={branding.accent_color || "#000000"}
-                  onChange={(e) =>
-                    setBranding({ ...branding, accent_color: e.target.value })
-                  }
-                  className="h-10 w-20 cursor-pointer"
-                  disabled={!canEdit}
-                />
-                <Input
-                  type="text"
-                  value={branding.accent_color || ""}
-                  onChange={(e) =>
-                    setBranding({ ...branding, accent_color: e.target.value })
-                  }
-                  placeholder="#000000"
-                  className="flex-1 font-mono"
-                  disabled={!canEdit}
-                />
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <Input
+                    id="accent_color"
+                    type="color"
+                    value={branding.accent_color || "#F59E0B"}
+                    onChange={(e) =>
+                      setBranding({ ...branding, accent_color: e.target.value })
+                    }
+                    className="h-12 w-24 cursor-pointer"
+                    disabled={!canEdit}
+                  />
+                  <Input
+                    type="text"
+                    value={branding.accent_color || ""}
+                    onChange={(e) =>
+                      setBranding({ ...branding, accent_color: e.target.value })
+                    }
+                    placeholder="#F59E0B"
+                    className="flex-1 font-mono"
+                    disabled={!canEdit}
+                  />
+                </div>
+                {canEdit && (
+                  <div className="flex flex-wrap gap-1">
+                    {presetColors.slice(8, 12).map((color) => (
+                      <button
+                        key={color}
+                        className="h-6 w-6 rounded border-2 border-border hover:scale-110 transition-transform"
+                        style={{ backgroundColor: color }}
+                        onClick={() => setBranding({ ...branding, accent_color: color })}
+                        type="button"
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>

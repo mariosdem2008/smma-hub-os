@@ -154,7 +154,7 @@ export default function ClientDetail() {
         </TabsContent>
 
         <TabsContent value="brand" className="space-y-4">
-          <BrandIdentityTab clientId={clientId!} />
+          <BrandIdentityTab clientId={clientId!} clientName={client.name} />
         </TabsContent>
 
         <TabsContent value="social" className="space-y-4">
