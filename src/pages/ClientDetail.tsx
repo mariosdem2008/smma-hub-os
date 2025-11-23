@@ -14,6 +14,7 @@ import SocialProfilesTab from "@/components/SocialProfilesTab";
 import ContentPlanningTab from "@/components/client-tabs/ContentPlanningTab";
 import ContentLibraryTab from "@/components/client-tabs/ContentLibraryTab";
 import WorkspaceTab from "@/components/client-tabs/WorkspaceTab";
+import { ClientPortalTab } from "@/components/client-tabs/ClientPortalTab";
 
 interface Client {
   id: string;
@@ -144,13 +145,14 @@ export default function ClientDetail() {
 
       <Tabs defaultValue="overview" className="w-full">
         <div className="overflow-x-auto">
-          <TabsList className="inline-flex w-auto min-w-full md:grid md:grid-cols-6">
+          <TabsList className="inline-flex w-auto min-w-full md:grid md:grid-cols-7">
             <TabsTrigger value="overview" className="flex-shrink-0">Overview</TabsTrigger>
             <TabsTrigger value="brand" className="flex-shrink-0">Brand Identity</TabsTrigger>
             <TabsTrigger value="social" className="flex-shrink-0">Social Profiles</TabsTrigger>
             <TabsTrigger value="planning" className="flex-shrink-0">Content Planning</TabsTrigger>
             <TabsTrigger value="library" className="flex-shrink-0">Content Library</TabsTrigger>
             <TabsTrigger value="workspace" className="flex-shrink-0">Workspace</TabsTrigger>
+            <TabsTrigger value="portal" className="flex-shrink-0">Client Portal</TabsTrigger>
           </TabsList>
         </div>
 
@@ -184,6 +186,10 @@ export default function ClientDetail() {
             initialNotes={client.notes}
             onNotesUpdate={handleNotesUpdate}
           />
+        </TabsContent>
+
+        <TabsContent value="portal" className="space-y-4">
+          <ClientPortalTab clientId={clientId!} />
         </TabsContent>
       </Tabs>
     </div>
