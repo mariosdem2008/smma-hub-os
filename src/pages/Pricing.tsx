@@ -75,7 +75,7 @@ export default function Pricing() {
       features: [
         'Unlimited clients',
         'Unlimited team members',
-        'Unlimited storage',
+        '2TB storage',
         'Advanced automation',
         'Multi-admin',
         'Dedicated support',

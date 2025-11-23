@@ -98,14 +98,14 @@ export function UpgradeModal({ open, onOpenChange, feature, suggestedPlan }: Upg
       price: billingInterval === 'monthly' ? '€129' : '€1290',
       interval: billingInterval === 'monthly' ? '/mo' : '/yr',
       type: 'agency_plus' as const,
-      features: ['Unlimited clients', 'Unlimited members', 'Unlimited storage', 'Advanced automation', 'Multi-admin', 'Dedicated support'],
+      features: ['Unlimited clients', 'Unlimited members', '2TB storage', 'Advanced automation', 'Multi-admin', 'Dedicated support'],
     },
   ];
 
   const featureComparison = [
     { name: 'Clients', free: '1', starter: '3', pro: '10', agency: '∞' },
     { name: 'Team Members', free: '3', starter: '5', pro: '10', agency: '∞' },
-    { name: 'Storage', free: '∞*', starter: '100GB', pro: '500GB', agency: '∞' },
+    { name: 'Storage', free: '∞*', starter: '100GB', pro: '500GB', agency: '2TB' },
     { name: 'Analytics', free: '7 days', starter: 'Full', pro: 'Full', agency: 'Full' },
     { name: 'White-label', free: '✗', starter: '✗', pro: '✓', agency: '✓' },
     { name: 'Bulk Scheduling', free: '✗', starter: '✓', pro: '✓', agency: '✓' },
