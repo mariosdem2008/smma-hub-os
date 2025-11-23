@@ -25,7 +25,7 @@ export const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
   free: {
     clients: 1,
     teamMembers: 3,
-    storage: null, // unlimited uploads but with file size limit
+    storage: 10 * 1024 * 1024 * 1024, // 10GB
     analyticsHistoryDays: 7,
     features: {
       whiteLabel: false,

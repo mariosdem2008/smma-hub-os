@@ -105,7 +105,7 @@ export function UpgradeModal({ open, onOpenChange, feature, suggestedPlan }: Upg
   const featureComparison = [
     { name: 'Clients', free: '1', starter: '3', pro: '10', agency: '∞' },
     { name: 'Team Members', free: '3', starter: '5', pro: '10', agency: '∞' },
-    { name: 'Storage', free: '∞*', starter: '100GB', pro: '500GB', agency: '2TB' },
+    { name: 'Storage', free: '10GB', starter: '100GB', pro: '500GB', agency: '2TB' },
     { name: 'Analytics', free: '7 days', starter: 'Full', pro: 'Full', agency: 'Full' },
     { name: 'White-label', free: '✗', starter: '✗', pro: '✓', agency: '✓' },
     { name: 'Bulk Scheduling', free: '✗', starter: '✓', pro: '✓', agency: '✓' },
@@ -235,7 +235,6 @@ export function UpgradeModal({ open, onOpenChange, feature, suggestedPlan }: Upg
                 ))}
               </tbody>
             </table>
-            <p className="text-xs text-muted-foreground mt-2">* Freemium has unlimited uploads but max 200MB per file</p>
           </div>
         </div>
 
