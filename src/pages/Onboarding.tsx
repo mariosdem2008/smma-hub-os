@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,8 +7,45 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { Upload } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+
+const urlSchema = z.string().optional().refine(
+  (val) => !val || val === "" || /^https?:\/\/.+/.test(val),
+  { message: "Must be a valid URL starting with http:// or https://" }
+);
+
+const hexColorSchema = z.string().regex(/^#[0-9A-Fa-f]{6}$/, {
+  message: "Must be a valid hex color code (e.g., #000000)",
+});
+
+const formSchema = z.object({
+  brandName: z.string().min(1, "Brand name is required"),
+  website: urlSchema,
+  niche: z.string().optional(),
+  toneOfVoice: z.string().optional(),
+  brandColor: hexColorSchema,
+  instagram: urlSchema,
+  facebook: urlSchema,
+  tiktok: urlSchema,
+  linkedin: urlSchema,
+  youtube: urlSchema,
+  notes: z.string().optional(),
+});
+
+type FormValues = z.infer<typeof formSchema>;
 
 export default function Onboarding() {
   const navigate = useNavigate();
@@ -16,43 +53,67 @@ export default function Onboarding() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [logoFile, setLogoFile] = useState<File | null>(null);
-  const [formData, setFormData] = useState({
-    brandName: "",
-    brandColors: ["#000000"],
-    website: "",
-    instagramUrl: "",
-    facebookUrl: "",
-    tiktokUrl: "",
-    linkedinUrl: "",
-    youtubeUrl: "",
-    notes: "",
+
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      brandName: "",
+      website: "",
+      niche: "",
+      toneOfVoice: "",
+      brandColor: "#000000",
+      instagram: "",
+      facebook: "",
+      tiktok: "",
+      linkedin: "",
+      youtube: "",
+      notes: "",
+    },
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user) return;
+  useEffect(() => {
+    const checkExistingClients = async () => {
+      if (!user) return;
 
-    setLoading(true);
-
-    try {
-      // Get or create agency
+      // Get agency
       const { data: agencies } = await supabase
         .from("agencies")
         .select("id")
         .eq("user_id", user.id)
         .single();
 
-      let agencyId = agencies?.id;
+      if (!agencies) return;
 
-      if (!agencyId) {
-        const { data: newAgency, error: agencyError } = await supabase
-          .from("agencies")
-          .insert({ user_id: user.id, name: "My Agency" })
-          .select()
-          .single();
+      // Check if agency has clients
+      const { data: clients, error } = await supabase
+        .from("clients")
+        .select("id")
+        .eq("agency_id", agencies.id)
+        .limit(1);
 
-        if (agencyError) throw agencyError;
-        agencyId = newAgency.id;
+      if (!error && clients && clients.length > 0) {
+        navigate("/dashboard");
+      }
+    };
+
+    checkExistingClients();
+  }, [user, navigate]);
+
+  const onSubmit = async (values: FormValues) => {
+    if (!user) return;
+
+    setLoading(true);
+
+    try {
+      // Get agency
+      const { data: agencies } = await supabase
+        .from("agencies")
+        .select("id")
+        .eq("user_id", user.id)
+        .single();
+
+      if (!agencies) {
+        throw new Error("Agency not found");
       }
 
       // Upload logo if provided
@@ -77,23 +138,43 @@ export default function Onboarding() {
       const { data: client, error: clientError } = await supabase
         .from("clients")
         .insert({
-          agency_id: agencyId,
-          name: formData.brandName,
+          agency_id: agencies.id,
+          name: values.brandName,
           logo_url: logoUrl,
-          brand_colors: formData.brandColors,
-          website: formData.website,
-          instagram_url: formData.instagramUrl,
-          facebook_url: formData.facebookUrl,
-          tiktok_url: formData.tiktokUrl,
-          linkedin_url: formData.linkedinUrl,
-          youtube_url: formData.youtubeUrl,
-          notes: formData.notes,
+          brand_colors: [values.brandColor],
+          website: values.website || null,
+          niche: values.niche || null,
+          tone_of_voice: values.toneOfVoice || null,
+          notes: values.notes || null,
           status: "active",
         })
         .select()
         .single();
 
       if (clientError) throw clientError;
+
+      // Insert social profiles
+      const socialProfiles = [
+        { platform: "Instagram", url: values.instagram },
+        { platform: "Facebook", url: values.facebook },
+        { platform: "TikTok", url: values.tiktok },
+        { platform: "LinkedIn", url: values.linkedin },
+        { platform: "YouTube", url: values.youtube },
+      ].filter(profile => profile.url && profile.url.trim() !== "");
+
+      if (socialProfiles.length > 0) {
+        const { error: profilesError } = await supabase
+          .from("social_profiles")
+          .insert(
+            socialProfiles.map(profile => ({
+              client_id: client.id,
+              platform: profile.platform,
+              url: profile.url,
+            }))
+          );
+
+        if (profilesError) throw profilesError;
+      }
 
       toast({
         title: "Client created!",
@@ -114,135 +195,225 @@ export default function Onboarding() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-2xl">
+      <Card className="w-full max-w-4xl">
         <CardHeader>
-          <CardTitle className="text-2xl">Welcome — Let's set up your first client</CardTitle>
+          <CardTitle className="text-3xl">Welcome — Let's set up your first client</CardTitle>
           <CardDescription>
             Add your client's brand information to get started
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="brandName">Brand Name *</Label>
-              <Input
-                id="brandName"
-                required
-                value={formData.brandName}
-                onChange={(e) => setFormData({ ...formData, brandName: e.target.value })}
-                placeholder="Enter brand name"
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+              {/* Brand Information Section */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Brand Information</h3>
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                  <FormField
+                    control={form.control}
+                    name="brandName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Brand Name *</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter brand name" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="space-y-2">
+                    <Label htmlFor="logo">Logo</Label>
+                    <Input
+                      id="logo"
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setLogoFile(e.target.files?.[0] || null)}
+                      className="hidden"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => document.getElementById("logo")?.click()}
+                      className="w-full"
+                    >
+                      <Upload className="mr-2 h-4 w-4" />
+                      {logoFile ? logoFile.name : "Upload Logo"}
+                    </Button>
+                  </div>
+
+                  <FormField
+                    control={form.control}
+                    name="brandColor"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Brand Color</FormLabel>
+                        <FormControl>
+                          <div className="flex gap-2">
+                            <Input type="color" {...field} className="h-10 w-20" />
+                            <Input 
+                              type="text" 
+                              value={field.value}
+                              onChange={field.onChange}
+                              placeholder="#000000"
+                              className="flex-1"
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="website"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Website URL</FormLabel>
+                        <FormControl>
+                          <Input type="url" placeholder="https://example.com" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="niche"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Niche</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., Fashion, Tech, Food" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="toneOfVoice"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Tone of Voice</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., Professional, Casual, Fun" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Social Profiles Section */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Social Profiles</h3>
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                  <FormField
+                    control={form.control}
+                    name="instagram"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Instagram</FormLabel>
+                        <FormControl>
+                          <Input placeholder="https://instagram.com/..." {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="facebook"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Facebook</FormLabel>
+                        <FormControl>
+                          <Input placeholder="https://facebook.com/..." {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="tiktok"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>TikTok</FormLabel>
+                        <FormControl>
+                          <Input placeholder="https://tiktok.com/@..." {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="linkedin"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>LinkedIn</FormLabel>
+                        <FormControl>
+                          <Input placeholder="https://linkedin.com/..." {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="youtube"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>YouTube</FormLabel>
+                        <FormControl>
+                          <Input placeholder="https://youtube.com/..." {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Additional Notes Section */}
+              <FormField
+                control={form.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Notes</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Any additional notes about this client..."
+                        rows={4}
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="logo">Logo</Label>
-              <div className="flex items-center gap-4">
-                <Input
-                  id="logo"
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setLogoFile(e.target.files?.[0] || null)}
-                  className="hidden"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => document.getElementById("logo")?.click()}
-                >
-                  <Upload className="mr-2 h-4 w-4" />
-                  {logoFile ? logoFile.name : "Upload Logo"}
-                </Button>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="brandColors">Brand Color</Label>
-              <Input
-                id="brandColors"
-                type="color"
-                value={formData.brandColors[0]}
-                onChange={(e) => setFormData({ ...formData, brandColors: [e.target.value] })}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="website">Website URL</Label>
-              <Input
-                id="website"
-                type="url"
-                value={formData.website}
-                onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                placeholder="https://example.com"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="instagram">Instagram</Label>
-                <Input
-                  id="instagram"
-                  value={formData.instagramUrl}
-                  onChange={(e) => setFormData({ ...formData, instagramUrl: e.target.value })}
-                  placeholder="https://instagram.com/..."
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="facebook">Facebook</Label>
-                <Input
-                  id="facebook"
-                  value={formData.facebookUrl}
-                  onChange={(e) => setFormData({ ...formData, facebookUrl: e.target.value })}
-                  placeholder="https://facebook.com/..."
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="tiktok">TikTok</Label>
-                <Input
-                  id="tiktok"
-                  value={formData.tiktokUrl}
-                  onChange={(e) => setFormData({ ...formData, tiktokUrl: e.target.value })}
-                  placeholder="https://tiktok.com/@..."
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="linkedin">LinkedIn</Label>
-                <Input
-                  id="linkedin"
-                  value={formData.linkedinUrl}
-                  onChange={(e) => setFormData({ ...formData, linkedinUrl: e.target.value })}
-                  placeholder="https://linkedin.com/..."
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="youtube">YouTube</Label>
-                <Input
-                  id="youtube"
-                  value={formData.youtubeUrl}
-                  onChange={(e) => setFormData({ ...formData, youtubeUrl: e.target.value })}
-                  placeholder="https://youtube.com/..."
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="notes">Notes</Label>
-              <Textarea
-                id="notes"
-                value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                placeholder="Any additional notes about this client..."
-                rows={4}
-              />
-            </div>
-
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Creating..." : "Continue"}
-            </Button>
-          </form>
+              <Button type="submit" className="w-full" size="lg" disabled={loading}>
+                {loading ? "Creating..." : "Continue"}
+              </Button>
+            </form>
+          </Form>
         </CardContent>
       </Card>
     </div>

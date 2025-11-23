@@ -43,7 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signUp = async (email: string, password: string, fullName: string) => {
     const redirectUrl = `${window.location.origin}/dashboard`;
     
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -53,6 +53,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         },
       },
     });
+
+    // Create agency for new user
+    if (!error && data.user) {
+      const agencyName = fullName ? `${fullName}'s Agency` : "Untitled Agency";
+      await supabase
+        .from("agencies")
+        .insert({ 
+          user_id: data.user.id, 
+          name: agencyName 
+        });
+    }
+    
     return { error };
   };
 
