@@ -2,61 +2,146 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* ========================================
+   🎨 SMMAHUB DESIGN SYSTEM - TEAL MINIMALIST
+   ======================================== */
 
 @layer base {
   :root {
-    /* Professional dark theme for agency dashboard */
-    --background: 222 47% 11%;
-    --foreground: 210 40% 98%;
-
-    --card: 224 44% 14%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 224 44% 14%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 217 91% 60%;
-    --primary-foreground: 222 47% 11%;
-
-    --secondary: 217 33% 17%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 215 28% 17%;
-    --muted-foreground: 217 11% 65%;
-
-    --accent: 217 91% 60%;
-    --accent-foreground: 222 47% 11%;
-
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 215 28% 17%;
-    --input: 215 28% 17%;
-    --ring: 217 91% 60%;
-
-    --radius: 0.5rem;
-
-    --sidebar-background: 222 47% 8%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 217 91% 60%;
-    --sidebar-primary-foreground: 222 47% 11%;
-    --sidebar-accent: 217 33% 17%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 215 28% 17%;
-    --sidebar-ring: 217 91% 60%;
-
-    /* Custom tokens */
-    --success: 142 76% 36%;
-    --success-foreground: 210 40% 98%;
-    --warning: 38 92% 50%;
+    /* ===== LIGHT MODE (DEFAULT) ===== */
+    
+    /* Brand Colors */
+    --primary: 187 95% 43%;           /* #06B6D4 - Teal */
+    --primary-hover: 188 92% 37%;     /* #0891B2 - Teal Hover */
+    --primary-foreground: 0 0% 100%;  /* White text on primary */
+    --accent: 160 84% 39%;            /* #10B981 - Emerald */
+    --accent-foreground: 0 0% 100%;   /* White text on accent */
+    
+    /* Surface Colors */
+    --background: 210 40% 98%;        /* #F8FAFC - Very light blue-gray */
+    --foreground: 222 47% 11%;        /* #0F172A - Almost black text */
+    --surface: 0 0% 100%;             /* #FFFFFF - Pure white */
+    --card: 214 32% 96%;              /* #F1F5F9 - Light card bg */
+    --card-foreground: 222 47% 11%;   /* Dark text on cards */
+    
+    /* UI Elements */
+    --border: 214 32% 91%;            /* #E2E8F0 - Light border */
+    --input: 214 32% 96%;             /* Same as card */
+    --ring: 187 95% 43%;              /* Primary color for focus rings */
+    
+    /* Text */
+    --text-primary: 222 47% 11%;      /* #0F172A - Main text */
+    --text-secondary: 215 16% 35%;    /* #475569 - Secondary text */
+    
+    /* Sidebar & Header */
+    --sidebar-bg: 210 40% 98%;        /* #F8FAFC - Light sidebar */
+    --header-bg: 0 0% 100%;           /* #FFFFFF - White header */
+    --sidebar-background: 210 40% 98%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 187 95% 43%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 214 32% 96%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 214 32% 91%;
+    --sidebar-ring: 187 95% 43%;
+    
+    /* Popover & Dropdown */
+    --popover: 0 0% 100%;             /* White */
+    --popover-foreground: 222 47% 11%;
+    
+    /* Secondary */
+    --secondary: 214 32% 96%;         /* Light gray */
+    --secondary-foreground: 222 47% 11%;
+    
+    /* Muted */
+    --muted: 214 32% 91%;             /* Subtle background */
+    --muted-foreground: 215 16% 35%;  /* Muted text */
+    
+    /* States */
+    --success: 160 84% 39%;           /* #10B981 - Green */
+    --success-foreground: 0 0% 100%;
+    --error: 0 84% 60%;               /* #EF4444 - Red */
+    --error-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;         /* Same as error */
+    --destructive-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;            /* #F59E0B - Orange */
     --warning-foreground: 222 47% 11%;
+    --info: 187 95% 43%;              /* #06B6D4 - Same as primary */
+    --info-foreground: 0 0% 100%;
     
     /* Status colors */
-    --status-active: 142 76% 36%;
+    --status-active: 160 84% 39%;
     --status-inactive: 215 16% 47%;
+    --status-paused: 38 92% 50%;
+    
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    /* ===== DARK MODE ===== */
+    
+    /* Brand Colors (same in dark) */
+    --primary: 187 95% 43%;           /* #06B6D4 - Teal */
+    --primary-hover: 188 92% 37%;     /* #0891B2 - Teal Hover */
+    --primary-foreground: 0 0% 100%;
+    --accent: 160 84% 39%;            /* #10B981 - Emerald */
+    --accent-foreground: 0 0% 100%;
+    
+    /* Surface Colors */
+    --background: 222 47% 11%;        /* #0F172A - Very dark blue */
+    --foreground: 210 40% 98%;        /* #F8FAFC - Light text */
+    --surface: 217 33% 17%;           /* #1E293B - Dark surface */
+    --card: 217 19% 18%;              /* #1F2937 - Dark card */
+    --card-foreground: 210 40% 98%;
+    
+    /* UI Elements */
+    --border: 217 25% 27%;            /* #334155 - Dark border */
+    --input: 217 19% 18%;             /* Dark input bg */
+    --ring: 187 95% 43%;              /* Primary for focus */
+    
+    /* Text */
+    --text-primary: 210 40% 98%;      /* #F8FAFC - Light text */
+    --text-secondary: 215 20% 65%;    /* #94A3B8 - Muted text */
+    
+    /* Sidebar & Header */
+    --sidebar-bg: 222 47% 11%;        /* #0F172A - Dark sidebar */
+    --header-bg: 217 33% 17%;         /* #1E293B - Dark header */
+    --sidebar-background: 222 47% 11%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 187 95% 43%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 217 33% 17%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 217 25% 27%;
+    --sidebar-ring: 187 95% 43%;
+    
+    /* Popover & Dropdown */
+    --popover: 217 33% 17%;
+    --popover-foreground: 210 40% 98%;
+    
+    /* Secondary */
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 98%;
+    
+    /* Muted */
+    --muted: 217 25% 27%;
+    --muted-foreground: 215 20% 65%;
+    
+    /* States (same values, different backgrounds) */
+    --success: 160 84% 39%;
+    --success-foreground: 0 0% 100%;
+    --error: 0 84% 60%;
+    --error-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 222 47% 11%;
+    --info: 187 95% 43%;
+    --info-foreground: 0 0% 100%;
+    
+    /* Status colors */
+    --status-active: 160 84% 39%;
+    --status-inactive: 215 20% 65%;
     --status-paused: 38 92% 50%;
   }
 }
@@ -71,8 +156,54 @@ All colors MUST be HSL.
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 
-  /* Smooth transitions */
+  /* ===== SMOOTH TRANSITIONS ===== */
   * {
-    @apply transition-colors duration-200;
+    transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+  }
+  
+  button, a, [role="button"] {
+    transition-duration: 200ms;
+  }
+
+  /* ===== SCROLLBAR STYLING ===== */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-background;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-border rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/50;
+  }
+
+  /* ===== SUBTLE SHADOWS ===== */
+  .card-shadow {
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  }
+
+  .dark .card-shadow {
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.2), 0 1px 2px 0 rgba(0, 0, 0, 0.12);
+  }
+
+  .sidebar-shadow {
+    box-shadow: 2px 0 8px 0 rgba(0, 0, 0, 0.08);
+  }
+
+  .dark .sidebar-shadow {
+    box-shadow: 2px 0 8px 0 rgba(0, 0, 0, 0.15);
+  }
+
+  /* ===== FOCUS STATES ===== */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
   }
 }
