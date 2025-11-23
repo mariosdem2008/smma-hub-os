@@ -41,6 +41,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { format, startOfWeek, endOfWeek, isPast } from "date-fns";
 import { cn } from "@/lib/utils";
+import { StatCard } from "@/components/ui/stat-card";
 
 const PLATFORMS = ["Instagram", "Facebook", "TikTok", "LinkedIn", "YouTube"];
 const STATUSES = ["draft", "scheduled", "published"];
@@ -197,9 +198,9 @@ export default function Dashboard() {
       case "urgent":
         return "destructive";
       case "high":
-        return "default";
+        return "orange";
       case "medium":
-        return "secondary";
+        return "purple";
       default:
         return "outline";
     }
@@ -208,9 +209,9 @@ export default function Dashboard() {
   const getStatusBadgeVariant = (status: string | null) => {
     switch (status) {
       case "published":
-        return "default";
+        return "green";
       case "scheduled":
-        return "secondary";
+        return "teal";
       default:
         return "outline";
     }
@@ -406,42 +407,27 @@ export default function Dashboard() {
         <>
           {/* Metrics Cards */}
           <div className="grid gap-4 md:grid-cols-3">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Clients</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{metrics.totalClients}</div>
-                <p className="text-xs text-muted-foreground">
-                  Active client accounts
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Posts This Week</CardTitle>
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{metrics.postsThisWeek}</div>
-                <p className="text-xs text-muted-foreground">
-                  Scheduled for this week
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Tasks Due This Week</CardTitle>
-                <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{metrics.tasksThisWeek}</div>
-                <p className="text-xs text-muted-foreground">
-                  Tasks to complete
-                </p>
-              </CardContent>
-            </Card>
+            <StatCard
+              title="Total Clients"
+              value={metrics.totalClients}
+              icon={Users}
+              description="Active client accounts"
+              variant="purple"
+            />
+            <StatCard
+              title="Posts This Week"
+              value={metrics.postsThisWeek}
+              icon={Calendar}
+              description="Scheduled for this week"
+              variant="teal"
+            />
+            <StatCard
+              title="Tasks Due This Week"
+              value={metrics.tasksThisWeek}
+              icon={CheckCircle2}
+              description="Tasks to complete"
+              variant="orange"
+            />
           </div>
 
           {/* Upcoming Posts */}

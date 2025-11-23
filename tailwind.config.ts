@@ -35,6 +35,13 @@ export default {
         "premium-surface": "#1A1D26",
         "premium-surface-secondary": "#2A2F46",
         
+        /* Vibrant accent colors */
+        "accent-orange": "hsl(var(--accent-orange))",
+        "accent-teal": "hsl(var(--accent-teal))",
+        "accent-purple": "hsl(var(--accent-purple))",
+        "accent-pink": "hsl(var(--accent-pink))",
+        "accent-green": "hsl(var(--accent-green))",
+        
         /* Primary brand color */
         primary: {
           DEFAULT: "hsl(var(--primary))",
@@ -134,6 +141,10 @@ export default {
       },
       backgroundImage: {
         'gradient-premium': 'linear-gradient(135deg, #4E5DFF 0%, #6A73FF 100%)',
+        'gradient-orange': 'var(--gradient-orange)',
+        'gradient-teal': 'var(--gradient-teal)',
+        'gradient-purple': 'var(--gradient-purple)',
+        'gradient-green': 'var(--gradient-green)',
       },
       keyframes: {
         "accordion-down": {

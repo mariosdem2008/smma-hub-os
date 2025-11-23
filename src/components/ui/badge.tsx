@@ -12,6 +12,11 @@ const badgeVariants = cva(
         secondary: "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
         destructive: "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80",
         outline: "text-foreground",
+        orange: "border-transparent bg-gradient-orange text-white hover:opacity-90",
+        teal: "border-transparent bg-gradient-teal text-white hover:opacity-90",
+        purple: "border-transparent bg-gradient-purple text-white hover:opacity-90",
+        green: "border-transparent bg-gradient-green text-white hover:opacity-90",
+        pink: "border-transparent bg-accent-pink text-white hover:opacity-90",
       },
     },
     defaultVariants: {
