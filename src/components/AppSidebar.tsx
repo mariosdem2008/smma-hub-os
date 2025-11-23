@@ -47,20 +47,32 @@ export function AppSidebar() {
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {items.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink
-                      to={item.url}
-                      className="hover:bg-sidebar-accent"
-                      activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
-                    >
-                      <item.icon className="h-4 w-4" />
-                      {!isCollapsed && <span>{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {items.map((item) => {
+                const active = isActive(item.url);
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild>
+                      <NavLink
+                        to={item.url}
+                        className={`
+                          relative transition-all duration-200 hover:bg-[#2A2F46]
+                          ${active ? 'bg-[#2A2F46] text-white' : ''}
+                        `}
+                        activeClassName="bg-[#2A2F46] text-white font-medium"
+                      >
+                        {active && (
+                          <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#4E5DFF] rounded-full" />
+                        )}
+                        <item.icon className={`
+                          h-4 w-4 ml-1 transition-all duration-200
+                          ${active ? 'text-[#4E5DFF]' : 'text-slate-400 hover:text-[#4E5DFF] hover:scale-[1.03]'}
+                        `} />
+                        {!isCollapsed && <span className="ml-2">{item.title}</span>}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
