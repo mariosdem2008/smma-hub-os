@@ -25,8 +25,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import { useRole } from "@/hooks/useRole";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { cn } from "@/lib/utils";
 import { 
   Palette, 
   Globe, 
@@ -39,8 +37,7 @@ import {
   FileText,
   Mail,
   Phone,
-  Building,
-  Upload
+  Building
 } from "lucide-react";
 
 interface OverviewTabProps {
@@ -59,7 +56,6 @@ interface OverviewTabProps {
     status: string | null;
   };
   onNotesUpdate: (notes: string) => void;
-  onLogoUpdate?: (logoUrl: string) => void;
 }
 
 interface Stats {
@@ -68,11 +64,10 @@ interface Stats {
   upcomingPosts: number;
 }
 
-export default function OverviewTab({ clientId, client, onNotesUpdate, onLogoUpdate }: OverviewTabProps) {
+export default function OverviewTab({ clientId, client, onNotesUpdate }: OverviewTabProps) {
   const { toast } = useToast();
   const { user } = useAuth();
   const { isOwner, isAdmin, canCreateContent } = useRole();
-  const [uploading, setUploading] = useState(false);
   const [stats, setStats] = useState<Stats>({
     totalPosts: 0,
     completedTasks: 0,
@@ -215,76 +210,6 @@ export default function OverviewTab({ clientId, client, onNotesUpdate, onLogoUpd
     setSaving(false);
   };
 
-  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      toast({
-        title: "Error",
-        description: "Please upload an image file",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Validate file size (5MB max)
-    if (file.size > 5 * 1024 * 1024) {
-      toast({
-        title: "Error",
-        description: "File size must be less than 5MB",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setUploading(true);
-
-    try {
-      // Upload to Supabase storage
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${clientId}-${Date.now()}.${fileExt}`;
-      
-      const { error: uploadError } = await supabase.storage
-        .from('client-logos')
-        .upload(fileName, file, { upsert: true });
-
-      if (uploadError) throw uploadError;
-
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('client-logos')
-        .getPublicUrl(fileName);
-
-      // Update client record
-      const { error: updateError } = await supabase
-        .from('clients')
-        .update({ logo_url: publicUrl })
-        .eq('id', clientId);
-
-      if (updateError) throw updateError;
-
-      toast({
-        title: "Success",
-        description: "Logo updated successfully",
-      });
-
-      if (onLogoUpdate) {
-        onLogoUpdate(publicUrl);
-      }
-    } catch (error) {
-      console.error('Error uploading logo:', error);
-      toast({
-        title: "Error",
-        description: "Failed to upload logo",
-        variant: "destructive",
-      });
-    } finally {
-      setUploading(false);
-    }
-  };
-
   const getStatusColor = (status: string) => {
     switch (status) {
       case "active":
@@ -304,53 +229,6 @@ export default function OverviewTab({ clientId, client, onNotesUpdate, onLogoUpd
     <div className="grid gap-6 md:grid-cols-2">
       {/* Left Column */}
       <div className="space-y-6">
-        {/* Client Profile Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Client Profile</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Logo Upload Section */}
-            <div className="flex items-center gap-4">
-              <div className="relative">
-                <Avatar className="h-20 w-20">
-                  <AvatarImage src={client.logo_url || undefined} alt={client.name} />
-                  <AvatarFallback className="text-xl">
-                    {client.name.substring(0, 2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                {canUploadLogo && (
-                  <label
-                    htmlFor="logo-upload"
-                    className={cn(
-                      "absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 hover:opacity-100 transition-opacity cursor-pointer",
-                      uploading && "opacity-100"
-                    )}
-                  >
-                    <Upload className="h-6 w-6 text-white" />
-                    <input
-                      id="logo-upload"
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleLogoUpload}
-                      disabled={uploading}
-                    />
-                  </label>
-                )}
-              </div>
-              <div>
-                <h3 className="font-semibold text-lg">{client.name}</h3>
-                {canUploadLogo && (
-                  <p className="text-sm text-muted-foreground">
-                    Click to {client.logo_url ? 'change' : 'upload'} logo
-                  </p>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Client Details Card - Only for Owners and Admins */}
         {(isOwner || isAdmin) && (
           <Card>
