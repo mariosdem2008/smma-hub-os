@@ -91,10 +91,8 @@ export function getRecommendedPlan(currentPlan: PlanType): PlanType {
     case 'free':
       return 'pro';
     case 'starter':
-    case 'ltd_starter':
       return 'pro';
     case 'pro':
-    case 'ltd_pro':
       return 'agency_plus';
     default:
       return 'pro';

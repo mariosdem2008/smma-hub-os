@@ -57,7 +57,7 @@ serve(async (req) => {
     }
 
     // Map plan types to Stripe price IDs (you'll need to create these in Stripe)
-    const priceMap: Record<string, { monthly?: string; yearly?: string; oneTime?: string }> = {
+    const priceMap: Record<string, { monthly?: string; yearly?: string }> = {
       starter: {
         monthly: 'price_starter_monthly', // Replace with actual Stripe price ID
         yearly: 'price_starter_yearly',
@@ -70,12 +70,6 @@ serve(async (req) => {
         monthly: 'price_agency_monthly',
         yearly: 'price_agency_yearly',
       },
-      ltd_starter: {
-        oneTime: 'price_ltd_starter', // One-time payment
-      },
-      ltd_pro: {
-        oneTime: 'price_ltd_pro',
-      },
     };
 
     const plan = priceMap[planType];
@@ -83,8 +77,7 @@ serve(async (req) => {
       return new Response('Invalid plan type', { status: 400 });
     }
 
-    const isLifetime = planType.startsWith('ltd_');
-    const priceId = isLifetime ? plan.oneTime : (billingInterval === 'yearly' ? plan.yearly : plan.monthly);
+    const priceId = billingInterval === 'yearly' ? plan.yearly : plan.monthly;
 
     if (!priceId) {
       return new Response('Price not configured', { status: 400 });
@@ -93,7 +86,7 @@ serve(async (req) => {
     // Create Checkout Session
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
-      mode: isLifetime ? 'payment' : 'subscription',
+      mode: 'subscription',
       line_items: [
         {
           price: priceId,

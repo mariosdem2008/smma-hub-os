@@ -34,10 +34,8 @@ export function UpgradeModal({ open, onOpenChange, feature, suggestedPlan }: Upg
     switch (subscription.plan_type) {
       case 'free':
       case 'starter':
-      case 'ltd_starter':
         return 'pro';
       case 'pro':
-      case 'ltd_pro':
         return 'agency_plus';
       default:
         return 'pro';
@@ -157,24 +155,6 @@ export function UpgradeModal({ open, onOpenChange, feature, suggestedPlan }: Upg
           </Button>
         </div>
 
-        {/* Lifetime Deal Banner */}
-        <Card className="border-primary bg-gradient-to-r from-primary/10 to-accent/10">
-          <CardContent className="py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Flame className="h-6 w-6 text-primary" />
-                <div>
-                  <h3 className="font-semibold text-lg">Limited Lifetime Deal</h3>
-                  <p className="text-sm text-muted-foreground">First 25 users only - Lock in your price forever</p>
-                </div>
-              </div>
-              <Badge variant="destructive" className="text-sm px-3 py-1">
-                Only 25 Left
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Pricing Cards */}
         <div className="grid md:grid-cols-4 gap-4 py-4">
           {plans.map((plan) => (
@@ -275,50 +255,6 @@ export function UpgradeModal({ open, onOpenChange, feature, suggestedPlan }: Upg
             ))}
           </div>
         </div>
-
-        {/* Lifetime Deal Options */}
-        <Card className="bg-muted/50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Flame className="h-5 w-5 text-primary" />
-              Lifetime Deals
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid md:grid-cols-2 gap-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">LTD Starter - €147</CardTitle>
-                  <p className="text-sm text-muted-foreground">One-time payment</p>
-                </CardHeader>
-                <CardContent>
-                  <Button
-                    className="w-full"
-                    onClick={() => handleUpgrade('ltd_starter')}
-                    disabled={upgrading}
-                  >
-                    Get LTD Starter
-                  </Button>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">LTD Pro - €247</CardTitle>
-                  <p className="text-sm text-muted-foreground">One-time payment</p>
-                </CardHeader>
-                <CardContent>
-                  <Button
-                    className="w-full"
-                    onClick={() => handleUpgrade('ltd_pro')}
-                    disabled={upgrading}
-                  >
-                    Get LTD Pro
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
-          </CardContent>
-        </Card>
       </DialogContent>
     </Dialog>
   );

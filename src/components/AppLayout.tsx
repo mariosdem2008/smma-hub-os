@@ -26,7 +26,7 @@ export function AppLayout() {
   const getUpgradeBadgeText = () => {
     if (!subscription) return null;
     if (subscription.plan_type === 'free') return 'Free Plan — Upgrade';
-    if (subscription.plan_type === 'starter' || subscription.plan_type === 'ltd_starter') return 'Upgrade to Pro';
+    if (subscription.plan_type === 'starter') return 'Upgrade to Pro';
     return null;
   };
 
