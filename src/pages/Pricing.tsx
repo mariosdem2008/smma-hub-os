@@ -1,113 +1,106 @@
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Check, Zap } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { useState } from 'react';
-import { useAuth } from '@/lib/auth';
-import { useSubscription } from '@/hooks/useSubscription';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Check, Zap } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { useAuth } from "@/lib/auth";
+import { useSubscription } from "@/hooks/useSubscription";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 export default function Pricing() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { subscription } = useSubscription();
-  const [billingInterval, setBillingInterval] = useState<'monthly' | 'yearly'>('monthly');
+  const [billingInterval, setBillingInterval] = useState<"monthly" | "yearly">("monthly");
 
   const plans = [
     {
-      name: 'Freemium',
-      price: 'Free',
-      description: 'Perfect for getting started',
-      type: 'free' as const,
+      name: "Freemium",
+      price: "Free",
+      description: "Perfect for getting started",
+      type: "free" as const,
       features: [
-        '1 client workspace',
-        '3 team members',
-        'Unlimited scheduled posts',
-        'All tools unlocked',
-        'Analytics (7 days)',
-        'Max 200MB per file',
+        "1 client workspace",
+        "3 team members",
+        "Unlimited scheduled posts",
+        "All tools unlocked",
+        "Analytics (7 days)",
+        "Max 200MB per file",
       ],
-      cta: subscription?.plan_type === 'free' ? 'Current Plan' : 'Get Started',
+      cta: subscription?.plan_type === "free" ? "Current Plan" : "Get Started",
       popular: false,
     },
     {
-      name: 'Starter',
-      price: billingInterval === 'monthly' ? '€29' : '€290',
-      interval: billingInterval === 'monthly' ? '/month' : '/year',
-      description: 'For growing agencies',
-      type: 'starter' as const,
+      name: "Starter",
+      price: billingInterval === "monthly" ? "€29" : "€290",
+      interval: billingInterval === "monthly" ? "/month" : "/year",
+      description: "For growing agencies",
+      type: "starter" as const,
       features: [
-        'Up to 3 clients',
-        'Up to 5 team members',
-        '100GB storage',
-        'Full analytics',
-        'Bulk scheduling',
-        'Templates library',
+        "Up to 3 clients",
+        "Up to 5 team members",
+        "100GB storage",
+        "Full analytics",
+        "Bulk scheduling",
+        "Templates library",
       ],
-      cta: 'Upgrade to Starter',
+      cta: "Upgrade to Starter",
       popular: false,
     },
     {
-      name: 'Pro',
-      price: billingInterval === 'monthly' ? '€59' : '€590',
-      interval: billingInterval === 'monthly' ? '/month' : '/year',
-      description: 'Most popular choice',
-      type: 'pro' as const,
-      features: [
-        'Up to 10 clients',
-        'Up to 10 team members',
-        '500GB storage',
-        'White-label',
-        'Approval workflows',
-        'All AI tools',
-      ],
-      cta: 'Upgrade to Pro',
+      name: "Pro",
+      price: billingInterval === "monthly" ? "€59" : "€590",
+      interval: billingInterval === "monthly" ? "/month" : "/year",
+      description: "Most popular choice",
+      type: "pro" as const,
+      features: ["Up to 10 clients", "Up to 10 team members", "500GB storage", "White-label", "Approval workflows"],
+      cta: "Upgrade to Pro",
       popular: true,
     },
     {
-      name: 'Agency Plus',
-      price: billingInterval === 'monthly' ? '€129' : '€1290',
-      interval: billingInterval === 'monthly' ? '/month' : '/year',
-      description: 'For established agencies',
-      type: 'agency_plus' as const,
+      name: "Agency Plus",
+      price: billingInterval === "monthly" ? "€129" : "€1290",
+      interval: billingInterval === "monthly" ? "/month" : "/year",
+      description: "For established agencies",
+      type: "agency_plus" as const,
       features: [
-        'Unlimited clients',
-        'Unlimited team members',
-        '2TB storage',
-        'Advanced automation',
-        'Multi-admin',
-        'Dedicated support',
+        "Unlimited clients",
+        "Unlimited team members",
+        "2TB storage",
+        "Advanced automation",
+        "Multi-admin",
+        "Dedicated support",
       ],
-      cta: 'Upgrade to Agency Plus',
+      cta: "Upgrade to Agency Plus",
       popular: false,
     },
   ];
 
   const handleSelectPlan = async (planType: string) => {
     if (!user) {
-      navigate('/auth');
+      navigate("/auth");
       return;
     }
 
-    if (planType === 'free') {
-      toast.info('You are already on the free plan');
+    if (planType === "free") {
+      toast.info("You are already on the free plan");
       return;
     }
 
     if (subscription?.plan_type === planType) {
-      toast.info('This is your current plan');
+      toast.info("This is your current plan");
       return;
     }
 
     try {
-      toast.loading('Creating checkout session...');
-      
-      const { data, error } = await supabase.functions.invoke('create-checkout', {
-        body: { 
-          planType, 
-          billingInterval 
+      toast.loading("Creating checkout session...");
+
+      const { data, error } = await supabase.functions.invoke("create-checkout", {
+        body: {
+          planType,
+          billingInterval,
         },
       });
 
@@ -116,11 +109,11 @@ export default function Pricing() {
       if (data?.url) {
         window.location.href = data.url;
       } else {
-        throw new Error('No checkout URL returned');
+        throw new Error("No checkout URL returned");
       }
     } catch (error) {
-      console.error('Checkout error:', error);
-      toast.error('Failed to start checkout. Please try again.');
+      console.error("Checkout error:", error);
+      toast.error("Failed to start checkout. Please try again.");
     }
   };
 
@@ -128,37 +121,32 @@ export default function Pricing() {
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-16">
         <div className="text-center mb-12">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">
-            Choose Your Plan
-          </h1>
-          <p className="text-xl text-muted-foreground mb-8">
-            Scale your social media agency with the right plan
-          </p>
+          <h1 className="text-4xl md:text-5xl font-bold mb-4">Choose Your Plan</h1>
+          <p className="text-xl text-muted-foreground mb-8">Scale your social media agency with the right plan</p>
 
           {/* Billing Toggle */}
           <div className="flex items-center justify-center gap-4 mb-8">
             <Button
-              variant={billingInterval === 'monthly' ? 'default' : 'ghost'}
-              onClick={() => setBillingInterval('monthly')}
+              variant={billingInterval === "monthly" ? "default" : "ghost"}
+              onClick={() => setBillingInterval("monthly")}
             >
               Monthly
             </Button>
             <Button
-              variant={billingInterval === 'yearly' ? 'default' : 'ghost'}
-              onClick={() => setBillingInterval('yearly')}
+              variant={billingInterval === "yearly" ? "default" : "ghost"}
+              onClick={() => setBillingInterval("yearly")}
             >
               Yearly
-              <Badge variant="secondary" className="ml-2">Save 17%</Badge>
+              <Badge variant="secondary" className="ml-2">
+                Save 17%
+              </Badge>
             </Button>
           </div>
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
           {plans.map((plan) => (
-            <Card
-              key={plan.type}
-              className={`relative ${plan.popular ? 'border-primary shadow-xl scale-105' : ''}`}
-            >
+            <Card key={plan.type} className={`relative ${plan.popular ? "border-primary shadow-xl scale-105" : ""}`}>
               {plan.popular && (
                 <div className="absolute -top-4 left-1/2 -translate-x-1/2">
                   <Badge className="px-3 py-1">
@@ -172,9 +160,7 @@ export default function Pricing() {
                 <CardDescription>{plan.description}</CardDescription>
                 <div className="mt-4">
                   <span className="text-4xl font-bold">{plan.price}</span>
-                  {plan.interval && (
-                    <span className="text-muted-foreground">{plan.interval}</span>
-                  )}
+                  {plan.interval && <span className="text-muted-foreground">{plan.interval}</span>}
                 </div>
               </CardHeader>
               <CardContent>
@@ -190,11 +176,11 @@ export default function Pricing() {
               <CardFooter>
                 <Button
                   className="w-full"
-                  variant={plan.popular ? 'default' : 'outline'}
+                  variant={plan.popular ? "default" : "outline"}
                   onClick={() => handleSelectPlan(plan.type)}
                   disabled={subscription?.plan_type === plan.type}
                 >
-                  {subscription?.plan_type === plan.type ? 'Current Plan' : plan.cta}
+                  {subscription?.plan_type === plan.type ? "Current Plan" : plan.cta}
                 </Button>
               </CardFooter>
             </Card>
