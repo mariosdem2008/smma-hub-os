@@ -236,6 +236,11 @@ html {
     }
   }
   
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-out forwards;
+    opacity: 0;
+  }
+  
   @keyframes fadeOut {
     from {
       opacity: 1;
