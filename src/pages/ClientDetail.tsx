@@ -110,12 +110,6 @@ export default function ClientDetail() {
     }
   };
 
-  const handleLogoUpdate = (logoUrl: string) => {
-    if (client) {
-      setClient({ ...client, logo_url: logoUrl });
-    }
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -178,7 +172,6 @@ export default function ClientDetail() {
             clientId={clientId!} 
             client={client} 
             onNotesUpdate={handleNotesUpdate}
-            onLogoUpdate={handleLogoUpdate}
           />
         </TabsContent>
 
