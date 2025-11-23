@@ -20,6 +20,42 @@ export function useSubscription() {
   const { user } = useAuth();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const refreshSubscription = async () => {
+    if (!user) return;
+
+    setRefreshing(true);
+    try {
+      console.log('[useSubscription] Calling check-subscription edge function');
+      const { data, error } = await supabase.functions.invoke('check-subscription', {
+        headers: {
+          Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+        },
+      });
+
+      if (error) {
+        console.error('[useSubscription] Error checking subscription:', error);
+      } else {
+        console.log('[useSubscription] Subscription check result:', data);
+      }
+
+      // Fetch updated subscription from database
+      const { data: subData, error: subError } = await supabase
+        .from('subscriptions')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!subError && subData) {
+        setSubscription(subData as Subscription);
+      }
+    } catch (err) {
+      console.error('[useSubscription] Error refreshing subscription:', err);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   useEffect(() => {
     if (!user) {
@@ -57,6 +93,9 @@ export function useSubscription() {
         } else {
           setSubscription(data as Subscription);
         }
+
+        // Refresh from Stripe on initial load
+        await refreshSubscription();
       } catch (err) {
         console.error('Error in fetchSubscription:', err);
       } finally {
@@ -92,5 +131,5 @@ export function useSubscription() {
     };
   }, [user]);
 
-  return { subscription, loading };
+  return { subscription, loading, refreshing, refreshSubscription };
 }

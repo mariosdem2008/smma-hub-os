@@ -15,12 +15,48 @@ import { NoPermissionModal } from '@/components/billing/NoPermissionModal';
 
 export default function Billing() {
   const navigate = useNavigate();
-  const { subscription, loading } = useSubscription();
+  const { subscription, loading, refreshSubscription } = useSubscription();
   const { limits } = usePlanLimits();
   const { role, loading: roleLoading, isOwner } = useRole();
   const [usage, setUsage] = useState({ clients: 0, teamMembers: 0 });
   const [loadingUsage, setLoadingUsage] = useState(true);
   const [showNoPermission, setShowNoPermission] = useState(false);
+  const [managingSubscription, setManagingSubscription] = useState(false);
+
+  // Check URL params for successful checkout
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('success') === 'true' || params.get('checkout') === 'success') {
+      console.log('[Billing] Checkout success detected, refreshing subscription');
+      refreshSubscription();
+      // Clean up URL params
+      window.history.replaceState({}, '', '/billing');
+    }
+  }, [refreshSubscription]);
+
+  const handleManageSubscription = async () => {
+    setManagingSubscription(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('customer-portal', {
+        headers: {
+          Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+        },
+      });
+
+      if (error) {
+        console.error('Error opening customer portal:', error);
+        return;
+      }
+
+      if (data?.url) {
+        window.open(data.url, '_blank');
+      }
+    } catch (err) {
+      console.error('Error managing subscription:', err);
+    } finally {
+      setManagingSubscription(false);
+    }
+  };
 
   useEffect(() => {
     const fetchUsage = async () => {
@@ -167,10 +203,19 @@ export default function Billing() {
               Change Plan
             </Button>
             {subscription.stripe_customer_id && (
-              <Button variant="outline" onClick={() => {
-                // TODO: Open Stripe customer portal
-              }}>
-                Manage Subscription
+              <Button 
+                variant="outline" 
+                onClick={handleManageSubscription}
+                disabled={managingSubscription}
+              >
+                {managingSubscription ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Opening...
+                  </>
+                ) : (
+                  'Manage Subscription'
+                )}
               </Button>
             )}
           </div>
