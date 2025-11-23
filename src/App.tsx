@@ -6,6 +6,9 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/lib/auth";
 import { UpgradeModalProvider } from "@/contexts/UpgradeModalContext";
 import { GlobalUpgradeModal } from "@/components/GlobalUpgradeModal";
+import { UpgradeAssistantProvider } from "@/contexts/UpgradeAssistantContext";
+import { UpgradeAssistantBubble } from "@/components/UpgradeAssistantBubble";
+import { UpgradeAssistantCard } from "@/components/UpgradeAssistantCard";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/AppLayout";
 import Landing from "./pages/Landing";
@@ -31,8 +34,11 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <UpgradeModalProvider>
-            <GlobalUpgradeModal />
-            <Routes>
+            <UpgradeAssistantProvider>
+              <GlobalUpgradeModal />
+              <UpgradeAssistantBubble />
+              <UpgradeAssistantCard />
+              <Routes>
             {/* Public Routes */}
             <Route path="/" element={<Landing />} />
             <Route path="/auth" element={<Auth />} />
@@ -67,7 +73,8 @@ const App = () => (
             
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
-          </Routes>
+              </Routes>
+            </UpgradeAssistantProvider>
           </UpgradeModalProvider>
         </AuthProvider>
       </BrowserRouter>

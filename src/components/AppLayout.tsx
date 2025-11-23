@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { useRole } from "@/hooks/useRole";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useUpgradeModal } from "@/contexts/UpgradeModalContext";
+import { useUpgradeAssistantTriggers } from "@/hooks/useUpgradeAssistantTriggers";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { UserPlus, Sparkles } from "lucide-react";
@@ -18,6 +19,9 @@ export function AppLayout() {
   const { subscription } = useSubscription();
   const { openUpgradeModal } = useUpgradeModal();
   const [showInviteDialog, setShowInviteDialog] = useState(false);
+  
+  // Initialize upgrade assistant triggers
+  useUpgradeAssistantTriggers();
 
   const getUpgradeBadgeText = () => {
     if (!subscription) return null;
