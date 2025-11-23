@@ -16,7 +16,7 @@ export function useClientPortalAccess(portalSlug?: string) {
       }
 
       try {
-        // First get the client by portal slug
+        // Get the client by portal slug
         const { data: client } = await supabase
           .from("clients")
           .select("id, portal_enabled")
@@ -29,7 +29,7 @@ export function useClientPortalAccess(portalSlug?: string) {
           return;
         }
 
-        // Check if user has portal access to this client
+        // Check if user has accessed this portal before
         const { data: portalUser } = await supabase
           .from("client_portal_users")
           .select("client_id")
