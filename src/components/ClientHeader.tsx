@@ -34,7 +34,7 @@ export default function ClientHeader({
   primaryColor,
 }: ClientHeaderProps) {
   const { toast } = useToast();
-  const { canCreateContent } = useRole();
+  const { canCreateContent, role } = useRole();
   const [showPostDialog, setShowPostDialog] = useState(false);
   const [showAssetDialog, setShowAssetDialog] = useState(false);
   const [postForm, setPostForm] = useState({
@@ -44,6 +44,8 @@ export default function ClientHeader({
   });
   const [scheduledDate, setScheduledDate] = useState<Date | undefined>();
   const [uploading, setUploading] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [currentLogoUrl, setCurrentLogoUrl] = useState(logoUrl);
 
   const getInitials = (name: string) => {
     return name
@@ -143,15 +145,102 @@ export default function ClientHeader({
     setUploading(false);
   };
 
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Invalid File",
+        description: "Please upload an image file",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUploadingLogo(true);
+
+    try {
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${clientId}-${Date.now()}.${fileExt}`;
+
+      // Upload to storage
+      const { error: uploadError } = await supabase.storage
+        .from("client-logos")
+        .upload(fileName, file, {
+          cacheControl: "3600",
+          upsert: true,
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from("client-logos")
+        .getPublicUrl(fileName);
+
+      // Update client record
+      const { error: updateError } = await supabase
+        .from("clients")
+        .update({ logo_url: publicUrl })
+        .eq("id", clientId);
+
+      if (updateError) throw updateError;
+
+      setCurrentLogoUrl(publicUrl);
+      toast({
+        title: "Success",
+        description: "Logo updated successfully",
+      });
+    } catch (error) {
+      console.error("Logo upload error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to upload logo",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+  const canManageLogo = role === 'owner' || role === 'admin' || role === 'manager';
+
   return (
     <>
       <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6 rounded-xl border bg-card p-4 sm:p-6 shadow-lg shadow-black/40 hover:shadow-xl hover:shadow-black/50 transition-all duration-200">
-        <Avatar className="h-16 w-16 sm:h-20 sm:w-20 ring-2 ring-[#4E5DFF]/20">
-          <AvatarImage src={logoUrl || undefined} alt={name} />
-          <AvatarFallback className="text-xl sm:text-2xl font-semibold bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] text-white">
-            {getInitials(name)}
-          </AvatarFallback>
-        </Avatar>
+        <div className="relative">
+          <input
+            type="file"
+            id="logo-upload"
+            accept="image/*"
+            className="hidden"
+            onChange={handleLogoUpload}
+            disabled={!canManageLogo || uploadingLogo}
+          />
+          <Avatar 
+            className={cn(
+              "h-16 w-16 sm:h-20 sm:w-20 ring-2 ring-[#4E5DFF]/20",
+              canManageLogo && "cursor-pointer hover:ring-4 hover:ring-[#4E5DFF]/40 transition-all"
+            )}
+            onClick={() => {
+              if (canManageLogo) {
+                document.getElementById('logo-upload')?.click();
+              }
+            }}
+          >
+            <AvatarImage src={currentLogoUrl || undefined} alt={name} />
+            <AvatarFallback className="text-xl sm:text-2xl font-semibold bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] text-white">
+              {getInitials(name)}
+            </AvatarFallback>
+          </Avatar>
+          {uploadingLogo && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full">
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-white border-t-transparent" />
+            </div>
+          )}
+        </div>
 
         <div className="flex-1 space-y-3 w-full">
           <div className="flex flex-col gap-3">
