@@ -145,17 +145,17 @@ export default function ClientHeader({
 
   return (
     <>
-      <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6 rounded-lg border bg-card p-4 sm:p-6">
-        <Avatar className="h-16 w-16 sm:h-20 sm:w-20">
+      <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6 rounded-xl border bg-card p-4 sm:p-6 shadow-lg shadow-black/40 hover:shadow-xl hover:shadow-black/50 transition-all duration-200">
+        <Avatar className="h-16 w-16 sm:h-20 sm:w-20 ring-2 ring-[#4E5DFF]/20">
           <AvatarImage src={logoUrl || undefined} alt={name} />
-          <AvatarFallback className="text-xl sm:text-2xl font-semibold">
+          <AvatarFallback className="text-xl sm:text-2xl font-semibold bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] text-white">
             {getInitials(name)}
           </AvatarFallback>
         </Avatar>
 
         <div className="flex-1 space-y-3 w-full">
           <div className="flex flex-col gap-3">
-            <h1 className="text-2xl sm:text-3xl font-bold">{name}</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] bg-clip-text text-transparent">{name}</h1>
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
               <div className="w-full sm:w-auto sm:flex-1">
                 <ClientSearchBar clientId={clientId} />
@@ -166,18 +166,18 @@ export default function ClientHeader({
                     variant="outline"
                     size="sm"
                     onClick={() => setShowPostDialog(true)}
-                    className="h-8 gap-2 flex-1 sm:flex-none"
+                    className="h-8 gap-2 flex-1 sm:flex-none transition-all duration-200"
                   >
-                    <FileText className="h-4 w-4" />
+                    <FileText className="h-4 w-4 icon-hover" />
                     <span className="sm:inline">New Post</span>
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setShowAssetDialog(true)}
-                    className="h-8 gap-2 flex-1 sm:flex-none"
+                    className="h-8 gap-2 flex-1 sm:flex-none transition-all duration-200"
                   >
-                    <Upload className="h-4 w-4" />
+                    <Upload className="h-4 w-4 icon-hover" />
                     <span className="sm:inline">Upload</span>
                   </Button>
                 </div>
@@ -187,7 +187,7 @@ export default function ClientHeader({
 
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             {niche && (
-              <Badge variant="secondary" className="text-xs sm:text-sm">
+              <Badge variant="secondary" className="text-xs sm:text-sm border border-[#4E5DFF]/20">
                 {niche}
               </Badge>
             )}
@@ -197,7 +197,7 @@ export default function ClientHeader({
                 href={website}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1 text-xs sm:text-sm text-primary hover:underline"
+                className="flex items-center gap-1 text-xs sm:text-sm text-[#4E5DFF] hover:text-[#6A73FF] transition-colors"
               >
                 <span className="truncate max-w-[150px] sm:max-w-none">
                   {website.replace(/^https?:\/\//, "")}
@@ -209,10 +209,10 @@ export default function ClientHeader({
             {primaryColor && (
               <Badge
                 variant="outline"
-                className="flex items-center gap-1.5 sm:gap-2"
+                className="flex items-center gap-1.5 sm:gap-2 border-[#4E5DFF]/20"
               >
                 <div
-                  className="h-3 w-3 rounded-full"
+                  className="h-3 w-3 rounded-full ring-1 ring-white/20"
                   style={{ backgroundColor: primaryColor }}
                 />
                 <span className="text-xs font-mono hidden sm:inline">{primaryColor}</span>

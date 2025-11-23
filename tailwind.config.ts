@@ -28,6 +28,13 @@ export default {
         "text-primary": "hsl(var(--text-primary))",
         "text-secondary": "hsl(var(--text-secondary))",
         
+        /* Premium accent colors */
+        "premium-blue": "#4E5DFF",
+        "premium-blue-light": "#6A73FF",
+        "premium-dark": "#0F1117",
+        "premium-surface": "#1A1D26",
+        "premium-surface-secondary": "#2A2F46",
+        
         /* Primary brand color */
         primary: {
           DEFAULT: "hsl(var(--primary))",
@@ -120,8 +127,13 @@ export default {
         sm: "calc(var(--radius) - 4px)",
       },
       boxShadow: {
-        'card': '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
-        'sidebar': '2px 0 8px 0 rgba(0, 0, 0, 0.08)',
+        'card': '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+        'card-hover': '0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.1)',
+        'sidebar': '2px 0 12px 0 rgba(0, 0, 0, 0.1)',
+        'premium': '0 10px 40px -10px rgba(78, 93, 255, 0.3)',
+      },
+      backgroundImage: {
+        'gradient-premium': 'linear-gradient(135deg, #4E5DFF 0%, #6A73FF 100%)',
       },
       keyframes: {
         "accordion-down": {

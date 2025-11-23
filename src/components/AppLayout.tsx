@@ -37,17 +37,17 @@ export function AppLayout() {
       <div className="flex min-h-screen w-full">
         <AppSidebar />
         <div className="flex flex-1 flex-col">
-          <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-surface px-4 shadow-sm">
-            <SidebarTrigger />
+          <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b glass-header px-4 shadow-lg">
+            <SidebarTrigger className="icon-hover" />
             <div className="flex-1">
-              <h2 className="text-lg font-semibold text-primary">SMMAHUB</h2>
+              <h2 className="text-lg font-bold bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] bg-clip-text text-transparent">SMMAHUB</h2>
             </div>
             <div className="flex items-center gap-3">
               <ThemeToggle />
               {upgradeBadgeText && (
                 <Badge
                   variant="secondary"
-                  className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors animate-pulse"
+                  className="cursor-pointer bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] text-white hover:opacity-90 transition-all duration-200 animate-pulse border-0"
                   onClick={() => openUpgradeModal()}
                 >
                   <Sparkles className="mr-1 h-3 w-3" />

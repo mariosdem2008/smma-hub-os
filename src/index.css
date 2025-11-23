@@ -20,18 +20,18 @@ html {
 }
 
 /* ========================================
-   🎨 SMMAHUB DESIGN SYSTEM - TEAL MINIMALIST
+   🎨 SMMAHUB DESIGN SYSTEM - PREMIUM MODERN
    ======================================== */
 
 @layer base {
   :root {
     /* ===== LIGHT MODE (DEFAULT) ===== */
     
-    /* Brand Colors */
-    --primary: 187 95% 43%;           /* #06B6D4 - Teal */
-    --primary-hover: 188 92% 37%;     /* #0891B2 - Teal Hover */
+    /* Brand Colors - Premium Purple/Blue */
+    --primary: 236 100% 65%;          /* #4E5DFF - Premium Blue */
+    --primary-hover: 237 100% 70%;    /* #6A73FF - Lighter Blue */
     --primary-foreground: 0 0% 100%;  /* White text on primary */
-    --accent: 160 84% 39%;            /* #10B981 - Emerald */
+    --accent: 237 100% 70%;           /* #6A73FF - Gradient End */
     --accent-foreground: 0 0% 100%;   /* White text on accent */
     
     /* Surface Colors - Subtle Teal Tint */
@@ -97,40 +97,40 @@ html {
   .dark {
     /* ===== DARK MODE ===== */
     
-    /* Brand Colors (same in dark) */
-    --primary: 187 95% 43%;           /* #06B6D4 - Teal */
-    --primary-hover: 188 92% 37%;     /* #0891B2 - Teal Hover */
+    /* Brand Colors */
+    --primary: 236 100% 65%;          /* #4E5DFF - Premium Blue */
+    --primary-hover: 237 100% 70%;    /* #6A73FF - Lighter Blue */
     --primary-foreground: 0 0% 100%;
-    --accent: 160 84% 39%;            /* #10B981 - Emerald */
+    --accent: 237 100% 70%;           /* #6A73FF - Gradient End */
     --accent-foreground: 0 0% 100%;
     
-    /* Surface Colors - Deep Teal-Blues */
-    --background: 200 30% 8%;         /* Deep teal-blue background */
-    --foreground: 190 25% 95%;        /* Light teal-tinted text */
-    --surface: 198 25% 12%;           /* Dark teal-blue surface */
-    --card: 195 28% 15%;              /* Dark teal card */
-    --card-foreground: 190 25% 95%;
+    /* Surface Colors - Deep Modern Dark */
+    --background: 225 15% 7%;         /* #0F1117 - Dark background */
+    --foreground: 216 12% 84%;        /* Light text */
+    --surface: 222 20% 12%;           /* #1A1D26 - Surface background */
+    --card: 228 20% 18%;              /* #2A2F46 - Secondary surface */
+    --card-foreground: 216 12% 84%;
     
     /* UI Elements */
-    --border: 195 22% 22%;            /* Dark teal border */
-    --input: 195 28% 15%;             /* Dark input bg */
-    --ring: 187 95% 43%;              /* Primary for focus */
+    --border: 228 15% 25%;            /* Subtle border */
+    --input: 228 20% 18%;             /* Dark input bg */
+    --ring: 236 100% 65%;             /* Primary for focus */
     
     /* Text */
     --text-primary: 190 25% 95%;      /* Light teal text */
     --text-secondary: 190 15% 65%;    /* Medium teal-gray text */
     
     /* Sidebar & Header */
-    --sidebar-bg: 200 30% 8%;         /* Deep teal sidebar */
-    --header-bg: 198 25% 12%;         /* Dark teal header */
-    --sidebar-background: 200 30% 8%;
-    --sidebar-foreground: 190 25% 95%;
-    --sidebar-primary: 187 95% 43%;
+    --sidebar-bg: 225 15% 7%;         /* Deep dark sidebar */
+    --header-bg: 225 15% 7%;          /* Deep dark header with glass effect */
+    --sidebar-background: 225 15% 7%;
+    --sidebar-foreground: 216 12% 84%;
+    --sidebar-primary: 236 100% 65%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 195 25% 18%;
-    --sidebar-accent-foreground: 190 25% 95%;
-    --sidebar-border: 195 22% 22%;
-    --sidebar-ring: 187 95% 43%;
+    --sidebar-accent: 228 20% 18%;
+    --sidebar-accent-foreground: 216 12% 84%;
+    --sidebar-border: 228 15% 25%;
+    --sidebar-ring: 236 100% 65%;
     
     /* Popover & Dropdown */
     --popover: 198 25% 12%;
@@ -173,15 +173,20 @@ html {
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 
-  /* ===== SMOOTH TRANSITIONS ===== */
+  /* ===== SMOOTH TRANSITIONS (PREMIUM) ===== */
   * {
-    transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+    transition-property: all;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-    transition-duration: 150ms;
+    transition-duration: 200ms;
   }
   
-  button, a, [role="button"] {
+  button, a, [role="button"], .hover-scale {
     transition-duration: 200ms;
+  }
+  
+  /* Global hover scale effect */
+  .hover-scale:hover {
+    transform: scale(1.01);
   }
 
   /* ===== SCROLLBAR STYLING ===== */
@@ -202,25 +207,65 @@ html {
     @apply bg-muted-foreground/50;
   }
 
-  /* ===== SUBTLE SHADOWS ===== */
+  /* ===== PREMIUM SHADOWS & DEPTH ===== */
   .card-shadow {
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
   }
 
   .dark .card-shadow {
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.2), 0 1px 2px 0 rgba(0, 0, 0, 0.12);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+  }
+  
+  .card-hover-shadow:hover {
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
+  }
+  
+  .dark .card-hover-shadow:hover {
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4);
   }
 
   .sidebar-shadow {
-    box-shadow: 2px 0 8px 0 rgba(0, 0, 0, 0.08);
+    box-shadow: 2px 0 12px 0 rgba(0, 0, 0, 0.1);
   }
 
   .dark .sidebar-shadow {
-    box-shadow: 2px 0 8px 0 rgba(0, 0, 0, 0.15);
+    box-shadow: 2px 0 12px 0 rgba(0, 0, 0, 0.3);
+  }
+  
+  /* Glass effect for header */
+  .glass-header {
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    background: rgba(0, 0, 0, 0.3);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  /* ===== PREMIUM ICON EFFECTS ===== */
+  .icon-default {
+    @apply text-slate-400;
+  }
+  
+  .icon-hover:hover {
+    @apply text-[#4E5DFF] scale-[1.03];
+  }
+  
+  .icon-active {
+    @apply text-[#4E5DFF];
   }
 
   /* ===== FOCUS STATES ===== */
   :focus-visible {
     @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+  
+  /* ===== SECTION TITLE UNDERLINE ===== */
+  .section-title-underline::after {
+    content: '';
+    display: block;
+    width: 40px;
+    height: 3px;
+    background: linear-gradient(135deg, #4E5DFF 0%, #6A73FF 100%);
+    border-radius: 2px;
+    margin-top: 8px;
   }
 }
