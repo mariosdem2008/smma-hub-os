@@ -4,11 +4,21 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, ExternalLink, Instagram, Facebook } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Plus, ExternalLink, Instagram, Facebook, Users, Calendar, CheckCircle2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { format, startOfWeek, endOfWeek, isPast } from "date-fns";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -18,12 +28,19 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [showNewClientDialog, setShowNewClientDialog] = useState(false);
   const [newClientName, setNewClientName] = useState("");
+  const [metrics, setMetrics] = useState({
+    totalClients: 0,
+    postsThisWeek: 0,
+    tasksThisWeek: 0,
+  });
+  const [upcomingPosts, setUpcomingPosts] = useState<any[]>([]);
+  const [overdueTasks, setOverdueTasks] = useState<any[]>([]);
 
   useEffect(() => {
-    fetchClients();
+    fetchDashboardData();
   }, [user]);
 
-  const fetchClients = async () => {
+  const fetchDashboardData = async () => {
     if (!user) return;
 
     setLoading(true);
@@ -39,16 +56,108 @@ export default function Dashboard() {
         return;
       }
 
+      // Fetch clients
       const { data: clientsData } = await supabase
         .from("clients")
         .select("*, assets(count), ideas(count)")
         .eq("agency_id", agencies.id);
 
       setClients(clientsData || []);
+
+      // Calculate metrics
+      const now = new Date();
+      const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+      const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
+
+      // Get client IDs for filtering
+      const clientIds = clientsData?.map((c) => c.id) || [];
+
+      // Posts scheduled this week
+      const { data: postsData } = await supabase
+        .from("posts")
+        .select("id")
+        .in("client_id", clientIds)
+        .gte("scheduled_for", weekStart.toISOString())
+        .lte("scheduled_for", weekEnd.toISOString());
+
+      // Tasks due this week
+      const { data: tasksData } = await supabase
+        .from("tasks")
+        .select("id")
+        .in("client_id", clientIds)
+        .gte("due_date", weekStart.toISOString())
+        .lte("due_date", weekEnd.toISOString())
+        .neq("status", "completed");
+
+      setMetrics({
+        totalClients: clientsData?.length || 0,
+        postsThisWeek: postsData?.length || 0,
+        tasksThisWeek: tasksData?.length || 0,
+      });
+
+      // Fetch upcoming posts (next 10)
+      const { data: upcomingPostsData } = await supabase
+        .from("posts")
+        .select(`
+          id,
+          title,
+          platform,
+          scheduled_for,
+          status,
+          client:clients(id, name)
+        `)
+        .in("client_id", clientIds)
+        .gte("scheduled_for", now.toISOString())
+        .order("scheduled_for", { ascending: true })
+        .limit(10);
+
+      setUpcomingPosts(upcomingPostsData || []);
+
+      // Fetch overdue tasks
+      const { data: overdueTasksData } = await supabase
+        .from("tasks")
+        .select(`
+          id,
+          title,
+          due_date,
+          priority,
+          status,
+          client:clients(id, name)
+        `)
+        .in("client_id", clientIds)
+        .lt("due_date", now.toISOString())
+        .neq("status", "completed")
+        .order("due_date", { ascending: true });
+
+      setOverdueTasks(overdueTasksData || []);
     } catch (error) {
-      console.error("Error fetching clients:", error);
+      console.error("Error fetching dashboard data:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const getPriorityBadgeVariant = (priority: string | null) => {
+    switch (priority) {
+      case "urgent":
+        return "destructive";
+      case "high":
+        return "default";
+      case "medium":
+        return "secondary";
+      default:
+        return "outline";
+    }
+  };
+
+  const getStatusBadgeVariant = (status: string | null) => {
+    switch (status) {
+      case "published":
+        return "default";
+      case "scheduled":
+        return "secondary";
+      default:
+        return "outline";
     }
   };
 
@@ -90,6 +199,7 @@ export default function Dashboard() {
 
       setShowNewClientDialog(false);
       setNewClientName("");
+      fetchDashboardData();
       navigate(`/clients/${client.id}`);
     } catch (error: any) {
       toast({
@@ -137,19 +247,160 @@ export default function Dashboard() {
       </div>
 
       {loading ? (
-        <div className="text-center text-muted-foreground">Loading clients...</div>
-      ) : clients.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <p className="mb-4 text-muted-foreground">No clients yet</p>
-            <Button onClick={() => setShowNewClientDialog(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Create Your First Client
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="text-center text-muted-foreground">Loading dashboard...</div>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <>
+          {/* Metrics Cards */}
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Clients</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{metrics.totalClients}</div>
+                <p className="text-xs text-muted-foreground">
+                  Active client accounts
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Posts This Week</CardTitle>
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{metrics.postsThisWeek}</div>
+                <p className="text-xs text-muted-foreground">
+                  Scheduled for this week
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Tasks Due This Week</CardTitle>
+                <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{metrics.tasksThisWeek}</div>
+                <p className="text-xs text-muted-foreground">
+                  Tasks to complete
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Upcoming Posts */}
+          {upcomingPosts.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Upcoming Posts</CardTitle>
+                <CardDescription>Next 10 scheduled posts across all clients</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Client</TableHead>
+                      <TableHead>Title</TableHead>
+                      <TableHead>Platform</TableHead>
+                      <TableHead>Scheduled</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {upcomingPosts.map((post) => (
+                      <TableRow
+                        key={post.id}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => navigate(`/clients/${post.client.id}`)}
+                      >
+                        <TableCell className="font-medium">{post.client.name}</TableCell>
+                        <TableCell>{post.title}</TableCell>
+                        <TableCell>{post.platform || "-"}</TableCell>
+                        <TableCell>
+                          {post.scheduled_for
+                            ? format(new Date(post.scheduled_for), "MMM d, yyyy")
+                            : "-"}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={getStatusBadgeVariant(post.status)}>
+                            {post.status || "draft"}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Overdue Tasks */}
+          {overdueTasks.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Overdue Tasks</CardTitle>
+                <CardDescription>Tasks that need immediate attention</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Client</TableHead>
+                      <TableHead>Task</TableHead>
+                      <TableHead>Due Date</TableHead>
+                      <TableHead>Priority</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {overdueTasks.map((task) => (
+                      <TableRow
+                        key={task.id}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => navigate(`/clients/${task.client.id}`)}
+                      >
+                        <TableCell className="font-medium">{task.client.name}</TableCell>
+                        <TableCell>{task.title}</TableCell>
+                        <TableCell className="text-destructive">
+                          {task.due_date
+                            ? format(new Date(task.due_date), "MMM d, yyyy")
+                            : "-"}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={getPriorityBadgeVariant(task.priority)}>
+                            {task.priority || "medium"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">
+                            {task.status?.replace("_", " ") || "pending"}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Clients Grid */}
+          {clients.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <p className="mb-4 text-muted-foreground">No clients yet</p>
+                <Button onClick={() => setShowNewClientDialog(true)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Your First Client
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div>
+              <h2 className="text-2xl font-bold mb-4">Your Clients</h2>
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {clients.map((client) => (
             <Card key={client.id} className="overflow-hidden hover:border-primary/50 transition-colors">
               <CardHeader className="pb-3">
@@ -204,6 +455,9 @@ export default function Dashboard() {
             </Card>
           ))}
         </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
