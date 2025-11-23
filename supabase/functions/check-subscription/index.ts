@@ -132,7 +132,9 @@ serve(async (req) => {
     const subscription = subscriptions.data[0];
     const priceId = subscription.items.data[0].price.id;
     const planType = PRICE_TO_PLAN_MAP[priceId] || "free";
-    const subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
+    const subscriptionEnd = subscription.current_period_end 
+      ? new Date(subscription.current_period_end * 1000).toISOString()
+      : null;
 
     logStep("Active subscription found", { 
       subscriptionId: subscription.id, 
