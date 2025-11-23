@@ -620,8 +620,12 @@ export default function Dashboard() {
             <div>
               <h2 className="text-2xl font-bold mb-4">Your Clients</h2>
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {clients.map((client) => (
-            <Card key={client.id} className="overflow-hidden hover:border-primary/50 transition-colors">
+          {clients.map((client, index) => (
+            <Card 
+              key={client.id} 
+              className="overflow-hidden hover:border-primary/50 transition-colors animate-fade-in"
+              style={{ animationDelay: `${index * 100}ms` }}
+            >
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   {client.logo_url ? (
