@@ -55,7 +55,7 @@ export function useRole() {
   const canManageTeam = role === "owner";
   const canManageClients = role === "owner" || role === "manager";
   const canDeleteClients = role === "owner" || role === "manager";
-  const canEditSettings = role === "owner";
+  const canEditSettings = role === "owner" || role === "manager" || role === "creator";
   const canCreateContent = role === "owner" || role === "manager" || role === "creator";
   const canEditContent = role === "owner" || role === "manager" || role === "creator";
   const canDeleteContent = role === "owner" || role === "manager";
