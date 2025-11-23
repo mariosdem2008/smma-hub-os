@@ -14,10 +14,26 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useRole } from "@/hooks/useRole";
-import { Lightbulb, Plus, Calendar } from "lucide-react";
+import { 
+  Lightbulb, 
+  Plus, 
+  Calendar, 
+  Check, 
+  X, 
+  CheckCircle2, 
+  MoreVertical,
+  Undo2,
+  Trash2
+} from "lucide-react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { format } from "date-fns";
 
@@ -36,19 +52,27 @@ interface Idea {
 
 type IdeaStatus = "idea" | "approved" | "rejected" | "used";
 
+interface StatusHistory {
+  ideaId: string;
+  previousStatus: IdeaStatus;
+  newStatus: IdeaStatus;
+  timestamp: number;
+}
+
 const STATUS_COLUMNS: { id: IdeaStatus; label: string; color: string }[] = [
-  { id: "idea", label: "Idea", color: "bg-blue-500/10 text-blue-700 dark:text-blue-400" },
-  { id: "approved", label: "Approved", color: "bg-green-500/10 text-green-700 dark:text-green-400" },
-  { id: "rejected", label: "Rejected", color: "bg-red-500/10 text-red-700 dark:text-red-400" },
-  { id: "used", label: "Used", color: "bg-purple-500/10 text-purple-700 dark:text-purple-400" },
+  { id: "idea", label: "Ideas", color: "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20" },
+  { id: "approved", label: "Approved", color: "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20" },
+  { id: "rejected", label: "Rejected", color: "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20" },
+  { id: "used", label: "Used", color: "bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20" },
 ];
 
 export default function IdeasTab({ clientId }: IdeasTabProps) {
   const { toast } = useToast();
-  const { canCreateContent, isViewer } = useRole();
+  const { canCreateContent, canEditContent, isViewer } = useRole();
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [loading, setLoading] = useState(true);
   const [isNewIdeaOpen, setIsNewIdeaOpen] = useState(false);
+  const [statusHistory, setStatusHistory] = useState<StatusHistory[]>([]);
   const [newIdea, setNewIdea] = useState({
     title: "",
     description: "",
@@ -118,19 +142,27 @@ export default function IdeasTab({ clientId }: IdeasTabProps) {
     }
   };
 
-  const handleDragEnd = async (result: DropResult) => {
-    const { destination, source, draggableId } = result;
+  const updateIdeaStatus = async (ideaId: string, newStatus: IdeaStatus) => {
+    const idea = ideas.find((i) => i.id === ideaId);
+    if (!idea) return;
 
-    if (!destination) return;
-    if (destination.droppableId === source.droppableId) return;
+    const previousStatus = idea.status as IdeaStatus;
 
-    const newStatus = destination.droppableId as IdeaStatus;
-    const ideaId = draggableId;
+    // Add to history for undo
+    setStatusHistory([
+      {
+        ideaId,
+        previousStatus,
+        newStatus,
+        timestamp: Date.now(),
+      },
+      ...statusHistory,
+    ]);
 
     // Optimistic update
     setIdeas((prevIdeas) =>
-      prevIdeas.map((idea) =>
-        idea.id === ideaId ? { ...idea, status: newStatus } : idea
+      prevIdeas.map((i) =>
+        i.id === ideaId ? { ...i, status: newStatus } : i
       )
     );
 
@@ -147,13 +179,106 @@ export default function IdeasTab({ clientId }: IdeasTabProps) {
         variant: "destructive",
       });
       // Revert on error
-      fetchIdeas();
+      setIdeas((prevIdeas) =>
+        prevIdeas.map((i) =>
+          i.id === ideaId ? { ...i, status: previousStatus } : i
+        )
+      );
+      // Remove from history
+      setStatusHistory((prev) => prev.slice(1));
     } else {
+      const statusMessages: Record<IdeaStatus, string> = {
+        idea: "moved to ideas",
+        approved: "approved",
+        rejected: "rejected",
+        used: "marked as used",
+      };
+      
       toast({
         title: "Success",
-        description: "Idea status updated",
+        description: `Idea ${statusMessages[newStatus]}`,
+        action: (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleUndo(ideaId, previousStatus, newStatus)}
+          >
+            <Undo2 className="h-3 w-3 mr-1" />
+            Undo
+          </Button>
+        ),
       });
     }
+  };
+
+  const handleUndo = async (ideaId: string, previousStatus: IdeaStatus, currentStatus: IdeaStatus) => {
+    // Remove from history
+    setStatusHistory((prev) => 
+      prev.filter(h => !(h.ideaId === ideaId && h.newStatus === currentStatus))
+    );
+
+    // Optimistic update back to previous status
+    setIdeas((prevIdeas) =>
+      prevIdeas.map((i) =>
+        i.id === ideaId ? { ...i, status: previousStatus } : i
+      )
+    );
+
+    // Update in database
+    const { error } = await supabase
+      .from("client_ideas")
+      .update({ status: previousStatus })
+      .eq("id", ideaId);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to undo action",
+        variant: "destructive",
+      });
+      // Revert back
+      setIdeas((prevIdeas) =>
+        prevIdeas.map((i) =>
+          i.id === ideaId ? { ...i, status: currentStatus } : i
+        )
+      );
+    } else {
+      toast({
+        title: "Undone",
+        description: "Action reversed successfully",
+      });
+    }
+  };
+
+  const handleDeleteIdea = async (ideaId: string) => {
+    const { error } = await supabase
+      .from("client_ideas")
+      .delete()
+      .eq("id", ideaId);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete idea",
+        variant: "destructive",
+      });
+    } else {
+      setIdeas((prevIdeas) => prevIdeas.filter((i) => i.id !== ideaId));
+      toast({
+        title: "Success",
+        description: "Idea deleted",
+      });
+    }
+  };
+
+  const handleDragEnd = async (result: DropResult) => {
+    const { destination, source, draggableId } = result;
+
+    if (!destination) return;
+    if (destination.droppableId === source.droppableId) return;
+
+    const newStatus = destination.droppableId as IdeaStatus;
+    await updateIdeaStatus(draggableId, newStatus);
   };
 
   const getIdeasByStatus = (status: IdeaStatus) => {
@@ -173,71 +298,71 @@ export default function IdeasTab({ clientId }: IdeasTabProps) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Lightbulb className="h-5 w-5" />
+          <Lightbulb className="h-5 w-5 text-primary" />
           <h2 className="text-lg font-semibold">Content Ideas Board</h2>
         </div>
         {canCreateContent && !isViewer && (
           <Dialog open={isNewIdeaOpen} onOpenChange={setIsNewIdeaOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              New Idea
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add New Idea</DialogTitle>
-              <DialogDescription>
-                Create a new content idea for this client
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="title">Title *</Label>
-                <Input
-                  id="title"
-                  value={newIdea.title}
-                  onChange={(e) =>
-                    setNewIdea({ ...newIdea, title: e.target.value })
-                  }
-                  placeholder="Enter idea title"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  value={newIdea.description}
-                  onChange={(e) =>
-                    setNewIdea({ ...newIdea, description: e.target.value })
-                  }
-                  placeholder="Describe the idea..."
-                  rows={4}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="tag">Tag</Label>
-                <Input
-                  id="tag"
-                  value={newIdea.tag}
-                  onChange={(e) =>
-                    setNewIdea({ ...newIdea, tag: e.target.value })
-                  }
-                  placeholder="e.g., Educational, Promotional, Behind-the-scenes"
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setIsNewIdeaOpen(false)}
-              >
-                Cancel
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                New Idea
               </Button>
-              <Button onClick={handleAddIdea}>Create Idea</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add New Idea</DialogTitle>
+                <DialogDescription>
+                  Create a new content idea for this client
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="title">Title *</Label>
+                  <Input
+                    id="title"
+                    value={newIdea.title}
+                    onChange={(e) =>
+                      setNewIdea({ ...newIdea, title: e.target.value })
+                    }
+                    placeholder="Enter idea title"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="description">Description</Label>
+                  <Textarea
+                    id="description"
+                    value={newIdea.description}
+                    onChange={(e) =>
+                      setNewIdea({ ...newIdea, description: e.target.value })
+                    }
+                    placeholder="Describe the idea..."
+                    rows={4}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="tag">Tag</Label>
+                  <Input
+                    id="tag"
+                    value={newIdea.tag}
+                    onChange={(e) =>
+                      setNewIdea({ ...newIdea, tag: e.target.value })
+                    }
+                    placeholder="e.g., Educational, Promotional, Behind-the-scenes"
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsNewIdeaOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button onClick={handleAddIdea}>Create Idea</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         )}
       </div>
 
@@ -251,29 +376,30 @@ export default function IdeasTab({ clientId }: IdeasTabProps) {
           </CardContent>
         </Card>
       )}
-      <DragDropContext onDragEnd={canCreateContent && !isViewer ? handleDragEnd : () => {}}>
-        <div className="flex flex-col gap-4 lg:grid lg:gap-4 lg:grid-cols-4">
+      
+      <DragDropContext onDragEnd={canEditContent && !isViewer ? handleDragEnd : () => {}}>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           {STATUS_COLUMNS.map((column) => {
             const columnIdeas = getIdeasByStatus(column.id);
             return (
-              <Card key={column.id} className="flex flex-col">
+              <Card key={column.id} className={`flex flex-col border-2 ${column.color}`}>
                 <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center justify-between text-sm font-medium">
+                  <CardTitle className="flex items-center justify-between text-sm font-semibold">
                     <span>{column.label}</span>
                     <Badge variant="secondary" className="ml-2">
                       {columnIdeas.length}
                     </Badge>
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="flex-1">
+                <CardContent className="flex-1 px-3">
                   <Droppable droppableId={column.id}>
                     {(provided, snapshot) => (
                       <div
                         ref={provided.innerRef}
                         {...provided.droppableProps}
-                        className={`space-y-2 min-h-[200px] rounded-md p-2 transition-colors ${
+                        className={`space-y-3 min-h-[300px] rounded-lg p-2 transition-colors ${
                           snapshot.isDraggingOver
-                            ? "bg-muted/50"
+                            ? "bg-muted/50 border-2 border-dashed border-primary"
                             : ""
                         }`}
                       >
@@ -282,34 +408,57 @@ export default function IdeasTab({ clientId }: IdeasTabProps) {
                             key={idea.id}
                             draggableId={idea.id}
                             index={index}
-                            isDragDisabled={isViewer || !canCreateContent}
+                            isDragDisabled={isViewer || !canEditContent}
                           >
                             {(provided, snapshot) => (
                               <Card
                                 ref={provided.innerRef}
                                 {...provided.draggableProps}
                                 {...provided.dragHandleProps}
-                                className={`cursor-move transition-shadow ${
+                                className={`transition-all duration-200 ${
                                   snapshot.isDragging
-                                    ? "shadow-lg"
-                                    : ""
-                                }`}
+                                    ? "shadow-xl scale-105 rotate-2"
+                                    : "hover:shadow-md"
+                                } ${!isViewer && canEditContent ? "cursor-move" : ""}`}
                               >
-                                <CardContent className="p-3 space-y-2">
-                                  <h4 className="font-medium text-sm line-clamp-2">
-                                    {idea.title}
-                                  </h4>
+                                <CardContent className="p-4 space-y-3">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <h4 className="font-semibold text-sm line-clamp-2 flex-1">
+                                      {idea.title}
+                                    </h4>
+                                    {canEditContent && !isViewer && (
+                                      <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-6 w-6 p-0"
+                                          >
+                                            <MoreVertical className="h-4 w-4" />
+                                          </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                          <DropdownMenuItem
+                                            onClick={() => handleDeleteIdea(idea.id)}
+                                            className="text-destructive"
+                                          >
+                                            <Trash2 className="h-4 w-4 mr-2" />
+                                            Delete
+                                          </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                      </DropdownMenu>
+                                    )}
+                                  </div>
+                                  
                                   {idea.description && (
                                     <p className="text-xs text-muted-foreground line-clamp-3">
                                       {idea.description}
                                     </p>
                                   )}
-                                  <div className="flex items-center justify-between pt-2">
+                                  
+                                  <div className="flex items-center justify-between pt-1">
                                     {idea.tag ? (
-                                      <Badge
-                                        variant="outline"
-                                        className="text-xs"
-                                      >
+                                      <Badge variant="outline" className="text-xs">
                                         {idea.tag}
                                       </Badge>
                                     ) : (
@@ -317,12 +466,61 @@ export default function IdeasTab({ clientId }: IdeasTabProps) {
                                     )}
                                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
                                       <Calendar className="h-3 w-3" />
-                                      {format(
-                                        new Date(idea.created_at),
-                                        "MMM d"
-                                      )}
+                                      {format(new Date(idea.created_at), "MMM d")}
                                     </div>
                                   </div>
+
+                                  {/* Action Buttons */}
+                                  {canEditContent && !isViewer && (
+                                    <div className="pt-2 border-t space-y-2">
+                                      {column.id === "idea" && (
+                                        <div className="flex gap-2">
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="flex-1 text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-950"
+                                            onClick={() => updateIdeaStatus(idea.id, "approved")}
+                                          >
+                                            <Check className="h-3 w-3 mr-1" />
+                                            Approve
+                                          </Button>
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
+                                            onClick={() => updateIdeaStatus(idea.id, "rejected")}
+                                          >
+                                            <X className="h-3 w-3 mr-1" />
+                                            Reject
+                                          </Button>
+                                        </div>
+                                      )}
+                                      
+                                      {column.id === "approved" && (
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="w-full text-purple-600 hover:text-purple-700 hover:bg-purple-50 dark:hover:bg-purple-950"
+                                          onClick={() => updateIdeaStatus(idea.id, "used")}
+                                        >
+                                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                                          Mark as Used
+                                        </Button>
+                                      )}
+
+                                      {(column.id === "rejected" || column.id === "used") && (
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="w-full text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950"
+                                          onClick={() => updateIdeaStatus(idea.id, "idea")}
+                                        >
+                                          <Undo2 className="h-3 w-3 mr-1" />
+                                          Move to Ideas
+                                        </Button>
+                                      )}
+                                    </div>
+                                  )}
                                 </CardContent>
                               </Card>
                             )}
@@ -330,8 +528,9 @@ export default function IdeasTab({ clientId }: IdeasTabProps) {
                         ))}
                         {provided.placeholder}
                         {columnIdeas.length === 0 && (
-                          <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">
-                            No ideas yet
+                          <div className="flex flex-col items-center justify-center h-40 text-sm text-muted-foreground rounded-lg border-2 border-dashed">
+                            <Lightbulb className="h-8 w-8 mb-2 opacity-50" />
+                            <p>No ideas yet</p>
                           </div>
                         )}
                       </div>
