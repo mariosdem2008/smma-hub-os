@@ -536,6 +536,24 @@ export default function AssetsTab({ clientId, agencyId }: AssetsTabProps) {
                       alt={asset.filename || "Asset"}
                       className="w-full h-full object-cover"
                     />
+                  ) : asset.file_type?.startsWith("video/") ? (
+                    <div className="relative w-full h-full">
+                      {asset.thumbnail_url ? (
+                        <img
+                          src={asset.thumbnail_url}
+                          alt={asset.filename || "Video"}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <video
+                          src={asset.file_url}
+                          className="w-full h-full object-cover"
+                        />
+                      )}
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                        <Video className="h-8 w-8 text-white" />
+                      </div>
+                    </div>
                   ) : (
                     <div className="text-muted-foreground">
                       {getFileIcon(asset.file_type)}
