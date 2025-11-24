@@ -101,8 +101,9 @@ export default function SocialConnectionsSection({ clientId }: SocialConnections
 
   const fetchConnections = async () => {
     setLoading(true);
+    // Use safe view that excludes OAuth tokens for security
     const { data, error } = await supabase
-      .from("social_connections")
+      .from("social_connections_safe")
       .select("*")
       .eq("client_id", clientId);
 

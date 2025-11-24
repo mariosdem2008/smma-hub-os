@@ -1611,6 +1611,70 @@ export type Database = {
           },
         ]
       }
+      social_connections_safe: {
+        Row: {
+          account_handle: string | null
+          account_id: string | null
+          account_name: string | null
+          client_id: string | null
+          created_at: string | null
+          id: string | null
+          last_synced_at: string | null
+          platform: string | null
+          status: string | null
+          token_expires_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          account_handle?: string | null
+          account_id?: string | null
+          account_name?: string | null
+          client_id?: string | null
+          created_at?: string | null
+          id?: string | null
+          last_synced_at?: string | null
+          platform?: string | null
+          status?: string | null
+          token_expires_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          account_handle?: string | null
+          account_id?: string | null
+          account_name?: string | null
+          client_id?: string | null
+          created_at?: string | null
+          id?: string | null
+          last_synced_at?: string | null
+          platform?: string | null
+          status?: string | null
+          token_expires_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_connections_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_contacts_secure"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "social_connections_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_portal_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "social_connections_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       accept_agency_invite: {
@@ -1646,6 +1710,14 @@ export type Database = {
         }[]
       }
       get_monthly_ai_usage: { Args: { p_agency_id: string }; Returns: number }
+      get_social_connection_tokens: {
+        Args: { _connection_id: string }
+        Returns: {
+          access_token: string
+          refresh_token: string
+          token_expires_at: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
