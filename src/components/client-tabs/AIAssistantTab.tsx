@@ -49,6 +49,18 @@ export default function AIAssistantTab({ clientId }: AIAssistantTabProps) {
 
     setCaptionLoading(true);
     try {
+      // Get current session to verify authentication
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        toast({
+          title: "Authentication Required",
+          description: "Please log in to use AI features",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const { data, error } = await supabase.functions.invoke('generate-ai-content', {
         body: {
           type: 'caption',
@@ -58,7 +70,10 @@ export default function AIAssistantTab({ clientId }: AIAssistantTabProps) {
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Edge function error:', error);
+        throw error;
+      }
 
       if (data.error) {
         toast({
@@ -132,6 +147,18 @@ export default function AIAssistantTab({ clientId }: AIAssistantTabProps) {
 
     setIdeaLoading(true);
     try {
+      // Get current session to verify authentication
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        toast({
+          title: "Authentication Required",
+          description: "Please log in to use AI features",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const { data, error } = await supabase.functions.invoke('generate-ai-content', {
         body: {
           type: 'idea',
@@ -141,7 +168,10 @@ export default function AIAssistantTab({ clientId }: AIAssistantTabProps) {
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Edge function error:', error);
+        throw error;
+      }
 
       if (data.error) {
         toast({
