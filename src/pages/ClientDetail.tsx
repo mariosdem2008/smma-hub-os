@@ -202,7 +202,7 @@ export default function ClientDetail() {
         </TabsContent>
 
         <TabsContent value="library" className="space-y-4">
-          <ContentLibraryTab clientId={clientId!} />
+          <ContentLibraryTab clientId={clientId!} agencyId={agencyId} />
         </TabsContent>
 
         <TabsContent value="workspace" className="space-y-4">

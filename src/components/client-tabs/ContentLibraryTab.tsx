@@ -6,9 +6,10 @@ import HashtagsTab from "./HashtagsTab";
 
 interface ContentLibraryTabProps {
   clientId: string;
+  agencyId: string;
 }
 
-export default function ContentLibraryTab({ clientId }: ContentLibraryTabProps) {
+export default function ContentLibraryTab({ clientId, agencyId }: ContentLibraryTabProps) {
   return (
     <Tabs defaultValue="assets" className="w-full">
       <TabsList className="grid w-full grid-cols-4">
@@ -19,7 +20,7 @@ export default function ContentLibraryTab({ clientId }: ContentLibraryTabProps) 
       </TabsList>
 
       <TabsContent value="assets" className="mt-4">
-        <AssetsTab clientId={clientId} />
+        <AssetsTab clientId={clientId} agencyId={agencyId} />
       </TabsContent>
 
       <TabsContent value="inspiration" className="mt-4">

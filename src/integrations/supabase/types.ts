@@ -152,10 +152,59 @@ export type Database = {
           },
         ]
       }
+      asset_versions: {
+        Row: {
+          agency_id: string
+          asset_id: string
+          created_at: string
+          file_size: number | null
+          file_url: string
+          id: string
+          uploaded_by: string | null
+          version_number: number
+        }
+        Insert: {
+          agency_id: string
+          asset_id: string
+          created_at?: string
+          file_size?: number | null
+          file_url: string
+          id?: string
+          uploaded_by?: string | null
+          version_number: number
+        }
+        Update: {
+          agency_id?: string
+          asset_id?: string
+          created_at?: string
+          file_size?: number | null
+          file_url?: string
+          id?: string
+          uploaded_by?: string | null
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asset_versions_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asset_versions_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assets: {
         Row: {
           client_id: string
           created_at: string
+          current_version: number | null
           custom_category: string | null
           file_size: number | null
           file_type: string
@@ -171,6 +220,7 @@ export type Database = {
         Insert: {
           client_id: string
           created_at?: string
+          current_version?: number | null
           custom_category?: string | null
           file_size?: number | null
           file_type: string
@@ -186,6 +236,7 @@ export type Database = {
         Update: {
           client_id?: string
           created_at?: string
+          current_version?: number | null
           custom_category?: string | null
           file_size?: number | null
           file_type?: string

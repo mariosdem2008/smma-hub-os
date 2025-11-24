@@ -52,27 +52,32 @@ import {
   FolderPlus
 } from "lucide-react";
 import { format } from "date-fns";
+import { AssetDetailModal } from "@/components/assets/AssetDetailModal";
 
 interface AssetsTabProps {
   clientId: string;
+  agencyId: string;
 }
 
 interface Asset {
   id: string;
+  client_id: string;
   file_url: string;
   filename: string;
   file_type: string;
+  file_size: number | null;
   uploaded_by: string | null;
   created_at: string;
   status: string;
   visible_to_client: boolean;
   custom_category: string | null;
+  current_version: number;
 }
 
 type FilterType = "all" | "images" | "videos" | "documents";
 type StatusFilter = "all" | "draft" | "ready" | "published";
 
-export default function AssetsTab({ clientId }: AssetsTabProps) {
+export default function AssetsTab({ clientId, agencyId }: AssetsTabProps) {
   const { toast } = useToast();
   const { canCreateContent, canDeleteContent, isViewer } = useRole();
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -141,7 +146,7 @@ export default function AssetsTab({ clientId }: AssetsTabProps) {
           .from("client-assets")
           .getPublicUrl(fileName);
 
-        // Save metadata to database
+        // Save metadata to database with initial version
         const { data: assetData, error: dbError } = await supabase
           .from("assets")
           .insert({
@@ -149,9 +154,11 @@ export default function AssetsTab({ clientId }: AssetsTabProps) {
             file_url: publicUrl,
             filename: file.name,
             file_type: file.type,
+            file_size: file.size,
             uploaded_by: user?.id || null,
             status: 'draft',
             visible_to_client: false,
+            current_version: 1,
           })
           .select()
           .single();
@@ -159,6 +166,18 @@ export default function AssetsTab({ clientId }: AssetsTabProps) {
         if (dbError) {
           throw dbError;
         }
+
+        // Create initial version record
+        await supabase
+          .from('asset_versions')
+          .insert({
+            agency_id: agencyId,
+            asset_id: assetData.id,
+            version_number: 1,
+            file_url: publicUrl,
+            file_size: file.size,
+            uploaded_by: user?.id || null,
+          });
 
         setAssets([assetData, ...assets]);
       }
@@ -645,112 +664,15 @@ export default function AssetsTab({ clientId }: AssetsTabProps) {
         </DialogContent>
       </Dialog>
 
-      {/* Preview Modal */}
-      <Dialog open={!!previewAsset} onOpenChange={() => setPreviewAsset(null)}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>{previewAsset?.filename || "Asset Preview"}</DialogTitle>
-          </DialogHeader>
-          {previewAsset && (
-            <div className="space-y-4">
-              {/* Preview */}
-              <div className="rounded-md bg-muted flex items-center justify-center overflow-hidden min-h-[300px]">
-                {previewAsset.file_type?.startsWith("image/") ? (
-                  <img
-                    src={previewAsset.file_url}
-                    alt={previewAsset.filename || "Asset"}
-                    className="max-w-full max-h-[500px] object-contain"
-                  />
-                ) : previewAsset.file_type?.startsWith("video/") ? (
-                  <video
-                    src={previewAsset.file_url}
-                    controls
-                    className="max-w-full max-h-[500px]"
-                  />
-                ) : (
-                  <div className="text-center p-8">
-                    {getFileIcon(previewAsset.file_type)}
-                    <p className="mt-4 text-sm text-muted-foreground">
-                      Preview not available for this file type
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* Metadata */}
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <Label className="text-muted-foreground">Status</Label>
-                  <div className="flex items-center gap-2 mt-1">
-                    {previewAsset.status === 'draft' && <Clock className="h-4 w-4" />}
-                    {previewAsset.status === 'ready' && <CheckCircle className="h-4 w-4" />}
-                    {previewAsset.status === 'published' && <Rocket className="h-4 w-4" />}
-                    <span className="capitalize">{previewAsset.status}</span>
-                  </div>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Visibility</Label>
-                  <div className="flex items-center gap-2 mt-1">
-                    {previewAsset.visible_to_client ? (
-                      <>
-                        <Eye className="h-4 w-4" />
-                        <span>Visible to client</span>
-                      </>
-                    ) : (
-                      <>
-                        <EyeOff className="h-4 w-4" />
-                        <span>Hidden from client</span>
-                      </>
-                    )}
-                  </div>
-                </div>
-                {previewAsset.custom_category && (
-                  <div className="col-span-2">
-                    <Label className="text-muted-foreground">Category</Label>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Tag className="h-4 w-4" />
-                      <span>{previewAsset.custom_category}</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Actions */}
-              <div className="flex justify-between items-center pt-4 border-t">
-                <div className="text-sm text-muted-foreground">
-                  Uploaded {format(new Date(previewAsset.created_at), "PPP")}
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      window.open(previewAsset.file_url, "_blank");
-                    }}
-                  >
-                    <Download className="mr-2 h-4 w-4" />
-                    Download
-                  </Button>
-                  {canDeleteContent && (
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDeleteAsset(previewAsset);
-                      }}
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Delete
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* Preview Modal - Updated to use AssetDetailModal */}
+      {previewAsset && (
+        <AssetDetailModal
+          asset={previewAsset}
+          agencyId={agencyId}
+          onClose={() => setPreviewAsset(null)}
+          onAssetUpdated={fetchAssets}
+        />
+      )}
 
       {/* Delete Confirmation */}
       <AlertDialog open={!!deleteAsset} onOpenChange={() => setDeleteAsset(null)}>
