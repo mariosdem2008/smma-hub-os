@@ -82,7 +82,7 @@ export function ClientPortalLogin() {
     try {
       const normalizedEmail = email.toLowerCase().trim();
 
-      // Sign in
+      // Sign in with Supabase Auth
       const { data, error } = await supabase.auth.signInWithPassword({
         email: normalizedEmail,
         password,
@@ -90,45 +90,47 @@ export function ClientPortalLogin() {
       if (error) throw error;
       if (!data.user) throw new Error("Login failed");
 
-      // Verify portal exists and is enabled
-      const { data: client, error: clientError } = await supabase
+      // Get the client by portal slug
+      const { data: client } = await supabase
         .from("clients")
-        .select("id, portal_enabled")
+        .select("id")
         .eq("portal_slug", portalSlug)
         .single();
 
-      if (clientError || !client) throw new Error("Portal not found");
-      if (!client.portal_enabled) throw new Error("This portal is not enabled");
+      if (!client) throw new Error("Portal not found");
 
-      // Auto-grant access by creating portal user entry if not exists
-      const { data: existingAccess } = await supabase
+      // Check if user has a valid invitation for THIS portal
+      const { data: invitation } = await supabase
         .from("client_portal_users")
-        .select("id")
+        .select("id, user_id, invite_token, accepted_at")
         .eq("client_id", client.id)
-        .eq("user_id", data.user.id)
+        .eq("email", normalizedEmail)
         .maybeSingle();
 
-      if (!existingAccess) {
-        await supabase
-          .from("client_portal_users")
-          .insert({
-            client_id: client.id,
-            user_id: data.user.id,
-            email: normalizedEmail,
-            role: "client_viewer",
-          });
+      // If no invitation exists, deny access
+      if (!invitation) {
+        await supabase.auth.signOut();
+        throw new Error("You don't have access to this portal. Please contact your agency for an invitation.");
       }
 
-      toast({ title: "Welcome back!", description: "Logging you in..." });
+      // If invitation exists but not linked to user, link it
+      if (!invitation.user_id) {
+        await supabase
+          .from("client_portal_users")
+          .update({ 
+            user_id: data.user.id,
+            accepted_at: new Date().toISOString()
+          })
+          .eq("id", invitation.id);
+      }
 
-      setTimeout(() => {
-        navigate(`/client-portal/${portalSlug}`);
-      }, 500);
+      toast({ title: "Welcome back!" });
+      navigate(`/client-portal/${portalSlug}`);
     } catch (error: any) {
       console.error("Login error:", error);
       toast({
-        title: "Login Failed",
-        description: error.message || "Invalid email or password",
+        title: "Access Denied",
+        description: error.message,
         variant: "destructive",
       });
       setLoading(false);
@@ -161,17 +163,33 @@ export function ClientPortalLogin() {
     try {
       const normalizedEmail = email.toLowerCase().trim();
 
-      // Verify portal exists and is enabled
-      const { data: client, error: clientError } = await supabase
+      // Check if user has a pending invitation BEFORE creating account
+      const { data: client } = await supabase
         .from("clients")
-        .select("id, portal_enabled")
+        .select("id")
         .eq("portal_slug", portalSlug)
         .single();
 
-      if (clientError || !client) throw new Error("Portal not found");
-      if (!client.portal_enabled) throw new Error("This portal is not enabled");
+      if (!client) throw new Error("Portal not found");
 
-      // Create auth account
+      const { data: invitation } = await supabase
+        .from("client_portal_users")
+        .select("id, invite_token, expires_at, accepted_at")
+        .eq("client_id", client.id)
+        .eq("email", normalizedEmail)
+        .maybeSingle();
+
+      // Reject signup if no invitation exists
+      if (!invitation) {
+        throw new Error("You need an invitation to access this portal. Please contact your agency for an invitation.");
+      }
+
+      // Check if invitation expired
+      if (new Date(invitation.expires_at) < new Date()) {
+        throw new Error("Your invitation has expired. Please request a new one from your agency.");
+      }
+
+      // Create account
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email: normalizedEmail,
         password,
@@ -184,30 +202,23 @@ export function ClientPortalLogin() {
       if (signUpError) throw signUpError;
       if (!authData.user) throw new Error("Failed to create account");
 
-      // Auto-grant portal access
+      // Link user to invitation
       await supabase
         .from("client_portal_users")
-        .insert({
-          client_id: client.id,
+        .update({ 
           user_id: authData.user.id,
-          email: normalizedEmail,
           name: fullName,
-          role: "client_viewer",
-        });
+          accepted_at: new Date().toISOString()
+        })
+        .eq("id", invitation.id);
 
-      toast({
-        title: "Welcome!",
-        description: "Your account has been created successfully.",
-      });
-
-      setTimeout(() => {
-        navigate(`/client-portal/${portalSlug}`);
-      }, 1000);
+      toast({ title: "Welcome! Your account has been created." });
+      navigate(`/client-portal/${portalSlug}`);
     } catch (error: any) {
       console.error("Signup error:", error);
       toast({
         title: "Signup Failed",
-        description: error.message || "An error occurred during signup",
+        description: error.message,
         variant: "destructive",
       });
       setLoading(false);
@@ -339,7 +350,7 @@ export function ClientPortalLogin() {
               </Button>
 
               <p className="text-xs text-muted-foreground text-center">
-                Anyone with this portal link can create an account
+                You need an invitation to access this portal
               </p>
             </form>
           </TabsContent>
