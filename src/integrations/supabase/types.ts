@@ -44,6 +44,47 @@ export type Database = {
         }
         Relationships: []
       }
+      agency_branding: {
+        Row: {
+          accent_color: string | null
+          agency_id: string
+          created_at: string | null
+          custom_domain: string | null
+          email_sender_name: string | null
+          logo_url: string | null
+          primary_color: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          accent_color?: string | null
+          agency_id: string
+          created_at?: string | null
+          custom_domain?: string | null
+          email_sender_name?: string | null
+          logo_url?: string | null
+          primary_color?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          accent_color?: string | null
+          agency_id?: string
+          created_at?: string | null
+          custom_domain?: string | null
+          email_sender_name?: string | null
+          logo_url?: string | null
+          primary_color?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agency_branding_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: true
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agency_invites: {
         Row: {
           accepted: boolean
