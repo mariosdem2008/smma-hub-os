@@ -23,6 +23,7 @@ import Pricing from "./pages/Pricing";
 import Billing from "./pages/Billing";
 import BillingOverview from "./pages/BillingOverview";
 import InviteAccept from "./pages/InviteAccept";
+import TeamAuditDebug from "./pages/TeamAuditDebug";
 import NotFound from "./pages/NotFound";
 import { ClientPortalLayout } from "./pages/ClientPortalLayout";
 import { ClientPortalLogin } from "./pages/ClientPortalLogin";
@@ -90,6 +91,7 @@ const App = () => (
               <Route path="/clients" element={<Clients />} />
               <Route path="/clients/:clientId" element={<ClientDetail />} />
               <Route path="/team" element={<Team />} />
+              <Route path="/team/audit-debug" element={<TeamAuditDebug />} />
               <Route path="/billing" element={<Billing />} />
               <Route path="/billing/overview" element={<BillingOverview />} />
               <Route path="/settings" element={<Settings />} />
