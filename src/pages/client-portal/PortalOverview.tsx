@@ -103,7 +103,7 @@ export function PortalOverview() {
       {/* Left Column */}
       <div className="space-y-6">
         {/* Brand Information Card */}
-        <Card>
+        <Card style={{ backgroundColor: 'var(--card-bg, hsl(var(--card)))' }}>
           <CardHeader>
             <CardTitle>Brand Information</CardTitle>
           </CardHeader>
@@ -199,7 +199,7 @@ export function PortalOverview() {
 
         {/* Notes Card */}
         {client.notes && (
-          <Card>
+          <Card style={{ backgroundColor: 'var(--card-bg, hsl(var(--card)))' }}>
             <CardHeader>
               <CardTitle>Notes</CardTitle>
             </CardHeader>
@@ -215,7 +215,7 @@ export function PortalOverview() {
       {/* Right Column */}
       <div className="space-y-6">
         {/* Key Stats Card */}
-        <Card>
+        <Card style={{ backgroundColor: 'var(--card-bg, hsl(var(--card)))' }}>
           <CardHeader>
             <CardTitle>Your Content</CardTitle>
           </CardHeader>
@@ -259,7 +259,7 @@ export function PortalOverview() {
         </Card>
 
         {/* Quick Actions Info Card */}
-        <Card>
+        <Card style={{ backgroundColor: 'var(--card-bg, hsl(var(--card)))' }}>
           <CardHeader>
             <CardTitle>Portal Features</CardTitle>
           </CardHeader>

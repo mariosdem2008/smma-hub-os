@@ -127,9 +127,16 @@ function ClientPortalLayoutContent() {
   const layoutClass = branding?.layout_style || 'default';
 
   return (
-    <div className="min-h-screen bg-background" data-layout={layoutClass}>
+    <div 
+      className="min-h-screen" 
+      data-layout={layoutClass}
+      style={{ backgroundColor: branding?.content_bg_color || 'hsl(var(--background))' }}
+    >
       {/* Top Nav */}
-      <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header 
+        className="sticky top-0 z-50 border-b backdrop-blur supports-[backdrop-filter]:bg-background/60"
+        style={{ backgroundColor: branding?.header_bg_color || 'hsl(var(--background))' }}
+      >
         <div className="container flex h-16 items-center justify-between px-6">
           <div className="flex items-center gap-4">
             {(branding?.logo_url || client.logo_url) && (
@@ -163,10 +170,13 @@ function ClientPortalLayoutContent() {
 
       <div className="container flex px-6 py-6">
         {/* Sidebar */}
-        <aside className={cn(
-          "shrink-0 pr-6",
-          layoutClass === 'minimal' ? 'w-20' : layoutClass === 'bold' ? 'w-72' : 'w-64'
-        )}>
+        <aside 
+          className={cn(
+            "shrink-0 pr-6 rounded-lg p-4 -ml-4",
+            layoutClass === 'minimal' ? 'w-20' : layoutClass === 'bold' ? 'w-72' : 'w-64'
+          )}
+          style={{ backgroundColor: branding?.sidebar_bg_color || 'transparent' }}
+        >
           <nav className="space-y-1">
             {navItems.map((item) => {
               const Icon = item.icon;

@@ -362,3 +362,17 @@ html {
     margin-top: 8px;
   }
 }
+
+/* ========================================
+   🎨 WHITE LABEL BRANDING OVERRIDES
+   ======================================== */
+
+/* When white label branding is active, apply custom background colors */
+[data-layout] {
+  /* Override card backgrounds with branding colors if set */
+}
+
+[data-layout] .card,
+[data-layout] [class*="Card"] {
+  background-color: var(--card-bg, hsl(var(--card)));
+}
