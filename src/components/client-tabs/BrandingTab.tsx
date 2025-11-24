@@ -7,7 +7,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useRole } from "@/hooks/useRole";
-import { Palette, Plus, X, Save, Eye, Type, FileDown, Link2, Loader2 } from "lucide-react";
+import { Palette, Plus, X, Save, Eye, Type, FileDown, Link2, Loader2, Sparkles, CheckCircle, XCircle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import FontPicker from "./FontPicker";
 import { useClientFonts } from "@/hooks/useClientFonts";
 
@@ -32,6 +34,16 @@ interface ClientBranding {
   brand_guidelines: string | null;
 }
 
+interface BrandVoice {
+  tone: string[];
+  vocabulary: string[];
+  rules: {
+    do: string[];
+    dont: string[];
+  };
+  examples: string[];
+}
+
 export default function BrandingTab({ clientId, clientName = "Client Name" }: BrandingTabProps) {
   const { toast } = useToast();
   const { canEditSettings, isViewer } = useRole();
@@ -53,6 +65,12 @@ export default function BrandingTab({ clientId, clientName = "Client Name" }: Br
   const [newPaletteColor, setNewPaletteColor] = useState("#000000");
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  
+  // Brand Voice AI Generator state
+  const [textSamples, setTextSamples] = useState<string[]>(['', '']);
+  const [generatingVoice, setGeneratingVoice] = useState(false);
+  const [brandVoice, setBrandVoice] = useState<BrandVoice | null>(null);
+  const [agencyId, setAgencyId] = useState<string>('');
 
   // Load fonts dynamically
   const { primaryFontFamily, secondaryFontFamily } = useClientFonts({
@@ -63,7 +81,44 @@ export default function BrandingTab({ clientId, clientName = "Client Name" }: Br
   useEffect(() => {
     fetchBranding();
     fetchClientData();
+    loadAgencyId();
+    loadExistingBrandVoice();
   }, [clientId]);
+
+  const loadAgencyId = async () => {
+    const { data, error } = await supabase
+      .from("clients")
+      .select("agency_id")
+      .eq("id", clientId)
+      .single();
+
+    if (!error && data) {
+      setAgencyId(data.agency_id);
+    }
+  };
+
+  const loadExistingBrandVoice = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('client_brand_voice')
+        .select('*')
+        .eq('client_id', clientId)
+        .single();
+
+      if (error && error.code !== 'PGRST116') throw error;
+
+      if (data) {
+        setBrandVoice({
+          tone: data.tone as string[],
+          vocabulary: data.vocabulary as string[],
+          rules: data.rules as { do: string[]; dont: string[] },
+          examples: data.examples as string[],
+        });
+      }
+    } catch (error: any) {
+      console.error('Error loading brand voice:', error);
+    }
+  };
 
   const fetchClientData = async () => {
     const { data, error } = await supabase
@@ -282,6 +337,78 @@ export default function BrandingTab({ clientId, clientName = "Client Name" }: Br
         title: "Link Copied",
         description: "PDF link copied to clipboard",
       });
+    }
+  };
+
+  const handleSampleChange = (index: number, value: string) => {
+    const newSamples = [...textSamples];
+    newSamples[index] = value;
+    setTextSamples(newSamples);
+  };
+
+  const handleGenerateBrandVoice = async () => {
+    const filledSamples = textSamples.filter(s => s.trim() !== '');
+    
+    if (filledSamples.length === 0) {
+      toast({
+        title: "Missing Information",
+        description: "Please provide at least one text sample",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setGeneratingVoice(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        toast({
+          title: "Authentication Required",
+          description: "Please log in to use this feature",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('generate-brand-voice', {
+        body: {
+          textSamples: filledSamples,
+          websiteUrl: null,
+          clientId,
+          agencyId,
+        },
+      });
+
+      if (error) {
+        console.error('Edge function error:', error);
+        throw error;
+      }
+
+      if (data.error) {
+        toast({
+          title: "Generation Failed",
+          description: data.error,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setBrandVoice(data.brandVoice);
+      
+      toast({
+        title: "Brand Voice Generated!",
+        description: "Your brand voice has been analyzed and saved",
+      });
+    } catch (error: any) {
+      console.error('Error generating brand voice:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to generate brand voice",
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingVoice(false);
     }
   };
 
@@ -670,6 +797,112 @@ export default function BrandingTab({ clientId, clientName = "Client Name" }: Br
           </p>
         </CardContent>
       </Card>
+
+      {/* AI Brand Voice Generator */}
+      {canEdit && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              <CardTitle>AI Brand Voice Generator</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Paste 1-2 text samples (social posts, emails, website copy) to extract your unique brand voice
+            </p>
+            
+            {textSamples.map((sample, index) => (
+              <div key={index} className="space-y-2">
+                <Label htmlFor={`voice-sample-${index}`}>Sample {index + 1}</Label>
+                <Textarea
+                  id={`voice-sample-${index}`}
+                  placeholder="Paste content sample here..."
+                  value={sample}
+                  onChange={(e) => handleSampleChange(index, e.target.value)}
+                  rows={3}
+                />
+              </div>
+            ))}
+
+            <Button
+              onClick={handleGenerateBrandVoice}
+              disabled={generatingVoice || textSamples.filter(s => s.trim()).length === 0}
+              className="w-full"
+            >
+              {generatingVoice ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Analyzing Brand Voice...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  Generate Brand Voice
+                </>
+              )}
+            </Button>
+
+            {brandVoice && (
+              <div className="space-y-4 pt-4 border-t">
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold">Tone</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {brandVoice.tone.map((tone, index) => (
+                      <Badge key={index} variant="secondary">
+                        {tone}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold">Key Vocabulary</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {brandVoice.vocabulary.slice(0, 10).map((word, index) => (
+                      <Badge key={index} variant="outline">
+                        {word}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                      Do
+                    </Label>
+                    <ul className="space-y-1 ml-4">
+                      {brandVoice.rules.do.slice(0, 3).map((rule, index) => (
+                        <li key={index} className="text-sm text-muted-foreground">
+                          • {rule}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <Separator />
+
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold flex items-center gap-2">
+                      <XCircle className="h-4 w-4 text-red-600" />
+                      Don't
+                    </Label>
+                    <ul className="space-y-1 ml-4">
+                      {brandVoice.rules.dont.slice(0, 3).map((rule, index) => (
+                        <li key={index} className="text-sm text-muted-foreground">
+                          • {rule}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Brand Guidelines Section */}
       <Card>
