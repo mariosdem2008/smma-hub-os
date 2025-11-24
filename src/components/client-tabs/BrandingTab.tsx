@@ -245,6 +245,36 @@ export default function BrandingTab({ clientId, clientName = "Client Name" }: Br
     }
   };
 
+  const handleDownloadPDF = async () => {
+    if (!pdfUrl) return;
+    
+    try {
+      // Create a temporary link element for download
+      const link = document.createElement('a');
+      link.href = pdfUrl;
+      link.download = `${clientName.replace(/\s+/g, '-')}-brand-guidelines.pdf`;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      
+      // Trigger download
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast({
+        title: "Download Started",
+        description: "Your PDF is being downloaded",
+      });
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
+      toast({
+        title: "Error",
+        description: "Failed to download PDF. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleCopyLink = async () => {
     if (pdfUrl) {
       await navigator.clipboard.writeText(pdfUrl);
@@ -701,7 +731,7 @@ export default function BrandingTab({ clientId, clientName = "Client Name" }: Br
                 <Button 
                   variant="outline" 
                   size="lg"
-                  onClick={() => window.open(pdfUrl, '_blank')}
+                  onClick={handleDownloadPDF}
                 >
                   <FileDown className="mr-2 h-4 w-4" />
                   Download PDF
