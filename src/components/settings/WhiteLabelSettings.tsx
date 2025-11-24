@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { PortalPreview } from './PortalPreview';
 import { WhiteLabelAdvanced } from './WhiteLabelAdvanced';
 import { Separator } from '@/components/ui/separator';
+import { useAgencyBranding } from '@/contexts/AgencyBrandingContext';
 
 const GOOGLE_FONTS = [
   'Inter', 'Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Raleway', 'Poppins',
@@ -34,6 +35,7 @@ export function WhiteLabelSettings() {
   const { user } = useAuth();
   const { toast } = useToast();
   const { subscription } = useSubscription();
+  const { refreshBranding } = useAgencyBranding();
   const { openUpgradeModal } = useUpgradeModal();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -212,13 +214,13 @@ export function WhiteLabelSettings() {
 
       if (error) throw error;
 
+      // Refresh branding to apply changes immediately
+      await refreshBranding();
+
       toast({
         title: 'Success',
         description: 'White label settings saved successfully',
       });
-
-      // Reload to apply changes
-      window.location.reload();
     } catch (error) {
       console.error('Error saving white label settings:', error);
       toast({

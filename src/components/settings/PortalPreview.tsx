@@ -28,6 +28,12 @@ export function PortalPreview({
     { icon: Share2, label: 'Social' },
   ];
 
+  // Apply branding to preview
+  const previewStyle = {
+    '--preview-primary': primaryColor,
+    '--preview-accent': accentColor,
+  } as React.CSSProperties;
+
   const getBorderRadius = () => {
     switch (layoutStyle) {
       case 'minimal': return 'rounded-sm';
@@ -57,7 +63,7 @@ export function PortalPreview({
         </div>
       </CardHeader>
       <CardContent>
-        <div className="border rounded-lg overflow-hidden bg-background" style={{ height: '500px' }}>
+        <div className="border rounded-lg overflow-hidden bg-background" style={{ ...previewStyle, height: '500px' }}>
           <div className="flex h-full">
             {/* Sidebar Preview */}
             <aside 
@@ -85,7 +91,7 @@ export function PortalPreview({
                         getBorderRadius(),
                         idx === 0 ? "text-white" : "text-muted-foreground hover:bg-accent/50"
                       )}
-                      style={idx === 0 ? { backgroundColor: primaryColor } : {}}
+                      style={idx === 0 ? { backgroundColor: 'var(--preview-primary)' } : {}}
                     >
                       <Icon className="h-4 w-4" />
                       {layoutStyle !== 'minimal' && <span>{item.label}</span>}
@@ -115,14 +121,14 @@ export function PortalPreview({
                     <div className="space-y-2">
                       <Button 
                         className={getBorderRadius()} 
-                        style={{ backgroundColor: primaryColor }}
+                        style={{ backgroundColor: 'var(--preview-primary)', color: 'white' }}
                       >
                         View Projects
                       </Button>
                       <Button 
                         variant="outline" 
                         className={getBorderRadius()}
-                        style={{ borderColor: accentColor, color: accentColor }}
+                        style={{ borderColor: 'var(--preview-accent)', color: 'var(--preview-accent)' }}
                       >
                         Settings
                       </Button>
@@ -136,7 +142,7 @@ export function PortalPreview({
                       <CardContent className="pt-6">
                         <Badge 
                           className={getBorderRadius()}
-                          style={{ backgroundColor: accentColor }}
+                          style={{ backgroundColor: 'var(--preview-accent)', color: 'white' }}
                         >
                           Badge {i}
                         </Badge>
