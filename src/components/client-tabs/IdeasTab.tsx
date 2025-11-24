@@ -151,7 +151,9 @@ export default function IdeasTab({ clientId }: IdeasTabProps) {
     }
   };
 
-  const updateIdeaStatus = async (ideaId: string, newStatus: IdeaStatus) => {
+  const updateIdeaStatus = async (ideaId: string, newStatus: IdeaStatus, sendNotification = false) => {
+    const idea = ideas.find(i => i.id === ideaId);
+    
     const { error } = await supabase
       .from("ideas")
       .update({ status: newStatus })
@@ -162,6 +164,20 @@ export default function IdeasTab({ clientId }: IdeasTabProps) {
         title: "Error",
         description: "Failed to update idea status",
         variant: "destructive",
+      });
+      return;
+    }
+
+    // Send email notification if needed
+    if (sendNotification && idea && newStatus === 'in_review') {
+      await supabase.functions.invoke("send-approval-notification", {
+        body: {
+          contentType: 'idea',
+          contentId: ideaId,
+          contentTitle: idea.title,
+          clientId: clientId,
+          action: 'submitted',
+        }
       });
     }
   };
@@ -234,7 +250,7 @@ export default function IdeasTab({ clientId }: IdeasTabProps) {
       return;
     }
 
-    await updateIdeaStatus(draggableId, toStatus);
+    await updateIdeaStatus(draggableId, toStatus, toStatus === 'in_review');
 
     // Show helpful message based on status
     const messages = {
@@ -273,9 +289,21 @@ export default function IdeasTab({ clientId }: IdeasTabProps) {
       return;
     }
 
+    // Send email notification
+    await supabase.functions.invoke("send-approval-notification", {
+      body: {
+        contentType: 'idea',
+        contentId: reviewIdeaId,
+        contentTitle: reviewIdeaTitle,
+        clientId: clientId,
+        action: reviewAction === 'approve' ? 'approved' : 'rejected',
+        comment: comment || undefined,
+      }
+    });
+
     toast({
       title: "Success",
-      description: `Idea ${reviewAction}d - Client will be notified`,
+      description: `Idea ${reviewAction}d - Agency will be notified`,
     });
     fetchIdeas();
   };
@@ -454,7 +482,7 @@ export default function IdeasTab({ clientId }: IdeasTabProps) {
                                   {idea.status === 'draft' && canSubmit && (
                                     <Button
                                       size="sm"
-                                      onClick={() => updateIdeaStatus(idea.id, 'in_review')}
+                                      onClick={() => updateIdeaStatus(idea.id, 'in_review', true)}
                                     >
                                       Submit for Review
                                     </Button>
