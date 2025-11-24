@@ -8,57 +8,25 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { useSubscription } from '@/hooks/useSubscription';
-import { Loader2, Upload, Eye, Palette, Mail, Globe, Crown, FileImage, Type, Layout, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
+import { Loader2, Mail, Globe, Crown, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
 import { useUpgradeModal } from '@/contexts/UpgradeModalContext';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PortalPreview } from './PortalPreview';
-import { WhiteLabelAdvanced } from './WhiteLabelAdvanced';
-import { Separator } from '@/components/ui/separator';
-import { useAgencyBranding } from '@/contexts/AgencyBrandingContext';
-
-const GOOGLE_FONTS = [
-  'Inter', 'Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Raleway', 'Poppins',
-  'Playfair Display', 'Merriweather', 'PT Sans', 'Ubuntu', 'Nunito'
-];
-
-const LAYOUT_STYLES = [
-  { value: 'default', label: 'Default', description: 'Balanced spacing and modern design' },
-  { value: 'modern', label: 'Modern', description: 'Clean lines with generous spacing' },
-  { value: 'minimal', label: 'Minimal', description: 'Compact and efficient layout' },
-  { value: 'bold', label: 'Bold', description: 'Large typography and prominent elements' },
-];
 
 export function WhiteLabelSettings() {
   const { user } = useAuth();
   const { toast } = useToast();
   const { subscription } = useSubscription();
-  const { refreshBranding } = useAgencyBranding();
   const { openUpgradeModal } = useUpgradeModal();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [agencyId, setAgencyId] = useState<string | null>(null);
   
-  const [logoUrl, setLogoUrl] = useState('');
-  const [faviconUrl, setFaviconUrl] = useState('');
-  const [primaryColor, setPrimaryColor] = useState('#6366f1');
-  const [accentColor, setAccentColor] = useState('#8b5cf6');
-  const [headerBgColor, setHeaderBgColor] = useState('#ffffff');
-  const [sidebarBgColor, setSidebarBgColor] = useState('#ffffff');
-  const [contentBgColor, setContentBgColor] = useState('#f9fafb');
-  const [cardBgColor, setCardBgColor] = useState('#ffffff');
-  const [fontPrimary, setFontPrimary] = useState('Inter');
-  const [fontSecondary, setFontSecondary] = useState('Inter');
-  const [layoutStyle, setLayoutStyle] = useState('default');
   const [customDomain, setCustomDomain] = useState('');
   const [domainStatus, setDomainStatus] = useState<'pending' | 'verified' | 'failed'>('pending');
   const [emailSenderName, setEmailSenderName] = useState('');
   const [emailFooter, setEmailFooter] = useState('');
-  const [sectionLabels, setSectionLabels] = useState({});
 
   const canAccessWhiteLabel = subscription?.plan_type === 'pro' || subscription?.plan_type === 'agency_plus';
   const canUseCustomDomain = subscription?.plan_type === 'agency_plus';
@@ -89,22 +57,10 @@ export function WhiteLabelSettings() {
         .maybeSingle();
 
       if (branding) {
-        setLogoUrl(branding.logo_url || '');
-        setFaviconUrl(branding.favicon_url || '');
-        setPrimaryColor(branding.primary_color || '#6366f1');
-        setAccentColor(branding.accent_color || '#8b5cf6');
-        setHeaderBgColor(branding.header_bg_color || '#ffffff');
-        setSidebarBgColor(branding.sidebar_bg_color || '#ffffff');
-        setContentBgColor(branding.content_bg_color || '#f9fafb');
-        setCardBgColor(branding.card_bg_color || '#ffffff');
-        setFontPrimary(branding.font_primary || 'Inter');
-        setFontSecondary(branding.font_secondary || 'Inter');
-        setLayoutStyle(branding.layout_style || 'default');
         setCustomDomain(branding.custom_domain || '');
         setDomainStatus(branding.domain_status as any || 'pending');
         setEmailSenderName(branding.email_sender_name || '');
         setEmailFooter(branding.email_footer || '');
-        setSectionLabels(branding.section_labels || {});
       }
     } catch (error) {
       console.error('Error fetching white label settings:', error);
@@ -115,51 +71,6 @@ export function WhiteLabelSettings() {
       });
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleFileUpload = async (
-    e: React.ChangeEvent<HTMLInputElement>,
-    type: 'logo' | 'favicon'
-  ) => {
-    if (!e.target.files || !e.target.files[0] || !agencyId) return;
-
-    const file = e.target.files[0];
-    setUploading(true);
-
-    try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${agencyId}/${type}-${Date.now()}.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('branding-assets')
-        .upload(fileName, file, { upsert: true });
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('branding-assets')
-        .getPublicUrl(fileName);
-
-      if (type === 'logo') {
-        setLogoUrl(publicUrl);
-      } else {
-        setFaviconUrl(publicUrl);
-      }
-      
-      toast({
-        title: 'Success',
-        description: `${type === 'logo' ? 'Logo' : 'Favicon'} uploaded successfully`,
-      });
-    } catch (error) {
-      console.error(`Error uploading ${type}:`, error);
-      toast({
-        title: 'Error',
-        description: `Failed to upload ${type}`,
-        variant: 'destructive',
-      });
-    } finally {
-      setUploading(false);
     }
   };
 
@@ -206,28 +117,13 @@ export function WhiteLabelSettings() {
         .from('agency_branding')
         .upsert({
           agency_id: agencyId,
-          logo_url: logoUrl || null,
-          favicon_url: faviconUrl || null,
-          primary_color: primaryColor,
-          accent_color: accentColor,
-          header_bg_color: headerBgColor,
-          sidebar_bg_color: sidebarBgColor,
-          content_bg_color: contentBgColor,
-          card_bg_color: cardBgColor,
-          font_primary: fontPrimary,
-          font_secondary: fontSecondary,
-          layout_style: layoutStyle,
           custom_domain: customDomain || null,
           domain_status: domainStatus,
           email_sender_name: emailSenderName || null,
           email_footer: emailFooter || null,
-          section_labels: sectionLabels,
         });
 
       if (error) throw error;
-
-      // Refresh branding to apply changes immediately
-      await refreshBranding();
 
       toast({
         title: 'Success',
@@ -259,22 +155,22 @@ export function WhiteLabelSettings() {
         <CardHeader>
           <div className="flex items-center gap-2">
             <Crown className="h-5 w-5 text-primary" />
-            <CardTitle>White Label Branding</CardTitle>
+            <CardTitle>White Label Settings</CardTitle>
             <Badge variant="secondary">Pro & Agency Plus</Badge>
           </div>
           <CardDescription>
-            Transform the client portal into your own branded SaaS
+            Customize email identity and use custom domains for your client portals
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <Alert>
             <Crown className="h-4 w-4" />
             <AlertDescription>
-              White label branding is available on Pro and Agency Plus plans. Unlock complete control over logos, colors, fonts, layouts, custom domains, and email branding.
+              White label settings are available on Pro and Agency Plus plans. Unlock custom email branding and custom domains for your client portals.
             </AlertDescription>
           </Alert>
 
-          <Button onClick={() => openUpgradeModal({ feature: 'White Label Branding' })} className="w-full">
+          <Button onClick={() => openUpgradeModal({ feature: 'White Label Settings' })} className="w-full">
             Upgrade to Unlock White Label
           </Button>
         </CardContent>
@@ -287,451 +183,159 @@ export function WhiteLabelSettings() {
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
-            <Palette className="h-5 w-5 text-primary" />
-            <CardTitle>White Label & Branding</CardTitle>
+            <Mail className="h-5 w-5 text-primary" />
+            <CardTitle>White Label Settings</CardTitle>
             <Badge variant="secondary">Active</Badge>
           </div>
           <CardDescription>
-            Completely rebrand the client portal with your agency's identity
+            Configure email identity and custom domain for your client portals
           </CardDescription>
         </CardHeader>
       </Card>
 
-      <Tabs defaultValue="branding" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="branding">Branding</TabsTrigger>
-          <TabsTrigger value="layout">Layout & Fonts</TabsTrigger>
-          <TabsTrigger value="domain">Custom Domain</TabsTrigger>
-          <TabsTrigger value="advanced">Advanced</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="branding" className="space-y-6">
-          <div className="grid lg:grid-cols-2 gap-6">
-            <div className="space-y-6">
-              {/* Logo Upload */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <FileImage className="h-4 w-4" />
-                    Agency Logo
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center gap-4">
-                    {logoUrl ? (
-                      <img src={logoUrl} alt="Agency Logo" className="w-32 h-32 object-contain border rounded-lg" />
-                    ) : (
-                      <div className="w-32 h-32 border-2 border-dashed border-border rounded-lg flex items-center justify-center">
-                        <Upload className="h-8 w-8 text-muted-foreground" />
-                      </div>
-                    )}
-                    <div className="flex-1">
-                      <Input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => handleFileUpload(e, 'logo')}
-                        disabled={uploading}
-                      />
-                      {uploading && <p className="text-sm text-muted-foreground mt-1">Uploading...</p>}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Favicon Upload */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <FileImage className="h-4 w-4" />
-                    Favicon
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center gap-4">
-                    {faviconUrl ? (
-                      <img src={faviconUrl} alt="Favicon" className="w-16 h-16 object-contain border rounded-lg" />
-                    ) : (
-                      <div className="w-16 h-16 border-2 border-dashed border-border rounded-lg flex items-center justify-center">
-                        <Upload className="h-4 w-4 text-muted-foreground" />
-                      </div>
-                    )}
-                    <div className="flex-1">
-                      <Input
-                        type="file"
-                        accept="image/x-icon,image/png"
-                        onChange={(e) => handleFileUpload(e, 'favicon')}
-                        disabled={uploading}
-                      />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Colors */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Palette className="h-4 w-4" />
-                    Brand Colors
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label>Primary Color</Label>
-                      <div className="flex items-center gap-2 mt-2">
-                        <Input
-                          type="color"
-                          value={primaryColor}
-                          onChange={(e) => setPrimaryColor(e.target.value)}
-                          className="w-20 h-10"
-                        />
-                        <Input
-                          type="text"
-                          value={primaryColor}
-                          onChange={(e) => setPrimaryColor(e.target.value)}
-                          className="flex-1"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label>Accent Color</Label>
-                      <div className="flex items-center gap-2 mt-2">
-                        <Input
-                          type="color"
-                          value={accentColor}
-                          onChange={(e) => setAccentColor(e.target.value)}
-                          className="w-20 h-10"
-                        />
-                        <Input
-                          type="text"
-                          value={accentColor}
-                          onChange={(e) => setAccentColor(e.target.value)}
-                          className="flex-1"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <Separator className="my-4" />
-                  <p className="text-sm font-medium mb-3">Background Colors</p>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-xs">Header Background</Label>
-                      <div className="flex items-center gap-2 mt-2">
-                        <Input
-                          type="color"
-                          value={headerBgColor}
-                          onChange={(e) => setHeaderBgColor(e.target.value)}
-                          className="w-20 h-10"
-                        />
-                        <Input
-                          type="text"
-                          value={headerBgColor}
-                          onChange={(e) => setHeaderBgColor(e.target.value)}
-                          className="flex-1 text-xs"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label className="text-xs">Sidebar Background</Label>
-                      <div className="flex items-center gap-2 mt-2">
-                        <Input
-                          type="color"
-                          value={sidebarBgColor}
-                          onChange={(e) => setSidebarBgColor(e.target.value)}
-                          className="w-20 h-10"
-                        />
-                        <Input
-                          type="text"
-                          value={sidebarBgColor}
-                          onChange={(e) => setSidebarBgColor(e.target.value)}
-                          className="flex-1 text-xs"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label className="text-xs">Content Background</Label>
-                      <div className="flex items-center gap-2 mt-2">
-                        <Input
-                          type="color"
-                          value={contentBgColor}
-                          onChange={(e) => setContentBgColor(e.target.value)}
-                          className="w-20 h-10"
-                        />
-                        <Input
-                          type="text"
-                          value={contentBgColor}
-                          onChange={(e) => setContentBgColor(e.target.value)}
-                          className="flex-1 text-xs"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label className="text-xs">Card Background</Label>
-                      <div className="flex items-center gap-2 mt-2">
-                        <Input
-                          type="color"
-                          value={cardBgColor}
-                          onChange={(e) => setCardBgColor(e.target.value)}
-                          className="w-20 h-10"
-                        />
-                        <Input
-                          type="text"
-                          value={cardBgColor}
-                          onChange={(e) => setCardBgColor(e.target.value)}
-                          className="flex-1 text-xs"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Email Identity */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Mail className="h-4 w-4" />
-                    Email Identity
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label>Email Sender Name</Label>
-                    <Input
-                      value={emailSenderName}
-                      onChange={(e) => setEmailSenderName(e.target.value)}
-                      placeholder="Your Agency Name"
-                      className="mt-2"
-                    />
-                  </div>
-                  <div>
-                    <Label>Email Footer</Label>
-                    <Textarea
-                      value={emailFooter}
-                      onChange={(e) => setEmailFooter(e.target.value)}
-                      placeholder="Custom footer text for outgoing emails..."
-                      className="mt-2"
-                      rows={3}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Live Preview */}
-            <div className="lg:sticky lg:top-6">
-              <PortalPreview
-                logoUrl={logoUrl}
-                primaryColor={primaryColor}
-                accentColor={accentColor}
-                layoutStyle={layoutStyle}
-                fontPrimary={fontPrimary}
-                fontSecondary={fontSecondary}
-                headerBgColor={headerBgColor}
-                sidebarBgColor={sidebarBgColor}
-                contentBgColor={contentBgColor}
-                cardBgColor={cardBgColor}
-              />
-            </div>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="layout" className="space-y-6">
-          <div className="grid lg:grid-cols-2 gap-6">
-            <div className="space-y-6">
-              {/* Typography */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Type className="h-4 w-4" />
-                    Typography
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label>Primary Font (Headings)</Label>
-                    <Select value={fontPrimary} onValueChange={setFontPrimary}>
-                      <SelectTrigger className="mt-2">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {GOOGLE_FONTS.map((font) => (
-                          <SelectItem key={font} value={font}>
-                            {font}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Secondary Font (Body)</Label>
-                    <Select value={fontSecondary} onValueChange={setFontSecondary}>
-                      <SelectTrigger className="mt-2">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {GOOGLE_FONTS.map((font) => (
-                          <SelectItem key={font} value={font}>
-                            {font}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Layout Presets */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Layout className="h-4 w-4" />
-                    Layout Style
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {LAYOUT_STYLES.map((style) => (
-                    <div
-                      key={style.value}
-                      className={`border rounded-lg p-4 cursor-pointer transition-colors ${
-                        layoutStyle === style.value
-                          ? 'border-primary bg-primary/5'
-                          : 'hover:border-primary/50'
-                      }`}
-                      onClick={() => setLayoutStyle(style.value)}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <h4 className="font-semibold">{style.label}</h4>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {style.description}
-                          </p>
-                        </div>
-                        {layoutStyle === style.value && (
-                          <CheckCircle2 className="h-5 w-5 text-primary" />
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="lg:sticky lg:top-6">
-              <PortalPreview
-                logoUrl={logoUrl}
-                primaryColor={primaryColor}
-                accentColor={accentColor}
-                layoutStyle={layoutStyle}
-                fontPrimary={fontPrimary}
-                fontSecondary={fontSecondary}
-              />
-            </div>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="domain" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Globe className="h-4 w-4" />
-                Custom Domain
-                {!canUseCustomDomain && <Badge variant="secondary">Agency Plus Only</Badge>}
-              </CardTitle>
-              <CardDescription>
-                Use your own domain for the client portal
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {canUseCustomDomain ? (
-                <>
-                  <div>
-                    <Label>Portal Domain</Label>
-                    <Input
-                      value={customDomain}
-                      onChange={(e) => setCustomDomain(e.target.value)}
-                      placeholder="portal.youragency.com"
-                      className="mt-2"
-                    />
-                  </div>
-
-                  {customDomain && (
-                    <Alert>
-                      <AlertDescription className="space-y-2">
-                        <p className="font-semibold">DNS Configuration:</p>
-                        <div className="bg-muted p-3 rounded-md font-mono text-sm space-y-1">
-                          <div>Type: <strong>CNAME</strong></div>
-                          <div>Host: <strong>portal</strong></div>
-                          <div>Value: <strong>dzyhrzdwwuaorruscxcn.supabase.co</strong></div>
-                          <div>TTL: <strong>300</strong></div>
-                        </div>
-                      </AlertDescription>
-                    </Alert>
-                  )}
-
-                  <div className="flex items-center gap-2">
-                    <Button
-                      onClick={handleVerifyDomain}
-                      disabled={!customDomain || verifying}
-                    >
-                      {verifying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      Verify DNS
-                    </Button>
-                    {domainStatus === 'verified' && (
-                      <Badge variant="default" className="gap-1">
-                        <CheckCircle2 className="h-3 w-3" />
-                        Verified
-                      </Badge>
-                    )}
-                    {domainStatus === 'failed' && (
-                      <Badge variant="destructive" className="gap-1">
-                        <AlertCircle className="h-3 w-3" />
-                        Failed
-                      </Badge>
-                    )}
-                    {domainStatus === 'pending' && customDomain && (
-                      <Badge variant="secondary" className="gap-1">
-                        <Clock className="h-3 w-3" />
-                        Pending
-                      </Badge>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <Alert>
-                  <Crown className="h-4 w-4" />
-                  <AlertDescription>
-                    Custom domain is available on Agency Plus plan. Upgrade to use your own domain for the client portal.
-                  </AlertDescription>
-                </Alert>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="advanced" className="space-y-6">
-          <WhiteLabelAdvanced
-            sectionLabels={sectionLabels}
-            onSave={setSectionLabels}
-          />
-        </TabsContent>
-      </Tabs>
-
+      {/* Email Identity */}
       <Card>
-        <CardContent className="pt-6">
-          <Button onClick={handleSave} disabled={saving} className="w-full" size="lg">
-            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Save All Changes
-          </Button>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Mail className="h-4 w-4" />
+            Email Identity
+          </CardTitle>
+          <CardDescription>
+            Customize the sender name and footer for all client-facing emails
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label>Email Sender Name</Label>
+            <Input
+              value={emailSenderName}
+              onChange={(e) => setEmailSenderName(e.target.value)}
+              placeholder="Your Agency Name"
+              className="mt-2"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              This name will appear in the "From" field of all client emails
+            </p>
+          </div>
+          <div>
+            <Label>Email Footer</Label>
+            <Textarea
+              value={emailFooter}
+              onChange={(e) => setEmailFooter(e.target.value)}
+              placeholder="Custom footer text for outgoing emails..."
+              className="mt-2"
+              rows={3}
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Add custom text to the bottom of all client-facing emails
+            </p>
+          </div>
         </CardContent>
       </Card>
+
+      {/* Custom Domain */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Globe className="h-4 w-4" />
+            Custom Domain
+            {!canUseCustomDomain && <Badge variant="secondary">Agency Plus</Badge>}
+          </CardTitle>
+          <CardDescription>
+            Use your own domain for client portals (e.g., portal.youragency.com)
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {!canUseCustomDomain ? (
+            <Alert>
+              <Crown className="h-4 w-4" />
+              <AlertDescription>
+                Custom domains are available on the Agency Plus plan.
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <>
+              <div>
+                <Label>Portal Domain</Label>
+                <Input
+                  value={customDomain}
+                  onChange={(e) => setCustomDomain(e.target.value)}
+                  placeholder="portal.youragency.com"
+                  className="mt-2"
+                  disabled={!canUseCustomDomain}
+                />
+              </div>
+
+              {customDomain && (
+                <>
+                  <div className="flex items-center gap-2">
+                    <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm ${
+                      domainStatus === 'verified' ? 'bg-green-100 text-green-800' :
+                      domainStatus === 'failed' ? 'bg-red-100 text-red-800' :
+                      'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      {domainStatus === 'verified' && <CheckCircle2 className="h-4 w-4" />}
+                      {domainStatus === 'failed' && <AlertCircle className="h-4 w-4" />}
+                      {domainStatus === 'pending' && <Clock className="h-4 w-4" />}
+                      <span className="capitalize">{domainStatus}</span>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleVerifyDomain}
+                      disabled={verifying}
+                    >
+                      {verifying ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Verifying...
+                        </>
+                      ) : (
+                        'Check DNS'
+                      )}
+                    </Button>
+                  </div>
+
+                  <Alert>
+                    <AlertDescription>
+                      <p className="font-medium mb-2">DNS Configuration Required:</p>
+                      <div className="space-y-1 text-xs">
+                        <div>
+                          <span className="font-mono bg-muted px-1">Type: CNAME</span>
+                        </div>
+                        <div>
+                          <span className="font-mono bg-muted px-1">Host: portal</span>
+                        </div>
+                        <div>
+                          <span className="font-mono bg-muted px-1">Value: your-saas-domain.com</span>
+                        </div>
+                        <div>
+                          <span className="font-mono bg-muted px-1">TTL: 300</span>
+                        </div>
+                      </div>
+                      <p className="mt-2 text-xs">DNS changes can take up to 72 hours to propagate.</p>
+                    </AlertDescription>
+                  </Alert>
+                </>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Save Button */}
+      <div className="flex justify-end">
+        <Button onClick={handleSave} disabled={saving}>
+          {saving ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            'Save Changes'
+          )}
+        </Button>
+      </div>
     </div>
   );
 }
