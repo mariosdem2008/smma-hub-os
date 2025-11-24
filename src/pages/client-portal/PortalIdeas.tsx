@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -17,8 +17,25 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Lightbulb, Send, CheckCircle, XCircle } from "lucide-react";
+import { Plus, Lightbulb } from "lucide-react";
 import ApprovalReviewModal from "@/components/ApprovalReviewModal";
+import { format } from "date-fns";
+
+type IdeaStatus = "draft" | "in_review" | "approved" | "rejected";
+
+const statusColors: Record<IdeaStatus, string> = {
+  draft: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200",
+  in_review: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+  approved: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+  rejected: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+};
+
+const statusLabels: Record<IdeaStatus, string> = {
+  draft: "Draft",
+  in_review: "In Review",
+  approved: "Approved",
+  rejected: "Rejected",
+};
 
 interface Idea {
   id: string;
@@ -26,30 +43,13 @@ interface Idea {
   description: string | null;
   status: string;
   tags: string[] | null;
+  review_comment: string | null;
   created_at: string;
 }
 
 interface OutletContext {
   clientId: string;
 }
-
-const statusColors: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-  draft: "outline",
-  idea: "outline",
-  in_review: "secondary",
-  approved: "default",
-  rejected: "destructive",
-  used: "secondary",
-};
-
-const statusLabels: Record<string, string> = {
-  draft: "Draft",
-  idea: "Idea",
-  in_review: "In Review",
-  approved: "Approved",
-  rejected: "Rejected",
-  used: "Used in Content",
-};
 
 export function PortalIdeas() {
   const { clientId } = useOutletContext<OutletContext>();
@@ -59,13 +59,11 @@ export function PortalIdeas() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newDescription, setNewDescription] = useState("");
-  const [newTag, setNewTag] = useState("");
-  const [reviewModal, setReviewModal] = useState<{
-    open: boolean;
-    ideaId: string;
-    ideaTitle: string;
-    action: 'approve' | 'reject';
-  }>({ open: false, ideaId: '', ideaTitle: '', action: 'approve' });
+  const [newTags, setNewTags] = useState("");
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [reviewAction, setReviewAction] = useState<'approve' | 'reject'>('approve');
+  const [reviewIdeaId, setReviewIdeaId] = useState<string>('');
+  const [reviewIdeaTitle, setReviewIdeaTitle] = useState<string>('');
 
   useEffect(() => {
     fetchIdeas();
@@ -118,7 +116,7 @@ export function PortalIdeas() {
         client_id: clientId,
         title: newTitle.trim(),
         description: newDescription.trim() || null,
-        tags: newTag.trim() ? [newTag.trim()] : null,
+        tags: newTags.trim() ? newTags.split(',').map(t => t.trim()) : null,
         status: "draft",
       });
 
@@ -131,7 +129,7 @@ export function PortalIdeas() {
 
       setNewTitle("");
       setNewDescription("");
-      setNewTag("");
+      setNewTags("");
       setDialogOpen(false);
       fetchIdeas();
     } catch (error: any) {
@@ -143,79 +141,68 @@ export function PortalIdeas() {
     }
   };
 
-  // Group ideas by status
-  const ideasByStatus = {
-    idea: ideas.filter(i => i.status === "idea"),
-    approved: ideas.filter(i => i.status === "approved"),
-    rejected: ideas.filter(i => i.status === "rejected"),
-    used: ideas.filter(i => i.status === "used"),
+  const handleStatusChange = async (ideaId: string, newStatus: IdeaStatus) => {
+    if (newStatus === 'in_review') {
+      const { error } = await supabase
+        .from('ideas')
+        .update({ status: newStatus })
+        .eq('id', ideaId);
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: "Failed to submit idea",
+          variant: "destructive",
+        });
+        console.error(error);
+        return;
+      }
+
+      toast({
+        title: "Success",
+        description: "Idea submitted for review - Agency will be notified",
+      });
+      fetchIdeas();
+    }
   };
 
   const handleReview = async (comment: string) => {
-    const newStatus = reviewModal.action === 'approve' ? 'approved' : 'rejected';
+    const newStatus = reviewAction === 'approve' ? 'approved' : 'rejected';
+    
+    const { data: { user } } = await supabase.auth.getUser();
+    
     const { error } = await supabase
-      .from("ideas")
+      .from('ideas')
       .update({ 
         status: newStatus,
         review_comment: comment || null,
+        reviewed_by: user?.id,
         reviewed_at: new Date().toISOString()
       })
-      .eq("id", reviewModal.ideaId);
+      .eq('id', reviewIdeaId);
 
     if (error) {
       toast({
         title: "Error",
-        description: `Failed to ${reviewModal.action} idea`,
+        description: `Failed to ${reviewAction} idea`,
         variant: "destructive",
       });
-      throw error;
-    }
-
-    // Send notification
-    const idea = ideas.find(i => i.id === reviewModal.ideaId);
-    if (idea) {
-      try {
-        await supabase.functions.invoke("send-approval-notification", {
-          body: {
-            contentType: 'idea',
-            contentId: reviewModal.ideaId,
-            contentTitle: idea.title,
-            clientId: clientId,
-            action: newStatus,
-            comment: comment || undefined,
-          },
-        });
-      } catch (notifError) {
-        console.error("Failed to send notification:", notifError);
-      }
+      console.error(error);
+      return;
     }
 
     toast({
       title: "Success",
-      description: `Idea ${reviewModal.action}d successfully`,
+      description: `Idea ${reviewAction}d - Agency will be notified`,
     });
     fetchIdeas();
   };
 
-  const handleStatusChange = async (ideaId: string, newStatus: string) => {
-    const { error } = await supabase
-      .from("ideas")
-      .update({ status: newStatus })
-      .eq("id", ideaId);
-
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update status",
-        variant: "destructive",
-      });
-    } else {
-      toast({
-        title: "Success",
-        description: "Status updated successfully",
-      });
-      fetchIdeas();
-    }
+  const ideasByStatus = {
+    draft: ideas.filter((i) => i.status === "draft"),
+    in_review: ideas.filter((i) => i.status === "in_review"),
+    approved: ideas.filter((i) => i.status === "approved"),
+    rejected: ideas.filter((i) => i.status === "rejected"),
   };
 
   if (loading) {
@@ -266,12 +253,12 @@ export function PortalIdeas() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="tag">Tag (optional)</Label>
+                <Label htmlFor="tags">Tags (comma-separated)</Label>
                 <Input
-                  id="tag"
-                  placeholder="e.g., Product Launch, Behind the Scenes..."
-                  value={newTag}
-                  onChange={(e) => setNewTag(e.target.value)}
+                  id="tags"
+                  placeholder="e.g. social, campaign, video"
+                  value={newTags}
+                  onChange={(e) => setNewTags(e.target.value)}
                 />
               </div>
             </div>
@@ -286,93 +273,117 @@ export function PortalIdeas() {
       </div>
 
       {/* Ideas Grid by Status */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-        {Object.entries(ideasByStatus).map(([status, statusIdeas]) => (
-          <Card key={status}>
-            <CardHeader>
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Lightbulb className="h-4 w-4" />
-                {statusLabels[status]} ({statusIdeas.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {statusIdeas.length > 0 ? (
-                statusIdeas.map((idea) => (
-                  <Card key={idea.id} className="p-3 space-y-2">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {(Object.keys(ideasByStatus) as IdeaStatus[]).map((status) => (
+          <div key={status} className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-lg capitalize">{statusLabels[status]}</h3>
+              <Badge variant="secondary">{ideasByStatus[status].length}</Badge>
+            </div>
+
+            <div className="space-y-3">
+              {ideasByStatus[status].map((idea) => (
+                <Card key={idea.id} className="p-4">
+                  <div className="space-y-3">
                     <div className="flex items-start justify-between gap-2">
-                      <h4 className="font-medium text-sm line-clamp-2">
-                        {idea.title}
-                      </h4>
-                      <Badge variant={statusColors[idea.status]} className="shrink-0 text-xs">
-                        {statusLabels[idea.status]}
+                      <h4 className="font-medium line-clamp-2">{idea.title}</h4>
+                      <Badge className={statusColors[idea.status as IdeaStatus]}>
+                        {statusLabels[idea.status as IdeaStatus]}
                       </Badge>
                     </div>
+
                     {idea.description && (
-                      <p className="text-xs text-muted-foreground line-clamp-2">
+                      <p className="text-sm text-muted-foreground line-clamp-3">
                         {idea.description}
                       </p>
                     )}
+
                     {idea.tags && idea.tags.length > 0 && (
-                      <Badge variant="outline" className="text-xs">
-                        {idea.tags[0]}
-                      </Badge>
+                      <div className="flex flex-wrap gap-1">
+                        {idea.tags.map((tag) => (
+                          <Badge key={tag} variant="outline" className="text-xs">
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
                     )}
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(idea.created_at).toLocaleDateString()}
-                    </p>
-                    <div className="flex gap-2 mt-2">
-                      {idea.status === 'draft' && (
+
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>{format(new Date(idea.created_at), "MMM d, yyyy")}</span>
+                    </div>
+
+                    {idea.status === "draft" && (
+                      <Button
+                        size="sm"
+                        onClick={() => handleStatusChange(idea.id, "in_review")}
+                        className="w-full"
+                      >
+                        Submit for Review
+                      </Button>
+                    )}
+
+                    {idea.status === "in_review" && (
+                      <div className="flex gap-2">
                         <Button
                           size="sm"
-                          variant="outline"
-                          onClick={() => handleStatusChange(idea.id, 'in_review')}
+                          onClick={() => {
+                            setReviewIdeaId(idea.id);
+                            setReviewIdeaTitle(idea.title);
+                            setReviewAction('approve');
+                            setReviewModalOpen(true);
+                          }}
+                          className="flex-1 bg-green-600 hover:bg-green-700"
                         >
-                          <Send className="h-3 w-3 mr-1" />
-                          Submit
+                          Approve
                         </Button>
-                      )}
-                      {idea.status === 'in_review' && (
-                        <>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-green-600"
-                            onClick={() => setReviewModal({
-                              open: true,
-                              ideaId: idea.id,
-                              ideaTitle: idea.title,
-                              action: 'approve'
-                            })}
-                          >
-                            <CheckCircle className="h-3 w-3 mr-1" />
-                            Approve
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-destructive"
-                            onClick={() => setReviewModal({
-                              open: true,
-                              ideaId: idea.id,
-                              ideaTitle: idea.title,
-                              action: 'reject'
-                            })}
-                          >
-                            <XCircle className="h-3 w-3 mr-1" />
-                            Reject
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </Card>
-                ))
-              ) : (
-                <p className="text-xs text-muted-foreground text-center py-4">
-                  No {statusLabels[status].toLowerCase()} ideas yet
-                </p>
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            setReviewIdeaId(idea.id);
+                            setReviewIdeaTitle(idea.title);
+                            setReviewAction('reject');
+                            setReviewModalOpen(true);
+                          }}
+                          variant="destructive"
+                          className="flex-1"
+                        >
+                          Reject
+                        </Button>
+                      </div>
+                    )}
+
+                    {idea.status === "approved" && idea.review_comment && (
+                      <div className="text-xs p-2 bg-green-50 dark:bg-green-950 rounded border border-green-200 dark:border-green-800">
+                        <p className="font-medium text-green-900 dark:text-green-100">
+                          Approval Note:
+                        </p>
+                        <p className="text-green-700 dark:text-green-300 mt-1">
+                          {idea.review_comment}
+                        </p>
+                      </div>
+                    )}
+
+                    {idea.status === "rejected" && idea.review_comment && (
+                      <div className="text-xs p-2 bg-red-50 dark:bg-red-950 rounded border border-red-200 dark:border-red-800">
+                        <p className="font-medium text-red-900 dark:text-red-100">
+                          Rejection Reason:
+                        </p>
+                        <p className="text-red-700 dark:text-red-300 mt-1">
+                          {idea.review_comment}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              ))}
+
+              {ideasByStatus[status].length === 0 && (
+                <div className="text-center p-8 border-2 border-dashed rounded-lg">
+                  <p className="text-sm text-muted-foreground">No {statusLabels[status].toLowerCase()} ideas</p>
+                </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         ))}
       </div>
 
@@ -391,11 +402,11 @@ export function PortalIdeas() {
       )}
 
       <ApprovalReviewModal
-        open={reviewModal.open}
-        onOpenChange={(open) => setReviewModal({ ...reviewModal, open })}
+        open={reviewModalOpen}
+        onOpenChange={setReviewModalOpen}
         contentType="idea"
-        contentTitle={reviewModal.ideaTitle}
-        action={reviewModal.action}
+        contentTitle={reviewIdeaTitle}
+        action={reviewAction}
         onSubmit={handleReview}
       />
     </div>
