@@ -45,6 +45,18 @@ export function PortalInviteDialog({
     try {
       const normalizedEmail = email.toLowerCase().trim();
 
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(normalizedEmail)) {
+        toast({
+          title: "Invalid Email",
+          description: "Please enter a valid email address",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
       // Check if email already has access
       const { data: existing } = await supabase
         .from("client_portal_users")
@@ -123,6 +135,7 @@ export function PortalInviteDialog({
         portalUrl,
         agencyName,
         inviterName,
+        agencyId,
       });
 
       if (!emailResult.success) {
@@ -139,9 +152,21 @@ export function PortalInviteDialog({
       onInviteSent();
     } catch (error: any) {
       console.error("Error sending invitation:", error);
+      
+      let errorMessage = "Failed to send invitation";
+      
+      // Provide specific feedback based on error type
+      if (error.message?.includes("permission denied") || error.message?.includes("policy")) {
+        errorMessage = "You don't have permission to invite users to this client portal";
+      } else if (error.message?.includes("token")) {
+        errorMessage = "Failed to generate invitation token. Please try again.";
+      } else if (error.message?.includes("email")) {
+        errorMessage = "Failed to send invitation email. Please check the email address.";
+      }
+      
       toast({
         title: "Error",
-        description: error.message || "Failed to send invitation",
+        description: error.message || errorMessage,
         variant: "destructive",
       });
     } finally {
