@@ -99,13 +99,13 @@ export function ClientPortalLogin() {
 
       if (!client) throw new Error("Portal not found");
 
-      // Check if user has a valid invitation for THIS portal
-      const { data: invitation } = await supabase
-        .from("client_portal_users")
-        .select("id, user_id, accepted_at")
-        .eq("client_id", client.id)
-        .eq("email", normalizedEmail)
-        .maybeSingle();
+      // Check if user has a valid invitation for THIS portal using secure function
+      const { data: invitationData } = await supabase.rpc('check_portal_invitation', {
+        _client_id: client.id,
+        _email: normalizedEmail
+      });
+
+      const invitation = invitationData && invitationData.length > 0 ? invitationData[0] : null;
 
       // If no invitation exists, deny access
       if (!invitation) {
@@ -172,12 +172,13 @@ export function ClientPortalLogin() {
 
       if (!client) throw new Error("Portal not found");
 
-      const { data: invitation } = await supabase
-        .from("client_portal_users")
-        .select("id, expires_at, accepted_at")
-        .eq("client_id", client.id)
-        .eq("email", normalizedEmail)
-        .maybeSingle();
+      // Check for invitation using secure function
+      const { data: invitationData } = await supabase.rpc('check_portal_invitation', {
+        _client_id: client.id,
+        _email: normalizedEmail
+      });
+
+      const invitation = invitationData && invitationData.length > 0 ? invitationData[0] : null;
 
       // Reject signup if no invitation exists
       if (!invitation) {
