@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -14,7 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, ExternalLink, Trash2 } from "lucide-react";
+import { Copy, ExternalLink, Trash2, Mail, RefreshCw } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,6 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { PortalInviteDialog } from "./PortalInviteDialog";
 
 interface ClientPortalTabProps {
   clientId: string;
@@ -35,15 +37,20 @@ interface PortalUser {
   name: string | null;
   email: string;
   created_at: string;
+  accepted_at: string | null;
+  expires_at: string | null;
+  invite_token: string | null;
 }
 
 export function ClientPortalTab({ clientId }: ClientPortalTabProps) {
   const { toast } = useToast();
   const [portalEnabled, setPortalEnabled] = useState(false);
   const [portalSlug, setPortalSlug] = useState<string | null>(null);
+  const [clientName, setClientName] = useState("");
   const [portalUsers, setPortalUsers] = useState<PortalUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
 
   const portalUrl = portalSlug
     ? `${window.location.origin}/client-portal/${portalSlug}`
@@ -57,16 +64,17 @@ export function ClientPortalTab({ clientId }: ClientPortalTabProps) {
     try {
       const { data: client } = await supabase
         .from("clients")
-        .select("portal_enabled, portal_slug")
+        .select("portal_enabled, portal_slug, name")
         .eq("id", clientId)
         .single();
 
       if (client) {
         setPortalEnabled(client.portal_enabled);
         setPortalSlug(client.portal_slug);
+        setClientName(client.name);
       }
 
-      // Fetch users who have accessed this portal
+      // Fetch all portal users (accepted and pending invitations)
       const { data: users } = await supabase
         .from("client_portal_users")
         .select("*")
@@ -117,11 +125,22 @@ export function ClientPortalTab({ clientId }: ClientPortalTabProps) {
   };
 
   const copyPortalLink = () => {
-    navigator.clipboard.writeText(portalUrl);
+    const loginUrl = `${window.location.origin}/client-portal/${portalSlug}/login`;
+    navigator.clipboard.writeText(loginUrl);
     toast({
       title: "Link Copied",
-      description: "Portal link copied to clipboard.",
+      description: "Login link copied to clipboard.",
     });
+  };
+
+  const getInvitationStatus = (user: PortalUser) => {
+    if (user.accepted_at) {
+      return { label: "Accepted", variant: "default" as const };
+    }
+    if (user.expires_at && new Date(user.expires_at) < new Date()) {
+      return { label: "Expired", variant: "destructive" as const };
+    }
+    return { label: "Pending", variant: "secondary" as const };
   };
 
   const handleRevokeAccess = async () => {
@@ -169,12 +188,12 @@ export function ClientPortalTab({ clientId }: ClientPortalTabProps) {
           </div>
 
           <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label>Enable Client Portal</Label>
-              <p className="text-sm text-muted-foreground">
-                Allow anyone with the link to access this client portal
-              </p>
-            </div>
+          <div className="space-y-0.5">
+            <Label>Enable Client Portal</Label>
+            <p className="text-sm text-muted-foreground">
+              Allow invited users to access this client portal
+            </p>
+          </div>
             <Switch
               checked={portalEnabled}
               onCheckedChange={handleTogglePortal}
@@ -183,19 +202,23 @@ export function ClientPortalTab({ clientId }: ClientPortalTabProps) {
 
           {portalEnabled && portalSlug && (
             <div className="space-y-2 pt-4 border-t">
-              <Label>Portal Link</Label>
+              <Label>Portal Login Link</Label>
               <p className="text-xs text-muted-foreground mb-2">
-                Share this unique link with your client. Anyone with this link can create an account and access the portal.
+                Invited users can log in using this link.
               </p>
               <div className="flex gap-2">
-                <Input value={portalUrl} readOnly className="flex-1" />
+                <Input 
+                  value={`${window.location.origin}/client-portal/${portalSlug}/login`} 
+                  readOnly 
+                  className="flex-1" 
+                />
                 <Button onClick={copyPortalLink} variant="outline" size="icon">
                   <Copy className="h-4 w-4" />
                 </Button>
                 <Button
                   variant="outline"
                   size="icon"
-                  onClick={() => window.open(portalUrl, "_blank")}
+                  onClick={() => window.open(`${window.location.origin}/client-portal/${portalSlug}/login`, "_blank")}
                 >
                   <ExternalLink className="h-4 w-4" />
                 </Button>
@@ -205,57 +228,81 @@ export function ClientPortalTab({ clientId }: ClientPortalTabProps) {
         </div>
       </Card>
 
-      {/* Portal Access Activity */}
+      {/* Portal Users & Invitations */}
       {portalEnabled && (
         <Card className="p-6">
           <div className="space-y-4">
-            <div>
-              <h3 className="text-lg font-semibold">Portal Access Activity</h3>
-              <p className="text-sm text-muted-foreground">
-                Users who have accessed this portal
-              </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold">Portal Users</h3>
+                <p className="text-sm text-muted-foreground">
+                  Manage invitations and user access
+                </p>
+              </div>
+              <Button onClick={() => setInviteDialogOpen(true)}>
+                <Mail className="h-4 w-4 mr-2" />
+                Invite User
+              </Button>
             </div>
 
             {portalUsers.length > 0 ? (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
                     <TableHead>Email</TableHead>
-                    <TableHead>First Accessed</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Date</TableHead>
                     <TableHead className="w-[100px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {portalUsers.map((user) => (
-                    <TableRow key={user.id}>
-                      <TableCell>{user.name || "—"}</TableCell>
-                      <TableCell>{user.email}</TableCell>
-                      <TableCell>
-                        {new Date(user.created_at).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setDeleteUserId(user.id)}
-                          title="Revoke access"
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {portalUsers.map((user) => {
+                    const status = getInvitationStatus(user);
+                    return (
+                      <TableRow key={user.id}>
+                        <TableCell>{user.email}</TableCell>
+                        <TableCell>{user.name || "—"}</TableCell>
+                        <TableCell>
+                          <Badge variant={status.variant}>{status.label}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          {user.accepted_at 
+                            ? new Date(user.accepted_at).toLocaleDateString()
+                            : new Date(user.created_at).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setDeleteUserId(user.id)}
+                            title="Revoke access"
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             ) : (
               <div className="text-center py-8 text-muted-foreground">
-                No one has accessed this portal yet. Share the portal link with your client to get started.
+                No invitations sent yet. Click "Invite User" to get started.
               </div>
             )}
           </div>
         </Card>
       )}
+
+      <PortalInviteDialog
+        open={inviteDialogOpen}
+        onOpenChange={setInviteDialogOpen}
+        clientId={clientId}
+        clientName={clientName}
+        portalSlug={portalSlug || ""}
+        onInviteSent={fetchPortalData}
+      />
 
       <AlertDialog open={!!deleteUserId} onOpenChange={() => setDeleteUserId(null)}>
         <AlertDialogContent>

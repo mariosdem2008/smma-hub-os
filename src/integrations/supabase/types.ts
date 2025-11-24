@@ -613,28 +613,43 @@ export type Database = {
       }
       client_portal_users: {
         Row: {
+          accepted_at: string | null
           client_id: string
           created_at: string
           email: string
+          expires_at: string | null
           id: string
+          invite_token: string | null
+          invited_at: string | null
+          invited_by: string | null
           name: string | null
           role: string
           user_id: string | null
         }
         Insert: {
+          accepted_at?: string | null
           client_id: string
           created_at?: string
           email: string
+          expires_at?: string | null
           id?: string
+          invite_token?: string | null
+          invited_at?: string | null
+          invited_by?: string | null
           name?: string | null
           role?: string
           user_id?: string | null
         }
         Update: {
+          accepted_at?: string | null
           client_id?: string
           created_at?: string
           email?: string
+          expires_at?: string | null
           id?: string
+          invite_token?: string | null
+          invited_at?: string | null
+          invited_by?: string | null
           name?: string | null
           role?: string
           user_id?: string | null
@@ -1263,6 +1278,7 @@ export type Database = {
         Args: { _invite_token: string; _user_id: string }
         Returns: Json
       }
+      generate_portal_invite_token: { Args: never; Returns: string }
       generate_portal_slug: { Args: never; Returns: string }
       generate_portal_token: { Args: never; Returns: string }
       get_monthly_ai_usage: { Args: { p_agency_id: string }; Returns: number }

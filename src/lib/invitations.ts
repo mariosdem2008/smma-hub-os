@@ -14,6 +14,7 @@ interface SendPortalInviteParams {
   portalUrl: string;
   agencyName: string;
   inviterName: string;
+  agencyId?: string;
   temporaryPassword?: string;
 }
 
