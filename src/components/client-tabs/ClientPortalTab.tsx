@@ -203,25 +203,18 @@ export function ClientPortalTab({ clientId }: ClientPortalTabProps) {
 
           {portalEnabled && portalSlug && (
             <div className="space-y-2 pt-4 border-t">
-              <Label>Portal Login Link</Label>
+              <Label>Client Login Page</Label>
               <p className="text-xs text-muted-foreground mb-2">
-                Invited users can log in using this link.
+                Direct your clients to this page to sign up or log in.
               </p>
               <div className="flex gap-2">
                 <Input 
                   value={`${window.location.origin}/client-portal/${portalSlug}/login`} 
                   readOnly 
-                  className="flex-1" 
+                  className="flex-1 font-mono text-sm" 
                 />
                 <Button onClick={copyPortalLink} variant="outline" size="icon">
                   <Copy className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => window.open(`${window.location.origin}/client-portal/${portalSlug}/login`, "_blank")}
-                >
-                  <ExternalLink className="h-4 w-4" />
                 </Button>
               </div>
             </div>
