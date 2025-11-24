@@ -72,6 +72,7 @@ interface Asset {
   visible_to_client: boolean;
   custom_category: string | null;
   current_version: number;
+  thumbnail_url: string | null;
 }
 
 type FilterType = "all" | "images" | "videos" | "documents";

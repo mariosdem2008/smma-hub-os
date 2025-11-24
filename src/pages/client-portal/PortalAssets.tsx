@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Download, FileText, Image, Film, FolderOpen, CheckCircle, Rocket } from "lucide-react";
+import { AssetDetailModal } from "@/components/assets/AssetDetailModal";
+import { ClientPortalAssetVersions } from "@/components/assets/ClientPortalAssetVersions";
 
 interface Asset {
   id: string;
@@ -17,6 +19,10 @@ interface Asset {
   created_at: string;
   status: string | null;
   visible_to_client: boolean | null;
+  thumbnail_url: string | null;
+  client_id: string;
+  custom_category: string | null;
+  current_version: number;
 }
 
 interface OutletContext {
@@ -29,6 +35,7 @@ export function PortalAssets() {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<"all" | "ready" | "published">("all");
+  const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
 
   useEffect(() => {
     fetchAssets();
@@ -168,15 +175,42 @@ export function PortalAssets() {
                         className="w-full h-32 object-cover rounded-lg"
                       />
                     )}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full"
-                      onClick={() => handleDownload(asset)}
-                    >
-                      <Download className="h-4 w-4 mr-2" />
-                      Download
-                    </Button>
+                    {asset.file_type.startsWith("video/") && (
+                      <div className="relative w-full h-32 bg-muted rounded-lg overflow-hidden">
+                        {asset.thumbnail_url ? (
+                          <img
+                            src={asset.thumbnail_url}
+                            alt={asset.filename}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <video
+                            src={asset.file_url}
+                            className="w-full h-full object-cover"
+                          />
+                        )}
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                          <Film className="h-8 w-8 text-white" />
+                        </div>
+                      </div>
+                    )}
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => setSelectedAsset(asset)}
+                      >
+                        View & Comment
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDownload(asset)}
+                      >
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </Card>
                 );
               })}
@@ -228,15 +262,42 @@ export function PortalAssets() {
                         className="w-full h-32 object-cover rounded-lg"
                       />
                     )}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full"
-                      onClick={() => handleDownload(asset)}
-                    >
-                      <Download className="h-4 w-4 mr-2" />
-                      Download
-                    </Button>
+                    {asset.file_type.startsWith("video/") && (
+                      <div className="relative w-full h-32 bg-muted rounded-lg overflow-hidden">
+                        {asset.thumbnail_url ? (
+                          <img
+                            src={asset.thumbnail_url}
+                            alt={asset.filename}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <video
+                            src={asset.file_url}
+                            className="w-full h-full object-cover"
+                          />
+                        )}
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                          <Film className="h-8 w-8 text-white" />
+                        </div>
+                      </div>
+                    )}
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => setSelectedAsset(asset)}
+                      >
+                        View & Comment
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDownload(asset)}
+                      >
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </Card>
                 );
               })}
@@ -288,15 +349,42 @@ export function PortalAssets() {
                         className="w-full h-32 object-cover rounded-lg"
                       />
                     )}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full"
-                      onClick={() => handleDownload(asset)}
-                    >
-                      <Download className="h-4 w-4 mr-2" />
-                      Download
-                    </Button>
+                    {asset.file_type.startsWith("video/") && (
+                      <div className="relative w-full h-32 bg-muted rounded-lg overflow-hidden">
+                        {asset.thumbnail_url ? (
+                          <img
+                            src={asset.thumbnail_url}
+                            alt={asset.filename}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <video
+                            src={asset.file_url}
+                            className="w-full h-full object-cover"
+                          />
+                        )}
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                          <Film className="h-8 w-8 text-white" />
+                        </div>
+                      </div>
+                    )}
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => setSelectedAsset(asset)}
+                      >
+                        View & Comment
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDownload(asset)}
+                      >
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </Card>
                 );
               })}
@@ -312,6 +400,15 @@ export function PortalAssets() {
           )}
         </TabsContent>
       </Tabs>
+
+      {selectedAsset && (
+        <AssetDetailModal
+          asset={selectedAsset}
+          agencyId="" 
+          onClose={() => setSelectedAsset(null)}
+          onAssetUpdated={fetchAssets}
+        />
+      )}
     </div>
   );
 }

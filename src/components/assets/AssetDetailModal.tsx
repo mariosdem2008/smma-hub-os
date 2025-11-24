@@ -18,10 +18,24 @@ import {
   History,
   Loader2,
   Eye,
-  EyeOff
+  EyeOff,
+  Trash2,
+  MessageSquare,
+  ImagePlus
 } from "lucide-react";
 import { format } from "date-fns";
 import { AssetVersionHistory } from "./AssetVersionHistory";
+import { AssetComments } from "./AssetComments";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Asset {
   id: string;
@@ -34,6 +48,7 @@ interface Asset {
   visible_to_client: boolean | null;
   created_at: string;
   current_version: number;
+  thumbnail_url: string | null;
 }
 
 interface AssetDetailModalProps {
@@ -49,6 +64,8 @@ export function AssetDetailModal({ asset, agencyId, onClose, onAssetUpdated }: A
   const [uploading, setUploading] = useState(false);
   const [updatingVisibility, setUpdatingVisibility] = useState(false);
   const [currentAsset, setCurrentAsset] = useState(asset);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     // Subscribe to realtime updates for this asset
@@ -197,6 +214,93 @@ export function AssetDetailModal({ asset, agencyId, onClose, onAssetUpdated }: A
     }
   };
 
+  const handleUploadThumbnail = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!event.target.files || event.target.files.length === 0 || !canEditSettings) {
+      return;
+    }
+
+    const file = event.target.files[0];
+    const fileExt = file.name.split('.').pop();
+    const thumbnailPath = `${currentAsset.client_id}/thumbnails/${currentAsset.id}.${fileExt}`;
+
+    try {
+      const { error: uploadError } = await supabase.storage
+        .from('assets')
+        .upload(thumbnailPath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('assets')
+        .getPublicUrl(thumbnailPath);
+
+      const { error: updateError } = await supabase
+        .from('assets')
+        .update({ thumbnail_url: publicUrl })
+        .eq('id', currentAsset.id);
+
+      if (updateError) throw updateError;
+
+      setCurrentAsset({ ...currentAsset, thumbnail_url: publicUrl });
+      toast({
+        title: "Success",
+        description: "Thumbnail uploaded successfully",
+      });
+    } catch (error) {
+      console.error('Error uploading thumbnail:', error);
+      toast({
+        title: "Error",
+        description: "Failed to upload thumbnail",
+        variant: "destructive",
+      });
+    } finally {
+      event.target.value = '';
+    }
+  };
+
+  const handleDeleteAsset = async () => {
+    setDeleting(true);
+    try {
+      // Delete from storage
+      const urlParts = currentAsset.file_url.split('/');
+      const filePath = urlParts.slice(-2).join('/');
+      await supabase.storage.from('assets').remove([filePath]);
+
+      // Delete thumbnail if exists
+      if (currentAsset.thumbnail_url) {
+        const thumbParts = currentAsset.thumbnail_url.split('/');
+        const thumbPath = thumbParts.slice(-3).join('/');
+        await supabase.storage.from('assets').remove([thumbPath]);
+      }
+
+      // Delete from database (cascade will handle versions and comments)
+      const { error } = await supabase
+        .from('assets')
+        .delete()
+        .eq('id', currentAsset.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Asset deleted successfully",
+      });
+
+      onAssetUpdated();
+      onClose();
+    } catch (error) {
+      console.error('Error deleting asset:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete asset",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleting(false);
+      setShowDeleteDialog(false);
+    }
+  };
+
   const isImage = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'].includes(currentAsset.file_type);
   const isVideo = currentAsset.file_type.startsWith('video/');
   const isPdf = currentAsset.file_type === 'application/pdf';
@@ -219,12 +323,16 @@ export function AssetDetailModal({ asset, agencyId, onClose, onAssetUpdated }: A
         </DialogHeader>
 
         <Tabs defaultValue="preview" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="preview">Preview</TabsTrigger>
             <TabsTrigger value="info">Details</TabsTrigger>
             <TabsTrigger value="versions">
               <History className="h-4 w-4 mr-1" />
               Versions
+            </TabsTrigger>
+            <TabsTrigger value="comments">
+              <MessageSquare className="h-4 w-4 mr-1" />
+              Comments
             </TabsTrigger>
           </TabsList>
 
@@ -237,13 +345,35 @@ export function AssetDetailModal({ asset, agencyId, onClose, onAssetUpdated }: A
                   className="max-w-full max-h-[600px] object-contain rounded-lg shadow-lg"
                 />
               ) : isVideo ? (
-                <video
-                  src={currentAsset.file_url}
-                  controls
-                  className="max-w-full max-h-[600px] rounded-lg shadow-lg"
-                >
-                  Your browser does not support the video tag.
-                </video>
+                <div className="space-y-4">
+                  <video
+                    src={currentAsset.file_url}
+                    poster={currentAsset.thumbnail_url || undefined}
+                    controls
+                    className="max-w-full max-h-[600px] rounded-lg shadow-lg"
+                  >
+                    Your browser does not support the video tag.
+                  </video>
+                  {canEditSettings && (
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => document.getElementById('thumbnail-upload')?.click()}
+                      >
+                        <ImagePlus className="mr-2 h-4 w-4" />
+                        Upload Thumbnail
+                      </Button>
+                      <input
+                        id="thumbnail-upload"
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleUploadThumbnail}
+                      />
+                    </div>
+                  )}
+                </div>
               ) : isPdf ? (
                 <div className="text-center space-y-4">
                   <FileText className="h-24 w-24 mx-auto text-muted-foreground" />
@@ -292,6 +422,13 @@ export function AssetDetailModal({ asset, agencyId, onClose, onAssetUpdated }: A
                   className="hidden"
                   onChange={handleUploadNewVersion}
                 />
+                <Button
+                  variant="destructive"
+                  onClick={() => setShowDeleteDialog(true)}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete Asset
+                </Button>
               </div>
             )}
           </TabsContent>
@@ -364,8 +501,40 @@ export function AssetDetailModal({ asset, agencyId, onClose, onAssetUpdated }: A
               onVersionRestored={onAssetUpdated}
             />
           </TabsContent>
+
+          <TabsContent value="comments">
+            <AssetComments assetId={currentAsset.id} />
+          </TabsContent>
         </Tabs>
       </DialogContent>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Asset</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this asset? This action cannot be undone and will delete all versions and comments.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteAsset}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }

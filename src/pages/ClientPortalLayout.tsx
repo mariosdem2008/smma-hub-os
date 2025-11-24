@@ -37,7 +37,6 @@ const navItems = [
   { path: "branding", label: "Branding", icon: Palette },
   { path: "social", label: "Social Profiles", icon: Share2 },
   { path: "deliverables", label: "Deliverables", icon: FolderOpen },
-  { path: "comments", label: "Comments", icon: Share2 },
   { path: "uploads", label: "My Uploads", icon: Share2 },
 ];
 
