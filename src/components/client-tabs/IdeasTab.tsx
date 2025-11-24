@@ -283,18 +283,10 @@ export default function IdeasTab({ clientId }: IdeasTabProps) {
       // Remove from history
       setStatusHistory((prev) => prev.slice(1));
     } else {
-      const statusMessages: Record<IdeaStatus, string> = {
-        draft: "saved as draft",
-        idea: "moved to ideas",
-        in_review: "submitted for review",
-        approved: "approved",
-        rejected: "rejected",
-        used: "marked as used",
-      };
-      
+      // Success - offer undo option
       toast({
-        title: "Success",
-        description: `Idea ${statusMessages[newStatus]}`,
+        title: "Status Updated",
+        description: "Changes saved successfully",
         action: (
           <Button
             size="sm"
@@ -372,10 +364,50 @@ export default function IdeasTab({ clientId }: IdeasTabProps) {
   const handleDragEnd = async (result: DropResult) => {
     const { destination, source, draggableId } = result;
 
+    // No destination or same column - do nothing
     if (!destination) return;
-    if (destination.droppableId === source.droppableId) return;
+    if (destination.droppableId === source.droppableId && destination.index === source.index) return;
 
     const newStatus = destination.droppableId as IdeaStatus;
+    const idea = ideas.find((i) => i.id === draggableId);
+    
+    if (!idea) return;
+
+    // Show appropriate message based on target status
+    const statusMessages: Record<IdeaStatus, { title: string; description: string }> = {
+      draft: { 
+        title: "Saved as Draft", 
+        description: "Idea moved back to drafts. You can edit it anytime." 
+      },
+      idea: { 
+        title: "Moved to Ideas", 
+        description: "Idea is now in the ideas pool. Ready for review or approval." 
+      },
+      in_review: { 
+        title: "Submitted for Review", 
+        description: "Idea submitted for client review. Waiting for client feedback." 
+      },
+      approved: { 
+        title: "Approved", 
+        description: "Great! This idea has been approved and ready to be used." 
+      },
+      rejected: { 
+        title: "Rejected", 
+        description: "Idea moved to rejected. You can revise and resubmit it later." 
+      },
+      used: { 
+        title: "Marked as Used", 
+        description: "Idea marked as used in content. Great work!" 
+      },
+    };
+
+    // Show immediate feedback
+    const message = statusMessages[newStatus];
+    toast({
+      title: message.title,
+      description: message.description,
+    });
+
     await updateIdeaStatus(draggableId, newStatus);
   };
 
@@ -598,8 +630,8 @@ export default function IdeasTab({ clientId }: IdeasTabProps) {
         </Card>
       )}
       
-      <DragDropContext onDragEnd={canEditContent && !isViewer ? handleDragEnd : () => {}}>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+      <DragDropContext onDragEnd={!isViewer && canEditContent ? handleDragEnd : () => {}}>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-4">
           {STATUS_COLUMNS.map((column) => {
             const columnIdeas = getIdeasByStatus(column.id);
             return (
@@ -618,10 +650,10 @@ export default function IdeasTab({ clientId }: IdeasTabProps) {
                       <div
                         ref={provided.innerRef}
                         {...provided.droppableProps}
-                        className={`space-y-3 min-h-[300px] rounded-lg p-2 transition-colors ${
+                        className={`space-y-3 min-h-[300px] rounded-lg p-2 transition-all duration-200 ${
                           snapshot.isDraggingOver
-                            ? "bg-muted/50 border-2 border-dashed border-primary"
-                            : ""
+                            ? "bg-primary/10 border-2 border-dashed border-primary ring-2 ring-primary/20"
+                            : "border border-transparent"
                         }`}
                       >
                         {columnIdeas.map((idea, index) => (
