@@ -69,21 +69,10 @@ function ClientPortalLayoutContent() {
   const fetchClient = async () => {
     if (!clientId) return;
 
+    // Use secure view that excludes sensitive contact information
     const { data } = await supabase
-      .from("clients")
-      .select(`
-        id, 
-        name, 
-        logo_url, 
-        primary_font, 
-        secondary_font, 
-        brand_colors, 
-        website, 
-        notes,
-        niche,
-        tone_of_voice,
-        agency_id
-      `)
+      .from("client_portal_view")
+      .select("*")
       .eq("id", clientId)
       .maybeSingle();
 
