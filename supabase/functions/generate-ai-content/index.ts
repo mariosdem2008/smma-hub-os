@@ -51,7 +51,7 @@ serve(async (req) => {
     console.log('[AI-CONTENT] Step 3: User authenticated:', user.id);
 
     console.log('[AI-CONTENT] Step 4: Parsing request body...');
-    const { type, platform, tone, keywords, niche, contentPillars, trends } = await req.json();
+    const { type, platform, tone, keywords, niche, contentPillars, trends, brandVoice } = await req.json();
 
     if (!type || !['caption', 'idea'].includes(type)) {
       console.error('[AI-CONTENT] Invalid type:', type);
@@ -133,7 +133,11 @@ serve(async (req) => {
     let userPrompt = '';
 
     if (type === 'caption') {
-      systemPrompt = `You are an expert social media content creator. Generate engaging, platform-specific captions with hashtags.`;
+      const brandVoiceContext = brandVoice 
+        ? `\n\nIMPORTANT: Apply this brand voice:\n- Tone: ${brandVoice.tone.join(', ')}\n- Key vocabulary: ${brandVoice.vocabulary.slice(0, 10).join(', ')}\n- Writing rules: ${brandVoice.rules.do.slice(0, 3).join('; ')}`
+        : '';
+      
+      systemPrompt = `You are an expert social media content creator. Generate engaging, platform-specific captions with hashtags.${brandVoiceContext}`;
       userPrompt = `Generate 3 caption variations for ${platform} with a ${tone} tone. Keywords: ${keywords}. 
       
 For each caption, provide:

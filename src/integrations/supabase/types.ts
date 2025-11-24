@@ -284,6 +284,57 @@ export type Database = {
           },
         ]
       }
+      client_brand_voice: {
+        Row: {
+          agency_id: string
+          client_id: string
+          created_at: string
+          examples: Json
+          id: string
+          rules: Json
+          tone: Json
+          updated_at: string
+          vocabulary: Json
+        }
+        Insert: {
+          agency_id: string
+          client_id: string
+          created_at?: string
+          examples?: Json
+          id?: string
+          rules?: Json
+          tone?: Json
+          updated_at?: string
+          vocabulary?: Json
+        }
+        Update: {
+          agency_id?: string
+          client_id?: string
+          created_at?: string
+          examples?: Json
+          id?: string
+          rules?: Json
+          tone?: Json
+          updated_at?: string
+          vocabulary?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_brand_voice_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_brand_voice_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: true
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_branding: {
         Row: {
           accent_color: string | null

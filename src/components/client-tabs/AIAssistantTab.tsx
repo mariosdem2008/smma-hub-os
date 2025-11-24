@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +36,36 @@ export default function AIAssistantTab({ clientId }: AIAssistantTabProps) {
 
   // Usage state
   const [usage, setUsage] = useState<{ used: number; quota: number; remaining: number } | null>(null);
+  const [brandVoice, setBrandVoice] = useState<any>(null);
+
+  useEffect(() => {
+    loadBrandVoice();
+  }, [clientId]);
+
+  const loadBrandVoice = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('client_brand_voice')
+        .select('*')
+        .eq('client_id', clientId)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error loading brand voice:', error);
+        return;
+      }
+
+      if (data) {
+        setBrandVoice({
+          tone: data.tone,
+          vocabulary: data.vocabulary,
+          rules: data.rules,
+        });
+      }
+    } catch (error) {
+      console.error('Error loading brand voice:', error);
+    }
+  };
 
   const handleGenerateCaptions = async () => {
     if (!captionPlatform || !captionTone || !captionKeywords.trim()) {
@@ -67,6 +97,7 @@ export default function AIAssistantTab({ clientId }: AIAssistantTabProps) {
           platform: captionPlatform,
           tone: captionTone,
           keywords: captionKeywords,
+          brandVoice: brandVoice || undefined,
         },
       });
 
@@ -226,6 +257,23 @@ export default function AIAssistantTab({ clientId }: AIAssistantTabProps) {
 
   return (
     <div className="space-y-6">
+      {/* Brand Voice Status */}
+      {brandVoice && (
+        <Card className="bg-primary/5 border-primary/20">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-primary" />
+                <span className="font-medium">Brand Voice Active</span>
+              </div>
+              <Badge variant="secondary" className="text-sm">
+                {brandVoice.tone.slice(0, 3).join(', ')}
+              </Badge>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Usage Badge */}
       {usage && (
         <Card className="bg-primary/5 border-primary/20">
