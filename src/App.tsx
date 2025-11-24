@@ -27,7 +27,7 @@ import TeamAuditDebug from "./pages/TeamAuditDebug";
 import NotFound from "./pages/NotFound";
 import { ClientPortalLayout } from "./pages/ClientPortalLayout";
 import { ClientPortalLogin } from "./pages/ClientPortalLogin";
-import { ClientPortalInviteAccept } from "./pages/ClientPortalInviteAccept";
+
 import { PortalOverview } from "./pages/client-portal/PortalOverview";
 import { PortalBranding } from "./pages/client-portal/PortalBranding";
 import { PortalSocial } from "./pages/client-portal/PortalSocial";
@@ -59,7 +59,7 @@ const App = () => (
             
             {/* Client Portal Routes */}
             <Route path="/client-portal/:portalSlug/login" element={<ClientPortalLogin />} />
-            <Route path="/client-portal/:portalSlug/accept" element={<ClientPortalInviteAccept />} />
+            
             <Route path="/client-portal/:portalSlug" element={<ClientPortalLayout />}>
               <Route index element={<PortalOverview />} />
               <Route path="content-calendar" element={<PortalContentCalendar />} />

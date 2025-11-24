@@ -75,12 +75,7 @@ export function PortalInviteDialog({
         return;
       }
 
-      // Generate secure token
-      const { data: tokenData } = await supabase.rpc("generate_portal_invite_token");
-      
-      if (!tokenData) throw new Error("Failed to generate invitation token");
-
-      // Get agency info
+      // Get agency info for email branding
       const { data: membership } = await supabase
         .from("agency_members")
         .select("agency_id, agencies(name)")
@@ -101,13 +96,12 @@ export function PortalInviteDialog({
 
       const inviterName = profile?.full_name || user.email || "Your Agency";
 
-      // Create or update invitation
+      // Create or update invitation (just store email, no token needed)
       if (existing) {
         // Update existing pending invitation
         await supabase
           .from("client_portal_users")
           .update({
-            invite_token: tokenData,
             invited_by: user.id,
             invited_at: new Date().toISOString(),
             expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
@@ -120,14 +114,15 @@ export function PortalInviteDialog({
           .insert({
             client_id: clientId,
             email: normalizedEmail,
-            invite_token: tokenData,
             invited_by: user.id,
+            invited_at: new Date().toISOString(),
+            expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
             role: "client_viewer",
           });
       }
 
-      // Send invitation email
-      const portalUrl = `${window.location.origin}/client-portal/${portalSlug}/accept?token=${tokenData}`;
+      // Send invitation email with portal login link
+      const portalUrl = `${window.location.origin}/client-portal/${portalSlug}`;
       
       const emailResult = await sendPortalInviteEmail({
         email: normalizedEmail,

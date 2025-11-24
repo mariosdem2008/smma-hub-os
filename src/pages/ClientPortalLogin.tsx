@@ -102,7 +102,7 @@ export function ClientPortalLogin() {
       // Check if user has a valid invitation for THIS portal
       const { data: invitation } = await supabase
         .from("client_portal_users")
-        .select("id, user_id, invite_token, accepted_at")
+        .select("id, user_id, accepted_at")
         .eq("client_id", client.id)
         .eq("email", normalizedEmail)
         .maybeSingle();
@@ -174,7 +174,7 @@ export function ClientPortalLogin() {
 
       const { data: invitation } = await supabase
         .from("client_portal_users")
-        .select("id, invite_token, expires_at, accepted_at")
+        .select("id, expires_at, accepted_at")
         .eq("client_id", client.id)
         .eq("email", normalizedEmail)
         .maybeSingle();
