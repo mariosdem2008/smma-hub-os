@@ -39,7 +39,8 @@ interface PortalUser {
   created_at: string;
   accepted_at: string | null;
   expires_at: string | null;
-  invite_token: string | null;
+  invited_at: string | null;
+  invited_by: string | null;
 }
 
 export function ClientPortalTab({ clientId }: ClientPortalTabProps) {
