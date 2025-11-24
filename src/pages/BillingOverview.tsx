@@ -8,15 +8,23 @@ import { usePlanLimits } from '@/hooks/usePlanLimits';
 import { PLAN_NAMES, formatStorageSize } from '@/lib/plan-limits';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, CreditCard, Users, FolderOpen, Building2, Lock, AlertTriangle } from 'lucide-react';
+import { Loader2, CreditCard, Users, FolderOpen, Building2, Lock, AlertTriangle, Sparkles } from 'lucide-react';
 import { format } from 'date-fns';
 import { BillingReadOnlyBanner } from '@/components/billing/BillingReadOnlyBanner';
 
 export default function BillingOverview() {
   const { subscription, loading } = useSubscription();
   const { limits } = usePlanLimits();
-  const [usage, setUsage] = useState({ clients: 0, teamMembers: 0 });
+  const [usage, setUsage] = useState({ clients: 0, teamMembers: 0, aiGenerations: 0 });
   const [loadingUsage, setLoadingUsage] = useState(true);
+
+  // AI generation quotas by plan
+  const AI_QUOTAS: Record<string, number> = {
+    free: 20,
+    starter: 200,
+    pro: 500,
+    agency_plus: 1500,
+  };
 
   useEffect(() => {
     const fetchUsage = async () => {
@@ -41,9 +49,14 @@ export default function BillingOverview() {
           .select('*', { count: 'exact', head: true })
           .eq('agency_id', membership.agency_id);
 
+        // Get AI generation usage
+        const { data: aiUsage } = await supabase
+          .rpc('get_monthly_ai_usage', { p_agency_id: membership.agency_id });
+
         setUsage({
           clients: clientCount || 0,
           teamMembers: memberCount || 0,
+          aiGenerations: aiUsage || 0,
         });
       } catch (error) {
         console.error('Error fetching usage:', error);
@@ -87,6 +100,9 @@ export default function BillingOverview() {
   const memberPercent = limits?.teamMembers
     ? Math.round((usage.teamMembers / limits.teamMembers) * 100)
     : 0;
+
+  const aiQuota = AI_QUOTAS[subscription.plan_type] || AI_QUOTAS.free;
+  const aiPercent = Math.round((usage.aiGenerations / aiQuota) * 100);
 
   const lockedFeatures = [
     { name: 'White-label', locked: !limits?.features.whiteLabel },
@@ -215,6 +231,29 @@ export default function BillingOverview() {
                 Storage nearly full
               </p>
             )}
+          </div>
+
+          {/* AI Generations */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-muted-foreground" />
+                <span className="font-medium">AI Generations (This Month)</span>
+              </div>
+              <span className="text-sm text-muted-foreground">
+                {loadingUsage ? '...' : usage.aiGenerations} / {aiQuota}
+              </span>
+            </div>
+            <Progress value={aiPercent} className="h-2" />
+            {aiPercent >= 80 && (
+              <p className="text-xs text-amber-500 mt-1 flex items-center gap-1">
+                <AlertTriangle className="h-3 w-3" />
+                Nearing AI generation limit
+              </p>
+            )}
+            <p className="text-xs text-muted-foreground mt-2">
+              Resets on the 1st of each month
+            </p>
           </div>
         </CardContent>
       </Card>
