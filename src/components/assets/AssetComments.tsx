@@ -43,24 +43,37 @@ export function AssetComments({ assetId }: AssetCommentsProps) {
     try {
       const { data, error } = await supabase
         .from('asset_comments')
-        .select(`
-          id,
-          asset_id,
-          user_id,
-          comment,
-          created_at,
-          user_profile:user_id (
-            full_name,
-            email
-          )
-        `)
+        .select('*')
         .eq('asset_id', assetId)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      setComments(data as any || []);
+
+      // Fetch user profiles separately
+      if (data && data.length > 0) {
+        const userIds = [...new Set(data.map(c => c.user_id))];
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name, email')
+          .in('id', userIds);
+
+        const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+        
+        const commentsWithProfiles = data.map(comment => ({
+          ...comment,
+          user_profile: profileMap.get(comment.user_id) || { 
+            full_name: null, 
+            email: 'Unknown User' 
+          }
+        }));
+
+        setComments(commentsWithProfiles as any);
+      } else {
+        setComments([]);
+      }
     } catch (error) {
       console.error('Error fetching comments:', error);
+      setComments([]);
     } finally {
       setLoading(false);
     }
@@ -93,26 +106,35 @@ export function AssetComments({ assetId }: AssetCommentsProps) {
 
     setSubmitting(true);
     try {
-      const { error } = await supabase
+      console.log('Submitting comment for asset:', assetId);
+      const { data, error } = await supabase
         .from('asset_comments')
         .insert({
           asset_id: assetId,
           user_id: user.id,
           comment: newComment.trim(),
-        });
+        })
+        .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Comment submission error:', error);
+        throw error;
+      }
 
+      console.log('Comment posted successfully:', data);
       setNewComment("");
       toast({
         title: "Success",
         description: "Comment posted successfully",
       });
-    } catch (error) {
+      
+      // Manually refresh comments to ensure we see the new one
+      await fetchComments();
+    } catch (error: any) {
       console.error('Error posting comment:', error);
       toast({
         title: "Error",
-        description: "Failed to post comment",
+        description: error.message || "Failed to post comment",
         variant: "destructive",
       });
     } finally {
