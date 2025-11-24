@@ -9,16 +9,12 @@ interface ContentPlanningTabProps {
 
 export default function ContentPlanningTab({ clientId }: ContentPlanningTabProps) {
   return (
-    <Tabs defaultValue="calendar" className="w-full">
+    <Tabs defaultValue="ideas" className="w-full">
       <TabsList>
-        <TabsTrigger value="calendar">Content Calendar</TabsTrigger>
         <TabsTrigger value="ideas">Ideas</TabsTrigger>
         <TabsTrigger value="pillars">Content Pillars</TabsTrigger>
+        <TabsTrigger value="calendar">Content Calendar</TabsTrigger>
       </TabsList>
-
-      <TabsContent value="calendar" className="mt-4">
-        <ContentCalendarTab clientId={clientId} />
-      </TabsContent>
 
       <TabsContent value="ideas" className="mt-4">
         <IdeasTab clientId={clientId} />
@@ -26,6 +22,10 @@ export default function ContentPlanningTab({ clientId }: ContentPlanningTabProps
 
       <TabsContent value="pillars" className="mt-4">
         <ContentPillarsTab clientId={clientId} />
+      </TabsContent>
+
+      <TabsContent value="calendar" className="mt-4">
+        <ContentCalendarTab clientId={clientId} />
       </TabsContent>
     </Tabs>
   );
