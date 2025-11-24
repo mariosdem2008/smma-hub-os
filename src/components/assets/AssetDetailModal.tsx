@@ -261,26 +261,56 @@ export function AssetDetailModal({ asset, agencyId, onClose, onAssetUpdated }: A
   const handleDeleteAsset = async () => {
     setDeleting(true);
     try {
-      // Delete from storage
-      const urlParts = currentAsset.file_url.split('/');
-      const filePath = urlParts.slice(-2).join('/');
-      await supabase.storage.from('assets').remove([filePath]);
+      console.log('Starting asset deletion for:', currentAsset.id);
+      
+      // Extract file path from URL
+      // URL format: https://[project].supabase.co/storage/v1/object/public/assets/[client_id]/[filename]
+      const url = new URL(currentAsset.file_url);
+      const pathParts = url.pathname.split('/');
+      const bucketIndex = pathParts.indexOf('assets');
+      if (bucketIndex !== -1 && bucketIndex < pathParts.length - 1) {
+        const filePath = pathParts.slice(bucketIndex + 1).join('/');
+        console.log('Deleting file from storage:', filePath);
+        const { error: storageError } = await supabase.storage
+          .from('assets')
+          .remove([filePath]);
+        
+        if (storageError) {
+          console.error('Storage deletion error:', storageError);
+        }
+      }
 
       // Delete thumbnail if exists
       if (currentAsset.thumbnail_url) {
-        const thumbParts = currentAsset.thumbnail_url.split('/');
-        const thumbPath = thumbParts.slice(-3).join('/');
-        await supabase.storage.from('assets').remove([thumbPath]);
+        const thumbUrl = new URL(currentAsset.thumbnail_url);
+        const thumbPathParts = thumbUrl.pathname.split('/');
+        const thumbBucketIndex = thumbPathParts.indexOf('assets');
+        if (thumbBucketIndex !== -1 && thumbBucketIndex < thumbPathParts.length - 1) {
+          const thumbPath = thumbPathParts.slice(thumbBucketIndex + 1).join('/');
+          console.log('Deleting thumbnail from storage:', thumbPath);
+          const { error: thumbError } = await supabase.storage
+            .from('assets')
+            .remove([thumbPath]);
+          
+          if (thumbError) {
+            console.error('Thumbnail deletion error:', thumbError);
+          }
+        }
       }
 
       // Delete from database (cascade will handle versions and comments)
+      console.log('Deleting asset from database');
       const { error } = await supabase
         .from('assets')
         .delete()
         .eq('id', currentAsset.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database deletion error:', error);
+        throw error;
+      }
 
+      console.log('Asset deleted successfully');
       toast({
         title: "Success",
         description: "Asset deleted successfully",
@@ -288,11 +318,11 @@ export function AssetDetailModal({ asset, agencyId, onClose, onAssetUpdated }: A
 
       onAssetUpdated();
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting asset:', error);
       toast({
         title: "Error",
-        description: "Failed to delete asset",
+        description: error.message || "Failed to delete asset",
         variant: "destructive",
       });
     } finally {
