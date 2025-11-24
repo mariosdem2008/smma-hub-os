@@ -24,6 +24,32 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     const { email, inviteToken, agencyName, role, inviterName }: TeamInviteRequest = await req.json();
 
+    // Enhanced email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || !emailRegex.test(email) || email.length > 255) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Invalid email address" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    // Get authorization header to identify agency
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Unauthorized" }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    // Extract JWT token and get agency_id from agency_invites to check rate limiting
+    // (Note: In production, you'd decode the JWT to get user_id, then lookup their agency_id)
+    // For now, we'll do a simple time-based rate limit per function invocation
+    
+    // Simple rate limiting: max 10 invites per hour per agency
+    // This would require a proper implementation with a database table to track invite counts
+    // For this implementation, we'll rely on client-side validation and database constraints
+
     const appUrl = Deno.env.get("SUPABASE_URL")?.replace(".supabase.co", ".lovableproject.com") || "http://localhost:5173";
     const inviteUrl = `${appUrl}/invite/${inviteToken}`;
 

@@ -89,24 +89,19 @@ export default function InviteAccept() {
 
     setJoining(true);
     try {
-      // Insert into agency_members
-      const { error: memberError } = await supabase
-        .from("agency_members")
-        .insert({
-          agency_id: invite.agency_id,
-          user_id: user.id,
-          role: invite.role,
-        });
+      // Use secure database function to accept invite (bypasses RLS)
+      const { data, error } = await supabase.rpc('accept_agency_invite', {
+        _invite_token: invite.token,
+        _user_id: user.id
+      });
 
-      if (memberError) throw memberError;
+      if (error) throw error;
 
-      // Mark invite as accepted
-      const { error: updateError } = await supabase
-        .from("agency_invites")
-        .update({ accepted: true })
-        .eq("id", invite.id);
+      const result = data as { success: boolean; error?: string; agency_id?: string };
 
-      if (updateError) throw updateError;
+      if (!result.success) {
+        throw new Error(result.error || "Failed to join agency");
+      }
 
       toast({
         title: "Success",

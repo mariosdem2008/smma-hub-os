@@ -104,6 +104,51 @@ export function InviteTeamMemberDialog({ open, onOpenChange }: InviteTeamMemberD
         throw new Error("Agency not found");
       }
 
+      // Check if user is already a member by looking up email in profiles
+      const { data: existingProfile } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("email", inviteEmail)
+        .maybeSingle();
+
+      if (existingProfile) {
+        const { data: existingMember } = await supabase
+          .from("agency_members")
+          .select("id")
+          .eq("agency_id", agency.id)
+          .eq("user_id", existingProfile.id)
+          .maybeSingle();
+
+        if (existingMember) {
+          toast({
+            title: "Already a Member",
+            description: "This user is already part of your agency",
+            variant: "destructive",
+          });
+          setSubmitting(false);
+          return;
+        }
+      }
+
+      // Check for pending invites (unique constraint will also prevent this)
+      const { data: pendingInvite } = await supabase
+        .from("agency_invites")
+        .select("id")
+        .eq("agency_id", agency.id)
+        .eq("email", inviteEmail)
+        .eq("accepted", false)
+        .maybeSingle();
+
+      if (pendingInvite) {
+        toast({
+          title: "Invite Already Sent",
+          description: "This email already has a pending invitation",
+          variant: "destructive",
+        });
+        setSubmitting(false);
+        return;
+      }
+
       const { data: invite, error } = await supabase
         .from("agency_invites")
         .insert({
