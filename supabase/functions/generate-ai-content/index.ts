@@ -21,65 +21,64 @@ serve(async (req) => {
   }
 
   try {
-    // Check for Authorization header
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: 'Missing authorization header' }), 
-        {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
-    }
-
+    console.log('[AI-CONTENT] Step 1: Function invoked');
+    
+    // Supabase automatically validates JWT and provides auth context
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       {
         global: {
-          headers: { Authorization: authHeader },
+          headers: { Authorization: req.headers.get('Authorization')! },
         },
       }
     );
 
-    // Get current user
+    console.log('[AI-CONTENT] Step 2: Authenticating user...');
     const {
       data: { user },
       error: userError,
     } = await supabaseClient.auth.getUser();
 
     if (userError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      console.error('[AI-CONTENT] Auth failed:', userError);
+      return new Response(JSON.stringify({ error: 'Authentication failed' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
+    console.log('[AI-CONTENT] Step 3: User authenticated:', user.id);
+
+    console.log('[AI-CONTENT] Step 4: Parsing request body...');
     const { type, platform, tone, keywords, niche, contentPillars, trends } = await req.json();
 
     if (!type || !['caption', 'idea'].includes(type)) {
-      return new Response(JSON.stringify({ error: 'Invalid generation type' }), {
+      console.error('[AI-CONTENT] Invalid type:', type);
+      return new Response(JSON.stringify({ error: 'Invalid generation type. Must be "caption" or "idea"' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Get user's agency
-    const { data: agencyMember } = await supabaseClient
+    console.log('[AI-CONTENT] Step 5: Looking up agency...');
+    const { data: agencyMember, error: agencyError } = await supabaseClient
       .from('agency_members')
       .select('agency_id')
       .eq('user_id', user.id)
       .single();
 
-    if (!agencyMember) {
-      return new Response(JSON.stringify({ error: 'No agency found' }), {
+    if (agencyError || !agencyMember) {
+      console.error('[AI-CONTENT] Agency lookup failed:', agencyError);
+      return new Response(JSON.stringify({ error: 'No agency found for this user' }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Get agency subscription plan
+    console.log('[AI-CONTENT] Step 6: Agency found:', agencyMember.agency_id);
+
+    console.log('[AI-CONTENT] Step 7: Checking subscription and quota...');
     const { data: agency } = await supabaseClient
       .from('agencies')
       .select('user_id')
@@ -94,15 +93,19 @@ serve(async (req) => {
 
     const planType = subscription?.plan_type || 'free';
     const monthlyQuota = PLAN_QUOTAS[planType] || PLAN_QUOTAS.free;
+    console.log('[AI-CONTENT] Plan type:', planType, 'Quota:', monthlyQuota);
 
     // Check current month's usage
     const { data: usageCount } = await supabaseClient
       .rpc('get_monthly_ai_usage', { p_agency_id: agencyMember.agency_id });
 
+    console.log('[AI-CONTENT] Current usage:', usageCount, '/', monthlyQuota);
+
     if (usageCount && usageCount >= monthlyQuota) {
+      console.warn('[AI-CONTENT] Quota exceeded');
       return new Response(
         JSON.stringify({ 
-          error: 'Monthly quota exceeded', 
+          error: `Monthly quota exceeded. You've used ${usageCount} of ${monthlyQuota} generations.`, 
           quota: monthlyQuota,
           used: usageCount 
         }),
@@ -113,10 +116,17 @@ serve(async (req) => {
       );
     }
 
-    // Generate content using OpenAI
+    console.log('[AI-CONTENT] Step 8: Preparing OpenAI request...');
     const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
     if (!OPENAI_API_KEY) {
-      throw new Error('OPENAI_API_KEY not configured');
+      console.error('[AI-CONTENT] OpenAI API key not configured');
+      return new Response(
+        JSON.stringify({ error: 'AI service not configured. Please contact support.' }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     let systemPrompt = '';
@@ -143,6 +153,7 @@ For each idea, provide:
 Return as JSON array: [{"title": "...", "description": "...", "tags": ["tag1", "tag2", ...]}]`;
     }
 
+    console.log('[AI-CONTENT] Step 9: Calling OpenAI API...');
     const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -161,24 +172,28 @@ Return as JSON array: [{"title": "...", "description": "...", "tags": ["tag1", "
 
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
-      console.error('OpenAI API error:', aiResponse.status, errorText);
+      console.error('[AI-CONTENT] OpenAI API error:', aiResponse.status, errorText);
       
       if (aiResponse.status === 429) {
         return new Response(
-          JSON.stringify({ error: 'AI service rate limit exceeded. Please try again in a moment.' }),
+          JSON.stringify({ error: 'AI service is currently rate limited. Please try again in a few moments.' }),
           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
       if (aiResponse.status === 401) {
         return new Response(
-          JSON.stringify({ error: 'Invalid OpenAI API key. Please check your configuration.' }),
+          JSON.stringify({ error: 'AI service authentication failed. Please contact support.' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
       
-      throw new Error('AI generation failed');
+      return new Response(
+        JSON.stringify({ error: 'AI generation failed. Please try again.' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
+    console.log('[AI-CONTENT] Step 10: Parsing AI response...');
     const aiData = await aiResponse.json();
     const content = aiData.choices[0].message.content;
 
@@ -189,20 +204,33 @@ Return as JSON array: [{"title": "...", "description": "...", "tags": ["tag1", "
       const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || content.match(/```\n([\s\S]*?)\n```/);
       const jsonStr = jsonMatch ? jsonMatch[1] : content;
       parsedContent = JSON.parse(jsonStr);
+      console.log('[AI-CONTENT] Step 11: Content parsed successfully');
     } catch (e) {
-      console.error('Failed to parse AI response:', content);
-      throw new Error('Failed to parse AI response');
+      console.error('[AI-CONTENT] Failed to parse AI response:', content);
+      return new Response(
+        JSON.stringify({ error: 'Failed to parse AI response. Please try again.' }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     // Track usage
+    console.log('[AI-CONTENT] Step 12: Recording usage...');
     const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
-    await supabaseClient.from('ai_generation_usage').insert({
+    const { error: usageError } = await supabaseClient.from('ai_generation_usage').insert({
       user_id: user.id,
       agency_id: agencyMember.agency_id,
       generation_type: type,
       month_year: currentMonth,
     });
 
+    if (usageError) {
+      console.error('[AI-CONTENT] Failed to record usage:', usageError);
+    }
+
+    console.log('[AI-CONTENT] Step 13: Success! Returning content');
     return new Response(
       JSON.stringify({
         content: parsedContent,
@@ -217,9 +245,9 @@ Return as JSON array: [{"title": "...", "description": "...", "tags": ["tag1", "
       }
     );
   } catch (error) {
-    console.error('Error in generate-ai-content:', error);
+    console.error('[AI-CONTENT] Unexpected error:', error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Internal server error' }),
+      JSON.stringify({ error: error instanceof Error ? error.message : 'An unexpected error occurred. Please try again.' }),
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
