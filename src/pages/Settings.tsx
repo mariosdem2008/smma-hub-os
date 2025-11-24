@@ -1,13 +1,17 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/auth";
 import { useRole } from "@/hooks/useRole";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Loader2, Users } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { WhiteLabelSettings } from "@/components/settings/WhiteLabelSettings";
 
 export default function Settings() {
   const { user } = useAuth();
@@ -89,93 +93,104 @@ export default function Settings() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Settings</h1>
-        <p className="text-muted-foreground">Manage your account and preferences</p>
+        <p className="text-muted-foreground">Manage your account and agency settings</p>
       </div>
 
-      <div className="grid gap-6">
-        {/* Profile Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Profile</CardTitle>
-            <CardDescription>Your account information</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={user?.email || ""}
-                disabled
-                className="bg-muted"
-              />
-              <p className="text-xs text-muted-foreground">
-                Email cannot be changed
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
-              <Input
-                id="name"
-                type="text"
-                value={user?.user_metadata?.full_name || ""}
-                disabled
-                className="bg-muted"
-              />
-            </div>
-            {isAdmin && (
-              <div className="pt-2">
-                <Badge variant="default" className="bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF]">
-                  Admin
-                </Badge>
-                <p className="text-xs text-muted-foreground mt-2">
-                  You have admin privileges in this agency (Agency Plus feature)
+      <Tabs defaultValue="general" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="general">General</TabsTrigger>
+          <TabsTrigger value="white-label">White Label</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="general" className="space-y-6">
+          {/* Profile Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Profile</CardTitle>
+              <CardDescription>Your account information</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={user?.email || ""}
+                  disabled
+                  className="bg-muted"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Email cannot be changed
                 </p>
               </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Agency Settings */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Agency Settings</CardTitle>
-                <CardDescription>Configure your agency details</CardDescription>
+              <div className="space-y-2">
+                <Label htmlFor="name">Full Name</Label>
+                <Input
+                  id="name"
+                  type="text"
+                  value={user?.user_metadata?.full_name || ""}
+                  disabled
+                  className="bg-muted"
+                />
               </div>
-              {canManageTeam && (
-                <Button variant="outline" onClick={() => window.location.href = "/team"}>
-                  Manage Team
+              {isAdmin && (
+                <div className="pt-2">
+                  <Badge variant="default" className="bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF]">
+                    Admin
+                  </Badge>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    You have admin privileges in this agency (Agency Plus feature)
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Agency Settings */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Agency Settings</CardTitle>
+                  <CardDescription>Configure your agency details</CardDescription>
+                </div>
+                {canManageTeam && (
+                  <Button variant="outline" onClick={() => window.location.href = "/team"}>
+                    Manage Team
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="agency-name">
+                  Agency Name <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="agency-name"
+                  type="text"
+                  value={agencyName}
+                  onChange={(e) => setAgencyName(e.target.value)}
+                  placeholder="Your Agency Name"
+                  disabled={!canEditSettings}
+                />
+              </div>
+              {canEditSettings && (
+                <Button onClick={handleUpdateAgency} disabled={saving}>
+                  {saving ? "Updating..." : "Update Agency"}
                 </Button>
               )}
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="agency-name">
-                Agency Name <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="agency-name"
-                type="text"
-                value={agencyName}
-                onChange={(e) => setAgencyName(e.target.value)}
-                placeholder="Your Agency Name"
-                disabled={!canEditSettings}
-              />
-            </div>
-            {canEditSettings && (
-              <Button onClick={handleUpdateAgency} disabled={saving}>
-                {saving ? "Updating..." : "Update Agency"}
-              </Button>
-            )}
-            {!canEditSettings && (
-              <p className="text-sm text-muted-foreground">Only owners and admins can edit agency settings</p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+              {!canEditSettings && (
+                <p className="text-sm text-muted-foreground">Only owners and admins can edit agency settings</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="white-label">
+          <WhiteLabelSettings />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

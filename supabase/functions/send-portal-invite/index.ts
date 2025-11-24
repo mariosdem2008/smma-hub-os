@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@4.0.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -13,6 +14,7 @@ interface PortalInviteRequest {
   clientName: string;
   portalUrl: string;
   agencyName: string;
+  agencyId: string;
   inviterName: string;
   temporaryPassword?: string;
 }
@@ -27,10 +29,27 @@ const handler = async (req: Request): Promise<Response> => {
       email, 
       clientName, 
       portalUrl, 
-      agencyName, 
+      agencyName,
+      agencyId,
       inviterName,
       temporaryPassword 
     }: PortalInviteRequest = await req.json();
+
+    // Fetch agency branding
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false } }
+    );
+
+    const { data: branding } = await supabaseClient
+      .from('agency_branding')
+      .select('logo_url, email_sender_name, primary_color')
+      .eq('agency_id', agencyId)
+      .maybeSingle();
+
+    const senderName = branding?.email_sender_name || 'SMMAHUB';
+    const brandColor = branding?.primary_color || '#4E5DFF';
 
     const passwordSection = temporaryPassword 
       ? `
@@ -50,12 +69,12 @@ const handler = async (req: Request): Promise<Response> => {
       : '';
 
     const emailResponse = await resend.emails.send({
-      from: "SMMAHUB <invites@smmahub.net>",
+      from: `${senderName} <invites@smmahub.net>`,
       to: [email],
       subject: `Access Your Client Portal - ${clientName}`,
       html: `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background: linear-gradient(135deg, #4E5DFF 0%, #6A73FF 100%); padding: 40px 20px; border-radius: 12px 12px 0 0; text-align: center;">
+          <div style="background: ${brandColor}; padding: 40px 20px; border-radius: 12px 12px 0 0; text-align: center;">
             <h1 style="color: white; margin: 0; font-size: 28px;">Welcome to Your Client Portal</h1>
           </div>
           
@@ -65,7 +84,7 @@ const handler = async (req: Request): Promise<Response> => {
             </p>
             
             <p style="font-size: 16px; color: #333; line-height: 1.6; margin-bottom: 20px;">
-              <strong>${inviterName}</strong> from <strong>${agencyName}</strong> has granted you access to the <strong>${clientName}</strong> client portal on SMMAHUB.
+              <strong>${inviterName}</strong> from <strong>${agencyName}</strong> has granted you access to the <strong>${clientName}</strong> client portal on ${senderName}.
             </p>
             
             <p style="font-size: 16px; color: #333; line-height: 1.6; margin-bottom: 30px;">
@@ -84,7 +103,7 @@ const handler = async (req: Request): Promise<Response> => {
             
             <div style="text-align: center; margin: 40px 0;">
               <a href="${portalUrl}" 
-                 style="background: linear-gradient(135deg, #4E5DFF 0%, #6A73FF 100%); 
+                 style="background: ${brandColor}; 
                         color: white; 
                         padding: 16px 40px; 
                         text-decoration: none; 
@@ -106,7 +125,7 @@ const handler = async (req: Request): Promise<Response> => {
             <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 30px 0;" />
             
             <p style="font-size: 12px; color: #999; text-align: center; margin: 0;">
-              © ${new Date().getFullYear()} SMMAHUB. All rights reserved.
+              © ${new Date().getFullYear()} ${senderName}. All rights reserved.
             </p>
           </div>
         </div>

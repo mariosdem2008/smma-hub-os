@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useClientPortalAccess } from "@/hooks/useClientPortalAccess";
 import { useClientFonts } from "@/hooks/useClientFonts";
+import { AgencyBrandingProvider, useAgencyBranding } from "@/contexts/AgencyBrandingContext";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -27,6 +28,7 @@ interface Client {
   notes: string | null;
   niche: string | null;
   tone_of_voice: string | null;
+  agency_id: string;
 }
 
 const navItems = [
@@ -40,12 +42,13 @@ const navItems = [
   { path: "uploads", label: "My Uploads", icon: Share2 },
 ];
 
-export function ClientPortalLayout() {
+function ClientPortalLayoutContent() {
   const { portalSlug } = useParams();
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { clientId, loading, hasAccess } = useClientPortalAccess(portalSlug);
   const [client, setClient] = useState<Client | null>(null);
+  const { branding } = useAgencyBranding();
 
   // Load client fonts dynamically
   useClientFonts({
@@ -80,7 +83,8 @@ export function ClientPortalLayout() {
         website, 
         notes,
         niche,
-        tone_of_voice
+        tone_of_voice,
+        agency_id
       `)
       .eq("id", clientId)
       .maybeSingle();
@@ -118,10 +122,10 @@ export function ClientPortalLayout() {
       <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-16 items-center justify-between px-6">
           <div className="flex items-center gap-4">
-            {client.logo_url && (
+            {(branding?.logo_url || client.logo_url) && (
               <img
-                src={client.logo_url}
-                alt={client.name}
+                src={branding?.logo_url || client.logo_url}
+                alt={branding?.email_sender_name || client.name}
                 className="h-10 w-10 object-contain"
               />
             )}
@@ -132,7 +136,10 @@ export function ClientPortalLayout() {
           </div>
           <div className="flex items-center gap-4">
             <span className="text-sm text-muted-foreground">
-              Powered by SMMAHUB
+              {branding?.email_sender_name 
+                ? `Powered by ${branding.email_sender_name}`
+                : "Powered by SMMAHUB"
+              }
             </span>
             {user && (
               <Button variant="ghost" size="sm" onClick={handleSignOut}>
@@ -179,5 +186,32 @@ export function ClientPortalLayout() {
         </main>
       </div>
     </div>
+  );
+}
+
+export function ClientPortalLayout() {
+  const { portalSlug } = useParams();
+  const [agencyId, setAgencyId] = useState<string>('');
+
+  useEffect(() => {
+    const fetchAgencyId = async () => {
+      if (!portalSlug) return;
+      
+      const { data } = await supabase
+        .from('clients')
+        .select('agency_id')
+        .eq('portal_slug', portalSlug)
+        .single();
+      
+      if (data) setAgencyId(data.agency_id);
+    };
+    
+    fetchAgencyId();
+  }, [portalSlug]);
+
+  return (
+    <AgencyBrandingProvider agencyId={agencyId}>
+      <ClientPortalLayoutContent />
+    </AgencyBrandingProvider>
   );
 }
