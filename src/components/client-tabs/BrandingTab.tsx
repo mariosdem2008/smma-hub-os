@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useRole } from "@/hooks/useRole";
-import { Palette, Plus, X, Save, Eye, Type } from "lucide-react";
+import { Palette, Plus, X, Save, Eye, Type, FileDown, Link2, Loader2 } from "lucide-react";
 import FontPicker from "./FontPicker";
 import { useClientFonts } from "@/hooks/useClientFonts";
 
@@ -51,6 +51,8 @@ export default function BrandingTab({ clientId, clientName = "Client Name" }: Br
     secondary_font: null,
   });
   const [newPaletteColor, setNewPaletteColor] = useState("#000000");
+  const [generatingPdf, setGeneratingPdf] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
 
   // Load fonts dynamically
   const { primaryFontFamily, secondaryFontFamily } = useClientFonts({
@@ -215,6 +217,42 @@ export default function BrandingTab({ clientId, clientName = "Client Name" }: Br
       ...branding,
       brand_palette: branding.brand_palette?.filter((c) => c !== color) || [],
     });
+  };
+
+  const handleGeneratePDF = async () => {
+    setGeneratingPdf(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-brand-guidelines-pdf', {
+        body: { clientId },
+      });
+
+      if (error) throw error;
+
+      setPdfUrl(data.url);
+      toast({
+        title: "Success",
+        description: "Brand guidelines PDF generated successfully",
+      });
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast({
+        title: "Error",
+        description: "Failed to generate PDF. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingPdf(false);
+    }
+  };
+
+  const handleCopyLink = async () => {
+    if (pdfUrl) {
+      await navigator.clipboard.writeText(pdfUrl);
+      toast({
+        title: "Link Copied",
+        description: "PDF link copied to clipboard",
+      });
+    }
   };
 
   if (loading) {
@@ -625,6 +663,60 @@ export default function BrandingTab({ clientId, clientName = "Client Name" }: Br
             <p className="text-xs text-muted-foreground">
               Detailed documentation for maintaining brand consistency
             </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* PDF Generation Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Brand Guidelines PDF</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Generate a comprehensive PDF document containing all your brand guidelines including logo, colors, typography, tone of voice, hashtags, content pillars, and visual assets.
+          </p>
+          
+          <div className="flex flex-wrap gap-3">
+            <Button 
+              onClick={handleGeneratePDF} 
+              disabled={generatingPdf}
+              size="lg"
+            >
+              {generatingPdf ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Generating PDF...
+                </>
+              ) : (
+                <>
+                  <FileDown className="mr-2 h-4 w-4" />
+                  Generate Brand Guidelines PDF
+                </>
+              )}
+            </Button>
+
+            {pdfUrl && (
+              <>
+                <Button 
+                  variant="outline" 
+                  size="lg"
+                  onClick={() => window.open(pdfUrl, '_blank')}
+                >
+                  <FileDown className="mr-2 h-4 w-4" />
+                  Download PDF
+                </Button>
+                
+                <Button 
+                  variant="outline" 
+                  size="lg"
+                  onClick={handleCopyLink}
+                >
+                  <Link2 className="mr-2 h-4 w-4" />
+                  Copy Share Link
+                </Button>
+              </>
+            )}
           </div>
         </CardContent>
       </Card>
