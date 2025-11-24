@@ -330,6 +330,13 @@ export type Database = {
             foreignKeyName: "assets_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
+            referencedRelation: "client_contacts_secure"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assets_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
             referencedRelation: "client_portal_view"
             referencedColumns: ["id"]
           },
@@ -375,6 +382,13 @@ export type Database = {
             foreignKeyName: "captions_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
+            referencedRelation: "client_contacts_secure"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "captions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
             referencedRelation: "client_portal_view"
             referencedColumns: ["id"]
           },
@@ -416,6 +430,13 @@ export type Database = {
           uploaded_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "client_assets_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_contacts_secure"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "client_assets_client_id_fkey"
             columns: ["client_id"]
@@ -472,6 +493,13 @@ export type Database = {
             columns: ["agency_id"]
             isOneToOne: false
             referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_brand_voice_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: true
+            referencedRelation: "client_contacts_secure"
             referencedColumns: ["id"]
           },
           {
@@ -535,6 +563,13 @@ export type Database = {
             foreignKeyName: "client_branding_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
+            referencedRelation: "client_contacts_secure"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_branding_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
             referencedRelation: "client_portal_view"
             referencedColumns: ["id"]
           },
@@ -570,6 +605,13 @@ export type Database = {
           title?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "client_content_pillars_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_contacts_secure"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "client_content_pillars_client_id_fkey"
             columns: ["client_id"]
@@ -613,6 +655,13 @@ export type Database = {
             foreignKeyName: "client_hashtags_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
+            referencedRelation: "client_contacts_secure"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_hashtags_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
             referencedRelation: "client_portal_view"
             referencedColumns: ["id"]
           },
@@ -651,6 +700,13 @@ export type Database = {
           source_url?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "client_inspiration_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_contacts_secure"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "client_inspiration_client_id_fkey"
             columns: ["client_id"]
@@ -712,6 +768,13 @@ export type Database = {
             foreignKeyName: "client_portal_users_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
+            referencedRelation: "client_contacts_secure"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_portal_users_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
             referencedRelation: "client_portal_view"
             referencedColumns: ["id"]
           },
@@ -744,6 +807,13 @@ export type Database = {
           id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "client_saved_captions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_contacts_secure"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "client_saved_captions_client_id_fkey"
             columns: ["client_id"]
@@ -812,6 +882,13 @@ export type Database = {
             columns: ["agency_id"]
             isOneToOne: false
             referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_uploads_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_contacts_secure"
             referencedColumns: ["id"]
           },
           {
@@ -940,6 +1017,13 @@ export type Database = {
             foreignKeyName: "content_activities_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
+            referencedRelation: "client_contacts_secure"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_activities_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
             referencedRelation: "client_portal_view"
             referencedColumns: ["id"]
           },
@@ -997,6 +1081,13 @@ export type Database = {
             foreignKeyName: "ideas_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
+            referencedRelation: "client_contacts_secure"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ideas_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
             referencedRelation: "client_portal_view"
             referencedColumns: ["id"]
           },
@@ -1035,6 +1126,13 @@ export type Database = {
           sender_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "messages_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_contacts_secure"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "messages_client_id_fkey"
             columns: ["client_id"]
@@ -1095,6 +1193,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "posts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_contacts_secure"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "posts_client_id_fkey"
             columns: ["client_id"]
@@ -1186,6 +1291,13 @@ export type Database = {
             foreignKeyName: "social_connections_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
+            referencedRelation: "client_contacts_secure"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "social_connections_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
             referencedRelation: "client_portal_view"
             referencedColumns: ["id"]
           },
@@ -1221,6 +1333,13 @@ export type Database = {
           url?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "social_profiles_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_contacts_secure"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "social_profiles_client_id_fkey"
             columns: ["client_id"]
@@ -1318,6 +1437,13 @@ export type Database = {
             foreignKeyName: "tasks_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
+            referencedRelation: "client_contacts_secure"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
             referencedRelation: "client_portal_view"
             referencedColumns: ["id"]
           },
@@ -1391,6 +1517,38 @@ export type Database = {
       }
     }
     Views: {
+      client_contacts_secure: {
+        Row: {
+          agency_id: string | null
+          company: string | null
+          email: string | null
+          id: string | null
+          phone: string | null
+        }
+        Insert: {
+          agency_id?: string | null
+          company?: string | null
+          email?: string | null
+          id?: string | null
+          phone?: string | null
+        }
+        Update: {
+          agency_id?: string | null
+          company?: string | null
+          email?: string | null
+          id?: string | null
+          phone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clients_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_portal_view: {
         Row: {
           agency_id: string | null
@@ -1458,6 +1616,10 @@ export type Database = {
       accept_agency_invite: {
         Args: { _invite_token: string; _user_id: string }
         Returns: Json
+      }
+      can_view_client_contacts: {
+        Args: { _client_id: string; _user_id: string }
+        Returns: boolean
       }
       check_portal_invitation: {
         Args: { _client_id: string; _email: string }
