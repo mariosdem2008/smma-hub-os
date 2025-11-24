@@ -33,7 +33,6 @@ import { PortalIdeas } from "./pages/client-portal/PortalIdeas";
 import { PortalAssets } from "./pages/client-portal/PortalAssets";
 import { PortalContentCalendar } from "./pages/client-portal/PortalContentCalendar";
 import PortalDeliverables from "./pages/client-portal/PortalDeliverables";
-import PortalComments from "./pages/client-portal/PortalComments";
 import PortalUploads from "./pages/client-portal/PortalUploads";
 
 const queryClient = new QueryClient();
@@ -66,7 +65,6 @@ const App = () => (
               <Route path="branding" element={<PortalBranding />} />
               <Route path="social" element={<PortalSocial />} />
               <Route path="deliverables" element={<PortalDeliverables />} />
-              <Route path="comments" element={<PortalComments />} />
               <Route path="uploads" element={<PortalUploads />} />
             </Route>
             

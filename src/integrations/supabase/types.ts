@@ -152,6 +152,41 @@ export type Database = {
           },
         ]
       }
+      asset_comments: {
+        Row: {
+          asset_id: string
+          comment: string
+          created_at: string | null
+          id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          asset_id: string
+          comment: string
+          created_at?: string | null
+          id?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          asset_id?: string
+          comment?: string
+          created_at?: string | null
+          id?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asset_comments_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       asset_versions: {
         Row: {
           agency_id: string
@@ -213,6 +248,7 @@ export type Database = {
           id: string
           is_client_upload: boolean | null
           status: string | null
+          thumbnail_url: string | null
           updated_at: string
           uploaded_by: string | null
           visible_to_client: boolean | null
@@ -229,6 +265,7 @@ export type Database = {
           id?: string
           is_client_upload?: boolean | null
           status?: string | null
+          thumbnail_url?: string | null
           updated_at?: string
           uploaded_by?: string | null
           visible_to_client?: boolean | null
@@ -245,6 +282,7 @@ export type Database = {
           id?: string
           is_client_upload?: boolean | null
           status?: string | null
+          thumbnail_url?: string | null
           updated_at?: string
           uploaded_by?: string | null
           visible_to_client?: boolean | null
