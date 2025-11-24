@@ -43,39 +43,31 @@ export default function InviteAccept() {
     }
 
     try {
-      const { data, error } = await supabase
-        .from("agency_invites")
-        .select(`
-          *,
-          agency:agencies(name)
-        `)
-        .eq("token", token)
+      // Use secure function to fetch invite - prevents email harvesting
+      const { data, error } = await supabase.rpc('get_agency_invite_by_token', {
+        _token: token
+      });
+
+      if (error || !data || data.length === 0) {
+        setError("Invite not found or expired");
+        setLoading(false);
+        return;
+      }
+
+      const inviteData = data[0];
+
+      // Fetch agency name separately
+      const { data: agencyData } = await supabase
+        .from("agencies")
+        .select("name")
+        .eq("id", inviteData.agency_id)
         .single();
 
-      if (error || !data) {
-        setError("Invite not found");
-        setLoading(false);
-        return;
-      }
-
-      // Check if expired
-      const expiresAt = new Date(data.expires_at);
-      const now = new Date();
-      
-      if (now > expiresAt) {
-        setError("expired");
-        setLoading(false);
-        return;
-      }
-
-      // Check if already accepted
-      if (data.accepted) {
-        setError("accepted");
-        setLoading(false);
-        return;
-      }
-
-      setInvite(data);
+      setInvite({
+        ...inviteData,
+        token: token,
+        agency: agencyData ? { name: agencyData.name } : null
+      });
     } catch (err: any) {
       console.error("Error fetching invite:", err);
       setError("Failed to load invite");

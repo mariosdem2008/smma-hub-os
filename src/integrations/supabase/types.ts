@@ -1275,6 +1275,17 @@ export type Database = {
       generate_portal_invite_token: { Args: never; Returns: string }
       generate_portal_slug: { Args: never; Returns: string }
       generate_portal_token: { Args: never; Returns: string }
+      get_agency_invite_by_token: {
+        Args: { _token: string }
+        Returns: {
+          accepted: boolean
+          agency_id: string
+          email: string
+          expires_at: string
+          id: string
+          role: string
+        }[]
+      }
       get_monthly_ai_usage: { Args: { p_agency_id: string }; Returns: number }
       has_role: {
         Args: {
