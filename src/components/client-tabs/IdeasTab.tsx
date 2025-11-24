@@ -324,7 +324,7 @@ export default function IdeasTab({ clientId }: IdeasTabProps) {
 
     // Update in database
     const { error } = await supabase
-      .from("client_ideas")
+      .from("ideas")
       .update({ status: previousStatus })
       .eq("id", ideaId);
 

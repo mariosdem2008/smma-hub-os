@@ -17,14 +17,15 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Lightbulb } from "lucide-react";
+import { Plus, Lightbulb, Send, CheckCircle, XCircle } from "lucide-react";
+import ApprovalReviewModal from "@/components/ApprovalReviewModal";
 
 interface Idea {
   id: string;
   title: string;
   description: string | null;
   status: string;
-  tag: string | null;
+  tags: string[] | null;
   created_at: string;
 }
 
@@ -33,14 +34,18 @@ interface OutletContext {
 }
 
 const statusColors: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+  draft: "outline",
   idea: "outline",
+  in_review: "secondary",
   approved: "default",
   rejected: "destructive",
   used: "secondary",
 };
 
 const statusLabels: Record<string, string> = {
+  draft: "Draft",
   idea: "Idea",
+  in_review: "In Review",
   approved: "Approved",
   rejected: "Rejected",
   used: "Used in Content",
@@ -55,14 +60,41 @@ export function PortalIdeas() {
   const [newTitle, setNewTitle] = useState("");
   const [newDescription, setNewDescription] = useState("");
   const [newTag, setNewTag] = useState("");
+  const [reviewModal, setReviewModal] = useState<{
+    open: boolean;
+    ideaId: string;
+    ideaTitle: string;
+    action: 'approve' | 'reject';
+  }>({ open: false, ideaId: '', ideaTitle: '', action: 'approve' });
 
   useEffect(() => {
     fetchIdeas();
+
+    // Subscribe to real-time updates
+    const channel = supabase
+      .channel(`portal-ideas-${clientId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'ideas',
+          filter: `client_id=eq.${clientId}`,
+        },
+        () => {
+          fetchIdeas();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [clientId]);
 
   const fetchIdeas = async () => {
     const { data } = await supabase
-      .from("client_ideas")
+      .from("ideas")
       .select("*")
       .eq("client_id", clientId)
       .order("created_at", { ascending: false });
@@ -82,12 +114,12 @@ export function PortalIdeas() {
     }
 
     try {
-      const { error } = await supabase.from("client_ideas").insert({
+      const { error } = await supabase.from("ideas").insert({
         client_id: clientId,
         title: newTitle.trim(),
         description: newDescription.trim() || null,
-        tag: newTag.trim() || null,
-        status: "idea",
+        tags: newTag.trim() ? [newTag.trim()] : null,
+        status: "draft",
       });
 
       if (error) throw error;
@@ -119,7 +151,72 @@ export function PortalIdeas() {
     used: ideas.filter(i => i.status === "used"),
   };
 
-  if (loading) {
+  const handleReview = async (comment: string) => {
+    const newStatus = reviewModal.action === 'approve' ? 'approved' : 'rejected';
+    const { error } = await supabase
+      .from("ideas")
+      .update({ 
+        status: newStatus,
+        review_comment: comment || null,
+        reviewed_at: new Date().toISOString()
+      })
+      .eq("id", reviewModal.ideaId);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: `Failed to ${reviewModal.action} idea`,
+        variant: "destructive",
+      });
+      throw error;
+    }
+
+    // Send notification
+    const idea = ideas.find(i => i.id === reviewModal.ideaId);
+    if (idea) {
+      try {
+        await supabase.functions.invoke("send-approval-notification", {
+          body: {
+            contentType: 'idea',
+            contentId: reviewModal.ideaId,
+            contentTitle: idea.title,
+            clientId: clientId,
+            action: newStatus,
+            comment: comment || undefined,
+          },
+        });
+      } catch (notifError) {
+        console.error("Failed to send notification:", notifError);
+      }
+    }
+
+    toast({
+      title: "Success",
+      description: `Idea ${reviewModal.action}d successfully`,
+    });
+    fetchIdeas();
+  };
+
+  const handleStatusChange = async (ideaId: string, newStatus: string) => {
+    const { error } = await supabase
+      .from("ideas")
+      .update({ status: newStatus })
+      .eq("id", ideaId);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update status",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Success",
+        description: "Status updated successfully",
+      });
+      fetchIdeas();
+    }
+  };
     return <div>Loading ideas...</div>;
   }
 
@@ -213,14 +310,58 @@ export function PortalIdeas() {
                         {idea.description}
                       </p>
                     )}
-                    {idea.tag && (
+                    {idea.tags && idea.tags.length > 0 && (
                       <Badge variant="outline" className="text-xs">
-                        {idea.tag}
+                        {idea.tags[0]}
                       </Badge>
                     )}
                     <p className="text-xs text-muted-foreground">
                       {new Date(idea.created_at).toLocaleDateString()}
                     </p>
+                    <div className="flex gap-2 mt-2">
+                      {idea.status === 'draft' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleStatusChange(idea.id, 'in_review')}
+                        >
+                          <Send className="h-3 w-3 mr-1" />
+                          Submit
+                        </Button>
+                      )}
+                      {idea.status === 'in_review' && (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-green-600"
+                            onClick={() => setReviewModal({
+                              open: true,
+                              ideaId: idea.id,
+                              ideaTitle: idea.title,
+                              action: 'approve'
+                            })}
+                          >
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-destructive"
+                            onClick={() => setReviewModal({
+                              open: true,
+                              ideaId: idea.id,
+                              ideaTitle: idea.title,
+                              action: 'reject'
+                            })}
+                          >
+                            <XCircle className="h-3 w-3 mr-1" />
+                            Reject
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   </Card>
                 ))
               ) : (
@@ -246,6 +387,15 @@ export function PortalIdeas() {
           </Button>
         </Card>
       )}
+
+      <ApprovalReviewModal
+        open={reviewModal.open}
+        onOpenChange={(open) => setReviewModal({ ...reviewModal, open })}
+        contentType="idea"
+        contentTitle={reviewModal.ideaTitle}
+        action={reviewModal.action}
+        onSubmit={handleReview}
+      />
     </div>
   );
 }

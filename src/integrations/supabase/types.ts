@@ -363,44 +363,6 @@ export type Database = {
           },
         ]
       }
-      client_ideas: {
-        Row: {
-          client_id: string
-          created_at: string
-          description: string | null
-          id: string
-          status: string | null
-          tag: string | null
-          title: string
-        }
-        Insert: {
-          client_id: string
-          created_at?: string
-          description?: string | null
-          id?: string
-          status?: string | null
-          tag?: string | null
-          title: string
-        }
-        Update: {
-          client_id?: string
-          created_at?: string
-          description?: string | null
-          id?: string
-          status?: string | null
-          tag?: string | null
-          title?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "client_ideas_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       client_inspiration: {
         Row: {
           client_id: string
