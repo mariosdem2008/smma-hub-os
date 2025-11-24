@@ -1681,10 +1681,6 @@ export type Database = {
         Args: { _invite_token: string; _user_id: string }
         Returns: Json
       }
-      can_view_client_contacts: {
-        Args: { _client_id: string; _user_id: string }
-        Returns: boolean
-      }
       check_portal_invitation: {
         Args: { _client_id: string; _email: string }
         Returns: {
