@@ -48,41 +48,23 @@ export type Database = {
         Row: {
           agency_id: string
           created_at: string | null
-          custom_domain: string | null
-          dns_last_checked: string | null
-          dns_required_record: string | null
-          domain_status: string | null
           email_footer: string | null
           email_sender_name: string | null
-          ssl_status: string | null
           updated_at: string | null
-          verification_status: string | null
         }
         Insert: {
           agency_id: string
           created_at?: string | null
-          custom_domain?: string | null
-          dns_last_checked?: string | null
-          dns_required_record?: string | null
-          domain_status?: string | null
           email_footer?: string | null
           email_sender_name?: string | null
-          ssl_status?: string | null
           updated_at?: string | null
-          verification_status?: string | null
         }
         Update: {
           agency_id?: string
           created_at?: string | null
-          custom_domain?: string | null
-          dns_last_checked?: string | null
-          dns_required_record?: string | null
-          domain_status?: string | null
           email_footer?: string | null
           email_sender_name?: string | null
-          ssl_status?: string | null
           updated_at?: string | null
-          verification_status?: string | null
         }
         Relationships: [
           {
