@@ -161,17 +161,21 @@ export default function ClientDetail() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="overflow-x-auto">
           <TabsList className="inline-flex w-auto min-w-full md:grid md:grid-cols-9">
+            <TabsTrigger value="ai" className="flex-shrink-0 bg-gradient-to-r from-purple-500/10 to-blue-500/10 data-[state=active]:from-purple-500/20 data-[state=active]:to-blue-500/20 border-purple-500/20">AI Assistant</TabsTrigger>
             <TabsTrigger value="overview" className="flex-shrink-0">Overview</TabsTrigger>
             <TabsTrigger value="brand" className="flex-shrink-0">Brand Identity</TabsTrigger>
             <TabsTrigger value="social" className="flex-shrink-0">Social Profiles</TabsTrigger>
             <TabsTrigger value="planning" className="flex-shrink-0">Content Planning</TabsTrigger>
-            <TabsTrigger value="ai" className="flex-shrink-0">AI Assistant</TabsTrigger>
             <TabsTrigger value="library" className="flex-shrink-0">Content Library</TabsTrigger>
             <TabsTrigger value="workspace" className="flex-shrink-0">Workspace</TabsTrigger>
             <TabsTrigger value="uploads" className="flex-shrink-0">Client Uploads</TabsTrigger>
             <TabsTrigger value="portal" className="flex-shrink-0">Client Portal</TabsTrigger>
           </TabsList>
         </div>
+
+        <TabsContent value="ai" className="space-y-4">
+          <AIAssistantTab clientId={clientId!} />
+        </TabsContent>
 
         <TabsContent value="overview" className="space-y-4">
           <OverviewTab 
@@ -191,10 +195,6 @@ export default function ClientDetail() {
 
         <TabsContent value="planning" className="space-y-4">
           <ContentPlanningTab clientId={clientId!} />
-        </TabsContent>
-
-        <TabsContent value="ai" className="space-y-4">
-          <AIAssistantTab clientId={clientId!} />
         </TabsContent>
 
         <TabsContent value="library" className="space-y-4">
