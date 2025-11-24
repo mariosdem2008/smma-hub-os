@@ -5,10 +5,17 @@ import { useAuth } from '@/lib/auth';
 interface AgencyBranding {
   agency_id: string;
   logo_url: string | null;
+  favicon_url: string | null;
   primary_color: string;
   accent_color: string;
+  font_primary: string | null;
+  font_secondary: string | null;
   custom_domain: string | null;
+  domain_status: string | null;
   email_sender_name: string | null;
+  email_footer: string | null;
+  layout_style: string | null;
+  section_labels: any;
 }
 
 interface AgencyBrandingContextType {
@@ -58,7 +65,7 @@ export function AgencyBrandingProvider({ children, agencyId }: { children: React
     fetchBranding();
   }, [agencyId, user]);
 
-  // Apply branding to CSS variables
+  // Apply branding to CSS variables and fonts
   useEffect(() => {
     if (branding) {
       const root = document.documentElement;
@@ -67,6 +74,23 @@ export function AgencyBrandingProvider({ children, agencyId }: { children: React
       }
       if (branding.accent_color) {
         root.style.setProperty('--accent', branding.accent_color);
+      }
+      if (branding.font_primary) {
+        root.style.setProperty('--font-primary', branding.font_primary);
+      }
+      if (branding.font_secondary) {
+        root.style.setProperty('--font-secondary', branding.font_secondary);
+      }
+      if (branding.favicon_url) {
+        const link = document.querySelector("link[rel='icon']") as HTMLLinkElement;
+        if (link) {
+          link.href = branding.favicon_url;
+        }
+      }
+      
+      // Apply layout style classes
+      if (branding.layout_style) {
+        root.setAttribute('data-layout', branding.layout_style);
       }
     }
   }, [branding]);

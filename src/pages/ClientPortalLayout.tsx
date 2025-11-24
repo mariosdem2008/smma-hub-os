@@ -32,14 +32,14 @@ interface Client {
 }
 
 const navItems = [
-  { path: "", label: "Overview", icon: LayoutDashboard },
-  { path: "content-calendar", label: "Content Calendar", icon: CalendarDays },
-  { path: "ideas", label: "Ideas", icon: Lightbulb },
-  { path: "assets", label: "Assets", icon: FolderOpen },
-  { path: "branding", label: "Branding", icon: Palette },
-  { path: "social", label: "Social Profiles", icon: Share2 },
-  { path: "deliverables", label: "Deliverables", icon: FolderOpen },
-  { path: "uploads", label: "My Uploads", icon: Share2 },
+  { path: "", label: "Overview", key: "overview", icon: LayoutDashboard },
+  { path: "content-calendar", label: "Content Calendar", key: "content_calendar", icon: CalendarDays },
+  { path: "ideas", label: "Ideas", key: "ideas", icon: Lightbulb },
+  { path: "assets", label: "Assets", key: "assets", icon: FolderOpen },
+  { path: "branding", label: "Branding", key: "branding", icon: Palette },
+  { path: "social", label: "Social Profiles", key: "social", icon: Share2 },
+  { path: "deliverables", label: "Deliverables", key: "deliverables", icon: FolderOpen },
+  { path: "uploads", label: "My Uploads", key: "uploads", icon: Share2 },
 ];
 
 function ClientPortalLayoutContent() {
@@ -50,11 +50,19 @@ function ClientPortalLayoutContent() {
   const [client, setClient] = useState<Client | null>(null);
   const { branding } = useAgencyBranding();
 
-  // Load client fonts dynamically
+  // Load fonts dynamically (client fonts or agency branding fonts)
   useClientFonts({
-    primaryFont: client?.primary_font,
-    secondaryFont: client?.secondary_font,
+    primaryFont: branding?.font_primary || client?.primary_font,
+    secondaryFont: branding?.font_secondary || client?.secondary_font,
   });
+
+  // Get custom section labels
+  const getSectionLabel = (key: string, defaultLabel: string) => {
+    if (branding?.section_labels && branding.section_labels[key]) {
+      return branding.section_labels[key];
+    }
+    return defaultLabel;
+  };
 
   useEffect(() => {
     if (!loading && !hasAccess) {
@@ -116,8 +124,10 @@ function ClientPortalLayoutContent() {
     return null;
   }
 
+  const layoutClass = branding?.layout_style || 'default';
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background" data-layout={layoutClass}>
       {/* Top Nav */}
       <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-16 items-center justify-between px-6">
@@ -129,7 +139,7 @@ function ClientPortalLayoutContent() {
                 className="h-10 w-10 object-contain"
               />
             )}
-            <div>
+            <div style={{ fontFamily: branding?.font_primary || 'inherit' }}>
               <h1 className="text-xl font-semibold">{client.name}</h1>
               <p className="text-xs text-muted-foreground">Client Portal</p>
             </div>
@@ -153,7 +163,10 @@ function ClientPortalLayoutContent() {
 
       <div className="container flex px-6 py-6">
         {/* Sidebar */}
-        <aside className="w-64 shrink-0 pr-6">
+        <aside className={cn(
+          "shrink-0 pr-6",
+          layoutClass === 'minimal' ? 'w-20' : layoutClass === 'bold' ? 'w-72' : 'w-64'
+        )}>
           <nav className="space-y-1">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -166,14 +179,21 @@ function ClientPortalLayoutContent() {
                   key={item.path}
                   to={`/client-portal/${portalSlug}${item.path ? `/${item.path}` : ""}`}
                   className={cn(
-                    "flex items-center gap-3 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
+                    "flex items-center gap-3 px-4 py-2 text-sm font-medium transition-colors",
+                    layoutClass === 'minimal' ? 'rounded-sm justify-center' :
+                    layoutClass === 'bold' ? 'rounded-xl' :
+                    layoutClass === 'modern' ? 'rounded-lg' :
+                    'rounded-md',
                     isActive
                       ? "bg-accent text-accent-foreground"
                       : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                   )}
+                  style={{ fontFamily: branding?.font_primary || 'inherit' }}
                 >
                   <Icon className="h-4 w-4" />
-                  {item.label}
+                  {layoutClass !== 'minimal' && (
+                    <span>{getSectionLabel(item.key, item.label)}</span>
+                  )}
                 </Link>
               );
             })}
@@ -181,7 +201,7 @@ function ClientPortalLayoutContent() {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 min-w-0">
+        <main className="flex-1 min-w-0" style={{ fontFamily: branding?.font_secondary || 'inherit' }}>
           <Outlet context={{ client, clientId }} />
         </main>
       </div>

@@ -50,9 +50,16 @@ export type Database = {
           agency_id: string
           created_at: string | null
           custom_domain: string | null
+          domain_status: string | null
+          email_footer: string | null
           email_sender_name: string | null
+          favicon_url: string | null
+          font_primary: string | null
+          font_secondary: string | null
+          layout_style: string | null
           logo_url: string | null
           primary_color: string | null
+          section_labels: Json | null
           updated_at: string | null
         }
         Insert: {
@@ -60,9 +67,16 @@ export type Database = {
           agency_id: string
           created_at?: string | null
           custom_domain?: string | null
+          domain_status?: string | null
+          email_footer?: string | null
           email_sender_name?: string | null
+          favicon_url?: string | null
+          font_primary?: string | null
+          font_secondary?: string | null
+          layout_style?: string | null
           logo_url?: string | null
           primary_color?: string | null
+          section_labels?: Json | null
           updated_at?: string | null
         }
         Update: {
@@ -70,9 +84,16 @@ export type Database = {
           agency_id?: string
           created_at?: string | null
           custom_domain?: string | null
+          domain_status?: string | null
+          email_footer?: string | null
           email_sender_name?: string | null
+          favicon_url?: string | null
+          font_primary?: string | null
+          font_secondary?: string | null
+          layout_style?: string | null
           logo_url?: string | null
           primary_color?: string | null
+          section_labels?: Json | null
           updated_at?: string | null
         }
         Relationships: [

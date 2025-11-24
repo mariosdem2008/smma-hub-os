@@ -9,6 +9,67 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+function generateWhiteLabelEmail(
+  branding: any,
+  heading: string,
+  body: string,
+  ctaText: string,
+  ctaUrl: string
+): string {
+  const primaryColor = branding?.primary_color || '#4E5DFF';
+  const logo = branding?.logo_url || '';
+  const senderName = branding?.email_sender_name || 'SMMAHUB';
+  const footer = branding?.email_footer || '';
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+    </head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0;">
+      <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background: ${primaryColor}; padding: 40px 20px; border-radius: 12px 12px 0 0; text-align: center;">
+          ${logo ? `<img src="${logo}" alt="${senderName}" style="max-width: 150px; height: auto; margin-bottom: 20px;">` : ''}
+          <h1 style="color: white; margin: 0; font-size: 28px;">${heading}</h1>
+        </div>
+        
+        <div style="background: #ffffff; padding: 40px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+          <div style="font-size: 16px; color: #333; line-height: 1.6; margin-bottom: 30px;">
+            ${body}
+          </div>
+          
+          <div style="text-align: center; margin: 40px 0;">
+            <a href="${ctaUrl}" 
+               style="background: ${primaryColor}; 
+                      color: white; 
+                      padding: 16px 40px; 
+                      text-decoration: none; 
+                      border-radius: 8px; 
+                      font-weight: 600;
+                      display: inline-block;
+                      box-shadow: 0 4px 12px rgba(78, 93, 255, 0.3);">
+              ${ctaText}
+            </a>
+          </div>
+          
+          ${footer ? `
+            <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 30px 0;" />
+            <div style="font-size: 14px; color: #666; margin-bottom: 20px;">
+              ${footer}
+            </div>
+          ` : ''}
+          
+          <p style="font-size: 12px; color: #999; text-align: center; margin: 0;">
+            © ${new Date().getFullYear()} ${senderName}. All rights reserved.
+          </p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+}
+
 interface PortalInviteRequest {
   email: string;
   clientName: string;
@@ -44,12 +105,11 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { data: branding } = await supabaseClient
       .from('agency_branding')
-      .select('logo_url, email_sender_name, primary_color')
+      .select('logo_url, email_sender_name, primary_color, email_footer')
       .eq('agency_id', agencyId)
       .maybeSingle();
 
     const senderName = branding?.email_sender_name || 'SMMAHUB';
-    const brandColor = branding?.primary_color || '#4E5DFF';
 
     const passwordSection = temporaryPassword 
       ? `
@@ -68,68 +128,35 @@ const handler = async (req: Request): Promise<Response> => {
       `
       : '';
 
+    const emailHtml = generateWhiteLabelEmail(
+      branding,
+      'Welcome to Your Client Portal',
+      `
+        <p style="font-size: 16px; color: #333; margin-bottom: 20px;">Hi there! 👋</p>
+        <p style="font-size: 16px; color: #333; margin-bottom: 20px;">
+          <strong>${inviterName}</strong> from <strong>${agencyName}</strong> has granted you access to the <strong>${clientName}</strong> client portal.
+        </p>
+        <p style="font-size: 16px; color: #333; margin-bottom: 20px;">
+          Through your portal, you can:
+        </p>
+        <ul style="font-size: 15px; color: #555; line-height: 1.8; margin-bottom: 30px;">
+          <li>View your brand assets and guidelines</li>
+          <li>Upload new assets and files</li>
+          <li>Track content ideas and campaigns</li>
+          <li>Review your social media profiles</li>
+          <li>Collaborate with your agency team</li>
+        </ul>
+        ${passwordSection}
+      `,
+      'Access Your Portal',
+      portalUrl
+    );
+
     const emailResponse = await resend.emails.send({
       from: `${senderName} <invites@smmahub.net>`,
       to: [email],
       subject: `Access Your Client Portal - ${clientName}`,
-      html: `
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background: ${brandColor}; padding: 40px 20px; border-radius: 12px 12px 0 0; text-align: center;">
-            <h1 style="color: white; margin: 0; font-size: 28px;">Welcome to Your Client Portal</h1>
-          </div>
-          
-          <div style="background: #ffffff; padding: 40px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-            <p style="font-size: 16px; color: #333; line-height: 1.6; margin-bottom: 20px;">
-              Hi there! 👋
-            </p>
-            
-            <p style="font-size: 16px; color: #333; line-height: 1.6; margin-bottom: 20px;">
-              <strong>${inviterName}</strong> from <strong>${agencyName}</strong> has granted you access to the <strong>${clientName}</strong> client portal on ${senderName}.
-            </p>
-            
-            <p style="font-size: 16px; color: #333; line-height: 1.6; margin-bottom: 30px;">
-              Through your portal, you can:
-            </p>
-            
-            <ul style="font-size: 15px; color: #555; line-height: 1.8; margin-bottom: 30px;">
-              <li>View your brand assets and guidelines</li>
-              <li>Upload new assets and files</li>
-              <li>Track content ideas and campaigns</li>
-              <li>Review your social media profiles</li>
-              <li>Collaborate with your agency team</li>
-            </ul>
-            
-            ${passwordSection}
-            
-            <div style="text-align: center; margin: 40px 0;">
-              <a href="${portalUrl}" 
-                 style="background: ${brandColor}; 
-                        color: white; 
-                        padding: 16px 40px; 
-                        text-decoration: none; 
-                        border-radius: 8px; 
-                        font-weight: 600;
-                        display: inline-block;
-                        box-shadow: 0 4px 12px rgba(78, 93, 255, 0.3);">
-                Access Your Portal
-              </a>
-            </div>
-            
-            <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 30px;">
-              <p style="font-size: 14px; color: #666; margin: 0; line-height: 1.6;">
-                <strong>Portal URL:</strong><br>
-                <a href="${portalUrl}" style="color: #4E5DFF; text-decoration: none;">${portalUrl}</a>
-              </p>
-            </div>
-            
-            <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 30px 0;" />
-            
-            <p style="font-size: 12px; color: #999; text-align: center; margin: 0;">
-              © ${new Date().getFullYear()} ${senderName}. All rights reserved.
-            </p>
-          </div>
-        </div>
-      `,
+      html: emailHtml,
     });
 
     console.log("Client portal invitation email sent successfully:", emailResponse);
