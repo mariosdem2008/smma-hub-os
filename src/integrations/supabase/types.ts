@@ -767,7 +767,6 @@ export type Database = {
           notes: string | null
           phone: string | null
           portal_enabled: boolean
-          portal_share_token: string | null
           portal_slug: string | null
           primary_font: string | null
           secondary_font: string | null
@@ -789,7 +788,6 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           portal_enabled?: boolean
-          portal_share_token?: string | null
           portal_slug?: string | null
           primary_font?: string | null
           secondary_font?: string | null
@@ -811,7 +809,6 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           portal_enabled?: boolean
-          portal_share_token?: string | null
           portal_slug?: string | null
           primary_font?: string | null
           secondary_font?: string | null
