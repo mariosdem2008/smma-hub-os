@@ -68,6 +68,9 @@ export default function AIAssistantTab({ clientId }: AIAssistantTabProps) {
           tone: captionTone,
           keywords: captionKeywords,
         },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
       });
 
       if (error) {
@@ -165,6 +168,9 @@ export default function AIAssistantTab({ clientId }: AIAssistantTabProps) {
           niche: ideaNiche,
           contentPillars: ideaPillars,
           trends: ideaTrends || undefined,
+        },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
         },
       });
 
