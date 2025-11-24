@@ -79,7 +79,7 @@ export function PortalOverview() {
 
     // Fetch total ideas
     const { count: ideasCount } = await supabase
-      .from("client_ideas")
+      .from("ideas")
       .select("*", { count: "exact", head: true })
       .eq("client_id", clientId);
 

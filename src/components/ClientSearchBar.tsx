@@ -116,7 +116,7 @@ export default function ClientSearchBar({ clientId }: ClientSearchBarProps) {
 
       // Search Ideas
       const { data: ideas } = await supabase
-        .from("client_ideas")
+        .from("ideas")
         .select("id, title, description")
         .eq("client_id", clientId)
         .or(`title.ilike.${searchTerm},description.ilike.${searchTerm}`);
