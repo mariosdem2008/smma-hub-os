@@ -8,6 +8,10 @@ interface AgencyBranding {
   favicon_url: string | null;
   primary_color: string;
   accent_color: string;
+  header_bg_color: string | null;
+  sidebar_bg_color: string | null;
+  content_bg_color: string | null;
+  card_bg_color: string | null;
   font_primary: string | null;
   font_secondary: string | null;
   custom_domain: string | null;
@@ -70,13 +74,24 @@ export function AgencyBrandingProvider({ children, agencyId }: { children: React
     if (branding) {
       const root = document.documentElement;
       if (branding.primary_color) {
-        // Convert hex to HSL format for Tailwind
         const hsl = hexToHSL(branding.primary_color);
         root.style.setProperty('--primary', hsl);
       }
       if (branding.accent_color) {
         const hsl = hexToHSL(branding.accent_color);
         root.style.setProperty('--accent', hsl);
+      }
+      if (branding.header_bg_color) {
+        root.style.setProperty('--header-bg', branding.header_bg_color);
+      }
+      if (branding.sidebar_bg_color) {
+        root.style.setProperty('--sidebar-bg', branding.sidebar_bg_color);
+      }
+      if (branding.content_bg_color) {
+        root.style.setProperty('--content-bg', branding.content_bg_color);
+      }
+      if (branding.card_bg_color) {
+        root.style.setProperty('--card-bg', branding.card_bg_color);
       }
       if (branding.font_primary) {
         root.style.setProperty('--font-primary', branding.font_primary);

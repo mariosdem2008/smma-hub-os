@@ -47,6 +47,10 @@ export function WhiteLabelSettings() {
   const [faviconUrl, setFaviconUrl] = useState('');
   const [primaryColor, setPrimaryColor] = useState('#6366f1');
   const [accentColor, setAccentColor] = useState('#8b5cf6');
+  const [headerBgColor, setHeaderBgColor] = useState('#ffffff');
+  const [sidebarBgColor, setSidebarBgColor] = useState('#ffffff');
+  const [contentBgColor, setContentBgColor] = useState('#f9fafb');
+  const [cardBgColor, setCardBgColor] = useState('#ffffff');
   const [fontPrimary, setFontPrimary] = useState('Inter');
   const [fontSecondary, setFontSecondary] = useState('Inter');
   const [layoutStyle, setLayoutStyle] = useState('default');
@@ -89,6 +93,10 @@ export function WhiteLabelSettings() {
         setFaviconUrl(branding.favicon_url || '');
         setPrimaryColor(branding.primary_color || '#6366f1');
         setAccentColor(branding.accent_color || '#8b5cf6');
+        setHeaderBgColor(branding.header_bg_color || '#ffffff');
+        setSidebarBgColor(branding.sidebar_bg_color || '#ffffff');
+        setContentBgColor(branding.content_bg_color || '#f9fafb');
+        setCardBgColor(branding.card_bg_color || '#ffffff');
         setFontPrimary(branding.font_primary || 'Inter');
         setFontSecondary(branding.font_secondary || 'Inter');
         setLayoutStyle(branding.layout_style || 'default');
@@ -202,6 +210,10 @@ export function WhiteLabelSettings() {
           favicon_url: faviconUrl || null,
           primary_color: primaryColor,
           accent_color: accentColor,
+          header_bg_color: headerBgColor,
+          sidebar_bg_color: sidebarBgColor,
+          content_bg_color: contentBgColor,
+          card_bg_color: cardBgColor,
           font_primary: fontPrimary,
           font_secondary: fontSecondary,
           layout_style: layoutStyle,
@@ -401,6 +413,83 @@ export function WhiteLabelSettings() {
                       </div>
                     </div>
                   </div>
+
+                  <Separator className="my-4" />
+                  <p className="text-sm font-medium mb-3">Background Colors</p>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-xs">Header Background</Label>
+                      <div className="flex items-center gap-2 mt-2">
+                        <Input
+                          type="color"
+                          value={headerBgColor}
+                          onChange={(e) => setHeaderBgColor(e.target.value)}
+                          className="w-20 h-10"
+                        />
+                        <Input
+                          type="text"
+                          value={headerBgColor}
+                          onChange={(e) => setHeaderBgColor(e.target.value)}
+                          className="flex-1 text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label className="text-xs">Sidebar Background</Label>
+                      <div className="flex items-center gap-2 mt-2">
+                        <Input
+                          type="color"
+                          value={sidebarBgColor}
+                          onChange={(e) => setSidebarBgColor(e.target.value)}
+                          className="w-20 h-10"
+                        />
+                        <Input
+                          type="text"
+                          value={sidebarBgColor}
+                          onChange={(e) => setSidebarBgColor(e.target.value)}
+                          className="flex-1 text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label className="text-xs">Content Background</Label>
+                      <div className="flex items-center gap-2 mt-2">
+                        <Input
+                          type="color"
+                          value={contentBgColor}
+                          onChange={(e) => setContentBgColor(e.target.value)}
+                          className="w-20 h-10"
+                        />
+                        <Input
+                          type="text"
+                          value={contentBgColor}
+                          onChange={(e) => setContentBgColor(e.target.value)}
+                          className="flex-1 text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label className="text-xs">Card Background</Label>
+                      <div className="flex items-center gap-2 mt-2">
+                        <Input
+                          type="color"
+                          value={cardBgColor}
+                          onChange={(e) => setCardBgColor(e.target.value)}
+                          className="w-20 h-10"
+                        />
+                        <Input
+                          type="text"
+                          value={cardBgColor}
+                          onChange={(e) => setCardBgColor(e.target.value)}
+                          className="flex-1 text-xs"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
 
@@ -445,6 +534,10 @@ export function WhiteLabelSettings() {
                 layoutStyle={layoutStyle}
                 fontPrimary={fontPrimary}
                 fontSecondary={fontSecondary}
+                headerBgColor={headerBgColor}
+                sidebarBgColor={sidebarBgColor}
+                contentBgColor={contentBgColor}
+                cardBgColor={cardBgColor}
               />
             </div>
           </div>

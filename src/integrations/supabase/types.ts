@@ -48,6 +48,8 @@ export type Database = {
         Row: {
           accent_color: string | null
           agency_id: string
+          card_bg_color: string | null
+          content_bg_color: string | null
           created_at: string | null
           custom_domain: string | null
           domain_status: string | null
@@ -56,15 +58,19 @@ export type Database = {
           favicon_url: string | null
           font_primary: string | null
           font_secondary: string | null
+          header_bg_color: string | null
           layout_style: string | null
           logo_url: string | null
           primary_color: string | null
           section_labels: Json | null
+          sidebar_bg_color: string | null
           updated_at: string | null
         }
         Insert: {
           accent_color?: string | null
           agency_id: string
+          card_bg_color?: string | null
+          content_bg_color?: string | null
           created_at?: string | null
           custom_domain?: string | null
           domain_status?: string | null
@@ -73,15 +79,19 @@ export type Database = {
           favicon_url?: string | null
           font_primary?: string | null
           font_secondary?: string | null
+          header_bg_color?: string | null
           layout_style?: string | null
           logo_url?: string | null
           primary_color?: string | null
           section_labels?: Json | null
+          sidebar_bg_color?: string | null
           updated_at?: string | null
         }
         Update: {
           accent_color?: string | null
           agency_id?: string
+          card_bg_color?: string | null
+          content_bg_color?: string | null
           created_at?: string | null
           custom_domain?: string | null
           domain_status?: string | null
@@ -90,10 +100,12 @@ export type Database = {
           favicon_url?: string | null
           font_primary?: string | null
           font_secondary?: string | null
+          header_bg_color?: string | null
           layout_style?: string | null
           logo_url?: string | null
           primary_color?: string | null
           section_labels?: Json | null
+          sidebar_bg_color?: string | null
           updated_at?: string | null
         }
         Relationships: [
