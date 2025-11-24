@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import ApprovalReviewModal from "@/components/ApprovalReviewModal";
 import {
   Dialog,
   DialogContent,
@@ -49,7 +50,8 @@ import {
   Trash2,
   Search,
   Filter,
-  XCircle
+  XCircle,
+  Send
 } from "lucide-react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { format } from "date-fns";
@@ -62,12 +64,15 @@ interface Idea {
   id: string;
   title: string;
   description: string | null;
-  tag: string | null;
+  tags: string[] | null;
   status: string;
+  review_comment: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
   created_at: string;
 }
 
-type IdeaStatus = "idea" | "approved" | "rejected" | "used";
+type IdeaStatus = "draft" | "idea" | "in_review" | "approved" | "rejected" | "used";
 
 interface StatusHistory {
   ideaId: string;
@@ -82,7 +87,9 @@ interface DateRange {
 }
 
 const STATUS_COLUMNS: { id: IdeaStatus; label: string; color: string }[] = [
+  { id: "draft", label: "Draft", color: "bg-slate-500/10 text-slate-700 dark:text-slate-400 border-slate-500/20" },
   { id: "idea", label: "Ideas", color: "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20" },
+  { id: "in_review", label: "In Review", color: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/20" },
   { id: "approved", label: "Approved", color: "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20" },
   { id: "rejected", label: "Rejected", color: "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20" },
   { id: "used", label: "Used", color: "bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20" },
@@ -90,7 +97,7 @@ const STATUS_COLUMNS: { id: IdeaStatus; label: string; color: string }[] = [
 
 export default function IdeasTab({ clientId }: IdeasTabProps) {
   const { toast } = useToast();
-  const { canCreateContent, canEditContent, isViewer } = useRole();
+  const { canCreateContent, canEditContent, isViewer, role } = useRole();
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [loading, setLoading] = useState(true);
   const [isNewIdeaOpen, setIsNewIdeaOpen] = useState(false);
@@ -100,6 +107,14 @@ export default function IdeasTab({ clientId }: IdeasTabProps) {
     description: "",
     tag: "",
   });
+  const [reviewModal, setReviewModal] = useState<{
+    open: boolean;
+    ideaId: string;
+    ideaTitle: string;
+    action: 'approve' | 'reject';
+  }>({ open: false, ideaId: '', ideaTitle: '', action: 'approve' });
+
+  const canApprove = role === 'owner' || role === 'admin' || role === 'manager';
 
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
@@ -112,11 +127,32 @@ export default function IdeasTab({ clientId }: IdeasTabProps) {
 
   useEffect(() => {
     fetchIdeas();
+
+    // Subscribe to real-time updates
+    const channel = supabase
+      .channel(`ideas-${clientId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'ideas',
+          filter: `client_id=eq.${clientId}`,
+        },
+        () => {
+          fetchIdeas();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [clientId]);
 
   const fetchIdeas = async () => {
     const { data, error } = await supabase
-      .from("client_ideas")
+      .from("ideas")
       .select("*")
       .eq("client_id", clientId)
       .order("created_at", { ascending: false });
@@ -137,7 +173,7 @@ export default function IdeasTab({ clientId }: IdeasTabProps) {
   // Get unique tags from all ideas
   const uniqueTags = useMemo(() => {
     const tags = ideas
-      .map((idea) => idea.tag)
+      .flatMap((idea) => idea.tags || [])
       .filter((tag): tag is string => tag !== null && tag !== "");
     return Array.from(new Set(tags));
   }, [ideas]);
@@ -151,7 +187,7 @@ export default function IdeasTab({ clientId }: IdeasTabProps) {
         (idea.description?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
 
       // Tag filter
-      const matchesTag = selectedTag === "all" || idea.tag === selectedTag;
+      const matchesTag = selectedTag === "all" || idea.tags?.includes(selectedTag);
 
       // Date range filter
       const ideaDate = new Date(idea.created_at);
@@ -174,13 +210,13 @@ export default function IdeasTab({ clientId }: IdeasTabProps) {
     }
 
     const { data, error } = await supabase
-      .from("client_ideas")
+      .from("ideas")
       .insert({
         client_id: clientId,
         title: newIdea.title.trim(),
         description: newIdea.description.trim() || null,
-        tag: newIdea.tag.trim() || null,
-        status: "idea",
+        tags: newIdea.tag.trim() ? [newIdea.tag.trim()] : null,
+        status: "draft",
       })
       .select()
       .single();
@@ -228,7 +264,7 @@ export default function IdeasTab({ clientId }: IdeasTabProps) {
 
     // Update in database
     const { error } = await supabase
-      .from("client_ideas")
+      .from("ideas")
       .update({ status: newStatus })
       .eq("id", ideaId);
 
@@ -248,7 +284,9 @@ export default function IdeasTab({ clientId }: IdeasTabProps) {
       setStatusHistory((prev) => prev.slice(1));
     } else {
       const statusMessages: Record<IdeaStatus, string> = {
+        draft: "saved as draft",
         idea: "moved to ideas",
+        in_review: "submitted for review",
         approved: "approved",
         rejected: "rejected",
         used: "marked as used",
@@ -312,7 +350,7 @@ export default function IdeasTab({ clientId }: IdeasTabProps) {
 
   const handleDeleteIdea = async (ideaId: string) => {
     const { error } = await supabase
-      .from("client_ideas")
+      .from("ideas")
       .delete()
       .eq("id", ideaId);
 
@@ -640,9 +678,9 @@ export default function IdeasTab({ clientId }: IdeasTabProps) {
                                   )}
                                   
                                   <div className="flex items-center justify-between">
-                                    {idea.tag ? (
+                                    {idea.tags && idea.tags.length > 0 ? (
                                       <Badge variant="outline" className="text-xs truncate max-w-[120px]">
-                                        {idea.tag}
+                                        {idea.tags[0]}
                                       </Badge>
                                     ) : (
                                       <div />

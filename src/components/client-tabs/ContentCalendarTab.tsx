@@ -8,6 +8,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useRole } from "@/hooks/useRole";
+import ApprovalReviewModal from "@/components/ApprovalReviewModal";
 import {
   Sheet,
   SheetContent,
@@ -46,7 +47,7 @@ import {
 } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, CalendarIcon, Calendar as CalendarViewIcon, List } from "lucide-react";
+import { Plus, CalendarIcon, Calendar as CalendarViewIcon, List, Send, CheckCircle, XCircle, Filter } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Post {
@@ -55,6 +56,9 @@ interface Post {
   platform: string | null;
   scheduled_for: string | null;
   status: string | null;
+  review_comment: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
   created_at: string;
 }
 
@@ -63,11 +67,12 @@ interface ContentCalendarTabProps {
 }
 
 const PLATFORMS = ["Instagram", "Facebook", "TikTok", "LinkedIn", "YouTube"];
-const STATUSES = ["draft", "scheduled", "published"];
+const STATUSES = ["draft", "in_review", "approved", "rejected", "scheduled", "published"];
+const APPROVAL_STATUSES = ["draft", "in_review", "approved", "rejected"];
 
 export default function ContentCalendarTab({ clientId }: ContentCalendarTabProps) {
   const { toast } = useToast();
-  const { canCreateContent, isViewer } = useRole();
+  const { canCreateContent, isViewer, role, canManageTeam } = useRole();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -82,9 +87,40 @@ export default function ContentCalendarTab({ clientId }: ContentCalendarTabProps
     status: "draft",
   });
   const [scheduledDate, setScheduledDate] = useState<Date | undefined>();
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [showFilters, setShowFilters] = useState(false);
+  const [reviewModal, setReviewModal] = useState<{
+    open: boolean;
+    postId: string;
+    postTitle: string;
+    action: 'approve' | 'reject';
+  }>({ open: false, postId: '', postTitle: '', action: 'approve' });
+
+  const canApprove = role === 'owner' || role === 'admin' || role === 'manager';
 
   useEffect(() => {
     fetchPosts();
+
+    // Subscribe to real-time updates
+    const channel = supabase
+      .channel(`posts-${clientId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'posts',
+          filter: `client_id=eq.${clientId}`,
+        },
+        () => {
+          fetchPosts();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [clientId]);
 
   const fetchPosts = async () => {
@@ -145,8 +181,81 @@ export default function ContentCalendarTab({ clientId }: ContentCalendarTabProps
     setSubmitting(false);
   };
 
+  const handleStatusChange = async (postId: string, newStatus: string) => {
+    const { error } = await supabase
+      .from("posts")
+      .update({ status: newStatus })
+      .eq("id", postId);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update status",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Success",
+        description: "Status updated successfully",
+      });
+      fetchPosts();
+    }
+  };
+
+  const handleReview = async (comment: string) => {
+    const newStatus = reviewModal.action === 'approve' ? 'approved' : 'rejected';
+    const { error } = await supabase
+      .from("posts")
+      .update({ 
+        status: newStatus,
+        review_comment: comment || null,
+        reviewed_at: new Date().toISOString()
+      })
+      .eq("id", reviewModal.postId);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: `Failed to ${reviewModal.action} post`,
+        variant: "destructive",
+      });
+      throw error;
+    }
+
+    // Send notification
+    const post = posts.find(p => p.id === reviewModal.postId);
+    if (post) {
+      try {
+        await supabase.functions.invoke("send-approval-notification", {
+          body: {
+            contentType: 'post',
+            contentId: reviewModal.postId,
+            contentTitle: post.title,
+            clientId: clientId,
+            action: newStatus,
+            comment: comment || undefined,
+          },
+        });
+      } catch (notifError) {
+        console.error("Failed to send notification:", notifError);
+      }
+    }
+
+    toast({
+      title: "Success",
+      description: `Post ${reviewModal.action}d successfully`,
+    });
+    fetchPosts();
+  };
+
   const getStatusBadgeVariant = (status: string | null) => {
     switch (status) {
+      case "approved":
+        return "green";
+      case "in_review":
+        return "default";
+      case "rejected":
+        return "destructive";
       case "published":
         return "default";
       case "scheduled":
@@ -157,10 +266,18 @@ export default function ContentCalendarTab({ clientId }: ContentCalendarTabProps
   };
 
   const getPostsForDate = (date: Date) => {
-    return posts.filter((post) =>
+    let filtered = posts.filter((post) =>
       post.scheduled_for && isSameDay(new Date(post.scheduled_for), date)
     );
+    if (statusFilter !== "all") {
+      filtered = filtered.filter(post => post.status === statusFilter);
+    }
+    return filtered;
   };
+
+  const filteredPosts = statusFilter === "all" 
+    ? posts 
+    : posts.filter(post => post.status === statusFilter);
 
   const getPostCountForDate = (date: Date) => {
     return getPostsForDate(date).length;
@@ -187,14 +304,22 @@ export default function ContentCalendarTab({ clientId }: ContentCalendarTabProps
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h3 className="text-lg font-semibold">Content Calendar</h3>
           <p className="text-sm text-muted-foreground">
             {isViewer ? "View scheduled content posts" : "Schedule and manage content posts"}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowFilters(!showFilters)}
+          >
+            <Filter className="h-4 w-4 mr-2" />
+            {showFilters ? "Hide" : "Show"} Filters
+          </Button>
           <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "calendar" | "list")}>
             <TabsList>
               <TabsTrigger value="calendar" className="gap-2">
@@ -310,8 +435,34 @@ export default function ContentCalendarTab({ clientId }: ContentCalendarTabProps
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
+        </div>
+      </div>
+
+      {showFilters && (
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex gap-2 flex-wrap">
+              <Button
+                variant={statusFilter === "all" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setStatusFilter("all")}
+              >
+                All
+              </Button>
+              {APPROVAL_STATUSES.map(status => (
+                <Button
+                  key={status}
+                  variant={statusFilter === status ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setStatusFilter(status)}
+                >
+                  {status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}
+                </Button>
+              ))}
             </div>
+          </CardContent>
+        </Card>
+      )}
             <DialogFooter>
               <Button
                 variant="outline"
@@ -359,7 +510,7 @@ export default function ContentCalendarTab({ clientId }: ContentCalendarTabProps
             />
           </CardContent>
         </Card>
-      ) : posts.length === 0 ? (
+      ) : filteredPosts.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <p className="text-muted-foreground">No posts scheduled yet</p>
@@ -375,10 +526,11 @@ export default function ContentCalendarTab({ clientId }: ContentCalendarTabProps
                   <TableHead>Platform</TableHead>
                   <TableHead>Title</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {posts.map((post) => (
+                {filteredPosts.map((post) => (
                   <TableRow key={post.id}>
                     <TableCell>
                       {post.scheduled_for
@@ -392,9 +544,55 @@ export default function ContentCalendarTab({ clientId }: ContentCalendarTabProps
                     </TableCell>
                     <TableCell className="font-medium">{post.title}</TableCell>
                     <TableCell>
-                      <Badge variant={getStatusBadgeVariant(post.status)}>
+                      <Badge variant={getStatusBadgeVariant(post.status) as any}>
                         {post.status || "draft"}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        {post.status === 'draft' && canCreateContent && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleStatusChange(post.id, 'in_review')}
+                          >
+                            <Send className="h-3 w-3 mr-1" />
+                            Submit
+                          </Button>
+                        )}
+                        {post.status === 'in_review' && canApprove && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-green-600"
+                              onClick={() => setReviewModal({
+                                open: true,
+                                postId: post.id,
+                                postTitle: post.title,
+                                action: 'approve'
+                              })}
+                            >
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-destructive"
+                              onClick={() => setReviewModal({
+                                open: true,
+                                postId: post.id,
+                                postTitle: post.title,
+                                action: 'reject'
+                              })}
+                            >
+                              <XCircle className="h-3 w-3 mr-1" />
+                              Reject
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -420,13 +618,13 @@ export default function ContentCalendarTab({ clientId }: ContentCalendarTabProps
                 No posts scheduled for this day
               </p>
             ) : (
-              selectedDatePosts.map((post) => (
+               selectedDatePosts.map((post) => (
                 <Card key={post.id}>
                   <CardContent className="p-4">
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       <div className="flex items-start justify-between gap-2">
                         <h4 className="font-medium">{post.title}</h4>
-                        <Badge variant={getStatusBadgeVariant(post.status)}>
+                        <Badge variant={getStatusBadgeVariant(post.status) as any}>
                           {post.status || "draft"}
                         </Badge>
                       </div>
@@ -440,6 +638,56 @@ export default function ContentCalendarTab({ clientId }: ContentCalendarTabProps
                           {format(new Date(post.scheduled_for), "h:mm a")}
                         </p>
                       )}
+                      {post.review_comment && (
+                        <div className="text-sm p-2 rounded bg-muted">
+                          <p className="font-medium text-xs mb-1">Review Comment:</p>
+                          <p className="text-muted-foreground">{post.review_comment}</p>
+                        </div>
+                      )}
+                      <div className="flex gap-2 pt-2">
+                        {post.status === 'draft' && canCreateContent && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleStatusChange(post.id, 'in_review')}
+                          >
+                            <Send className="h-3 w-3 mr-1" />
+                            Submit for Review
+                          </Button>
+                        )}
+                        {post.status === 'in_review' && canApprove && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-green-600"
+                              onClick={() => setReviewModal({
+                                open: true,
+                                postId: post.id,
+                                postTitle: post.title,
+                                action: 'approve'
+                              })}
+                            >
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-destructive"
+                              onClick={() => setReviewModal({
+                                open: true,
+                                postId: post.id,
+                                postTitle: post.title,
+                                action: 'reject'
+                              })}
+                            >
+                              <XCircle className="h-3 w-3 mr-1" />
+                              Reject
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -448,6 +696,15 @@ export default function ContentCalendarTab({ clientId }: ContentCalendarTabProps
           </div>
         </SheetContent>
       </Sheet>
+
+      <ApprovalReviewModal
+        open={reviewModal.open}
+        onOpenChange={(open) => setReviewModal({ ...reviewModal, open })}
+        contentType="post"
+        contentTitle={reviewModal.postTitle}
+        action={reviewModal.action}
+        onSubmit={handleReview}
+      />
     </div>
   );
 }

@@ -580,12 +580,56 @@ export type Database = {
           },
         ]
       }
+      content_activities: {
+        Row: {
+          action: string
+          actor_id: string
+          client_id: string
+          comment: string | null
+          content_id: string
+          content_type: string
+          created_at: string | null
+          id: string
+        }
+        Insert: {
+          action: string
+          actor_id: string
+          client_id: string
+          comment?: string | null
+          content_id: string
+          content_type: string
+          created_at?: string | null
+          id?: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string
+          client_id?: string
+          comment?: string | null
+          content_id?: string
+          content_type?: string
+          created_at?: string | null
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_activities_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ideas: {
         Row: {
           client_id: string
           created_at: string
           description: string | null
           id: string
+          review_comment: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
           status: string | null
           tags: string[] | null
           title: string
@@ -596,6 +640,9 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          review_comment?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           status?: string | null
           tags?: string[] | null
           title: string
@@ -606,6 +653,9 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          review_comment?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           status?: string | null
           tags?: string[] | null
           title?: string
@@ -663,6 +713,9 @@ export type Database = {
           created_at: string
           id: string
           platform: string | null
+          review_comment: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
           scheduled_for: string | null
           status: string | null
           title: string
@@ -674,6 +727,9 @@ export type Database = {
           created_at?: string
           id?: string
           platform?: string | null
+          review_comment?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           scheduled_for?: string | null
           status?: string | null
           title: string
@@ -685,6 +741,9 @@ export type Database = {
           created_at?: string
           id?: string
           platform?: string | null
+          review_comment?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           scheduled_for?: string | null
           status?: string | null
           title?: string
