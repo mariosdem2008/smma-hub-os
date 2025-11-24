@@ -119,23 +119,29 @@ export type Database = {
       }
       agency_members: {
         Row: {
+          accepted_at: string | null
           agency_id: string
           created_at: string
           id: string
+          invited_by: string | null
           role: string
           user_id: string
         }
         Insert: {
+          accepted_at?: string | null
           agency_id: string
           created_at?: string
           id?: string
+          invited_by?: string | null
           role?: string
           user_id: string
         }
         Update: {
+          accepted_at?: string | null
           agency_id?: string
           created_at?: string
           id?: string
+          invited_by?: string | null
           role?: string
           user_id?: string
         }
@@ -1253,6 +1259,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_agency_invite: {
+        Args: { _invite_token: string; _user_id: string }
+        Returns: Json
+      }
       generate_portal_slug: { Args: never; Returns: string }
       generate_portal_token: { Args: never; Returns: string }
       get_monthly_ai_usage: { Args: { p_agency_id: string }; Returns: number }
