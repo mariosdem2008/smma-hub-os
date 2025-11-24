@@ -8,10 +8,12 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { useSubscription } from '@/hooks/useSubscription';
-import { Loader2, Mail, Globe, Crown, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
+import { Loader2, Mail, Globe, Crown } from 'lucide-react';
 import { useUpgradeModal } from '@/contexts/UpgradeModalContext';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { DomainSetup } from './DomainSetup';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export function WhiteLabelSettings() {
   const { user } = useAuth();
@@ -20,11 +22,14 @@ export function WhiteLabelSettings() {
   const { openUpgradeModal } = useUpgradeModal();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [verifying, setVerifying] = useState(false);
   const [agencyId, setAgencyId] = useState<string | null>(null);
   
   const [customDomain, setCustomDomain] = useState('');
   const [domainStatus, setDomainStatus] = useState<'pending' | 'verified' | 'failed'>('pending');
+  const [verificationStatus, setVerificationStatus] = useState('not_configured');
+  const [sslStatus, setSslStatus] = useState('pending');
+  const [dnsRequiredRecord, setDnsRequiredRecord] = useState<string | null>(null);
+  const [dnsLastChecked, setDnsLastChecked] = useState<string | null>(null);
   const [emailSenderName, setEmailSenderName] = useState('');
   const [emailFooter, setEmailFooter] = useState('');
 
@@ -59,6 +64,10 @@ export function WhiteLabelSettings() {
       if (branding) {
         setCustomDomain(branding.custom_domain || '');
         setDomainStatus(branding.domain_status as any || 'pending');
+        setVerificationStatus(branding.verification_status || 'not_configured');
+        setSslStatus(branding.ssl_status || 'pending');
+        setDnsRequiredRecord(branding.dns_required_record);
+        setDnsLastChecked(branding.dns_last_checked);
         setEmailSenderName(branding.email_sender_name || '');
         setEmailFooter(branding.email_footer || '');
       }
@@ -77,7 +86,6 @@ export function WhiteLabelSettings() {
   const handleVerifyDomain = async () => {
     if (!agencyId || !customDomain) return;
 
-    setVerifying(true);
     try {
       const { data, error } = await supabase.functions.invoke('verify-custom-domain', {
         body: { domain: customDomain, agency_id: agencyId }
@@ -85,12 +93,13 @@ export function WhiteLabelSettings() {
 
       if (error) throw error;
 
-      setDomainStatus(data.verified ? 'verified' : 'failed');
       toast({
         title: data.verified ? 'Success' : 'Verification Failed',
         description: data.message,
         variant: data.verified ? 'default' : 'destructive',
       });
+      
+      fetchSettings();
     } catch (error) {
       console.error('Error verifying domain:', error);
       toast({
@@ -98,8 +107,6 @@ export function WhiteLabelSettings() {
         description: 'Failed to verify domain',
         variant: 'destructive',
       });
-    } finally {
-      setVerifying(false);
     }
   };
 
@@ -193,149 +200,115 @@ export function WhiteLabelSettings() {
         </CardHeader>
       </Card>
 
-      {/* Email Identity */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Mail className="h-4 w-4" />
-            Email Identity
-          </CardTitle>
-          <CardDescription>
-            Customize the sender name and footer for all client-facing emails
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <Label>Email Sender Name</Label>
-            <Input
-              value={emailSenderName}
-              onChange={(e) => setEmailSenderName(e.target.value)}
-              placeholder="Your Agency Name"
-              className="mt-2"
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              This name will appear in the "From" field of all client emails
-            </p>
-          </div>
-          <div>
-            <Label>Email Footer</Label>
-            <Textarea
-              value={emailFooter}
-              onChange={(e) => setEmailFooter(e.target.value)}
-              placeholder="Custom footer text for outgoing emails..."
-              className="mt-2"
-              rows={3}
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              Add custom text to the bottom of all client-facing emails
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Custom Domain */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Globe className="h-4 w-4" />
+      <Tabs defaultValue="email" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="email">Email Identity</TabsTrigger>
+          <TabsTrigger value="domain">
+            <Globe className="h-4 w-4 mr-2" />
             Custom Domain
-            {!canUseCustomDomain && <Badge variant="secondary">Agency Plus</Badge>}
-          </CardTitle>
-          <CardDescription>
-            Use your own domain for client portals (e.g., portal.youragency.com)
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {!canUseCustomDomain ? (
-            <Alert>
-              <Crown className="h-4 w-4" />
-              <AlertDescription>
-                Custom domains are available on the Agency Plus plan.
-              </AlertDescription>
-            </Alert>
-          ) : (
-            <>
+            {!canUseCustomDomain && <Crown className="h-3 w-3 ml-2" />}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="email" className="space-y-6">
+          {/* Email Identity */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Mail className="h-4 w-4" />
+                Email Identity
+              </CardTitle>
+              <CardDescription>
+                Customize the sender name and footer for all client-facing emails
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
               <div>
-                <Label>Portal Domain</Label>
+                <Label>Email Sender Name</Label>
                 <Input
-                  value={customDomain}
-                  onChange={(e) => setCustomDomain(e.target.value)}
-                  placeholder="portal.youragency.com"
+                  value={emailSenderName}
+                  onChange={(e) => setEmailSenderName(e.target.value)}
+                  placeholder="Your Agency Name"
                   className="mt-2"
-                  disabled={!canUseCustomDomain}
                 />
+                <p className="text-xs text-muted-foreground mt-1">
+                  This name will appear in the "From" field of all client emails
+                </p>
               </div>
+              <div>
+                <Label>Email Footer</Label>
+                <Textarea
+                  value={emailFooter}
+                  onChange={(e) => setEmailFooter(e.target.value)}
+                  placeholder="Custom footer text for outgoing emails..."
+                  className="mt-2"
+                  rows={3}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Add custom text to the bottom of all client-facing emails
+                </p>
+              </div>
+            </CardContent>
+          </Card>
 
-              {customDomain && (
+          {/* Save Button */}
+          <div className="flex justify-end">
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? (
                 <>
-                  <div className="flex items-center gap-2">
-                    <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm ${
-                      domainStatus === 'verified' ? 'bg-green-100 text-green-800' :
-                      domainStatus === 'failed' ? 'bg-red-100 text-red-800' :
-                      'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {domainStatus === 'verified' && <CheckCircle2 className="h-4 w-4" />}
-                      {domainStatus === 'failed' && <AlertCircle className="h-4 w-4" />}
-                      {domainStatus === 'pending' && <Clock className="h-4 w-4" />}
-                      <span className="capitalize">{domainStatus}</span>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleVerifyDomain}
-                      disabled={verifying}
-                    >
-                      {verifying ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Verifying...
-                        </>
-                      ) : (
-                        'Check DNS'
-                      )}
-                    </Button>
-                  </div>
-
-                  <Alert>
-                    <AlertDescription>
-                      <p className="font-medium mb-2">DNS Configuration Required:</p>
-                      <div className="space-y-1 text-xs">
-                        <div>
-                          <span className="font-mono bg-muted px-1">Type: CNAME</span>
-                        </div>
-                        <div>
-                          <span className="font-mono bg-muted px-1">Host: portal</span>
-                        </div>
-                        <div>
-                          <span className="font-mono bg-muted px-1">Value: your-saas-domain.com</span>
-                        </div>
-                        <div>
-                          <span className="font-mono bg-muted px-1">TTL: 300</span>
-                        </div>
-                      </div>
-                      <p className="mt-2 text-xs">DNS changes can take up to 72 hours to propagate.</p>
-                    </AlertDescription>
-                  </Alert>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
                 </>
+              ) : (
+                'Save Changes'
               )}
-            </>
-          )}
-        </CardContent>
-      </Card>
+            </Button>
+          </div>
+        </TabsContent>
 
-      {/* Save Button */}
-      <div className="flex justify-end">
-        <Button onClick={handleSave} disabled={saving}>
-          {saving ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            'Save Changes'
-          )}
-        </Button>
-      </div>
+        <TabsContent value="domain" className="space-y-6">
+          {/* Custom Domain */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Globe className="h-4 w-4" />
+                Custom Domain Setup
+                {!canUseCustomDomain && <Badge variant="secondary">Agency Plus</Badge>}
+              </CardTitle>
+              <CardDescription>
+                Use your own domain for client portals (e.g., portal.youragency.com)
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {!canUseCustomDomain ? (
+                <Alert>
+                  <Crown className="h-4 w-4" />
+                  <AlertDescription>
+                    Custom domains are available on the Agency Plus plan.
+                    <Button
+                      variant="link"
+                      className="px-0 ml-1"
+                      onClick={() => openUpgradeModal({ feature: 'Custom Domain' })}
+                    >
+                      Upgrade now
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <DomainSetup
+                  agencyId={agencyId!}
+                  currentDomain={customDomain}
+                  verificationStatus={verificationStatus}
+                  sslStatus={sslStatus}
+                  dnsRequiredRecord={dnsRequiredRecord}
+                  dnsLastChecked={dnsLastChecked}
+                  onUpdate={fetchSettings}
+                />
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
