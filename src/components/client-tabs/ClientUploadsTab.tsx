@@ -59,13 +59,7 @@ export default function ClientUploadsTab({ clientId, agencyId }: ClientUploadsTa
     try {
       const { data } = await supabase
         .from("client_uploads")
-        .select(`
-          *,
-          uploader:uploaded_by (
-            email,
-            full_name
-          )
-        `)
+        .select("*")
         .eq("client_id", clientId)
         .order("created_at", { ascending: false });
 
@@ -276,11 +270,6 @@ export default function ClientUploadsTab({ clientId, agencyId }: ClientUploadsTa
                             Uploaded {format(new Date(upload.created_at), "MMM d, yyyy")}
                           </span>
                         </div>
-                        {upload.uploader && (
-                          <p className="text-sm text-muted-foreground mt-1">
-                            By: {upload.uploader.full_name || upload.uploader.email}
-                          </p>
-                        )}
                       </div>
                       <div className="flex gap-2">
                         <Button
