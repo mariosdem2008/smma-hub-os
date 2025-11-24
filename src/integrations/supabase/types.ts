@@ -117,6 +117,41 @@ export type Database = {
           },
         ]
       }
+      ai_generation_usage: {
+        Row: {
+          agency_id: string
+          created_at: string | null
+          generation_type: string
+          id: string
+          month_year: string
+          user_id: string
+        }
+        Insert: {
+          agency_id: string
+          created_at?: string | null
+          generation_type: string
+          id?: string
+          month_year: string
+          user_id: string
+        }
+        Update: {
+          agency_id?: string
+          created_at?: string | null
+          generation_type?: string
+          id?: string
+          month_year?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_agency"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assets: {
         Row: {
           client_id: string
@@ -985,6 +1020,7 @@ export type Database = {
     Functions: {
       generate_portal_slug: { Args: never; Returns: string }
       generate_portal_token: { Args: never; Returns: string }
+      get_monthly_ai_usage: { Args: { p_agency_id: string }; Returns: number }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
