@@ -204,25 +204,59 @@ export default function AssetsTab({ clientId, agencyId }: AssetsTabProps) {
     if (!deleteAsset) return;
 
     try {
+      console.log('Starting asset deletion for:', deleteAsset.id);
+      
       // Extract file path from URL
       const url = new URL(deleteAsset.file_url);
-      const filePath = url.pathname.split("/client-assets/")[1];
+      const pathParts = url.pathname.split('/');
+      const bucketIndex = pathParts.indexOf('assets');
+      
+      if (bucketIndex !== -1 && bucketIndex < pathParts.length - 1) {
+        const filePath = pathParts.slice(bucketIndex + 1).join('/');
+        console.log('Deleting file from storage:', filePath);
+        
+        const { error: storageError } = await supabase.storage
+          .from("assets")
+          .remove([filePath]);
 
-      // Delete from storage
-      const { error: storageError } = await supabase.storage
-        .from("client-assets")
-        .remove([filePath]);
+        if (storageError) {
+          console.error('Storage deletion error:', storageError);
+        }
+      }
 
-      if (storageError) throw storageError;
+      // Delete thumbnail if exists
+      if (deleteAsset.thumbnail_url) {
+        const thumbUrl = new URL(deleteAsset.thumbnail_url);
+        const thumbPathParts = thumbUrl.pathname.split('/');
+        const thumbBucketIndex = thumbPathParts.indexOf('assets');
+        
+        if (thumbBucketIndex !== -1 && thumbBucketIndex < thumbPathParts.length - 1) {
+          const thumbPath = thumbPathParts.slice(thumbBucketIndex + 1).join('/');
+          console.log('Deleting thumbnail from storage:', thumbPath);
+          
+          const { error: thumbError } = await supabase.storage
+            .from('assets')
+            .remove([thumbPath]);
+          
+          if (thumbError) {
+            console.error('Thumbnail deletion error:', thumbError);
+          }
+        }
+      }
 
-      // Delete from database
+      // Delete from database (cascade will handle versions and comments)
+      console.log('Deleting asset from database');
       const { error: dbError } = await supabase
         .from("assets")
         .delete()
         .eq("id", deleteAsset.id);
 
-      if (dbError) throw dbError;
+      if (dbError) {
+        console.error('Database deletion error:', dbError);
+        throw dbError;
+      }
 
+      console.log('Asset deleted successfully');
       setAssets(assets.filter((a) => a.id !== deleteAsset.id));
       setDeleteAsset(null);
       setPreviewAsset(null);
@@ -231,11 +265,11 @@ export default function AssetsTab({ clientId, agencyId }: AssetsTabProps) {
         title: "Success",
         description: "Asset deleted successfully",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Delete error:", error);
       toast({
         title: "Error",
-        description: "Failed to delete asset",
+        description: error.message || "Failed to delete asset",
         variant: "destructive",
       });
     }
@@ -601,6 +635,21 @@ export default function AssetsTab({ clientId, agencyId }: AssetsTabProps) {
                               <X className="h-4 w-4 mr-2" />
                               Remove from Category
                             </DropdownMenuItem>
+                          )}
+                          {canDeleteContent && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem 
+                                className="text-destructive"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setDeleteAsset(asset);
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete Asset
+                              </DropdownMenuItem>
+                            </>
                           )}
                         </DropdownMenuContent>
                       </DropdownMenu>
