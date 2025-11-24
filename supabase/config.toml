@@ -23,3 +23,6 @@ verify_jwt = true
 
 [functions.send-portal-invite]
 verify_jwt = true
+
+[functions.generate-ai-content]
+verify_jwt = true
