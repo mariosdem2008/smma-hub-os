@@ -10,6 +10,11 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+interface AgencyBranding {
+  email_sender_name: string | null;
+  email_footer: string | null;
+}
+
 interface NotificationRequest {
   contentType: 'post' | 'idea';
   contentId: string;
@@ -17,6 +22,120 @@ interface NotificationRequest {
   clientId: string;
   action: 'submitted' | 'approved' | 'rejected';
   comment?: string;
+}
+
+function generateWhiteLabelEmail(
+  branding: AgencyBranding | null,
+  subject: string,
+  heading: string,
+  body: string,
+  ctaText?: string,
+  ctaUrl?: string
+): string {
+  const senderName = branding?.email_sender_name || 'SMMAHub';
+  const footer = branding?.email_footer || '';
+  const fontFamily = 'Arial, sans-serif';
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>${subject}</title>
+      <style>
+        body {
+          font-family: ${fontFamily};
+          margin: 0;
+          padding: 0;
+          background-color: #f5f5f5;
+        }
+        .container {
+          max-width: 600px;
+          margin: 0 auto;
+          background-color: #ffffff;
+        }
+        .header {
+          background-color: #6366f1;
+          padding: 30px 20px;
+          text-align: center;
+        }
+        .header h1 {
+          color: #ffffff;
+          margin: 0;
+          font-size: 24px;
+        }
+        .content {
+          padding: 40px 30px;
+        }
+        .heading {
+          font-size: 24px;
+          font-weight: bold;
+          color: #333;
+          margin-bottom: 20px;
+        }
+        .body-text {
+          font-size: 16px;
+          line-height: 1.6;
+          color: #666;
+          margin-bottom: 30px;
+        }
+        .cta-button {
+          display: inline-block;
+          padding: 14px 30px;
+          background-color: #8b5cf6;
+          color: #ffffff !important;
+          text-decoration: none;
+          border-radius: 6px;
+          font-weight: 600;
+          margin: 20px 0;
+        }
+        .footer {
+          background-color: #f9f9f9;
+          padding: 30px;
+          text-align: center;
+          font-size: 14px;
+          color: #999;
+        }
+        .footer-text {
+          margin-bottom: 10px;
+        }
+        .divider {
+          height: 1px;
+          background-color: #e5e5e5;
+          margin: 30px 0;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>${senderName}</h1>
+        </div>
+        
+        <div class="content">
+          <div class="heading">${heading}</div>
+          <div class="body-text">${body}</div>
+          
+          ${ctaText && ctaUrl ? `
+            <a href="${ctaUrl}" class="cta-button">${ctaText}</a>
+          ` : ''}
+        </div>
+        
+        <div class="footer">
+          ${footer ? `
+            <div class="footer-text">${footer}</div>
+            <div class="divider"></div>
+          ` : ''}
+          <div class="footer-text">© ${new Date().getFullYear()} ${senderName}. All rights reserved.</div>
+          <div class="footer-text" style="color: #ccc; font-size: 12px;">
+            This email was sent from your content management system.
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
 }
 
 serve(async (req: Request) => {
@@ -41,7 +160,7 @@ serve(async (req: Request) => {
       throw new Error("Client not found");
     }
 
-    // Get agency owner details
+    // Get agency details
     const { data: agency, error: agencyError } = await supabase
       .from("agencies")
       .select("name, user_id")
@@ -51,6 +170,13 @@ serve(async (req: Request) => {
     if (agencyError || !agency) {
       throw new Error("Agency not found");
     }
+
+    // Get agency branding
+    const { data: branding } = await supabase
+      .from("agency_branding")
+      .select("email_sender_name, email_footer")
+      .eq("agency_id", client.agency_id)
+      .single();
 
     // Get agency owner email
     const { data: ownerProfile, error: ownerError } = await supabase
@@ -70,48 +196,53 @@ serve(async (req: Request) => {
       .eq("client_id", clientId);
 
     let recipientEmail: string;
-    let recipientName: string;
     let subject: string;
-    let htmlContent: string;
+    let heading: string;
+    let bodyText: string;
 
     if (action === 'submitted') {
       // Notify client that content is ready for review
       recipientEmail = client.email || (portalUsers && portalUsers[0]?.email) || ownerProfile.email;
-      recipientName = client.name;
       subject = `New ${contentType} ready for your review`;
-      htmlContent = `
-        <h2>New Content Ready for Review</h2>
+      heading = "New Content Ready for Review";
+      bodyText = `
         <p>Hello,</p>
         <p>A new ${contentType} "<strong>${contentTitle}</strong>" has been submitted for your approval.</p>
         <p>Please review and approve or reject this content in your portal.</p>
-        <p>Best regards,<br>${agency.name}</p>
+        <p>Best regards,<br/>${agency.name}</p>
       `;
     } else if (action === 'approved') {
       // Notify agency that client approved content
       recipientEmail = ownerProfile.email;
-      recipientName = ownerProfile.full_name || agency.name;
       subject = `Client approved ${contentType}`;
-      htmlContent = `
-        <h2>Content Approved</h2>
-        <p>Hello ${recipientName},</p>
+      heading = "Content Approved";
+      bodyText = `
+        <p>Hello ${ownerProfile.full_name || agency.name},</p>
         <p>Your client <strong>${client.name}</strong> has approved the ${contentType} "<strong>${contentTitle}</strong>".</p>
         ${comment ? `<p><strong>Comment:</strong> ${comment}</p>` : ''}
-        <p>Best regards,<br>Your Content Management System</p>
+        <p>Keep up the great work!</p>
       `;
     } else {
       // Notify agency that client rejected content
       recipientEmail = ownerProfile.email;
-      recipientName = ownerProfile.full_name || agency.name;
-      subject = `Client rejected ${contentType}`;
-      htmlContent = `
-        <h2>Content Rejected</h2>
-        <p>Hello ${recipientName},</p>
-        <p>Your client <strong>${client.name}</strong> has rejected the ${contentType} "<strong>${contentTitle}</strong>".</p>
-        ${comment ? `<p><strong>Reason:</strong> ${comment}</p>` : ''}
-        <p>Please review and make the necessary changes.</p>
-        <p>Best regards,<br>Your Content Management System</p>
+      subject = `Client requested changes to ${contentType}`;
+      heading = "Content Needs Revision";
+      bodyText = `
+        <p>Hello ${ownerProfile.full_name || agency.name},</p>
+        <p>Your client <strong>${client.name}</strong> has requested changes to the ${contentType} "<strong>${contentTitle}</strong>".</p>
+        ${comment ? `<p><strong>Feedback:</strong> ${comment}</p>` : ''}
+        <p>Please review their feedback and make the necessary adjustments.</p>
       `;
     }
+
+    const htmlContent = generateWhiteLabelEmail(
+      branding,
+      subject,
+      heading,
+      bodyText
+    );
+
+    const senderName = branding?.email_sender_name || 'Content Hub';
 
     // Send email via Resend API
     const emailResponse = await fetch("https://api.resend.com/emails", {
@@ -121,7 +252,7 @@ serve(async (req: Request) => {
         "Authorization": `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: "Content Hub <onboarding@resend.dev>",
+        from: `${senderName} <onboarding@resend.dev>`,
         to: [recipientEmail],
         subject: subject,
         html: htmlContent,
@@ -132,10 +263,10 @@ serve(async (req: Request) => {
       throw new Error(`Failed to send email: ${await emailResponse.text()}`);
     }
 
-    console.log("Email sent successfully:", emailResponse);
+    console.log("Email sent successfully to:", recipientEmail);
 
     return new Response(
-      JSON.stringify({ success: true, emailResponse }),
+      JSON.stringify({ success: true }),
       {
         status: 200,
         headers: { "Content-Type": "application/json", ...corsHeaders },
