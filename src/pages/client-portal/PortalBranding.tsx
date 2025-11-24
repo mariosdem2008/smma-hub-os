@@ -3,7 +3,9 @@ import { useOutletContext } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Palette, Eye, Type } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Palette, Eye, Type, FileDown, Link2, Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface ClientBranding {
   primary_color: string | null;
@@ -26,8 +28,11 @@ interface OutletContext {
 
 export function PortalBranding() {
   const { clientId, client } = useOutletContext<OutletContext>();
+  const { toast } = useToast();
   const [branding, setBranding] = useState<ClientBranding | null>(null);
   const [loading, setLoading] = useState(true);
+  const [generatingPdf, setGeneratingPdf] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
 
   useEffect(() => {
     fetchBranding();
@@ -42,6 +47,42 @@ export function PortalBranding() {
 
     setBranding(data);
     setLoading(false);
+  };
+
+  const handleGeneratePDF = async () => {
+    setGeneratingPdf(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-brand-guidelines-pdf', {
+        body: { clientId },
+      });
+
+      if (error) throw error;
+
+      setPdfUrl(data.url);
+      toast({
+        title: "Success",
+        description: "Brand guidelines PDF generated successfully",
+      });
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast({
+        title: "Error",
+        description: "Failed to generate PDF. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingPdf(false);
+    }
+  };
+
+  const handleCopyLink = async () => {
+    if (pdfUrl) {
+      await navigator.clipboard.writeText(pdfUrl);
+      toast({
+        title: "Link Copied",
+        description: "PDF link copied to clipboard",
+      });
+    }
   };
 
   if (loading) {
@@ -268,6 +309,62 @@ export function PortalBranding() {
               className="prose prose-sm max-w-none dark:prose-invert"
               dangerouslySetInnerHTML={{ __html: branding.brand_guidelines }}
             />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* PDF Download Section */}
+      {branding && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Download Brand Guidelines</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Download a comprehensive PDF document containing all your brand guidelines.
+            </p>
+            
+            <div className="flex flex-wrap gap-3">
+              <Button 
+                onClick={handleGeneratePDF} 
+                disabled={generatingPdf}
+                size="lg"
+              >
+                {generatingPdf ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Generating PDF...
+                  </>
+                ) : (
+                  <>
+                    <FileDown className="mr-2 h-4 w-4" />
+                    Generate PDF
+                  </>
+                )}
+              </Button>
+
+              {pdfUrl && (
+                <>
+                  <Button 
+                    variant="outline" 
+                    size="lg"
+                    onClick={() => window.open(pdfUrl, '_blank')}
+                  >
+                    <FileDown className="mr-2 h-4 w-4" />
+                    Download PDF
+                  </Button>
+                  
+                  <Button 
+                    variant="outline" 
+                    size="lg"
+                    onClick={handleCopyLink}
+                  >
+                    <Link2 className="mr-2 h-4 w-4" />
+                    Copy Share Link
+                  </Button>
+                </>
+              )}
+            </div>
           </CardContent>
         </Card>
       )}
