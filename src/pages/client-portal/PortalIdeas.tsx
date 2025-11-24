@@ -217,6 +217,8 @@ export function PortalIdeas() {
       fetchIdeas();
     }
   };
+
+  if (loading) {
     return <div>Loading ideas...</div>;
   }
 
