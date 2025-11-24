@@ -14,6 +14,7 @@ import {
   FolderOpen,
   LogOut,
   CalendarDays,
+  MessageSquare,
 } from "lucide-react";
 
 interface Client {
@@ -32,6 +33,7 @@ interface Client {
 const navItems = [
   { path: "", label: "Overview", icon: LayoutDashboard },
   { path: "content-calendar", label: "Content Calendar", icon: CalendarDays },
+  { path: "posts", label: "Published Posts", icon: MessageSquare },
   { path: "ideas", label: "Ideas", icon: Lightbulb },
   { path: "assets", label: "Assets", icon: FolderOpen },
   { path: "branding", label: "Branding", icon: Palette },
