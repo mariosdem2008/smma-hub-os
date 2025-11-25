@@ -57,18 +57,35 @@ serve(async (req) => {
     }
 
     // Get all editors and managers for this agency (Creator role and above)
-    const { data: editors, error: editorsError } = await supabase
+    const { data: members, error: membersError } = await supabase
       .from('agency_members')
-      .select('user_id, role, profiles!inner(email, full_name)')
+      .select('user_id, role')
       .eq('agency_id', agency_id)
       .in('role', ['owner', 'admin', 'manager']);
 
-    if (editorsError) {
-      console.error('Error fetching editors:', editorsError);
-      throw editorsError;
+    if (membersError) {
+      console.error('Error fetching members:', membersError);
+      throw membersError;
     }
 
-    console.log(`Found ${editors?.length || 0} editors to notify`);
+    // Get profiles for these members
+    const userIds = members?.map(m => m.user_id) || [];
+    const { data: profiles, error: profilesError } = await supabase
+      .from('profiles')
+      .select('id, email, full_name')
+      .in('id', userIds);
+
+    if (profilesError) {
+      console.error('Error fetching profiles:', profilesError);
+    }
+
+    // Combine members with their profiles
+    const editors = members?.map(member => ({
+      ...member,
+      profile: profiles?.find(p => p.id === member.user_id)
+    })) || [];
+
+    console.log(`Found ${editors.length} editors to notify`);
 
     // Get agency branding for white-label emails
     const { data: branding } = await supabase
@@ -85,8 +102,8 @@ serve(async (req) => {
       const uploaderName = uploader?.full_name || uploader?.email || 'A team member';
       
       for (const editor of editors) {
-        const editorEmail = (editor.profiles as any)?.email;
-        const editorName = (editor.profiles as any)?.full_name || 'there';
+        const editorEmail = editor.profile?.email;
+        const editorName = editor.profile?.full_name || 'there';
 
         if (!editorEmail) continue;
 
