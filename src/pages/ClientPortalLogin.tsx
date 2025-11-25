@@ -57,17 +57,18 @@ export function ClientPortalLogin() {
       .eq("portal_slug", portalSlug)
       .single();
 
-    if (client) {
-      const { data: portalUser } = await supabase
-        .from("client_portal_users")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("client_id", client.id)
-        .maybeSingle();
+    if (!client) return;
 
-      if (portalUser) {
-        navigate(`/client-portal/${portalSlug}`);
-      }
+    // Use secure function to check invitation (checks by email OR user_id)
+    const { data: invitationData } = await supabase.rpc('check_portal_invitation', {
+      _client_id: client.id,
+      _email: user.email || ''
+    });
+
+    const invitation = invitationData?.[0];
+    
+    if (invitation) {
+      navigate(`/client-portal/${portalSlug}`);
     }
   };
 
@@ -120,19 +121,22 @@ export function ClientPortalLogin() {
         throw new Error("You don't have access to this portal. Please contact your agency for an invitation.");
       }
 
-      // If invitation exists but not linked to user, link it
+      // If invitation exists but not linked to user, link it using secure function
       if (!invitation.user_id) {
-        await supabase
-          .from("client_portal_users")
-          .update({ 
-            user_id: data.user.id,
-            accepted_at: new Date().toISOString()
-          })
-          .eq("id", invitation.id);
+        const { data: linked, error: linkError } = await supabase.rpc('accept_portal_invitation', {
+          _invitation_id: invitation.id
+        });
+        
+        if (linkError || !linked) {
+          console.error("Failed to link invitation:", linkError);
+          // Continue anyway - the invitation exists, they should still be able to access
+        }
       }
 
       toast({ title: "Welcome back!" });
-      // Navigation will happen automatically via the useEffect that watches `user`
+      
+      // Explicitly navigate after successful login
+      navigate(`/client-portal/${portalSlug}`);
     } catch (error: any) {
       console.error("Login error:", error);
       toast({
