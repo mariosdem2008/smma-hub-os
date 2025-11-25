@@ -188,14 +188,14 @@ export default function ClientApprovalInterface({
 
   const renderAssetPreview = () => {
     if (asset.file_type.startsWith('image')) {
-      return <img src={asset.file_url} alt={asset.filename} className="w-full h-auto rounded-lg" />;
+      return <img src={asset.file_url} alt={asset.filename} className="w-full h-auto max-h-[400px] object-contain rounded-lg" />;
     }
     if (asset.file_type.startsWith('video')) {
       return (
         <video 
           src={asset.file_url} 
           controls 
-          className="w-full h-auto rounded-lg"
+          className="w-full h-auto max-h-[400px] rounded-lg"
           playsInline
         />
       );
@@ -220,19 +220,19 @@ export default function ClientApprovalInterface({
             </TabsList>
 
             <TabsContent value="current" className="mt-4">
-              <div className="rounded-lg overflow-hidden bg-muted">
+              <div className="rounded-lg overflow-hidden bg-muted max-w-lg mx-auto">
                 {renderAssetPreview()}
               </div>
             </TabsContent>
 
             {previousVersionUrl && (
               <TabsContent value="previous" className="mt-4">
-                <div className="rounded-lg overflow-hidden bg-muted">
+                <div className="rounded-lg overflow-hidden bg-muted max-w-lg mx-auto">
                   {asset.file_type.startsWith('image') && (
-                    <img src={previousVersionUrl} alt="Previous version" className="w-full h-auto" />
+                    <img src={previousVersionUrl} alt="Previous version" className="w-full h-auto max-h-[400px] object-contain" />
                   )}
                   {asset.file_type.startsWith('video') && (
-                    <video src={previousVersionUrl} controls className="w-full h-auto" playsInline />
+                    <video src={previousVersionUrl} controls className="w-full h-auto max-h-[400px]" playsInline />
                   )}
                 </div>
               </TabsContent>
