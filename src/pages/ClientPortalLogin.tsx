@@ -83,17 +83,28 @@ export function ClientPortalLogin() {
         email: normalizedEmail,
         password,
       });
-      if (error) throw error;
+      
+      if (error) {
+        if (error.message.includes("Email not confirmed")) {
+          throw new Error("Please verify your email before logging in. Check your inbox for the verification link.");
+        }
+        throw error;
+      }
+      
       if (!data.user) throw new Error("Login failed");
 
-      // Get the client by portal slug
-      const { data: client } = await supabase
+      // Get the client by portal slug (uses public RLS policy)
+      const { data: client, error: clientError } = await supabase
         .from("clients")
         .select("id")
         .eq("portal_slug", portalSlug)
-        .single();
+        .eq("portal_enabled", true)
+        .maybeSingle();
 
-      if (!client) throw new Error("Portal not found");
+      if (clientError || !client) {
+        await supabase.auth.signOut();
+        throw new Error("Portal not found or unavailable");
+      }
 
       // Check if user has a valid invitation for THIS portal using secure function
       const { data: invitationData } = await supabase.rpc('check_portal_invitation', {
@@ -125,7 +136,7 @@ export function ClientPortalLogin() {
     } catch (error: any) {
       console.error("Login error:", error);
       toast({
-        title: "Access Denied",
+        title: "Login Failed",
         description: error.message,
         variant: "destructive",
       });
@@ -159,20 +170,33 @@ export function ClientPortalLogin() {
     try {
       const normalizedEmail = email.toLowerCase().trim();
 
-      // Check if user has a pending invitation BEFORE creating account
-      const { data: client } = await supabase
+      // Get client by portal slug (now works with public RLS policy)
+      const { data: client, error: clientError } = await supabase
         .from("clients")
-        .select("id")
+        .select("id, name")
         .eq("portal_slug", portalSlug)
-        .single();
+        .eq("portal_enabled", true)
+        .maybeSingle();
 
-      if (!client) throw new Error("Portal not found");
+      if (clientError) {
+        console.error("Client lookup error:", clientError);
+        throw new Error("Unable to verify portal. Please try again.");
+      }
+
+      if (!client) {
+        throw new Error("This portal is not available. Please check the URL or contact your agency.");
+      }
 
       // Check for invitation using secure function
-      const { data: invitationData } = await supabase.rpc('check_portal_invitation', {
+      const { data: invitationData, error: invitationError } = await supabase.rpc('check_portal_invitation', {
         _client_id: client.id,
         _email: normalizedEmail
       });
+
+      if (invitationError) {
+        console.error("Invitation check error:", invitationError);
+        throw new Error("Unable to verify invitation. Please try again.");
+      }
 
       const invitation = invitationData && invitationData.length > 0 ? invitationData[0] : null;
 
@@ -182,11 +206,11 @@ export function ClientPortalLogin() {
       }
 
       // Check if invitation expired
-      if (new Date(invitation.expires_at) < new Date()) {
+      if (invitation.expires_at && new Date(invitation.expires_at) < new Date()) {
         throw new Error("Your invitation has expired. Please request a new one from your agency.");
       }
 
-      // Create account
+      // Create account with email verification
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email: normalizedEmail,
         password,
@@ -200,7 +224,7 @@ export function ClientPortalLogin() {
       if (!authData.user) throw new Error("Failed to create account");
 
       // Link user to invitation
-      await supabase
+      const { error: updateError } = await supabase
         .from("client_portal_users")
         .update({ 
           user_id: authData.user.id,
@@ -209,8 +233,28 @@ export function ClientPortalLogin() {
         })
         .eq("id", invitation.id);
 
-      toast({ title: "Welcome! Your account has been created." });
-      navigate(`/client-portal/${portalSlug}`);
+      if (updateError) {
+        console.error("Failed to link invitation:", updateError);
+      }
+
+      // Check if email confirmation is required
+      if (authData.session) {
+        // Auto-confirm is enabled, user is logged in immediately
+        toast({ 
+          title: "Welcome!", 
+          description: "Your account has been created successfully." 
+        });
+        navigate(`/client-portal/${portalSlug}`);
+      } else {
+        // Email confirmation required
+        toast({ 
+          title: "Verify your email", 
+          description: "Please check your email and click the verification link to complete your registration.",
+          duration: 6000,
+        });
+        setMode("login");
+        setLoading(false);
+      }
     } catch (error: any) {
       console.error("Signup error:", error);
       toast({
