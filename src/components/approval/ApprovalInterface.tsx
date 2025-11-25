@@ -135,10 +135,10 @@ export default function ApprovalInterface({
     try {
       const { data: { user } } = await supabase.auth.getUser();
 
-      // Move asset back to editing stage
+      // Move asset back to in_production stage
       await supabase
         .from('assets')
-        .update({ pipeline_stage: 'editing' })
+        .update({ pipeline_stage: 'in_production' })
         .eq('id', asset.id);
 
       // Add feedback comment
