@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { DragDropContext, DropResult } from "@hello-pangea/dnd";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import RawUploadZone from "@/components/pipeline/RawUploadZone";
@@ -115,14 +116,14 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
     };
   }, [clientId]);
 
-  const handleMoveStage = async (assetId: string, newStage: string) => {
+  const handleMoveStage = async (assetId: string, newStage: 'raw' | 'editing' | 'approval' | 'final' | 'scheduled' | 'published') => {
     try {
-      const { error } = await supabase.functions.invoke('transition-pipeline-stage', {
-        body: {
-          asset_id: assetId,
-          new_stage: newStage
-        }
-      });
+      const { data, error } = await supabase
+        .from('assets')
+        .update({ pipeline_stage: newStage })
+        .eq('id', assetId)
+        .select()
+        .single();
 
       if (error) throw error;
 
@@ -131,14 +132,47 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
         description: `Asset moved to ${newStage}`
       });
 
-      fetchAssets();
+      // Optimistically update local state
+      setAssets(assets.map(a => a.id === assetId ? { ...a, pipeline_stage: newStage } : a));
     } catch (error: any) {
+      console.error('Stage transition error:', error);
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to move asset. Invalid stage transition.",
         variant: "destructive"
       });
+      // Revert optimistic update by refetching
+      fetchAssets();
     }
+  };
+
+  const handleDragEnd = async (result: DropResult) => {
+    const { source, destination, draggableId } = result;
+
+    // Dropped outside the list
+    if (!destination) {
+      return;
+    }
+
+    // Dropped in the same position
+    if (
+      source.droppableId === destination.droppableId &&
+      source.index === destination.index
+    ) {
+      return;
+    }
+
+    const assetId = draggableId;
+    const newStage = destination.droppableId as 'raw' | 'editing' | 'approval' | 'final' | 'scheduled' | 'published';
+
+    // Optimistically update UI
+    const asset = assets.find(a => a.id === assetId);
+    if (asset) {
+      setAssets(assets.map(a => a.id === assetId ? { ...a, pipeline_stage: newStage } : a));
+    }
+
+    // Update in database
+    await handleMoveStage(assetId, newStage);
   };
 
   const getAssetsByStage = (stage: string) => {
@@ -163,35 +197,39 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
       />
 
       {/* Pipeline Board */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        {PIPELINE_STAGES.map(stage => {
-          const stageAssets = getAssetsByStage(stage.key);
-          return (
-            <PipelineStageColumn
-              key={stage.key}
-              title={stage.label}
-              count={stageAssets.length}
-              color={stage.color}
-            >
-              {stageAssets.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">
-                  No assets in {stage.label.toLowerCase()}
-                </p>
-              ) : (
-                stageAssets.map(asset => (
-                  <AssetPipelineCard
-                    key={asset.id}
-                    asset={asset}
-                    uploaderEmail={asset.uploaded_by ? profiles[asset.uploaded_by]?.email : undefined}
-                    onMoveStage={handleMoveStage}
-                    onView={(id) => setSelectedAsset(assets.find(a => a.id === id) || null)}
-                  />
-                ))
-              )}
-            </PipelineStageColumn>
-          );
-        })}
-      </div>
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+          {PIPELINE_STAGES.map(stage => {
+            const stageAssets = getAssetsByStage(stage.key);
+            return (
+              <PipelineStageColumn
+                key={stage.key}
+                stageId={stage.key}
+                title={stage.label}
+                count={stageAssets.length}
+                color={stage.color}
+              >
+                {stageAssets.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">
+                    No assets in {stage.label.toLowerCase()}
+                  </p>
+                ) : (
+                  stageAssets.map((asset, index) => (
+                    <AssetPipelineCard
+                      key={asset.id}
+                      asset={asset}
+                      index={index}
+                      uploaderEmail={asset.uploaded_by ? profiles[asset.uploaded_by]?.email : undefined}
+                      onMoveStage={handleMoveStage}
+                      onView={(id) => setSelectedAsset(assets.find(a => a.id === id) || null)}
+                    />
+                  ))
+                )}
+              </PipelineStageColumn>
+            );
+          })}
+        </div>
+      </DragDropContext>
 
       {/* Asset Detail Modal */}
       {selectedAsset && (
