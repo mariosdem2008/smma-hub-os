@@ -59,8 +59,8 @@ interface OverviewTabProps {
 }
 
 interface Stats {
-  totalPosts: number;
-  completedTasks: number;
+  totalScheduled: number;
+  totalPublished: number;
   upcomingPosts: number;
 }
 
@@ -69,22 +69,14 @@ export default function OverviewTab({ clientId, client, onNotesUpdate }: Overvie
   const { user } = useAuth();
   const { isOwner, isAdmin, canCreateContent } = useRole();
   const [stats, setStats] = useState<Stats>({
-    totalPosts: 0,
-    completedTasks: 0,
+    totalScheduled: 0,
+    totalPublished: 0,
     upcomingPosts: 0,
   });
   const [isEditNotesOpen, setIsEditNotesOpen] = useState(false);
-  const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
   const [notes, setNotes] = useState(client.notes || "");
   const [saving, setSaving] = useState(false);
   const [brandColors, setBrandColors] = useState<string[]>([]);
-  
-  // Task form state
-  const [taskTitle, setTaskTitle] = useState("");
-  const [taskDescription, setTaskDescription] = useState("");
-  const [taskDueDate, setTaskDueDate] = useState("");
-  const [taskPriority, setTaskPriority] = useState("medium");
-  const [taskStatus, setTaskStatus] = useState("pending");
 
   useEffect(() => {
     fetchStats();
@@ -136,8 +128,8 @@ export default function OverviewTab({ clientId, client, onNotesUpdate }: Overvie
       .lte("scheduled_time", sevenDaysFromNow.toISOString());
 
     setStats({
-      totalPosts: scheduledCount || 0,
-      completedTasks: publishedCount || 0,
+      totalScheduled: scheduledCount || 0,
+      totalPublished: publishedCount || 0,
       upcomingPosts: upcomingCount || 0,
     });
   };
@@ -166,15 +158,6 @@ export default function OverviewTab({ clientId, client, onNotesUpdate }: Overvie
     setSaving(false);
   };
 
-  const handleAddTask = async () => {
-    // Tasks feature removed - show toast
-    toast({
-      title: "Feature Removed",
-      description: "Tasks module has been removed from MVP",
-      variant: "destructive",
-    });
-    setIsAddTaskOpen(false);
-  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -381,7 +364,7 @@ export default function OverviewTab({ clientId, client, onNotesUpdate }: Overvie
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Total Scheduled</p>
-                  <p className="text-2xl font-bold">{stats.totalPosts}</p>
+                  <p className="text-2xl font-bold">{stats.totalScheduled}</p>
                 </div>
               </div>
             </div>
@@ -393,7 +376,7 @@ export default function OverviewTab({ clientId, client, onNotesUpdate }: Overvie
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Published</p>
-                  <p className="text-2xl font-bold">{stats.completedTasks}</p>
+                  <p className="text-2xl font-bold">{stats.totalPublished}</p>
                 </div>
               </div>
             </div>
@@ -418,93 +401,6 @@ export default function OverviewTab({ clientId, client, onNotesUpdate }: Overvie
             <CardTitle>Quick Actions</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Dialog open={isAddTaskOpen} onOpenChange={setIsAddTaskOpen}>
-              <DialogTrigger asChild>
-                <Button className="w-full justify-start" variant="outline">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Task
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-lg">
-                <DialogHeader>
-                  <DialogTitle>Add New Task</DialogTitle>
-                  <DialogDescription>
-                    Create a new task for this client
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="task-title">Title *</Label>
-                    <Input
-                      id="task-title"
-                      value={taskTitle}
-                      onChange={(e) => setTaskTitle(e.target.value)}
-                      placeholder="Task title"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="task-description">Description</Label>
-                    <Textarea
-                      id="task-description"
-                      value={taskDescription}
-                      onChange={(e) => setTaskDescription(e.target.value)}
-                      placeholder="Task description (optional)"
-                      rows={3}
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="task-priority">Priority</Label>
-                      <Select value={taskPriority} onValueChange={setTaskPriority}>
-                        <SelectTrigger id="task-priority">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="low">Low</SelectItem>
-                          <SelectItem value="medium">Medium</SelectItem>
-                          <SelectItem value="high">High</SelectItem>
-                          <SelectItem value="urgent">Urgent</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="task-status">Status</Label>
-                      <Select value={taskStatus} onValueChange={setTaskStatus}>
-                        <SelectTrigger id="task-status">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="pending">Pending</SelectItem>
-                          <SelectItem value="in_progress">In Progress</SelectItem>
-                          <SelectItem value="completed">Completed</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="task-due-date">Due Date</Label>
-                    <Input
-                      id="task-due-date"
-                      type="date"
-                      value={taskDueDate}
-                      onChange={(e) => setTaskDueDate(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button
-                    variant="outline"
-                    onClick={() => setIsAddTaskOpen(false)}
-                    disabled={saving}
-                  >
-                    Cancel
-                  </Button>
-                  <Button onClick={handleAddTask} disabled={saving}>
-                    {saving ? "Creating..." : "Create Task"}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
             <Button 
               className="w-full justify-start" 
               variant="outline"
