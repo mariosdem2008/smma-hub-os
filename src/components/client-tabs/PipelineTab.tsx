@@ -6,6 +6,7 @@ import RawUploadZone from "@/components/pipeline/RawUploadZone";
 import PipelineStageColumn from "@/components/pipeline/PipelineStageColumn";
 import AssetPipelineCard from "@/components/pipeline/AssetPipelineCard";
 import { AssetDetailModal } from "@/components/assets/AssetDetailModal";
+import { FinalStageEditor } from "@/components/pipeline/FinalStageEditor";
 import { Loader2 } from "lucide-react";
 
 interface PipelineTabProps {
@@ -31,6 +32,10 @@ interface Asset {
   updated_at: string;
   is_client_upload: boolean;
   current_version: number;
+  final_caption: string | null;
+  hashtags: string | null;
+  platforms: string[] | null;
+  scheduled_time: string | null;
 }
 
 interface Profile {
@@ -51,6 +56,7 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
   const [profiles, setProfiles] = useState<Record<string, Profile>>({});
   const [loading, setLoading] = useState(true);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
+  const [editingFinalAsset, setEditingFinalAsset] = useState<Asset | null>(null);
   const { toast } = useToast();
 
   const fetchAssets = async () => {
@@ -221,7 +227,14 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
                       index={index}
                       uploaderEmail={asset.uploaded_by ? profiles[asset.uploaded_by]?.email : undefined}
                       onMoveStage={handleMoveStage}
-                      onView={(id) => setSelectedAsset(assets.find(a => a.id === id) || null)}
+                      onView={(id) => {
+                        const foundAsset = assets.find(a => a.id === id);
+                        if (foundAsset?.pipeline_stage === 'final') {
+                          setEditingFinalAsset(foundAsset);
+                        } else {
+                          setSelectedAsset(foundAsset || null);
+                        }
+                      }}
                     />
                   ))
                 )}
@@ -238,6 +251,16 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
           onClose={() => setSelectedAsset(null)}
           onAssetUpdated={fetchAssets}
           agencyId={agencyId}
+        />
+      )}
+
+      {/* Final Stage Editor */}
+      {editingFinalAsset && (
+        <FinalStageEditor
+          asset={editingFinalAsset}
+          clientId={clientId}
+          onClose={() => setEditingFinalAsset(null)}
+          onSuccess={fetchAssets}
         />
       )}
     </div>
