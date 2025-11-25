@@ -128,8 +128,9 @@ export default function RawUploadZone({ clientId, agencyId, onUploadComplete }: 
           uploaded_by: user.id,
           pipeline_stage: 'idea',
           content_type: contentType,
+          final_caption: description || null,
+          custom_category: notes || null,
           status: 'draft',
-          custom_category: notes || description || null,
           visible_to_client: false,
           current_version: 1
         })
