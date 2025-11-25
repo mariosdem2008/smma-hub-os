@@ -39,30 +39,32 @@ export default function ClientAcceptInvite() {
         return;
       }
 
-      const { data: invite, error } = await supabase
-        .from("client_invites")
-        .select("*, clients!inner(name, portal_slug)")
-        .eq("invite_token", token)
-        .eq("accepted", false)
-        .gt("expires_at", new Date().toISOString())
-        .single();
+      try {
+        const { data, error } = await supabase.functions.invoke(
+          "client-auth-validate-invite",
+          { body: { invite_token: token } }
+        );
 
-      if (error || !invite) {
+        if (error || !data) {
+          throw error || new Error("Invalid invitation");
+        }
+
+        setInviteValid(true);
+        setInviteEmail(data.email);
+        setClientName(data.client_name);
+        setPortalSlug(data.portal_slug);
+        setFullName(data.full_name || "");
+      } catch (err) {
+        console.error("Invite validation failed", err);
         toast({
           title: "Invalid Invitation",
           description: "This invitation is invalid or has expired",
           variant: "destructive",
         });
         setInviteValid(false);
-      } else {
-        setInviteValid(true);
-        setInviteEmail(invite.email);
-        setClientName(invite.clients.name);
-        setPortalSlug(invite.clients.portal_slug);
-        setFullName(invite.full_name || "");
+      } finally {
+        setValidating(false);
       }
-      
-      setValidating(false);
     };
 
     validateInvite();
