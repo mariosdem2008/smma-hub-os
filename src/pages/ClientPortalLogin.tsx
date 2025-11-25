@@ -20,7 +20,6 @@ export function ClientPortalLogin() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
-  const [portalEnabled, setPortalEnabled] = useState<boolean | null>(null);
   const [clientName, setClientName] = useState("");
   const [mode, setMode] = useState<"login" | "signup">("login");
 
@@ -30,25 +29,22 @@ export function ClientPortalLogin() {
 
   useEffect(() => {
     // If already logged in, check access and redirect
-    if (user && portalEnabled) {
+    if (user) {
       checkAccessAndRedirect();
     }
-  }, [user, portalEnabled]);
+  }, [user]);
 
   const checkPortalStatus = async () => {
     if (!portalSlug) return;
 
     const { data: client } = await supabase
       .from("clients")
-      .select("portal_enabled, name")
+      .select("name")
       .eq("portal_slug", portalSlug)
       .maybeSingle();
 
     if (client) {
-      setPortalEnabled(client.portal_enabled);
       setClientName(client.name);
-    } else {
-      setPortalEnabled(false);
     }
   };
 
@@ -226,27 +222,6 @@ export function ClientPortalLogin() {
     }
   };
 
-
-  if (portalEnabled === null) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-pulse text-muted-foreground">Loading...</div>
-      </div>
-    );
-  }
-
-  if (portalEnabled === false) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-6">
-        <Card className="max-w-md w-full p-8 text-center">
-          <h1 className="text-2xl font-bold mb-4">Portal Not Available</h1>
-          <p className="text-muted-foreground">
-            This client portal is not currently enabled. Please contact your agency for access.
-          </p>
-        </Card>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-6">
