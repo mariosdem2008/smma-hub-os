@@ -834,63 +834,67 @@ export type Database = {
           },
         ]
       }
-      client_portal_users: {
+      client_invites: {
         Row: {
-          accepted_at: string | null
+          accepted: boolean | null
+          agency_id: string
           client_id: string
-          created_at: string
+          created_at: string | null
           email: string
-          expires_at: string | null
+          expires_at: string
+          full_name: string | null
           id: string
-          invited_at: string | null
-          invited_by: string | null
-          name: string | null
+          invite_token: string
           role: string
-          user_id: string | null
         }
         Insert: {
-          accepted_at?: string | null
+          accepted?: boolean | null
+          agency_id: string
           client_id: string
-          created_at?: string
+          created_at?: string | null
           email: string
-          expires_at?: string | null
+          expires_at?: string
+          full_name?: string | null
           id?: string
-          invited_at?: string | null
-          invited_by?: string | null
-          name?: string | null
+          invite_token: string
           role?: string
-          user_id?: string | null
         }
         Update: {
-          accepted_at?: string | null
+          accepted?: boolean | null
+          agency_id?: string
           client_id?: string
-          created_at?: string
+          created_at?: string | null
           email?: string
-          expires_at?: string | null
+          expires_at?: string
+          full_name?: string | null
           id?: string
-          invited_at?: string | null
-          invited_by?: string | null
-          name?: string | null
+          invite_token?: string
           role?: string
-          user_id?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "client_portal_users_client_id_fkey"
+            foreignKeyName: "client_invites_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_invites_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "client_contacts_secure"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "client_portal_users_client_id_fkey"
+            foreignKeyName: "client_invites_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "client_portal_view"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "client_portal_users_client_id_fkey"
+            foreignKeyName: "client_invites_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
@@ -1011,6 +1015,83 @@ export type Database = {
           },
           {
             foreignKeyName: "client_uploads_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_users: {
+        Row: {
+          agency_id: string
+          client_id: string
+          created_at: string | null
+          email: string
+          full_name: string | null
+          id: string
+          invitation_status: string
+          last_login_at: string | null
+          password_hash: string
+          password_reset_expires_at: string | null
+          password_reset_token: string | null
+          role: string
+          updated_at: string | null
+        }
+        Insert: {
+          agency_id: string
+          client_id: string
+          created_at?: string | null
+          email: string
+          full_name?: string | null
+          id?: string
+          invitation_status?: string
+          last_login_at?: string | null
+          password_hash: string
+          password_reset_expires_at?: string | null
+          password_reset_token?: string | null
+          role?: string
+          updated_at?: string | null
+        }
+        Update: {
+          agency_id?: string
+          client_id?: string
+          created_at?: string | null
+          email?: string
+          full_name?: string | null
+          id?: string
+          invitation_status?: string
+          last_login_at?: string | null
+          password_hash?: string
+          password_reset_expires_at?: string | null
+          password_reset_token?: string | null
+          role?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_users_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_users_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_contacts_secure"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_users_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_portal_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_users_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
@@ -1846,20 +1927,6 @@ export type Database = {
         Args: { _invite_token: string; _user_id: string }
         Returns: Json
       }
-      accept_portal_invitation: {
-        Args: { _invitation_id: string }
-        Returns: boolean
-      }
-      check_portal_invitation: {
-        Args: { _client_id: string; _email: string }
-        Returns: {
-          accepted_at: string
-          expires_at: string
-          id: string
-          name: string
-          user_id: string
-        }[]
-      }
       generate_portal_invite_token: { Args: never; Returns: string }
       generate_portal_slug: { Args: never; Returns: string }
       generate_portal_token: { Args: never; Returns: string }
@@ -1904,10 +1971,6 @@ export type Database = {
       }
       is_agency_owner: {
         Args: { _agency_id: string; _user_id: string }
-        Returns: boolean
-      }
-      is_client_portal_user: {
-        Args: { _client_id: string; _user_id: string }
         Returns: boolean
       }
       transition_pipeline_stage: {
