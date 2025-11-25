@@ -53,6 +53,11 @@ function generateWhiteLabelEmail(
             </a>
           </div>
           
+          <p style="font-size: 13px; color: #555; text-align: center; margin: 0 0 20px 0; word-break: break-all;">
+            Or copy and paste this link into your browser:<br />
+            <a href="${ctaUrl}" style="color: ${primaryColor}; text-decoration: underline;">${ctaUrl}</a>
+          </p>
+          
           ${footer ? `
             <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 30px 0;" />
             <div style="font-size: 14px; color: #666; margin-bottom: 20px;">
