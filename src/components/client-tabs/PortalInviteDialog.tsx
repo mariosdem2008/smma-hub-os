@@ -1,18 +1,12 @@
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/lib/auth";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Loader2 } from "lucide-react";
 import { sendPortalInviteEmail } from "@/lib/invitations";
 
 interface PortalInviteDialogProps {
@@ -32,136 +26,135 @@ export function PortalInviteDialog({
   portalSlug,
   onInviteSent,
 }: PortalInviteDialogProps) {
-  const { user } = useAuth();
   const { toast } = useToast();
   const [email, setEmail] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [role, setRole] = useState<'client' | 'approver' | 'viewer'>('client');
   const [loading, setLoading] = useState(false);
 
   const handleInvite = async () => {
-    if (!email.trim() || !user) return;
+    if (!email.trim()) {
+      toast({
+        title: "Email Required",
+        description: "Please enter an email address",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(normalizedEmail)) {
+      toast({
+        title: "Invalid Email",
+        description: "Please enter a valid email address",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setLoading(true);
 
     try {
-      const normalizedEmail = email.toLowerCase().trim();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
 
-      // Validate email format
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(normalizedEmail)) {
-        toast({
-          title: "Invalid Email",
-          description: "Please enter a valid email address",
-          variant: "destructive",
-        });
-        setLoading(false);
-        return;
-      }
+      // Get agency info
+      const { data: agencyMember } = await supabase
+        .from("agency_members")
+        .select("agency_id, agencies!inner(name)")
+        .eq("user_id", user.id)
+        .single();
 
-      // Check if email already has access
-      const { data: existing } = await supabase
-        .from("client_portal_users")
-        .select("id, accepted_at")
+      if (!agencyMember) throw new Error("Agency not found");
+
+      const agencyName = (agencyMember.agencies as any)?.name || "Your Agency";
+      const agencyId = agencyMember.agency_id;
+
+      // Check if user already exists
+      const { data: existingUser } = await supabase
+        .from("client_users")
+        .select("*")
         .eq("client_id", clientId)
         .eq("email", normalizedEmail)
         .maybeSingle();
 
-      if (existing?.accepted_at) {
+      if (existingUser) {
         toast({
-          title: "Already Invited",
-          description: "This email already has access to the portal.",
+          title: "User Already Exists",
+          description: "This user already has access to the portal",
           variant: "destructive",
         });
         setLoading(false);
         return;
       }
 
-      // Get agency info for email branding
-      const { data: membership } = await supabase
-        .from("agency_members")
-        .select("agency_id, agencies(name)")
-        .eq("user_id", user.id)
-        .single();
+      // Check for existing pending invite
+      const { data: existingInvite } = await supabase
+        .from("client_invites")
+        .select("*")
+        .eq("client_id", clientId)
+        .eq("email", normalizedEmail)
+        .eq("accepted", false)
+        .gt("expires_at", new Date().toISOString())
+        .maybeSingle();
 
-      if (!membership) throw new Error("Agency not found");
-
-      const agencyName = (membership.agencies as any)?.name || "Your Agency";
-      const agencyId = membership.agency_id;
-
-      // Get user profile for inviter name
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("full_name")
-        .eq("id", user.id)
-        .single();
-
-      const inviterName = profile?.full_name || user.email || "Your Agency";
-
-      // Create or update invitation (just store email, no token needed)
-      if (existing) {
-        // Update existing pending invitation
-        await supabase
-          .from("client_portal_users")
-          .update({
-            invited_by: user.id,
-            invited_at: new Date().toISOString(),
-            expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-          })
-          .eq("id", existing.id);
-      } else {
-        // Create new invitation
-        await supabase
-          .from("client_portal_users")
-          .insert({
-            client_id: clientId,
-            email: normalizedEmail,
-            invited_by: user.id,
-            invited_at: new Date().toISOString(),
-            expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-            role: "client_viewer",
-          });
+      if (existingInvite) {
+        toast({
+          title: "Invitation Already Sent",
+          description: "An invitation has already been sent to this email",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
       }
 
-      // Send invitation email with portal login link
-      const portalUrl = `${window.location.origin}/client-portal/${portalSlug}`;
-      
-      const emailResult = await sendPortalInviteEmail({
+      // Generate secure invite token
+      const tokenArray = new Uint8Array(48);
+      crypto.getRandomValues(tokenArray);
+      const invite_token = Array.from(tokenArray)
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+
+      // Create invitation
+      await supabase
+        .from("client_invites")
+        .insert({
+          agency_id: agencyId,
+          client_id: clientId,
+          email: normalizedEmail,
+          full_name: fullName || null,
+          role,
+          invite_token,
+        });
+
+      // Send invitation email
+      await sendPortalInviteEmail({
         email: normalizedEmail,
         clientName,
-        portalUrl,
+        portalUrl: `${window.location.origin}/client/accept-invite?token=${invite_token}`,
         agencyName,
-        inviterName,
+        inviterName: user.email || "Your Agency",
         agencyId,
       });
 
-      if (!emailResult.success) {
-        throw new Error("Failed to send invitation email");
-      }
-
       toast({
         title: "Invitation Sent",
-        description: `An invitation has been sent to ${normalizedEmail}`,
+        description: `Portal invitation sent to ${normalizedEmail}`,
       });
 
       setEmail("");
-      onOpenChange(false);
+      setFullName("");
+      setRole('client');
       onInviteSent();
+      onOpenChange(false);
     } catch (error: any) {
       console.error("Error sending invitation:", error);
-      
-      let errorMessage = "Failed to send invitation";
-      
-      // Provide specific feedback based on error type
-      if (error.message?.includes("permission denied") || error.message?.includes("policy")) {
-        errorMessage = "You don't have permission to invite users to this client portal";
-      } else if (error.message?.includes("token")) {
-        errorMessage = "Failed to generate invitation token. Please try again.";
-      } else if (error.message?.includes("email")) {
-        errorMessage = "Failed to send invitation email. Please check the email address.";
-      }
-      
       toast({
         title: "Error",
-        description: error.message || errorMessage,
+        description: error.message || "Failed to send invitation",
         variant: "destructive",
       });
     } finally {
@@ -190,9 +183,32 @@ export function PortalInviteDialog({
               onChange={(e) => setEmail(e.target.value)}
               disabled={loading}
             />
-            <p className="text-xs text-muted-foreground">
-              An invitation link will be sent to this email address. The invitation expires in 7 days.
-            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="fullName">Full Name (optional)</Label>
+            <Input
+              id="fullName"
+              type="text"
+              placeholder="Client Name"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              disabled={loading}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="role">Portal Role</Label>
+            <Select value={role} onValueChange={(value: any) => setRole(value)} disabled={loading}>
+              <SelectTrigger id="role">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="client">Client (Can approve & comment)</SelectItem>
+                <SelectItem value="approver">Approver (Can only approve)</SelectItem>
+                <SelectItem value="viewer">Viewer (Read-only)</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
@@ -201,7 +217,8 @@ export function PortalInviteDialog({
             Cancel
           </Button>
           <Button onClick={handleInvite} disabled={loading || !email.trim()}>
-            {loading ? "Sending..." : "Send Invitation"}
+            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Send Invitation
           </Button>
         </DialogFooter>
       </DialogContent>

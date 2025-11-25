@@ -1,8 +1,7 @@
 import { useParams, Link, Outlet, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/lib/auth";
-import { useClientPortalAccess } from "@/hooks/useClientPortalAccess";
+import { useClientAuth } from "@/lib/client-auth";
 import { useClientFonts } from "@/hooks/useClientFonts";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -15,6 +14,7 @@ import {
   LogOut,
   CalendarDays,
   CheckCircle,
+  Upload,
 } from "lucide-react";
 
 interface Client {
@@ -40,14 +40,13 @@ const navItems = [
   { path: "branding", label: "Branding", key: "branding", icon: Palette },
   { path: "social", label: "Social Profiles", key: "social", icon: Share2 },
   { path: "deliverables", label: "Deliverables", key: "deliverables", icon: FolderOpen },
-  { path: "uploads", label: "My Uploads", key: "uploads", icon: Share2 },
+  { path: "uploads", label: "My Uploads", key: "uploads", icon: Upload },
 ];
 
 function ClientPortalLayoutContent() {
   const { portalSlug } = useParams();
   const navigate = useNavigate();
-  const { user, signOut } = useAuth();
-  const { clientId, loading, hasAccess } = useClientPortalAccess(portalSlug);
+  const { clientUser, logout, loading, isAuthenticated } = useClientAuth();
   const [client, setClient] = useState<Client | null>(null);
 
   // Load fonts dynamically
@@ -57,25 +56,24 @@ function ClientPortalLayoutContent() {
   });
 
   useEffect(() => {
-    if (!loading && !hasAccess) {
-      navigate(`/client-portal/${portalSlug}/login`);
+    if (!loading && !isAuthenticated) {
+      navigate(`/client/login/${portalSlug}`);
     }
-  }, [loading, hasAccess, navigate, portalSlug]);
+  }, [loading, isAuthenticated, navigate, portalSlug]);
 
   useEffect(() => {
-    if (clientId) {
+    if (clientUser?.client_id) {
       fetchClient();
     }
-  }, [clientId]);
+  }, [clientUser]);
 
   const fetchClient = async () => {
-    if (!clientId) return;
+    if (!clientUser?.client_id) return;
 
-    // Use secure view that excludes sensitive contact information
     const { data } = await supabase
       .from("client_portal_view")
       .select("*")
-      .eq("id", clientId)
+      .eq("id", clientUser.client_id)
       .maybeSingle();
 
     if (data) {
@@ -88,9 +86,9 @@ function ClientPortalLayoutContent() {
     }
   };
 
-  const handleSignOut = async () => {
-    await signOut();
-    navigate(`/client-portal/${portalSlug}/login`);
+  const handleSignOut = () => {
+    logout();
+    navigate(`/client/login/${portalSlug}`);
   };
 
   if (loading) {
@@ -101,7 +99,7 @@ function ClientPortalLayoutContent() {
     );
   }
 
-  if (!hasAccess || !clientId || !client) {
+  if (!isAuthenticated || !clientUser || !client) {
     return null;
   }
 
@@ -124,12 +122,13 @@ function ClientPortalLayoutContent() {
             </div>
           </div>
           <div className="flex items-center gap-4">
-            {user && (
-              <Button variant="ghost" size="sm" onClick={handleSignOut}>
-                <LogOut className="h-4 w-4 mr-2" />
-                Sign Out
-              </Button>
-            )}
+            <span className="text-sm text-muted-foreground">
+              {clientUser.full_name || clientUser.email}
+            </span>
+            <Button variant="ghost" size="sm" onClick={handleSignOut}>
+              <LogOut className="h-4 w-4 mr-2" />
+              Sign Out
+            </Button>
           </div>
         </div>
       </header>
@@ -142,12 +141,12 @@ function ClientPortalLayoutContent() {
               const Icon = item.icon;
               const isActive =
                 window.location.pathname ===
-                `/client-portal/${portalSlug}${item.path ? `/${item.path}` : ""}`;
+                `/client/portal/${portalSlug}${item.path ? `/${item.path}` : ""}`;
 
               return (
                 <Link
                   key={item.path}
-                  to={`/client-portal/${portalSlug}${item.path ? `/${item.path}` : ""}`}
+                  to={`/client/portal/${portalSlug}${item.path ? `/${item.path}` : ""}`}
                   className={cn(
                     "flex items-center gap-3 px-4 py-2 text-sm font-medium rounded-md transition-colors",
                     isActive
@@ -165,7 +164,7 @@ function ClientPortalLayoutContent() {
 
         {/* Main Content */}
         <main className="flex-1 min-w-0">
-          <Outlet context={{ client, clientId }} />
+          <Outlet context={{ client, clientId: clientUser.client_id, clientUser }} />
         </main>
       </div>
     </div>
