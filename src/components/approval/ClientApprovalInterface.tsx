@@ -25,6 +25,10 @@ interface Asset {
   pipeline_stage: string;
 }
 
+interface Client {
+  notes: string | null;
+}
+
 interface ClientApprovalInterfaceProps {
   asset: Asset;
   clientId: string;
@@ -40,16 +44,27 @@ export default function ClientApprovalInterface({
   const { clientUser } = useClientAuth();
   const [loading, setLoading] = useState(false);
   const [comment, setComment] = useState("");
-  const [editedCaption, setEditedCaption] = useState(asset.final_caption || "");
-  const [editedHashtags, setEditedHashtags] = useState(asset.hashtags || "");
-  const [editedScheduledTime, setEditedScheduledTime] = useState(
-    asset.scheduled_time ? new Date(asset.scheduled_time).toISOString().slice(0, 16) : ""
-  );
+  const [title, setTitle] = useState(asset.content_type || "");
+  const [description, setDescription] = useState(asset.final_caption || "");
+  const [clientNotes, setClientNotes] = useState<string>("");
   const [previousVersionUrl, setPreviousVersionUrl] = useState<string | null>(null);
 
   useEffect(() => {
     fetchPreviousVersion();
-  }, [asset.id]);
+    fetchClientNotes();
+  }, [asset.id, clientId]);
+
+  const fetchClientNotes = async () => {
+    const { data } = await supabase
+      .from('clients')
+      .select('notes')
+      .eq('id', clientId)
+      .single();
+    
+    if (data?.notes) {
+      setClientNotes(data.notes);
+    }
+  };
 
   const fetchPreviousVersion = async () => {
     if (asset.current_version <= 1) return;
@@ -79,21 +94,6 @@ export default function ClientApprovalInterface({
     setLoading(true);
 
     try {
-      // Update asset metadata if edited
-      const updates: any = {};
-      if (editedCaption !== asset.final_caption) updates.final_caption = editedCaption;
-      if (editedHashtags !== asset.hashtags) updates.hashtags = editedHashtags;
-      if (editedScheduledTime) {
-        updates.scheduled_time = new Date(editedScheduledTime).toISOString();
-      }
-
-      if (Object.keys(updates).length > 0) {
-        await supabase
-          .from('assets')
-          .update(updates)
-          .eq('id', asset.id);
-      }
-
       // Move to approved stage so agency can finalize before scheduling
       await supabase
         .from('assets')
@@ -202,93 +202,91 @@ export default function ClientApprovalInterface({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6 px-2 md:px-0">
       <Card>
-        <CardHeader>
-          <CardTitle>Review Content: {asset.filename}</CardTitle>
+        <CardHeader className="px-4 md:px-6">
+          <CardTitle className="text-lg md:text-xl">Review Content</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-4 md:px-6 space-y-4 md:space-y-6">
+          {/* Asset Preview */}
           <Tabs defaultValue="current" className="w-full">
-            <TabsList>
-              <TabsTrigger value="current">Current Version</TabsTrigger>
+            <TabsList className="w-full grid grid-cols-2">
+              <TabsTrigger value="current">Current</TabsTrigger>
               {previousVersionUrl && (
-                <TabsTrigger value="previous">Previous Version</TabsTrigger>
+                <TabsTrigger value="previous">Previous</TabsTrigger>
               )}
             </TabsList>
 
-            <TabsContent value="current" className="space-y-4">
-              <div className="mt-4">
+            <TabsContent value="current" className="mt-4">
+              <div className="rounded-lg overflow-hidden bg-muted">
                 {renderAssetPreview()}
               </div>
             </TabsContent>
 
             {previousVersionUrl && (
-              <TabsContent value="previous" className="space-y-4">
-                <div className="mt-4">
+              <TabsContent value="previous" className="mt-4">
+                <div className="rounded-lg overflow-hidden bg-muted">
                   {asset.file_type.startsWith('image') && (
-                    <img src={previousVersionUrl} alt="Previous version" className="w-full h-auto rounded-lg" />
+                    <img src={previousVersionUrl} alt="Previous version" className="w-full h-auto" />
                   )}
                   {asset.file_type.startsWith('video') && (
-                    <video src={previousVersionUrl} controls className="w-full h-auto rounded-lg" playsInline />
+                    <video src={previousVersionUrl} controls className="w-full h-auto" playsInline />
                   )}
                 </div>
               </TabsContent>
             )}
           </Tabs>
 
-          <Separator className="my-6" />
+          <Separator />
 
+          {/* Content Details */}
           <div className="space-y-4">
             <div>
-              <Label htmlFor="caption">Caption</Label>
-              <Textarea
-                id="caption"
-                value={editedCaption}
-                onChange={(e) => setEditedCaption(e.target.value)}
-                placeholder="Edit caption if needed"
-                rows={4}
-              />
+              <Label className="text-sm font-semibold">Title</Label>
+              <p className="mt-1 text-sm md:text-base text-foreground">
+                {title || asset.filename}
+              </p>
             </div>
 
             <div>
-              <Label htmlFor="hashtags">Hashtags</Label>
-              <Input
-                id="hashtags"
-                value={editedHashtags}
-                onChange={(e) => setEditedHashtags(e.target.value)}
-                placeholder="#hashtag1 #hashtag2"
-              />
+              <Label className="text-sm font-semibold">Description</Label>
+              <p className="mt-1 text-sm md:text-base text-muted-foreground whitespace-pre-wrap">
+                {description || "No description provided"}
+              </p>
             </div>
 
-            <div>
-              <Label htmlFor="scheduled">Scheduled Time</Label>
-              <Input
-                id="scheduled"
-                type="datetime-local"
-                value={editedScheduledTime}
-                onChange={(e) => setEditedScheduledTime(e.target.value)}
-              />
-            </div>
+            {clientNotes && (
+              <div>
+                <Label className="text-sm font-semibold">Brand Notes</Label>
+                <p className="mt-1 text-sm md:text-base text-muted-foreground whitespace-pre-wrap">
+                  {clientNotes}
+                </p>
+              </div>
+            )}
 
             <div>
-              <Label htmlFor="comment">Your Feedback (Optional for approval, Required for changes)</Label>
+              <Label htmlFor="comment" className="text-sm font-semibold">
+                Your Feedback {comment.trim() ? "(Optional)" : "(Required for changes)"}
+              </Label>
               <Textarea
                 id="comment"
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
                 placeholder="Add your feedback or approval notes"
-                rows={3}
+                rows={4}
+                className="mt-1.5"
               />
             </div>
           </div>
 
-          <Separator className="my-6" />
+          <Separator />
 
-          <div className="flex gap-3">
+          {/* Action Buttons */}
+          <div className="flex flex-col sm:flex-row gap-3">
             <Button
               onClick={handleApprove}
               disabled={loading}
-              className="flex-1"
+              className="flex-1 h-11"
             >
               <CheckCircle className="mr-2 h-4 w-4" />
               {loading ? "Processing..." : "Approve Content"}
@@ -297,7 +295,7 @@ export default function ClientApprovalInterface({
               onClick={handleRequestChanges}
               disabled={loading}
               variant="destructive"
-              className="flex-1"
+              className="flex-1 h-11"
             >
               <XCircle className="mr-2 h-4 w-4" />
               {loading ? "Processing..." : "Request Changes"}
