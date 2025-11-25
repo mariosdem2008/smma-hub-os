@@ -286,7 +286,6 @@ export type Database = {
           created_at: string
           current_version: number | null
           custom_category: string | null
-          error_message: string | null
           file_size: number | null
           file_type: string
           file_url: string
@@ -312,7 +311,6 @@ export type Database = {
           created_at?: string
           current_version?: number | null
           custom_category?: string | null
-          error_message?: string | null
           file_size?: number | null
           file_type: string
           file_url: string
@@ -338,7 +336,6 @@ export type Database = {
           created_at?: string
           current_version?: number | null
           custom_category?: string | null
-          error_message?: string | null
           file_size?: number | null
           file_type?: string
           file_url?: string
@@ -1641,7 +1638,6 @@ export type Database = {
         | "approved"
         | "scheduled"
         | "published"
-        | "failed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1778,7 +1774,6 @@ export const Constants = {
         "approved",
         "scheduled",
         "published",
-        "failed",
       ],
     },
   },
