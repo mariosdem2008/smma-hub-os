@@ -73,7 +73,10 @@ export default function ClientAcceptInvite() {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    console.log("handleSignup called");
+    
     if (password !== confirmPassword) {
+      console.log("Password mismatch");
       toast({
         title: "Password Mismatch",
         description: "Passwords do not match",
@@ -82,18 +85,25 @@ export default function ClientAcceptInvite() {
       return;
     }
 
-    if (!token) return;
+    if (!token) {
+      console.log("No token");
+      return;
+    }
 
+    console.log("Starting signup with token:", token.substring(0, 10));
     setLoading(true);
 
     try {
+      console.log("Calling signup function");
       await signup(token, password, fullName);
+      console.log("Signup successful");
       toast({
         title: "Welcome!",
         description: "Your account has been created successfully",
       });
       navigate(`/client/portal/${portalSlug}`);
     } catch (error: any) {
+      console.error("Signup error:", error);
       toast({
         title: "Signup Failed",
         description: error.message || "Failed to create account",
