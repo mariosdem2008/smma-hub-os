@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 
 interface SearchResult {
   id: string;
-  type: "idea" | "asset" | "inspiration" | "hashtag" | "pillar" | "caption" | "post";
+  type: "idea" | "asset" | "hashtag";
   title: string;
   description?: string;
   icon: React.ReactNode;
@@ -35,19 +35,13 @@ export default function ClientSearchBar({ clientId }: ClientSearchBarProps) {
     "images": { tab: "library" },
     "videos": { tab: "library" },
     "files": { tab: "library" },
-    "inspiration": { tab: "library" },
-    "captions": { tab: "library" },
     "hashtags": { tab: "library" },
     
     // Content Planning
-    "posts": { tab: "planning" },
     "calendar": { tab: "planning" },
     "ideas": { tab: "planning" },
-    "pillars": { tab: "planning" },
-    "content pillars": { tab: "planning" },
     
     // Workspace
-    "tasks": { tab: "workspace" },
     "notes": { tab: "workspace" },
     
     // Other tabs
@@ -93,27 +87,6 @@ export default function ClientSearchBar({ clientId }: ClientSearchBarProps) {
       const searchTerm = `%${query.toLowerCase()}%`;
       const allResults: SearchResult[] = [];
 
-      // Search Posts
-      const { data: posts } = await supabase
-        .from("posts")
-        .select("id, title, platform")
-        .eq("client_id", clientId)
-        .ilike("title", searchTerm);
-
-      if (posts) {
-        posts.forEach((post) => {
-          allResults.push({
-            id: post.id,
-            type: "post",
-            title: post.title,
-            description: post.platform || undefined,
-            icon: <Calendar className="h-4 w-4" />,
-            color: "text-blue-500",
-            tab: "planning",
-          });
-        });
-      }
-
       // Search Ideas
       const { data: ideas } = await supabase
         .from("ideas")
@@ -155,28 +128,6 @@ export default function ClientSearchBar({ clientId }: ClientSearchBarProps) {
         });
       }
 
-      // Search Inspiration
-      const { data: inspiration } = await supabase
-        .from("client_inspiration")
-        .select("id, description")
-        .eq("client_id", clientId)
-        .ilike("description", searchTerm);
-
-      if (inspiration) {
-        inspiration.forEach((item) => {
-          if (item.description) {
-            allResults.push({
-              id: item.id,
-              type: "inspiration",
-              title: item.description,
-              icon: <Image className="h-4 w-4" />,
-              color: "text-purple-500",
-              tab: "library",
-            });
-          }
-        });
-      }
-
       // Search Hashtags
       const { data: hashtags } = await supabase
         .from("client_hashtags")
@@ -193,47 +144,6 @@ export default function ClientSearchBar({ clientId }: ClientSearchBarProps) {
             description: hashtag.category || undefined,
             icon: <Hash className="h-4 w-4" />,
             color: "text-green-500",
-            tab: "library",
-          });
-        });
-      }
-
-      // Search Content Pillars
-      const { data: pillars } = await supabase
-        .from("client_content_pillars")
-        .select("id, title, description")
-        .eq("client_id", clientId)
-        .or(`title.ilike.${searchTerm},description.ilike.${searchTerm}`);
-
-      if (pillars) {
-        pillars.forEach((pillar) => {
-          allResults.push({
-            id: pillar.id,
-            type: "pillar",
-            title: pillar.title,
-            description: pillar.description || undefined,
-            icon: <Target className="h-4 w-4" />,
-            color: "text-orange-500",
-            tab: "planning",
-          });
-        });
-      }
-
-      // Search Saved Captions
-      const { data: captions } = await supabase
-        .from("client_saved_captions")
-        .select("id, caption")
-        .eq("client_id", clientId)
-        .ilike("caption", searchTerm);
-
-      if (captions) {
-        captions.forEach((caption) => {
-          allResults.push({
-            id: caption.id,
-            type: "caption",
-            title: caption.caption.substring(0, 100) + (caption.caption.length > 100 ? "..." : ""),
-            icon: <MessageSquare className="h-4 w-4" />,
-            color: "text-pink-500",
             tab: "library",
           });
         });
@@ -268,13 +178,9 @@ export default function ClientSearchBar({ clientId }: ClientSearchBarProps) {
 
   const getTypeBadge = (type: SearchResult["type"]) => {
     const badges = {
-      post: { label: "Post", variant: "default" as const },
       idea: { label: "Idea", variant: "default" as const },
       asset: { label: "Asset", variant: "secondary" as const },
-      inspiration: { label: "Inspiration", variant: "outline" as const },
       hashtag: { label: "Hashtag", variant: "default" as const },
-      pillar: { label: "Pillar", variant: "secondary" as const },
-      caption: { label: "Caption", variant: "outline" as const },
     };
     return badges[type];
   };

@@ -12,7 +12,6 @@ import OverviewTab from "@/components/client-tabs/OverviewTab";
 import BrandIdentityTab from "@/components/client-tabs/BrandIdentityTab";
 import SocialProfilesTab from "@/components/SocialProfilesTab";
 import ContentPlanningTab from "@/components/client-tabs/ContentPlanningTab";
-import AIAssistantTab from "@/components/client-tabs/AIAssistantTab";
 import ContentLibraryTab from "@/components/client-tabs/ContentLibraryTab";
 import PipelineTab from "@/components/client-tabs/PipelineTab";
 import ClientUploadsTab from "@/components/client-tabs/ClientUploadsTab";
@@ -161,7 +160,7 @@ export default function ClientDetail() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="overflow-x-auto">
-           <TabsList className="inline-flex w-auto min-w-full md:grid md:grid-cols-9">
+          <TabsList className="inline-flex w-auto min-w-full md:grid md:grid-cols-8">
             <TabsTrigger value="overview" className="flex-shrink-0">Overview</TabsTrigger>
             <TabsTrigger value="pipeline" className="flex-shrink-0">Pipeline</TabsTrigger>
             <TabsTrigger value="brand" className="flex-shrink-0">Brand Identity</TabsTrigger>
@@ -171,7 +170,6 @@ export default function ClientDetail() {
             <TabsTrigger value="workspace" className="flex-shrink-0">Workspace</TabsTrigger>
             <TabsTrigger value="uploads" className="flex-shrink-0">Client Uploads</TabsTrigger>
             <TabsTrigger value="portal" className="flex-shrink-0">Client Portal</TabsTrigger>
-            <TabsTrigger value="ai" className="flex-shrink-0 bg-gradient-to-r from-purple-500/10 to-blue-500/10 data-[state=active]:from-purple-500/20 data-[state=active]:to-blue-500/20 border-purple-500/20">AI Assistant</TabsTrigger>
           </TabsList>
         </div>
 

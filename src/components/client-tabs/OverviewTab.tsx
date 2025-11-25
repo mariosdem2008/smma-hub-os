@@ -109,34 +109,36 @@ export default function OverviewTab({ clientId, client, onNotesUpdate }: Overvie
   };
 
   const fetchStats = async () => {
-    // Fetch total posts
-    const { count: postsCount } = await supabase
-      .from("posts")
-      .select("*", { count: "exact", head: true })
-      .eq("client_id", clientId);
-
-    // Fetch completed tasks
-    const { count: completedTasksCount } = await supabase
-      .from("tasks")
+    // Fetch scheduled content
+    const { count: scheduledCount } = await supabase
+      .from("assets")
       .select("*", { count: "exact", head: true })
       .eq("client_id", clientId)
-      .eq("status", "completed");
+      .eq("pipeline_stage", "scheduled");
 
-    // Fetch upcoming posts (next 7 days)
+    // Fetch published content
+    const { count: publishedCount } = await supabase
+      .from("assets")
+      .select("*", { count: "exact", head: true })
+      .eq("client_id", clientId)
+      .eq("pipeline_stage", "published");
+
+    // Fetch upcoming content (scheduled in next 7 days)
     const sevenDaysFromNow = new Date();
     sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
 
-    const { count: upcomingPostsCount } = await supabase
-      .from("posts")
+    const { count: upcomingCount } = await supabase
+      .from("assets")
       .select("*", { count: "exact", head: true })
       .eq("client_id", clientId)
-      .gte("scheduled_for", new Date().toISOString())
-      .lte("scheduled_for", sevenDaysFromNow.toISOString());
+      .eq("pipeline_stage", "scheduled")
+      .gte("scheduled_time", new Date().toISOString())
+      .lte("scheduled_time", sevenDaysFromNow.toISOString());
 
     setStats({
-      totalPosts: postsCount || 0,
-      completedTasks: completedTasksCount || 0,
-      upcomingPosts: upcomingPostsCount || 0,
+      totalPosts: scheduledCount || 0,
+      completedTasks: publishedCount || 0,
+      upcomingPosts: upcomingCount || 0,
     });
   };
 
@@ -174,18 +176,15 @@ export default function OverviewTab({ clientId, client, onNotesUpdate }: Overvie
       return;
     }
 
-    setSaving(true);
-    const { error } = await supabase
-      .from("tasks")
-      .insert({
-        client_id: clientId,
-        title: taskTitle,
-        description: taskDescription || null,
-        due_date: taskDueDate || null,
-        priority: taskPriority,
-        status: taskStatus,
-        assigned_to: user?.id || null,
-      });
+  const handleAddTask = async () => {
+    // Tasks feature removed - show toast
+    toast({
+      title: "Feature Removed",
+      description: "Tasks module has been removed from MVP",
+      variant: "destructive",
+    });
+    setIsAddTaskOpen(false);
+  };
 
     if (error) {
       toast({
@@ -414,7 +413,7 @@ export default function OverviewTab({ clientId, client, onNotesUpdate }: Overvie
                   <CalendarDays className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Total Scheduled Posts</p>
+                  <p className="text-sm text-muted-foreground">Total Scheduled</p>
                   <p className="text-2xl font-bold">{stats.totalPosts}</p>
                 </div>
               </div>
@@ -426,7 +425,7 @@ export default function OverviewTab({ clientId, client, onNotesUpdate }: Overvie
                   <CheckCircle2 className="h-5 w-5 text-green-500" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Completed Tasks</p>
+                  <p className="text-sm text-muted-foreground">Published</p>
                   <p className="text-2xl font-bold">{stats.completedTasks}</p>
                 </div>
               </div>

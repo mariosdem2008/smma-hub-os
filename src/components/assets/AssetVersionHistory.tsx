@@ -4,10 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { History, Eye, RotateCcw, Upload, GitCompare, Loader2 } from "lucide-react";
+import { History, Eye, RotateCcw, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { AssetVersionPreview } from "./AssetVersionPreview";
-import { AssetVersionCompare } from "./AssetVersionCompare";
 import { useRole } from "@/hooks/useRole";
 
 interface AssetVersion {
@@ -41,14 +40,11 @@ export function AssetVersionHistory({
   const [versions, setVersions] = useState<AssetVersion[]>([]);
   const [loading, setLoading] = useState(true);
   const [previewVersion, setPreviewVersion] = useState<AssetVersion | null>(null);
-  const [compareMode, setCompareMode] = useState(false);
-  const [compareVersions, setCompareVersions] = useState<[AssetVersion?, AssetVersion?]>([]);
   const [restoring, setRestoring] = useState<string | null>(null);
 
   useEffect(() => {
     fetchVersions();
     
-    // Subscribe to realtime updates
     const channel = supabase
       .channel('asset-versions-changes')
       .on(
@@ -97,7 +93,6 @@ export function AssetVersionHistory({
 
     setRestoring(version.id);
     try {
-      // Update the main asset with this version's file_url
       const { error: updateError } = await supabase
         .from('assets')
         .update({
@@ -109,7 +104,6 @@ export function AssetVersionHistory({
 
       if (updateError) throw updateError;
 
-      // Log activity
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         await supabase.from('content_activities').insert({
@@ -140,20 +134,6 @@ export function AssetVersionHistory({
     }
   };
 
-  const handleCompare = (version: AssetVersion) => {
-    if (compareVersions[0]?.id === version.id) {
-      setCompareVersions([undefined, compareVersions[1]]);
-    } else if (compareVersions[1]?.id === version.id) {
-      setCompareVersions([compareVersions[0], undefined]);
-    } else if (!compareVersions[0]) {
-      setCompareVersions([version, compareVersions[1]]);
-    } else if (!compareVersions[1]) {
-      setCompareVersions([compareVersions[0], version]);
-    } else {
-      setCompareVersions([compareVersions[1], version]);
-    }
-  };
-
   const formatFileSize = (bytes: number | null) => {
     if (!bytes) return 'N/A';
     const mb = bytes / (1024 * 1024);
@@ -172,34 +152,10 @@ export function AssetVersionHistory({
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <History className="h-5 w-5" />
-              Version History
-            </CardTitle>
-            {compareMode && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setCompareMode(false);
-                  setCompareVersions([]);
-                }}
-              >
-                Exit Compare Mode
-              </Button>
-            )}
-            {!compareMode && versions.length > 1 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCompareMode(true)}
-              >
-                <GitCompare className="mr-2 h-4 w-4" />
-                Compare Versions
-              </Button>
-            )}
-          </div>
+          <CardTitle className="flex items-center gap-2">
+            <History className="h-5 w-5" />
+            Version History
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {versions.length === 0 ? (
@@ -211,16 +167,13 @@ export function AssetVersionHistory({
             <div className="space-y-3">
               {versions.map((version) => {
                 const isCurrentVersion = version.version_number === currentVersion;
-                const isSelectedForCompare = 
-                  compareVersions[0]?.id === version.id || 
-                  compareVersions[1]?.id === version.id;
 
                 return (
                   <div
                     key={version.id}
                     className={`flex items-center justify-between p-4 border rounded-lg ${
                       isCurrentVersion ? 'bg-primary/5 border-primary' : 'bg-background'
-                    } ${isSelectedForCompare ? 'ring-2 ring-primary' : ''}`}
+                    }`}
                   >
                     <div className="flex items-center gap-4">
                       <div className="flex flex-col items-center gap-1">
@@ -243,45 +196,29 @@ export function AssetVersionHistory({
                     </div>
 
                     <div className="flex items-center gap-2">
-                      {compareMode ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setPreviewVersion(version)}
+                      >
+                        <Eye className="h-4 w-4 mr-1" />
+                        Preview
+                      </Button>
+                      
+                      {!isCurrentVersion && canEditSettings && (
                         <Button
-                          variant={isSelectedForCompare ? "default" : "outline"}
+                          variant="outline"
                           size="sm"
-                          onClick={() => handleCompare(version)}
-                          disabled={
-                            compareVersions.filter(Boolean).length === 2 && 
-                            !isSelectedForCompare
-                          }
+                          onClick={() => handleRestore(version)}
+                          disabled={restoring === version.id}
                         >
-                          {isSelectedForCompare ? 'Selected' : 'Select'}
-                        </Button>
-                      ) : (
-                        <>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setPreviewVersion(version)}
-                          >
-                            <Eye className="h-4 w-4 mr-1" />
-                            Preview
-                          </Button>
-                          
-                          {!isCurrentVersion && canEditSettings && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleRestore(version)}
-                              disabled={restoring === version.id}
-                            >
-                              {restoring === version.id ? (
-                                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                              ) : (
-                                <RotateCcw className="h-4 w-4 mr-1" />
-                              )}
-                              Restore
-                            </Button>
+                          {restoring === version.id ? (
+                            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                          ) : (
+                            <RotateCcw className="h-4 w-4 mr-1" />
                           )}
-                        </>
+                          Restore
+                        </Button>
                       )}
                     </div>
                   </div>
@@ -292,23 +229,10 @@ export function AssetVersionHistory({
         </CardContent>
       </Card>
 
-      {/* Preview Modal */}
       {previewVersion && (
         <AssetVersionPreview
           version={previewVersion}
           onClose={() => setPreviewVersion(null)}
-        />
-      )}
-
-      {/* Compare Modal */}
-      {compareMode && compareVersions.filter(Boolean).length === 2 && (
-        <AssetVersionCompare
-          version1={compareVersions[0]!}
-          version2={compareVersions[1]!}
-          onClose={() => {
-            setCompareMode(false);
-            setCompareVersions([]);
-          }}
         />
       )}
     </div>

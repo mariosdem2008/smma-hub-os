@@ -40,9 +40,7 @@ const navItems = [
   { path: "assets", label: "Assets", key: "assets", icon: FolderOpen },
   { path: "branding", label: "Branding", key: "branding", icon: Palette },
   { path: "social", label: "Social Profiles", key: "social", icon: Share2 },
-  { path: "deliverables", label: "Deliverables", key: "deliverables", icon: FolderOpen },
   { path: "uploads", label: "My Uploads", key: "uploads", icon: Upload },
-  { path: "workflow", label: "Approval Workflow", key: "workflow", icon: GitBranch },
 ];
 
 function ClientPortalLayoutContent() {
