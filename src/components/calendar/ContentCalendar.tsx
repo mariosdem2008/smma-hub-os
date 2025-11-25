@@ -15,7 +15,7 @@ import "./calendar-styles.css";
 const localizer = dateFnsLocalizer({
   format,
   parse,
-  startOfWeek: () => startOfWeek(new Date()),
+  startOfWeek,
   getDay,
   locales: {},
 });
