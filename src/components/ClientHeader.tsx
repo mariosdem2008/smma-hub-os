@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { format } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,19 +13,10 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useRole } from "@/hooks/useRole";
-import { ExternalLink, FileText, Upload, CalendarIcon, Trash2 } from "lucide-react";
+import { ExternalLink, Upload, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ClientSearchBar from "./ClientSearchBar";
 
@@ -50,16 +40,9 @@ export default function ClientHeader({
   const navigate = useNavigate();
   const { toast } = useToast();
   const { canCreateContent, role, canDeleteClients } = useRole();
-  const [showPostDialog, setShowPostDialog] = useState(false);
   const [showAssetDialog, setShowAssetDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [postForm, setPostForm] = useState({
-    title: "",
-    platform: "",
-    status: "draft",
-  });
-  const [scheduledDate, setScheduledDate] = useState<Date | undefined>();
   const [uploading, setUploading] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [currentLogoUrl, setCurrentLogoUrl] = useState(logoUrl);
@@ -73,44 +56,6 @@ export default function ClientHeader({
       .slice(0, 2);
   };
 
-  const handleCreatePost = async () => {
-    if (!postForm.title || !postForm.platform) {
-      toast({
-        title: "Validation Error",
-        description: "Please fill in all required fields",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const { error } = await supabase.from("posts").insert({
-      client_id: clientId,
-      title: postForm.title,
-      platform: postForm.platform,
-      scheduled_for: scheduledDate?.toISOString() || null,
-      status: postForm.status,
-    });
-
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to create post",
-        variant: "destructive",
-      });
-    } else {
-      toast({
-        title: "Success",
-        description: "Post created successfully",
-      });
-      setShowPostDialog(false);
-      setPostForm({
-        title: "",
-        platform: "",
-        status: "draft",
-      });
-      setScheduledDate(undefined);
-    }
-  };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -299,26 +244,15 @@ export default function ClientHeader({
               {(canCreateContent || canDeleteClients) && (
                 <div className="flex gap-2 flex-wrap">
                   {canCreateContent && (
-                    <>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowPostDialog(true)}
-                        className="h-8 gap-2 flex-1 sm:flex-none transition-all duration-200"
-                      >
-                        <FileText className="h-4 w-4 icon-hover" />
-                        <span className="sm:inline">New Post</span>
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowAssetDialog(true)}
-                        className="h-8 gap-2 flex-1 sm:flex-none transition-all duration-200"
-                      >
-                        <Upload className="h-4 w-4 icon-hover" />
-                        <span className="sm:inline">Upload</span>
-                      </Button>
-                    </>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowAssetDialog(true)}
+                      className="h-8 gap-2 flex-1 sm:flex-none transition-all duration-200"
+                    >
+                      <Upload className="h-4 w-4 icon-hover" />
+                      <span className="sm:inline">Upload</span>
+                    </Button>
                   )}
                   {canDeleteClients && (
                     <Button
@@ -373,103 +307,6 @@ export default function ClientHeader({
         </div>
       </div>
 
-      {/* New Post Dialog */}
-      <Dialog open={showPostDialog} onOpenChange={setShowPostDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Create New Post</DialogTitle>
-            <DialogDescription>Schedule a new post for this client</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="title">
-                Title <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="title"
-                value={postForm.title}
-                onChange={(e) => setPostForm({ ...postForm, title: e.target.value })}
-                placeholder="Enter post title"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="platform">
-                Platform <span className="text-destructive">*</span>
-              </Label>
-              <Select
-                value={postForm.platform}
-                onValueChange={(value) => setPostForm({ ...postForm, platform: value })}
-              >
-                <SelectTrigger id="platform">
-                  <SelectValue placeholder="Select platform" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Instagram">Instagram</SelectItem>
-                  <SelectItem value="Facebook">Facebook</SelectItem>
-                  <SelectItem value="TikTok">TikTok</SelectItem>
-                  <SelectItem value="LinkedIn">LinkedIn</SelectItem>
-                  <SelectItem value="YouTube">YouTube</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Scheduled Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !scheduledDate && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {scheduledDate ? (
-                      format(scheduledDate, "PPP")
-                    ) : (
-                      <span>Pick a date</span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={scheduledDate}
-                    onSelect={setScheduledDate}
-                    initialFocus
-                    className={cn("p-3 pointer-events-auto")}
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
-              <Select
-                value={postForm.status}
-                onValueChange={(value) => setPostForm({ ...postForm, status: value })}
-              >
-                <SelectTrigger id="status">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="draft">Draft</SelectItem>
-                  <SelectItem value="scheduled">Scheduled</SelectItem>
-                  <SelectItem value="published">Published</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowPostDialog(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleCreatePost}>Create Post</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Upload Asset Dialog */}
       <Dialog open={showAssetDialog} onOpenChange={setShowAssetDialog}>
