@@ -127,9 +127,19 @@ export default function ClientAcceptInvite() {
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <Card className="w-full max-w-md p-8 text-center">
           <h1 className="text-2xl font-bold mb-4">Invalid Invitation</h1>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground mb-6">
             This invitation link is invalid or has expired.
           </p>
+          <p className="text-sm text-muted-foreground mb-4">
+            If you already have an account, please use the login page.
+          </p>
+          <Button
+            onClick={() => navigate("/client/login")}
+            variant="default"
+            className="w-full"
+          >
+            Go to Login
+          </Button>
         </Card>
       </div>
     );
