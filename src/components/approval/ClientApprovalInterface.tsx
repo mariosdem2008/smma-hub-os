@@ -23,6 +23,7 @@ interface Asset {
   platforms: string[] | null;
   current_version: number;
   pipeline_stage: string;
+  custom_category: string | null;
 }
 
 interface Client {
@@ -44,7 +45,7 @@ export default function ClientApprovalInterface({
   const { clientUser } = useClientAuth();
   const [loading, setLoading] = useState(false);
   const [comment, setComment] = useState("");
-  const [title, setTitle] = useState(asset.content_type || "");
+  const [title, setTitle] = useState(asset.filename || "");
   const [description, setDescription] = useState(asset.final_caption || "");
   const [clientNotes, setClientNotes] = useState<string>("");
   const [previousVersionUrl, setPreviousVersionUrl] = useState<string | null>(null);
@@ -244,9 +245,20 @@ export default function ClientApprovalInterface({
             <div>
               <Label className="text-sm font-semibold">Title</Label>
               <p className="mt-1 text-sm md:text-base text-foreground">
-                {title || asset.filename}
+                {title}
               </p>
             </div>
+
+            {asset.content_type && (
+              <div>
+                <Label className="text-sm font-semibold">Content Type</Label>
+                <p className="mt-1 text-sm md:text-base text-muted-foreground">
+                  {asset.content_type.split('_').map(word => 
+                    word.charAt(0).toUpperCase() + word.slice(1)
+                  ).join(' ')}
+                </p>
+              </div>
+            )}
 
             <div>
               <Label className="text-sm font-semibold">Description</Label>
@@ -254,6 +266,15 @@ export default function ClientApprovalInterface({
                 {description || "No description provided"}
               </p>
             </div>
+
+            {asset.custom_category && (
+              <div>
+                <Label className="text-sm font-semibold">Notes</Label>
+                <p className="mt-1 text-sm md:text-base text-muted-foreground whitespace-pre-wrap">
+                  {asset.custom_category}
+                </p>
+              </div>
+            )}
 
             {clientNotes && (
               <div>
