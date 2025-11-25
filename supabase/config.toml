@@ -32,3 +32,18 @@ verify_jwt = true
 
 [functions.generate-brand-guidelines-pdf]
 verify_jwt = true
+
+[functions.client-auth-signup]
+verify_jwt = false
+
+[functions.client-auth-login]
+verify_jwt = false
+
+[functions.client-auth-forgot-password]
+verify_jwt = false
+
+[functions.client-auth-reset-password]
+verify_jwt = false
+
+[functions.client-auth-validate-invite]
+verify_jwt = false
