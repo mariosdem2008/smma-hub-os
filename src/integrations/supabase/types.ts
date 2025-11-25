@@ -190,6 +190,44 @@ export type Database = {
           },
         ]
       }
+      approval_tasks: {
+        Row: {
+          approver_id: string
+          asset_version_id: string
+          comments: Json | null
+          created_at: string
+          id: string
+          status: Database["public"]["Enums"]["approval_status"]
+          updated_at: string
+        }
+        Insert: {
+          approver_id: string
+          asset_version_id: string
+          comments?: Json | null
+          created_at?: string
+          id?: string
+          status?: Database["public"]["Enums"]["approval_status"]
+          updated_at?: string
+        }
+        Update: {
+          approver_id?: string
+          asset_version_id?: string
+          comments?: Json | null
+          created_at?: string
+          id?: string
+          status?: Database["public"]["Enums"]["approval_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approval_tasks_asset_version_id_fkey"
+            columns: ["asset_version_id"]
+            isOneToOne: false
+            referencedRelation: "asset_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       asset_comments: {
         Row: {
           asset_id: string
@@ -276,6 +314,7 @@ export type Database = {
       assets: {
         Row: {
           client_id: string
+          content_type: string | null
           created_at: string
           current_version: number | null
           custom_category: string | null
@@ -283,8 +322,14 @@ export type Database = {
           file_type: string
           file_url: string
           filename: string
+          final_caption: string | null
+          hashtags: string | null
           id: string
           is_client_upload: boolean | null
+          pipeline_stage: Database["public"]["Enums"]["pipeline_stage"] | null
+          platforms: string[] | null
+          post_url: string | null
+          scheduled_time: string | null
           status: string | null
           thumbnail_url: string | null
           updated_at: string
@@ -293,6 +338,7 @@ export type Database = {
         }
         Insert: {
           client_id: string
+          content_type?: string | null
           created_at?: string
           current_version?: number | null
           custom_category?: string | null
@@ -300,8 +346,14 @@ export type Database = {
           file_type: string
           file_url: string
           filename: string
+          final_caption?: string | null
+          hashtags?: string | null
           id?: string
           is_client_upload?: boolean | null
+          pipeline_stage?: Database["public"]["Enums"]["pipeline_stage"] | null
+          platforms?: string[] | null
+          post_url?: string | null
+          scheduled_time?: string | null
           status?: string | null
           thumbnail_url?: string | null
           updated_at?: string
@@ -310,6 +362,7 @@ export type Database = {
         }
         Update: {
           client_id?: string
+          content_type?: string | null
           created_at?: string
           current_version?: number | null
           custom_category?: string | null
@@ -317,8 +370,14 @@ export type Database = {
           file_type?: string
           file_url?: string
           filename?: string
+          final_caption?: string | null
+          hashtags?: string | null
           id?: string
           is_client_upload?: boolean | null
+          pipeline_stage?: Database["public"]["Enums"]["pipeline_stage"] | null
+          platforms?: string[] | null
+          post_url?: string | null
+          scheduled_time?: string | null
           status?: string | null
           thumbnail_url?: string | null
           updated_at?: string
@@ -1149,6 +1208,60 @@ export type Database = {
           },
         ]
       }
+      post_metrics: {
+        Row: {
+          asset_id: string | null
+          comments: number | null
+          created_at: string
+          id: string
+          likes: number | null
+          platform: string
+          post_id: string | null
+          shares: number | null
+          updated_at: string
+          views: number | null
+        }
+        Insert: {
+          asset_id?: string | null
+          comments?: number | null
+          created_at?: string
+          id?: string
+          likes?: number | null
+          platform: string
+          post_id?: string | null
+          shares?: number | null
+          updated_at?: string
+          views?: number | null
+        }
+        Update: {
+          asset_id?: string | null
+          comments?: number | null
+          created_at?: string
+          id?: string
+          likes?: number | null
+          platform?: string
+          post_id?: string | null
+          shares?: number | null
+          updated_at?: string
+          views?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_metrics_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_metrics_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       posts: {
         Row: {
           client_id: string
@@ -1733,9 +1846,24 @@ export type Database = {
         Args: { _client_id: string; _user_id: string }
         Returns: boolean
       }
+      transition_pipeline_stage: {
+        Args: {
+          _asset_id: string
+          _new_stage: Database["public"]["Enums"]["pipeline_stage"]
+        }
+        Returns: Json
+      }
     }
     Enums: {
       app_role: "owner" | "manager" | "client"
+      approval_status: "pending" | "approved" | "changes_requested"
+      pipeline_stage:
+        | "raw"
+        | "editing"
+        | "approval"
+        | "final"
+        | "scheduled"
+        | "published"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1864,6 +1992,15 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["owner", "manager", "client"],
+      approval_status: ["pending", "approved", "changes_requested"],
+      pipeline_stage: [
+        "raw",
+        "editing",
+        "approval",
+        "final",
+        "scheduled",
+        "published",
+      ],
     },
   },
 } as const
