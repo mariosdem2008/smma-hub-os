@@ -5,6 +5,7 @@ import { useClientAuth } from "@/lib/client-auth";
 import { useClientFonts } from "@/hooks/useClientFonts";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 import {
   LayoutDashboard,
   Palette,
@@ -16,6 +17,7 @@ import {
   CheckCircle,
   Upload,
   GitBranch,
+  Bell,
 } from "lucide-react";
 
 interface Client {
@@ -44,6 +46,7 @@ function ClientPortalLayoutContent() {
   const navigate = useNavigate();
   const { clientUser, logout, loading, isAuthenticated } = useClientAuth();
   const [client, setClient] = useState<Client | null>(null);
+  const { toast } = useToast();
 
   // Load fonts dynamically
   useClientFonts({
@@ -62,6 +65,77 @@ function ClientPortalLayoutContent() {
       fetchClient();
     }
   }, [clientUser]);
+
+  // Real-time notifications for new assets in review stage
+  useEffect(() => {
+    if (!clientUser?.client_id) return;
+
+    console.log('Setting up real-time approval notifications for client:', clientUser.client_id);
+
+    const channel = supabase
+      .channel('approval-notifications')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'assets',
+          filter: `client_id=eq.${clientUser.client_id}`,
+        },
+        (payload) => {
+          console.log('Asset change detected:', payload);
+          
+          // Check if asset entered review stage
+          if (payload.eventType === 'UPDATE' && payload.new.pipeline_stage === 'review') {
+            const oldStage = (payload.old as any)?.pipeline_stage;
+            
+            // Only notify if stage changed TO review (not if it was already in review)
+            if (oldStage !== 'review') {
+              toast({
+                title: "New Content Ready for Review",
+                description: `"${payload.new.filename}" is awaiting your approval`,
+                action: (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => navigate(`/client/portal/${portalSlug}/approvals`)}
+                  >
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Review Now
+                  </Button>
+                ),
+              });
+            }
+          }
+          
+          // Also notify for new assets directly created in review stage
+          if (payload.eventType === 'INSERT' && payload.new.pipeline_stage === 'review') {
+            toast({
+              title: "New Content Ready for Review",
+              description: `"${payload.new.filename}" is awaiting your approval`,
+              action: (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => navigate(`/client/portal/${portalSlug}/approvals`)}
+                >
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Review Now
+                </Button>
+              ),
+            });
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('Approval notifications subscription status:', status);
+      });
+
+    return () => {
+      console.log('Cleaning up approval notifications subscription');
+      supabase.removeChannel(channel);
+    };
+  }, [clientUser?.client_id, portalSlug, navigate, toast]);
 
   const fetchClient = async () => {
     if (!clientUser?.client_id) return;
