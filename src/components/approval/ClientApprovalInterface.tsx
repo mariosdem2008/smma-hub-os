@@ -11,8 +11,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useClientAuth } from "@/lib/client-auth";
 import { CheckCircle, XCircle, Clock, Loader2 } from "lucide-react";
-import VideoComparison from "./VideoComparison";
-import TimelineComments from "./TimelineComments";
 import ApprovalHistory from "./ApprovalHistory";
 
 interface Asset {
@@ -189,46 +187,11 @@ export default function ClientApprovalInterface({
           .eq('id', asset.id);
       }
 
-      // Check if there are more approvers in sequence
-      const { data: nextApprover } = await supabase.rpc('get_next_approver', {
-        p_client_id: clientId,
-        p_asset_id: asset.id
-      });
-
-      if (nextApprover && nextApprover.length > 0) {
-        // Create next approval task
-        const { data: latestVersion } = await supabase
-          .from('asset_versions')
-          .select('id')
-          .eq('asset_id', asset.id)
-          .eq('version_number', asset.current_version)
-          .single();
-
-        if (latestVersion) {
-          await supabase
-            .from('approval_tasks')
-            .insert({
-              asset_version_id: latestVersion.id,
-              approver_id: nextApprover[0].user_id,
-              status: 'pending'
-            });
-
-          // Notify next approver
-          await supabase.functions.invoke('send-approval-notification', {
-            body: {
-              asset_id: asset.id,
-              approver_id: nextApprover[0].user_id,
-              action: 'approval_requested'
-            }
-          });
-        }
-      } else {
-        // No more approvers, move to final stage
-        await supabase
-          .from('assets')
-          .update({ pipeline_stage: 'final' })
-          .eq('id', asset.id);
-      }
+      // Single-step approval: move directly to scheduled stage
+      await supabase
+        .from('assets')
+        .update({ pipeline_stage: 'scheduled' })
+        .eq('id', asset.id);
 
       toast({
         title: "Approved",
@@ -357,11 +320,8 @@ export default function ClientApprovalInterface({
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="current" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="current">Current Version</TabsTrigger>
-              {previousVersionUrl && (
-                <TabsTrigger value="comparison">Compare Versions</TabsTrigger>
-              )}
               <TabsTrigger value="history">Approval History</TabsTrigger>
             </TabsList>
 
@@ -379,22 +339,7 @@ export default function ClientApprovalInterface({
                   className="w-full max-h-[500px] object-contain rounded-lg"
                 />
               )}
-
-              <TimelineComments
-                assetId={asset.id}
-                versionId={currentTask.asset_version_id}
-              />
             </TabsContent>
-
-            {previousVersionUrl && (
-              <TabsContent value="comparison">
-                <VideoComparison
-                  currentUrl={asset.file_url}
-                  previousUrl={previousVersionUrl}
-                  fileType={asset.file_type}
-                />
-              </TabsContent>
-            )}
 
             <TabsContent value="history">
               <ApprovalHistory history={approvalHistory} />

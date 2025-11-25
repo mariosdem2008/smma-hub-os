@@ -44,38 +44,6 @@ export type Database = {
         }
         Relationships: []
       }
-      agency_branding: {
-        Row: {
-          agency_id: string
-          created_at: string | null
-          email_footer: string | null
-          email_sender_name: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          agency_id: string
-          created_at?: string | null
-          email_footer?: string | null
-          email_sender_name?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          agency_id?: string
-          created_at?: string | null
-          email_footer?: string | null
-          email_sender_name?: string | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "agency_branding_agency_id_fkey"
-            columns: ["agency_id"]
-            isOneToOne: true
-            referencedRelation: "agencies"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       agency_invites: {
         Row: {
           accepted: boolean
@@ -460,58 +428,6 @@ export type Database = {
           },
         ]
       }
-      client_approval_workflows: {
-        Row: {
-          approver_id: string
-          approver_order: number
-          client_id: string
-          created_at: string
-          id: string
-          role_name: string | null
-          updated_at: string
-        }
-        Insert: {
-          approver_id: string
-          approver_order: number
-          client_id: string
-          created_at?: string
-          id?: string
-          role_name?: string | null
-          updated_at?: string
-        }
-        Update: {
-          approver_id?: string
-          approver_order?: number
-          client_id?: string
-          created_at?: string
-          id?: string
-          role_name?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "client_approval_workflows_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "client_contacts_secure"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "client_approval_workflows_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "client_portal_view"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "client_approval_workflows_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       client_assets: {
         Row: {
           client_id: string
@@ -559,71 +475,6 @@ export type Database = {
             foreignKeyName: "client_assets_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      client_brand_voice: {
-        Row: {
-          agency_id: string
-          client_id: string
-          created_at: string
-          examples: Json
-          id: string
-          rules: Json
-          tone: Json
-          updated_at: string
-          vocabulary: Json
-        }
-        Insert: {
-          agency_id: string
-          client_id: string
-          created_at?: string
-          examples?: Json
-          id?: string
-          rules?: Json
-          tone?: Json
-          updated_at?: string
-          vocabulary?: Json
-        }
-        Update: {
-          agency_id?: string
-          client_id?: string
-          created_at?: string
-          examples?: Json
-          id?: string
-          rules?: Json
-          tone?: Json
-          updated_at?: string
-          vocabulary?: Json
-        }
-        Relationships: [
-          {
-            foreignKeyName: "client_brand_voice_agency_id_fkey"
-            columns: ["agency_id"]
-            isOneToOne: false
-            referencedRelation: "agencies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "client_brand_voice_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: true
-            referencedRelation: "client_contacts_secure"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "client_brand_voice_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: true
-            referencedRelation: "client_portal_view"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "client_brand_voice_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: true
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
@@ -693,52 +544,6 @@ export type Database = {
           },
         ]
       }
-      client_content_pillars: {
-        Row: {
-          client_id: string
-          created_at: string
-          description: string | null
-          id: string
-          title: string
-        }
-        Insert: {
-          client_id: string
-          created_at?: string
-          description?: string | null
-          id?: string
-          title: string
-        }
-        Update: {
-          client_id?: string
-          created_at?: string
-          description?: string | null
-          id?: string
-          title?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "client_content_pillars_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "client_contacts_secure"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "client_content_pillars_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "client_portal_view"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "client_content_pillars_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       client_hashtags: {
         Row: {
           category: string | null
@@ -778,55 +583,6 @@ export type Database = {
           },
           {
             foreignKeyName: "client_hashtags_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      client_inspiration: {
-        Row: {
-          client_id: string
-          created_at: string
-          description: string | null
-          id: string
-          image_url: string | null
-          source_url: string | null
-        }
-        Insert: {
-          client_id: string
-          created_at?: string
-          description?: string | null
-          id?: string
-          image_url?: string | null
-          source_url?: string | null
-        }
-        Update: {
-          client_id?: string
-          created_at?: string
-          description?: string | null
-          id?: string
-          image_url?: string | null
-          source_url?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "client_inspiration_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "client_contacts_secure"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "client_inspiration_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "client_portal_view"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "client_inspiration_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
@@ -895,49 +651,6 @@ export type Database = {
           },
           {
             foreignKeyName: "client_invites_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      client_saved_captions: {
-        Row: {
-          caption: string
-          client_id: string
-          created_at: string
-          id: string
-        }
-        Insert: {
-          caption: string
-          client_id: string
-          created_at?: string
-          id?: string
-        }
-        Update: {
-          caption?: string
-          client_id?: string
-          created_at?: string
-          id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "client_saved_captions_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "client_contacts_secure"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "client_saved_captions_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "client_portal_view"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "client_saved_captions_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
@@ -1641,67 +1354,6 @@ export type Database = {
         }
         Relationships: []
       }
-      tasks: {
-        Row: {
-          assigned_to: string | null
-          client_id: string | null
-          created_at: string
-          description: string | null
-          due_date: string | null
-          id: string
-          priority: string | null
-          status: string | null
-          title: string
-          updated_at: string
-        }
-        Insert: {
-          assigned_to?: string | null
-          client_id?: string | null
-          created_at?: string
-          description?: string | null
-          due_date?: string | null
-          id?: string
-          priority?: string | null
-          status?: string | null
-          title: string
-          updated_at?: string
-        }
-        Update: {
-          assigned_to?: string | null
-          client_id?: string | null
-          created_at?: string
-          description?: string | null
-          due_date?: string | null
-          id?: string
-          priority?: string | null
-          status?: string | null
-          title?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "tasks_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "client_contacts_secure"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "tasks_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "client_portal_view"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "tasks_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       team_members: {
         Row: {
           agency_id: string
@@ -1942,14 +1594,6 @@ export type Database = {
         }[]
       }
       get_monthly_ai_usage: { Args: { p_agency_id: string }; Returns: number }
-      get_next_approver: {
-        Args: { p_asset_id: string; p_client_id: string }
-        Returns: {
-          approver_order: number
-          role_name: string
-          user_id: string
-        }[]
-      }
       get_social_connection_tokens: {
         Args: { _connection_id: string }
         Returns: {

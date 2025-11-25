@@ -163,19 +163,10 @@ export default function Dashboard() {
         .gte("scheduled_time", weekStart.toISOString())
         .lte("scheduled_time", weekEnd.toISOString());
 
-      // Tasks due this week
-      const { data: tasksData } = await supabase
-        .from("tasks")
-        .select("id")
-        .in("client_id", clientIds)
-        .gte("due_date", weekStart.toISOString())
-        .lte("due_date", weekEnd.toISOString())
-        .neq("status", "completed");
-
       setMetrics({
         totalClients: clientsData?.length || 0,
         postsThisWeek: assetsData?.length || 0,
-        tasksThisWeek: tasksData?.length || 0,
+        tasksThisWeek: 0,
       });
 
       // Fetch upcoming assets (next 10 scheduled/published)
@@ -197,24 +188,7 @@ export default function Dashboard() {
         .limit(10);
 
       setUpcomingPosts(upcomingAssetsData || []);
-
-      // Fetch overdue tasks
-      const { data: overdueTasksData } = await supabase
-        .from("tasks")
-        .select(`
-          id,
-          title,
-          due_date,
-          priority,
-          status,
-          client:clients(id, name)
-        `)
-        .in("client_id", clientIds)
-        .lt("due_date", now.toISOString())
-        .neq("status", "completed")
-        .order("due_date", { ascending: true });
-
-      setOverdueTasks(overdueTasksData || []);
+      setOverdueTasks([]);
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
     } finally {
@@ -287,14 +261,7 @@ export default function Dashboard() {
     }
 
     setSubmitting(true);
-    const { error } = await supabase.from("tasks").insert({
-      title: taskFormData.title,
-      description: taskFormData.description || null,
-      client_id: taskFormData.client_id,
-      due_date: taskDueDate?.toISOString() || null,
-      priority: taskFormData.priority,
-      status: taskFormData.status,
-    });
+    const error = null; // Tasks feature removed
 
     if (error) {
       toast({
