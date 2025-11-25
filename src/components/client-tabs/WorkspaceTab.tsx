@@ -1,6 +1,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import TasksTab from "./TasksTab";
 import NotesTab from "./NotesTab";
+import ApprovalWorkflowManager from "@/components/approval/ApprovalWorkflowManager";
 
 interface WorkspaceTabProps {
   clientId: string;
@@ -18,6 +19,7 @@ export default function WorkspaceTab({
       <TabsList>
         <TabsTrigger value="tasks">Tasks</TabsTrigger>
         <TabsTrigger value="notes">Notes</TabsTrigger>
+        <TabsTrigger value="workflow">Approval Workflow</TabsTrigger>
       </TabsList>
 
       <TabsContent value="tasks" className="mt-4">
@@ -30,6 +32,10 @@ export default function WorkspaceTab({
           initialNotes={initialNotes}
           onNotesUpdate={onNotesUpdate}
         />
+      </TabsContent>
+
+      <TabsContent value="workflow" className="mt-4">
+        <ApprovalWorkflowManager clientId={clientId} />
       </TabsContent>
     </Tabs>
   );
