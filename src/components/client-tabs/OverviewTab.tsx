@@ -167,16 +167,6 @@ export default function OverviewTab({ clientId, client, onNotesUpdate }: Overvie
   };
 
   const handleAddTask = async () => {
-    if (!taskTitle.trim()) {
-      toast({
-        title: "Error",
-        description: "Task title is required",
-        variant: "destructive",
-      });
-      return;
-    }
-
-  const handleAddTask = async () => {
     // Tasks feature removed - show toast
     toast({
       title: "Feature Removed",
@@ -184,29 +174,6 @@ export default function OverviewTab({ clientId, client, onNotesUpdate }: Overvie
       variant: "destructive",
     });
     setIsAddTaskOpen(false);
-  };
-
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to create task",
-        variant: "destructive",
-      });
-    } else {
-      toast({
-        title: "Success",
-        description: "Task created successfully",
-      });
-      // Reset form
-      setTaskTitle("");
-      setTaskDescription("");
-      setTaskDueDate("");
-      setTaskPriority("medium");
-      setTaskStatus("pending");
-      setIsAddTaskOpen(false);
-      fetchStats(); // Refresh stats
-    }
-    setSaving(false);
   };
 
   const getStatusColor = (status: string) => {

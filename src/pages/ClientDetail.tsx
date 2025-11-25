@@ -197,9 +197,6 @@ export default function ClientDetail() {
           <PipelineTab clientId={clientId!} agencyId={agencyId} />
         </TabsContent>
 
-        <TabsContent value="ai" className="space-y-4">
-          <AIAssistantTab clientId={clientId!} />
-        </TabsContent>
 
         <TabsContent value="library" className="space-y-4">
           <ContentLibraryTab clientId={clientId!} agencyId={agencyId} />
