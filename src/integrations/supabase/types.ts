@@ -460,6 +460,58 @@ export type Database = {
           },
         ]
       }
+      client_approval_workflows: {
+        Row: {
+          approver_id: string
+          approver_order: number
+          client_id: string
+          created_at: string
+          id: string
+          role_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          approver_id: string
+          approver_order: number
+          client_id: string
+          created_at?: string
+          id?: string
+          role_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          approver_id?: string
+          approver_order?: number
+          client_id?: string
+          created_at?: string
+          id?: string
+          role_name?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_approval_workflows_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_contacts_secure"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_approval_workflows_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_portal_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_approval_workflows_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_assets: {
         Row: {
           client_id: string
@@ -1819,6 +1871,14 @@ export type Database = {
         }[]
       }
       get_monthly_ai_usage: { Args: { p_agency_id: string }; Returns: number }
+      get_next_approver: {
+        Args: { p_asset_id: string; p_client_id: string }
+        Returns: {
+          approver_order: number
+          role_name: string
+          user_id: string
+        }[]
+      }
       get_social_connection_tokens: {
         Args: { _connection_id: string }
         Returns: {

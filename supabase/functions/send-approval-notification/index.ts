@@ -16,12 +16,15 @@ interface AgencyBranding {
 }
 
 interface NotificationRequest {
-  contentType: 'post' | 'idea';
-  contentId: string;
-  contentTitle: string;
-  clientId: string;
-  action: 'submitted' | 'approved' | 'rejected';
+  contentType?: 'post' | 'idea';
+  contentId?: string;
+  contentTitle?: string;
+  clientId?: string;
+  action: 'submitted' | 'approved' | 'rejected' | 'approval_requested' | 'changes_requested';
   comment?: string;
+  // New pipeline-specific fields
+  asset_id?: string;
+  approver_id?: string;
 }
 
 function generateWhiteLabelEmail(
@@ -145,9 +148,163 @@ serve(async (req: Request) => {
 
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    const { contentType, contentId, contentTitle, clientId, action, comment }: NotificationRequest = await req.json();
+    const request: NotificationRequest = await req.json();
+    const { contentType, contentId, contentTitle, clientId, action, comment, asset_id, approver_id } = request;
 
-    console.log("Processing approval notification:", { contentType, contentId, action });
+    console.log("Processing approval notification:", { contentType, contentId, action, asset_id });
+
+    // Handle new pipeline approval notifications
+    if (asset_id) {
+      // Get asset details
+      const { data: asset, error: assetError } = await supabase
+        .from('assets')
+        .select('filename, client_id, uploaded_by, clients(name, agency_id)')
+        .eq('id', asset_id)
+        .single();
+
+      if (assetError) throw assetError;
+
+      const client = (asset.clients as any);
+      const agencyId = client.agency_id;
+
+      // Get agency branding
+      const { data: branding } = await supabase
+        .from('agency_branding')
+        .select('email_sender_name, email_footer')
+        .eq('agency_id', agencyId)
+        .single();
+
+      const senderName = branding?.email_sender_name || 'SMMAHUB';
+
+      let recipientEmail: string;
+      let subject: string;
+      let heading: string;
+      let bodyText: string;
+
+      if (action === 'approval_requested' && approver_id) {
+        // Notify approver
+        const { data: approver } = await supabase
+          .from('profiles')
+          .select('email, full_name')
+          .eq('id', approver_id)
+          .single();
+
+        if (!approver?.email) throw new Error('Approver email not found');
+
+        recipientEmail = approver.email;
+        const approverName = approver.full_name || 'there';
+
+        subject = `Approval Needed: ${asset.filename}`;
+        heading = "Content Ready for Your Approval";
+        bodyText = `
+          <p>Hi ${approverName},</p>
+          <p>New content is ready for your review and approval:</p>
+          <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 5px 0;"><strong>Asset:</strong> ${asset.filename}</p>
+            <p style="margin: 5px 0;"><strong>Client:</strong> ${client.name}</p>
+          </div>
+          <p>Please review the content and provide your feedback.</p>
+        `;
+
+      } else if (action === 'changes_requested') {
+        // Notify editor/uploader
+        if (!asset.uploaded_by) throw new Error('Uploader not found');
+
+        const { data: uploader } = await supabase
+          .from('profiles')
+          .select('email, full_name')
+          .eq('id', asset.uploaded_by)
+          .single();
+
+        if (!uploader?.email) throw new Error('Uploader email not found');
+
+        recipientEmail = uploader.email;
+        const uploaderName = uploader.full_name || 'there';
+
+        subject = `Changes Requested: ${asset.filename}`;
+        heading = "Changes Requested on Your Content";
+        bodyText = `
+          <p>Hi ${uploaderName},</p>
+          <p>Feedback has been provided on your content:</p>
+          <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 5px 0;"><strong>Asset:</strong> ${asset.filename}</p>
+            <p style="margin: 5px 0;"><strong>Client:</strong> ${client.name}</p>
+            ${comment ? `<p style="margin: 5px 0;"><strong>Feedback:</strong> ${comment}</p>` : ''}
+          </div>
+          <p>The asset has been moved back to editing. Please review the feedback and make the requested changes.</p>
+        `;
+
+      } else if (action === 'approved') {
+        // Notify uploader of approval
+        if (!asset.uploaded_by) throw new Error('Uploader not found');
+
+        const { data: uploader } = await supabase
+          .from('profiles')
+          .select('email, full_name')
+          .eq('id', asset.uploaded_by)
+          .single();
+
+        if (!uploader?.email) throw new Error('Uploader email not found');
+
+        recipientEmail = uploader.email;
+        const uploaderName = uploader.full_name || 'there';
+
+        subject = `Approved: ${asset.filename}`;
+        heading = "Content Approved! 🎉";
+        bodyText = `
+          <p>Hi ${uploaderName},</p>
+          <p>Great news! Your content has been approved:</p>
+          <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 5px 0;"><strong>Asset:</strong> ${asset.filename}</p>
+            <p style="margin: 5px 0;"><strong>Client:</strong> ${client.name}</p>
+          </div>
+          <p>The asset is now ready for scheduling and publishing.</p>
+        `;
+
+      } else {
+        throw new Error('Invalid action type');
+      }
+
+      const htmlContent = generateWhiteLabelEmail(
+        branding,
+        subject,
+        heading,
+        bodyText
+      );
+
+      // Send email
+      const emailResponse = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${RESEND_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: `${senderName} <notifications@smmahub.net>`,
+          to: [recipientEmail],
+          subject: subject,
+          html: htmlContent,
+        }),
+      });
+
+      if (!emailResponse.ok) {
+        const errorText = await emailResponse.text();
+        console.error('Failed to send email:', errorText);
+        throw new Error('Failed to send email notification');
+      }
+
+      console.log('Pipeline approval email sent successfully');
+
+      return new Response(
+        JSON.stringify({ success: true }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    // Original post/idea approval notification logic below
+    if (!contentType || !contentId || !clientId) {
+      throw new Error('Missing required fields for content notification');
+    }
 
     // Get client details
     const { data: client, error: clientError } = await supabase
