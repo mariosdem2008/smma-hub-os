@@ -132,7 +132,10 @@ export function ClientPortalLogin() {
       }
 
       toast({ title: "Welcome back!" });
-      navigate(`/client-portal/${portalSlug}`);
+      // Wait a brief moment for the toast to show before navigating
+      setTimeout(() => {
+        navigate(`/client-portal/${portalSlug}`);
+      }, 100);
     } catch (error: any) {
       console.error("Login error:", error);
       toast({
@@ -140,6 +143,7 @@ export function ClientPortalLogin() {
         description: error.message,
         variant: "destructive",
       });
+    } finally {
       setLoading(false);
     }
   };
