@@ -14,6 +14,7 @@ import {
   FolderOpen,
   LogOut,
   CalendarDays,
+  CheckCircle,
 } from "lucide-react";
 
 interface Client {
@@ -32,6 +33,7 @@ interface Client {
 
 const navItems = [
   { path: "", label: "Overview", key: "overview", icon: LayoutDashboard },
+  { path: "approvals", label: "Approvals", key: "approvals", icon: CheckCircle },
   { path: "content-calendar", label: "Content Calendar", key: "content_calendar", icon: CalendarDays },
   { path: "ideas", label: "Ideas", key: "ideas", icon: Lightbulb },
   { path: "assets", label: "Assets", key: "assets", icon: FolderOpen },
