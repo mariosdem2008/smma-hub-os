@@ -2,10 +2,9 @@ import { useState, useEffect } from "react";
 import { useOutletContext } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Clock, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import ClientApprovalInterface from "@/components/approval/ClientApprovalInterface";
 
 interface OutletContext {
@@ -25,6 +24,7 @@ interface Asset {
   current_version: number;
   created_at: string;
   pipeline_stage: string;
+  thumbnail_url: string | null;
 }
 
 export default function PortalApprovals() {
@@ -33,7 +33,6 @@ export default function PortalApprovals() {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
-  const [filter, setFilter] = useState<'pending' | 'approved' | 'rejected' | 'all'>('pending');
 
   useEffect(() => {
     fetchAssetsForApproval();
@@ -62,12 +61,6 @@ export default function PortalApprovals() {
 
   const fetchAssetsForApproval = async () => {
     try {
-      // Get client user from localStorage (client portal auth)
-      const clientUserStr = localStorage.getItem('client_user');
-      if (!clientUserStr) return;
-      
-      const clientUser = JSON.parse(clientUserStr);
-
       // Get assets in review stage
       const { data: assets, error: assetsError } = await supabase
         .from('assets')
@@ -77,45 +70,7 @@ export default function PortalApprovals() {
         .order('created_at', { ascending: false });
 
       if (assetsError) throw assetsError;
-      if (!assets) {
-        setAssets([]);
-        return;
-      }
-
-      // For each asset, get version and approval tasks
-      const assetsWithTasks = await Promise.all(
-        assets.map(async (asset) => {
-          const { data: versions } = await supabase
-            .from('asset_versions')
-            .select(`
-              id,
-              version_number,
-              approval_tasks (
-                id,
-                status,
-                approver_id
-              )
-            `)
-            .eq('asset_id', asset.id)
-            .eq('version_number', asset.current_version);
-
-          // Check if this client user has any approval tasks
-          const hasMyTask = versions?.some(v => 
-            v.approval_tasks?.some((t: any) => t.approver_id === clientUser.id)
-          );
-
-          if (hasMyTask) {
-            return {
-              ...asset,
-              asset_versions: versions
-            };
-          }
-          return null;
-        })
-      );
-
-      // Filter out null values
-      setAssets(assetsWithTasks.filter(Boolean) as Asset[]);
+      setAssets(assets || []);
     } catch (error: any) {
       console.error("Error fetching assets:", error);
       toast({
@@ -128,41 +83,10 @@ export default function PortalApprovals() {
     }
   };
 
-  const getStatusCounts = () => {
-    return {
-      pending: assets.filter(a => 
-        (a as any).asset_versions?.some((v: any) => 
-          v.approval_tasks?.some((t: any) => t.status === 'pending')
-        )
-      ).length,
-      approved: assets.filter(a => 
-        (a as any).asset_versions?.some((v: any) => 
-          v.approval_tasks?.some((t: any) => t.status === 'approved')
-        )
-      ).length,
-      rejected: assets.filter(a => 
-        (a as any).asset_versions?.some((v: any) => 
-          v.approval_tasks?.some((t: any) => t.status === 'changes_requested')
-        )
-      ).length,
-    };
-  };
+  // Simplified: all assets in review are "pending"
+  const filteredAssets = assets;
 
-  const filteredAssets = assets.filter(asset => {
-    if (filter === 'all') return true;
-    
-    const versions = (asset as any).asset_versions || [];
-    return versions.some((v: any) => 
-      v.approval_tasks?.some((t: any) => {
-        if (filter === 'pending') return t.status === 'pending';
-        if (filter === 'approved') return t.status === 'approved';
-        if (filter === 'rejected') return t.status === 'changes_requested';
-        return false;
-      })
-    );
-  });
-
-  const statusCounts = getStatusCounts();
+  
 
   if (loading) {
     return (
@@ -203,31 +127,11 @@ export default function PortalApprovals() {
         </p>
       </div>
 
-      <Tabs value={filter} onValueChange={(v) => setFilter(v as any)}>
-        <TabsList>
-          <TabsTrigger value="pending">
-            <Clock className="h-4 w-4 mr-2" />
-            Pending <Badge variant="secondary" className="ml-2">{statusCounts.pending}</Badge>
-          </TabsTrigger>
-          <TabsTrigger value="approved">
-            <CheckCircle className="h-4 w-4 mr-2" />
-            Approved <Badge variant="secondary" className="ml-2">{statusCounts.approved}</Badge>
-          </TabsTrigger>
-          <TabsTrigger value="rejected">
-            <XCircle className="h-4 w-4 mr-2" />
-            Changes Requested <Badge variant="secondary" className="ml-2">{statusCounts.rejected}</Badge>
-          </TabsTrigger>
-          <TabsTrigger value="all">
-            All <Badge variant="secondary" className="ml-2">{assets.length}</Badge>
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
-
       {filteredAssets.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <p className="text-muted-foreground">
-              No assets {filter !== 'all' ? `with ${filter} status` : 'for approval'}
+              No assets awaiting approval
             </p>
           </CardContent>
         </Card>
@@ -241,10 +145,18 @@ export default function PortalApprovals() {
             >
               <CardContent className="p-4 space-y-3">
                 {asset.file_type.startsWith('video/') ? (
-                  <video
-                    src={asset.file_url}
-                    className="w-full h-48 object-cover rounded"
-                  />
+                  asset.thumbnail_url ? (
+                    <img
+                      src={asset.thumbnail_url}
+                      alt={asset.filename}
+                      className="w-full h-48 object-cover rounded"
+                    />
+                  ) : (
+                    <video
+                      src={asset.file_url}
+                      className="w-full h-48 object-cover rounded"
+                    />
+                  )
                 ) : (
                   <img
                     src={asset.file_url}
@@ -256,15 +168,27 @@ export default function PortalApprovals() {
                 <div className="space-y-2">
                   <h3 className="font-semibold line-clamp-2">{asset.filename}</h3>
                   
-                  {asset.content_type && (
-                    <Badge variant="secondary" className="text-xs">
-                      {asset.content_type.replace('_', ' ')}
-                    </Badge>
+                  {asset.platforms && asset.platforms.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {asset.platforms.map(platform => (
+                        <Badge key={platform} variant="secondary" className="text-xs">
+                          {platform}
+                        </Badge>
+                      ))}
+                    </div>
                   )}
 
-                  <div className="flex items-center gap-2">
-                    <Badge>Version {asset.current_version}</Badge>
-                  </div>
+                  {asset.final_caption && (
+                    <p className="text-xs text-muted-foreground line-clamp-2">
+                      {asset.final_caption}
+                    </p>
+                  )}
+
+                  {asset.scheduled_time && (
+                    <p className="text-xs text-muted-foreground">
+                      📅 {new Date(asset.scheduled_time).toLocaleString()}
+                    </p>
+                  )}
                 </div>
               </CardContent>
             </Card>
