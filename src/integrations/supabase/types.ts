@@ -1588,6 +1588,10 @@ export type Database = {
         Args: { _invite_token: string; _user_id: string }
         Returns: Json
       }
+      delete_client_cascade: {
+        Args: { p_client_id: string }
+        Returns: undefined
+      }
       generate_portal_invite_token: { Args: never; Returns: string }
       generate_portal_slug: { Args: never; Returns: string }
       generate_portal_token: { Args: never; Returns: string }
