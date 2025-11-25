@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Draggable } from "@hello-pangea/dnd";
-import { FileVideo, FileImage, FileAudio, File, User, Calendar, Tag, MoreVertical, GripVertical } from "lucide-react";
+import { FileVideo, FileImage, FileAudio, File, User, Calendar, Tag, MoreVertical, GripVertical, Send } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -49,6 +49,38 @@ export default function AssetPipelineCard({
         return <FileAudio className="h-8 w-8 text-primary" />;
       default:
         return <File className="h-8 w-8 text-primary" />;
+    }
+  };
+
+  const getStageActions = () => {
+    switch (asset.pipeline_stage) {
+      case 'idea':
+        return [
+          { label: 'Move to In Production', stage: 'in_production' as const }
+        ];
+      case 'in_production':
+        return [
+          { label: 'Send for Client Review', stage: 'review' as const },
+          { label: 'Move back to Idea', stage: 'idea' as const }
+        ];
+      case 'review':
+        return [
+          { label: 'Move back to In Production', stage: 'in_production' as const }
+        ];
+      case 'approved':
+        return [
+          { label: 'Schedule', stage: 'scheduled' as const },
+          { label: 'Move back to Review', stage: 'review' as const }
+        ];
+      case 'scheduled':
+        return [
+          { label: 'Move back to Approved', stage: 'approved' as const },
+          { label: 'Mark as Published', stage: 'published' as const }
+        ];
+      case 'published':
+        return [];
+      default:
+        return [];
     }
   };
 
@@ -121,12 +153,28 @@ export default function AssetPipelineCard({
                   <DropdownMenuItem onClick={() => onView?.(asset.id)}>
                     View Details
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onMoveStage?.(asset.id, 'editing')}>
-                    Move to Editing
-                  </DropdownMenuItem>
+                  {getStageActions().map((action) => (
+                    <DropdownMenuItem 
+                      key={action.stage}
+                      onClick={() => onMoveStage?.(asset.id, action.stage)}
+                    >
+                      {action.label}
+                    </DropdownMenuItem>
+                  ))}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
+
+            {asset.pipeline_stage === 'in_production' && (
+              <Button 
+                onClick={() => onMoveStage?.(asset.id, 'review')}
+                className="w-full"
+                size="sm"
+              >
+                <Send className="h-4 w-4 mr-2" />
+                Send for Client Review
+              </Button>
+            )}
 
             {asset.content_type && (
               <Badge variant="secondary" className="text-xs">
