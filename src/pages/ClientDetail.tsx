@@ -14,6 +14,7 @@ import SocialProfilesTab from "@/components/SocialProfilesTab";
 import ContentPlanningTab from "@/components/client-tabs/ContentPlanningTab";
 import AIAssistantTab from "@/components/client-tabs/AIAssistantTab";
 import ContentLibraryTab from "@/components/client-tabs/ContentLibraryTab";
+import PipelineTab from "@/components/client-tabs/PipelineTab";
 import ClientUploadsTab from "@/components/client-tabs/ClientUploadsTab";
 import WorkspaceTab from "@/components/client-tabs/WorkspaceTab";
 import { ClientPortalTab } from "@/components/client-tabs/ClientPortalTab";
@@ -160,8 +161,9 @@ export default function ClientDetail() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="overflow-x-auto">
-          <TabsList className="inline-flex w-auto min-w-full md:grid md:grid-cols-9">
+           <TabsList className="inline-flex w-auto min-w-full md:grid md:grid-cols-9">
             <TabsTrigger value="overview" className="flex-shrink-0">Overview</TabsTrigger>
+            <TabsTrigger value="pipeline" className="flex-shrink-0">Pipeline</TabsTrigger>
             <TabsTrigger value="brand" className="flex-shrink-0">Brand Identity</TabsTrigger>
             <TabsTrigger value="social" className="flex-shrink-0">Social Profiles</TabsTrigger>
             <TabsTrigger value="planning" className="flex-shrink-0">Content Planning</TabsTrigger>
@@ -191,6 +193,10 @@ export default function ClientDetail() {
 
         <TabsContent value="planning" className="space-y-4">
           <ContentPlanningTab clientId={clientId!} />
+        </TabsContent>
+
+        <TabsContent value="pipeline" className="space-y-4">
+          <PipelineTab clientId={clientId!} agencyId={agencyId} />
         </TabsContent>
 
         <TabsContent value="ai" className="space-y-4">
