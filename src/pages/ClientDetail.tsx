@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useParams, Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,7 +17,7 @@ import PipelineTab from "@/components/client-tabs/PipelineTab";
 import ClientUploadsTab from "@/components/client-tabs/ClientUploadsTab";
 import WorkspaceTab from "@/components/client-tabs/WorkspaceTab";
 import { ClientPortalTab } from "@/components/client-tabs/ClientPortalTab";
-import ContentCalendar from "@/components/calendar/ContentCalendar";
+import { useEffect } from "react";
 
 interface Client {
   id: string;
@@ -160,10 +160,9 @@ export default function ClientDetail() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="overflow-x-auto">
-          <TabsList className="inline-flex w-auto min-w-full md:grid md:grid-cols-9">
+          <TabsList className="inline-flex w-auto min-w-full md:grid md:grid-cols-8">
             <TabsTrigger value="overview" className="flex-shrink-0">Overview</TabsTrigger>
             <TabsTrigger value="pipeline" className="flex-shrink-0">Pipeline</TabsTrigger>
-            <TabsTrigger value="calendar" className="flex-shrink-0">Calendar</TabsTrigger>
             <TabsTrigger value="brand" className="flex-shrink-0">Brand Identity</TabsTrigger>
             <TabsTrigger value="social" className="flex-shrink-0">Social Profiles</TabsTrigger>
             <TabsTrigger value="planning" className="flex-shrink-0">Content Planning</TabsTrigger>
@@ -198,9 +197,6 @@ export default function ClientDetail() {
           <PipelineTab clientId={clientId!} agencyId={agencyId} />
         </TabsContent>
 
-        <TabsContent value="calendar" className="space-y-4">
-          <ContentCalendar clientId={clientId!} />
-        </TabsContent>
 
         <TabsContent value="library" className="space-y-4">
           <ContentLibraryTab clientId={clientId!} agencyId={agencyId} />

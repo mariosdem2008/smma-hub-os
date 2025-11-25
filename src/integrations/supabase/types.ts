@@ -286,7 +286,6 @@ export type Database = {
           created_at: string
           current_version: number | null
           custom_category: string | null
-          error_message: string | null
           file_size: number | null
           file_type: string
           file_url: string
@@ -312,7 +311,6 @@ export type Database = {
           created_at?: string
           current_version?: number | null
           custom_category?: string | null
-          error_message?: string | null
           file_size?: number | null
           file_type: string
           file_url: string
@@ -338,7 +336,6 @@ export type Database = {
           created_at?: string
           current_version?: number | null
           custom_category?: string | null
-          error_message?: string | null
           file_size?: number | null
           file_type?: string
           file_url?: string
@@ -1635,13 +1632,12 @@ export type Database = {
       app_role: "owner" | "manager" | "client"
       approval_status: "pending" | "approved" | "changes_requested"
       pipeline_stage:
-        | "idea"
-        | "in_production"
-        | "review"
-        | "approved"
+        | "raw"
+        | "editing"
+        | "approval"
+        | "final"
         | "scheduled"
         | "published"
-        | "failed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1772,13 +1768,12 @@ export const Constants = {
       app_role: ["owner", "manager", "client"],
       approval_status: ["pending", "approved", "changes_requested"],
       pipeline_stage: [
-        "idea",
-        "in_production",
-        "review",
-        "approved",
+        "raw",
+        "editing",
+        "approval",
+        "final",
         "scheduled",
         "published",
-        "failed",
       ],
     },
   },

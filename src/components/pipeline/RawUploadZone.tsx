@@ -116,7 +116,7 @@ export default function RawUploadZone({ clientId, agencyId, onUploadComplete }: 
 
       const fileType = detectFileType(selectedFile);
 
-      // Create asset entry with pipeline_stage='idea'
+      // Create asset entry with pipeline_stage='raw'
       const { data: asset, error: assetError } = await supabase
         .from('assets')
         .insert({
@@ -126,7 +126,7 @@ export default function RawUploadZone({ clientId, agencyId, onUploadComplete }: 
           file_type: fileType,
           file_size: selectedFile.size,
           uploaded_by: user.id,
-          pipeline_stage: 'idea',
+          pipeline_stage: 'raw',
           content_type: contentType,
           status: 'draft',
           custom_category: notes || description || null,
