@@ -43,8 +43,6 @@ import { format, startOfWeek, endOfWeek, isPast } from "date-fns";
 import { cn } from "@/lib/utils";
 import { StatCard } from "@/components/ui/stat-card";
 
-const PLATFORMS = ["Instagram", "Facebook", "TikTok", "LinkedIn", "YouTube"];
-const STATUSES = ["draft", "scheduled", "published"];
 const PRIORITIES = ["low", "medium", "high", "urgent"];
 const TASK_STATUSES = ["pending", "in_progress", "completed"];
 
@@ -71,7 +69,7 @@ export default function Dashboard() {
   const [upcomingPosts, setUpcomingPosts] = useState<any[]>([]);
   const [overdueTasks, setOverdueTasks] = useState<any[]>([]);
   const [showTaskDialog, setShowTaskDialog] = useState(false);
-  const [showPostDialog, setShowPostDialog] = useState(false);
+  
   const [taskFormData, setTaskFormData] = useState({
     title: "",
     description: "",
@@ -79,14 +77,7 @@ export default function Dashboard() {
     priority: "medium",
     status: "pending",
   });
-  const [postFormData, setPostFormData] = useState({
-    title: "",
-    client_id: "",
-    platform: "",
-    status: "draft",
-  });
   const [taskDueDate, setTaskDueDate] = useState<Date | undefined>();
-  const [postScheduledDate, setPostScheduledDate] = useState<Date | undefined>();
   const [submitting, setSubmitting] = useState(false);
   const [dismissedPosts, setDismissedPosts] = useState<Set<string>>(new Set());
   const [dismissedTasks, setDismissedTasks] = useState<Set<string>>(new Set());
@@ -163,13 +154,14 @@ export default function Dashboard() {
       // Get client IDs for filtering
       const clientIds = clientsData?.map((c) => c.id) || [];
 
-      // Posts scheduled this week
-      const { data: postsData } = await supabase
-        .from("posts")
+      // Assets scheduled this week (in scheduled or published stage)
+      const { data: assetsData } = await supabase
+        .from("assets")
         .select("id")
         .in("client_id", clientIds)
-        .gte("scheduled_for", weekStart.toISOString())
-        .lte("scheduled_for", weekEnd.toISOString());
+        .in("pipeline_stage", ["scheduled", "published"])
+        .gte("scheduled_time", weekStart.toISOString())
+        .lte("scheduled_time", weekEnd.toISOString());
 
       // Tasks due this week
       const { data: tasksData } = await supabase
@@ -182,27 +174,29 @@ export default function Dashboard() {
 
       setMetrics({
         totalClients: clientsData?.length || 0,
-        postsThisWeek: postsData?.length || 0,
+        postsThisWeek: assetsData?.length || 0,
         tasksThisWeek: tasksData?.length || 0,
       });
 
-      // Fetch upcoming posts (next 10)
-      const { data: upcomingPostsData } = await supabase
-        .from("posts")
+      // Fetch upcoming assets (next 10 scheduled/published)
+      const { data: upcomingAssetsData } = await supabase
+        .from("assets")
         .select(`
           id,
-          title,
-          platform,
-          scheduled_for,
-          status,
+          filename,
+          platforms,
+          scheduled_time,
+          pipeline_stage,
+          final_caption,
           client:clients(id, name)
         `)
         .in("client_id", clientIds)
-        .gte("scheduled_for", now.toISOString())
-        .order("scheduled_for", { ascending: true })
+        .in("pipeline_stage", ["scheduled", "published"])
+        .gte("scheduled_time", now.toISOString())
+        .order("scheduled_time", { ascending: true })
         .limit(10);
 
-      setUpcomingPosts(upcomingPostsData || []);
+      setUpcomingPosts(upcomingAssetsData || []);
 
       // Fetch overdue tasks
       const { data: overdueTasksData } = await supabase
@@ -327,48 +321,6 @@ export default function Dashboard() {
     setSubmitting(false);
   };
 
-  const handleCreatePost = async () => {
-    if (!postFormData.title || !postFormData.client_id || !postFormData.platform) {
-      toast({
-        title: "Validation Error",
-        description: "Title, client, and platform are required",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setSubmitting(true);
-    const { error } = await supabase.from("posts").insert({
-      title: postFormData.title,
-      client_id: postFormData.client_id,
-      platform: postFormData.platform,
-      scheduled_for: postScheduledDate?.toISOString() || null,
-      status: postFormData.status,
-    });
-
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to create post",
-        variant: "destructive",
-      });
-    } else {
-      toast({
-        title: "Success",
-        description: "Post created successfully",
-      });
-      setPostFormData({
-        title: "",
-        client_id: "",
-        platform: "",
-        status: "draft",
-      });
-      setPostScheduledDate(undefined);
-      setShowPostDialog(false);
-      fetchDashboardData();
-    }
-    setSubmitting(false);
-  };
 
   const handleCreateClient = async () => {
     if (!user || !clientFormData.name.trim()) {
@@ -583,10 +535,10 @@ export default function Dashboard() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Client</TableHead>
-                      <TableHead>Title</TableHead>
-                      <TableHead>Platform</TableHead>
+                      <TableHead>Filename</TableHead>
+                      <TableHead>Platforms</TableHead>
                       <TableHead>Scheduled</TableHead>
-                      <TableHead>Status</TableHead>
+                      <TableHead>Stage</TableHead>
                       <TableHead className="w-[50px]"></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -597,25 +549,25 @@ export default function Dashboard() {
                         className="cursor-pointer hover:bg-muted/50"
                         onClick={() => navigate(`/clients/${post.client.id}`)}
                       >
-                        <TableCell className="font-medium">{post.client.name}</TableCell>
-                        <TableCell>{post.title}</TableCell>
+                         <TableCell className="font-medium">{post.client.name}</TableCell>
+                        <TableCell>{post.filename}</TableCell>
                         <TableCell>
-                          {post.platform ? (
-                            <Badge className={cn("font-medium", getPlatformColor(post.platform))}>
-                              {post.platform}
-                            </Badge>
-                          ) : (
-                            "-"
-                          )}
+                          <div className="flex gap-1 flex-wrap">
+                            {post.platforms?.map((platform: string) => (
+                              <Badge key={platform} className={cn("font-medium text-xs", getPlatformColor(platform))}>
+                                {platform}
+                              </Badge>
+                            ))}
+                          </div>
                         </TableCell>
                         <TableCell>
-                          {post.scheduled_for
-                            ? format(new Date(post.scheduled_for), "MMM d, yyyy")
+                          {post.scheduled_time
+                            ? format(new Date(post.scheduled_time), "MMM d, yyyy")
                             : "-"}
                         </TableCell>
                         <TableCell>
-                          <Badge variant={getStatusBadgeVariant(post.status)}>
-                            {post.status || "draft"}
+                          <Badge variant={getStatusBadgeVariant(post.pipeline_stage)}>
+                            {post.pipeline_stage || "scheduled"}
                           </Badge>
                         </TableCell>
                         <TableCell>
@@ -803,16 +755,10 @@ export default function Dashboard() {
               </DropdownMenuItem>
             )}
             {canCreateContent && (
-              <>
-                <DropdownMenuItem onClick={() => setShowTaskDialog(true)}>
-                  <CheckSquare className="mr-2 h-4 w-4" />
-                  New Task
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setShowPostDialog(true)}>
-                  <FileText className="mr-2 h-4 w-4" />
-                  New Post
-                </DropdownMenuItem>
-              </>
+              <DropdownMenuItem onClick={() => setShowTaskDialog(true)}>
+                <CheckSquare className="mr-2 h-4 w-4" />
+                New Task
+              </DropdownMenuItem>
             )}
           </DropdownMenuContent>
         </DropdownMenu>
@@ -958,141 +904,6 @@ export default function Dashboard() {
             </Button>
             <Button onClick={handleCreateTask} disabled={submitting}>
               {submitting ? "Creating..." : "Create Task"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* New Post Dialog */}
-      <Dialog open={showPostDialog} onOpenChange={setShowPostDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Create New Post</DialogTitle>
-            <DialogDescription>Schedule a new post for a client</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="post-client">
-                Client <span className="text-destructive">*</span>
-              </Label>
-              <Select
-                value={postFormData.client_id}
-                onValueChange={(value) =>
-                  setPostFormData({ ...postFormData, client_id: value })
-                }
-              >
-                <SelectTrigger id="post-client">
-                  <SelectValue placeholder="Select client" />
-                </SelectTrigger>
-                <SelectContent>
-                  {clients.map((client) => (
-                    <SelectItem key={client.id} value={client.id}>
-                      {client.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="post-title">
-                Title <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="post-title"
-                value={postFormData.title}
-                onChange={(e) =>
-                  setPostFormData({ ...postFormData, title: e.target.value })
-                }
-                placeholder="Enter post title"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="post-platform">
-                Platform <span className="text-destructive">*</span>
-              </Label>
-              <Select
-                value={postFormData.platform}
-                onValueChange={(value) =>
-                  setPostFormData({ ...postFormData, platform: value })
-                }
-              >
-                <SelectTrigger id="post-platform">
-                  <SelectValue placeholder="Select platform" />
-                </SelectTrigger>
-                <SelectContent>
-                  {PLATFORMS.map((platform) => (
-                    <SelectItem key={platform} value={platform}>
-                      {platform}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Scheduled Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !postScheduledDate && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {postScheduledDate ? (
-                      format(postScheduledDate, "PPP")
-                    ) : (
-                      <span>Pick a date</span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <CalendarComponent
-                    mode="single"
-                    selected={postScheduledDate}
-                    onSelect={setPostScheduledDate}
-                    initialFocus
-                    className={cn("p-3 pointer-events-auto")}
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="post-status">Status</Label>
-              <Select
-                value={postFormData.status}
-                onValueChange={(value) =>
-                  setPostFormData({ ...postFormData, status: value })
-                }
-              >
-                <SelectTrigger id="post-status">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {STATUSES.map((status) => (
-                    <SelectItem key={status} value={status}>
-                      {status.charAt(0).toUpperCase() + status.slice(1)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowPostDialog(false)}
-              disabled={submitting}
-            >
-              Cancel
-            </Button>
-            <Button onClick={handleCreatePost} disabled={submitting}>
-              {submitting ? "Creating..." : "Create Post"}
             </Button>
           </DialogFooter>
         </DialogContent>

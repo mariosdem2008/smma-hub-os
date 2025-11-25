@@ -71,11 +71,12 @@ export function PortalOverview() {
   };
 
   const fetchStats = async () => {
-    // Fetch total posts
-    const { count: postsCount } = await supabase
-      .from("posts")
+    // Fetch scheduled assets count (scheduled + published)
+    const { count: scheduledCount } = await supabase
+      .from("assets")
       .select("*", { count: "exact", head: true })
-      .eq("client_id", clientId);
+      .eq("client_id", clientId)
+      .in("pipeline_stage", ["scheduled", "published"]);
 
     // Fetch total ideas
     const { count: ideasCount } = await supabase
@@ -90,7 +91,7 @@ export function PortalOverview() {
       .eq("client_id", clientId);
 
     setStats({
-      totalPosts: postsCount || 0,
+      totalPosts: scheduledCount || 0,
       totalIdeas: ideasCount || 0,
       totalAssets: assetsCount || 0,
     });

@@ -14,23 +14,23 @@ import {
 import { CalendarDays } from "lucide-react";
 import { format } from "date-fns";
 
-interface Post {
+interface Asset {
   id: string;
-  title: string;
-  platform: string | null;
-  scheduled_for: string | null;
-  status: string | null;
-  content: string | null;
+  filename: string;
+  platforms: string[] | null;
+  scheduled_time: string | null;
+  pipeline_stage: string | null;
+  final_caption: string | null;
 }
 
 interface OutletContext {
   clientId: string;
 }
 
-const statusColors: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-  draft: "outline",
+const stageColors: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   scheduled: "default",
   published: "secondary",
+  final: "outline",
 };
 
 const platformColors: Record<string, string> = {
@@ -43,21 +43,22 @@ const platformColors: Record<string, string> = {
 
 export function PortalContentCalendar() {
   const { clientId } = useOutletContext<OutletContext>();
-  const [posts, setPosts] = useState<Post[]>([]);
+  const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchPosts();
+    fetchAssets();
   }, [clientId]);
 
-  const fetchPosts = async () => {
+  const fetchAssets = async () => {
     const { data } = await supabase
-      .from("posts")
+      .from("assets")
       .select("*")
       .eq("client_id", clientId)
-      .order("scheduled_for", { ascending: true });
+      .in("pipeline_stage", ["scheduled", "published"])
+      .order("scheduled_time", { ascending: true });
 
-    setPosts(data || []);
+    setAssets(data || []);
     setLoading(false);
   };
 
@@ -74,55 +75,58 @@ export function PortalContentCalendar() {
         </p>
       </div>
 
-      {posts.length > 0 ? (
+      {assets.length > 0 ? (
         <Card>
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Scheduled Date</TableHead>
-                <TableHead>Title</TableHead>
-                <TableHead>Platform</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>Filename</TableHead>
+                <TableHead>Platforms</TableHead>
+                <TableHead>Stage</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {posts.map((post) => (
-                <TableRow key={post.id}>
+              {assets.map((asset) => (
+                <TableRow key={asset.id}>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <CalendarDays className="h-4 w-4 text-muted-foreground" />
                       <span className="text-sm">
-                        {post.scheduled_for
-                          ? format(new Date(post.scheduled_for), "MMM d, yyyy")
+                        {asset.scheduled_time
+                          ? format(new Date(asset.scheduled_time), "MMM d, yyyy")
                           : "Not scheduled"}
                       </span>
                     </div>
                   </TableCell>
                   <TableCell>
                     <div>
-                      <p className="font-medium">{post.title}</p>
-                      {post.content && (
+                      <p className="font-medium">{asset.filename}</p>
+                      {asset.final_caption && (
                         <p className="text-xs text-muted-foreground line-clamp-1">
-                          {post.content}
+                          {asset.final_caption}
                         </p>
                       )}
                     </div>
                   </TableCell>
                   <TableCell>
-                    {post.platform && (
-                      <Badge
-                        variant="outline"
-                        className={`${
-                          platformColors[post.platform] || "bg-gray-500"
-                        } text-white border-0`}
-                      >
-                        {post.platform}
-                      </Badge>
-                    )}
+                    <div className="flex gap-1 flex-wrap">
+                      {asset.platforms?.map((platform) => (
+                        <Badge
+                          key={platform}
+                          variant="outline"
+                          className={`${
+                            platformColors[platform] || "bg-gray-500"
+                          } text-white border-0 text-xs`}
+                        >
+                          {platform}
+                        </Badge>
+                      ))}
+                    </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={statusColors[post.status || "draft"]}>
-                      {post.status || "draft"}
+                    <Badge variant={stageColors[asset.pipeline_stage || "scheduled"]}>
+                      {asset.pipeline_stage || "scheduled"}
                     </Badge>
                   </TableCell>
                 </TableRow>
