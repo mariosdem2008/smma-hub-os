@@ -6,16 +6,11 @@ import { useClientFonts } from "@/hooks/useClientFonts";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
-  LayoutDashboard,
-  Palette,
-  Share2,
-  Lightbulb,
   FolderOpen,
   LogOut,
   CalendarDays,
   CheckCircle,
   Upload,
-  GitBranch,
 } from "lucide-react";
 
 interface Client {
@@ -33,14 +28,10 @@ interface Client {
 }
 
 const navItems = [
-  { path: "", label: "Overview", key: "overview", icon: LayoutDashboard },
   { path: "approvals", label: "Approvals", key: "approvals", icon: CheckCircle },
-  { path: "content-calendar", label: "Content Calendar", key: "content_calendar", icon: CalendarDays },
-  { path: "ideas", label: "Ideas", key: "ideas", icon: Lightbulb },
+  { path: "content-calendar", label: "Calendar", key: "content_calendar", icon: CalendarDays },
   { path: "assets", label: "Assets", key: "assets", icon: FolderOpen },
-  { path: "branding", label: "Branding", key: "branding", icon: Palette },
-  { path: "social", label: "Social Profiles", key: "social", icon: Share2 },
-  { path: "uploads", label: "My Uploads", key: "uploads", icon: Upload },
+  { path: "uploads", label: "Upload", key: "uploads", icon: Upload },
 ];
 
 function ClientPortalLayoutContent() {

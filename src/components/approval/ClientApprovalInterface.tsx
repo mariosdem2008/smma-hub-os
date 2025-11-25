@@ -151,10 +151,10 @@ export default function ClientApprovalInterface({
     setLoading(true);
 
     try {
-      // Move asset back to editing stage
+      // Move asset back to in_production stage
       await supabase
         .from('assets')
-        .update({ pipeline_stage: 'editing' })
+        .update({ pipeline_stage: 'in_production' })
         .eq('id', asset.id);
 
       // Add feedback comment
