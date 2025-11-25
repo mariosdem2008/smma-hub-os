@@ -1846,6 +1846,10 @@ export type Database = {
         Args: { _invite_token: string; _user_id: string }
         Returns: Json
       }
+      accept_portal_invitation: {
+        Args: { _invitation_id: string }
+        Returns: boolean
+      }
       check_portal_invitation: {
         Args: { _client_id: string; _email: string }
         Returns: {
