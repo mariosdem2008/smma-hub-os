@@ -35,16 +35,20 @@ export function useClientPortalAccess(portalSlug?: string) {
           return;
         }
 
-        // Check if user has accessed this portal before
-        const { data: portalUser } = await supabase
-          .from("client_portal_users")
-          .select("client_id")
-          .eq("user_id", user.id)
-          .eq("client_id", client.id)
-          .maybeSingle();
+        // Check access using secure function that works with RLS
+        const { data: isPortalUser, error: accessError } = await supabase.rpc(
+          "is_client_portal_user",
+          {
+            _client_id: client.id,
+            _user_id: user.id,
+          }
+        );
 
-        if (portalUser) {
-          setClientId(portalUser.client_id);
+        if (accessError) {
+          console.error("Error checking portal access via function:", accessError);
+          setHasAccess(false);
+        } else if (isPortalUser) {
+          setClientId(client.id);
           setHasAccess(true);
         } else {
           setHasAccess(false);
