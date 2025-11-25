@@ -14,7 +14,7 @@ import "react-big-calendar/lib/addons/dragAndDrop/styles.css";
 import "./calendar-styles.css";
 
 const locales = {
-  'en-US': enUS,
+  "en-US": enUS,
 };
 
 const localizer = dateFnsLocalizer({
@@ -57,7 +57,7 @@ export default function ContentCalendar({ clientId }: ContentCalendarProps) {
   const { toast } = useToast();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<View>('month');
+  const [view, setView] = useState<View>("month");
   const [date, setDate] = useState(new Date());
 
   useEffect(() => {
@@ -65,18 +65,18 @@ export default function ContentCalendar({ clientId }: ContentCalendarProps) {
 
     // Real-time subscription
     const channel = supabase
-      .channel('content-calendar')
+      .channel("content-calendar")
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: '*',
-          schema: 'public',
-          table: 'assets',
-          filter: `client_id=eq.${clientId}`
+          event: "*",
+          schema: "public",
+          table: "assets",
+          filter: `client_id=eq.${clientId}`,
         },
         () => {
           fetchAssets();
-        }
+        },
       )
       .subscribe();
 
@@ -88,11 +88,11 @@ export default function ContentCalendar({ clientId }: ContentCalendarProps) {
   const fetchAssets = async () => {
     try {
       const { data, error } = await supabase
-        .from('assets')
-        .select('*')
-        .eq('client_id', clientId)
-        .in('pipeline_stage', ['approved', 'scheduled', 'published'])
-        .order('scheduled_time', { ascending: true });
+        .from("assets")
+        .select("*")
+        .eq("client_id", clientId)
+        .in("pipeline_stage", ["approved", "scheduled", "published"])
+        .order("scheduled_time", { ascending: true });
 
       if (error) throw error;
       setAssets(data || []);
@@ -101,7 +101,7 @@ export default function ContentCalendar({ clientId }: ContentCalendarProps) {
       toast({
         title: "Error",
         description: "Failed to load calendar content",
-        variant: "destructive"
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
@@ -111,18 +111,18 @@ export default function ContentCalendar({ clientId }: ContentCalendarProps) {
   const handleEventDrop = async ({ event, start, end }: { event: CalendarEvent; start: Date; end: Date }) => {
     try {
       const { error } = await supabase
-        .from('assets')
-        .update({ 
+        .from("assets")
+        .update({
           scheduled_time: start.toISOString(),
-          pipeline_stage: 'scheduled' // Auto-move to scheduled when date is set
+          pipeline_stage: "scheduled", // Auto-move to scheduled when date is set
         })
-        .eq('id', event.id);
+        .eq("id", event.id);
 
       if (error) throw error;
 
       toast({
         title: "Rescheduled",
-        description: `${event.title} moved to ${format(start, 'PPP p')}`
+        description: `${event.title} moved to ${format(start, "PPP p")}`,
       });
 
       fetchAssets();
@@ -131,7 +131,7 @@ export default function ContentCalendar({ clientId }: ContentCalendarProps) {
       toast({
         title: "Error",
         description: "Failed to reschedule content",
-        variant: "destructive"
+        variant: "destructive",
       });
     }
   };
@@ -143,43 +143,41 @@ export default function ContentCalendar({ clientId }: ContentCalendarProps) {
 
   const events: CalendarEvent[] = useMemo(() => {
     return assets
-      .filter(asset => asset.scheduled_time || asset.pipeline_stage === 'approved')
-      .map(asset => {
-        const startDate = asset.scheduled_time 
-          ? new Date(asset.scheduled_time)
-          : new Date(); // Unscheduled approved items show today
+      .filter((asset) => asset.scheduled_time || asset.pipeline_stage === "approved")
+      .map((asset) => {
+        const startDate = asset.scheduled_time ? new Date(asset.scheduled_time) : new Date(); // Unscheduled approved items show today
 
         return {
           id: asset.id,
           title: asset.filename,
           start: startDate,
           end: new Date(startDate.getTime() + 60 * 60 * 1000), // 1 hour duration
-          resource: asset
+          resource: asset,
         };
       });
   }, [assets]);
 
   const eventStyleGetter = useCallback((event: CalendarEvent) => {
     const asset = event.resource;
-    let backgroundColor = 'hsl(var(--primary))';
-    
-    if (asset.pipeline_stage === 'approved') {
-      backgroundColor = 'hsl(150 70% 50%)'; // Green
-    } else if (asset.pipeline_stage === 'scheduled') {
-      backgroundColor = 'hsl(200 70% 50%)'; // Blue
-    } else if (asset.pipeline_stage === 'published') {
-      backgroundColor = 'hsl(120 70% 50%)'; // Dark green
+    let backgroundColor = "hsl(var(--primary))";
+
+    if (asset.pipeline_stage === "approved") {
+      backgroundColor = "hsl(150 70% 50%)"; // Green
+    } else if (asset.pipeline_stage === "scheduled") {
+      backgroundColor = "hsl(200 70% 50%)"; // Blue
+    } else if (asset.pipeline_stage === "published") {
+      backgroundColor = "hsl(120 70% 50%)"; // Dark green
     }
 
     return {
       style: {
         backgroundColor,
-        borderRadius: '4px',
+        borderRadius: "4px",
         opacity: 0.9,
-        color: 'white',
-        border: '0',
-        display: 'block'
-      }
+        color: "white",
+        border: "0",
+        display: "block",
+      },
     };
   }, []);
 
@@ -190,7 +188,7 @@ export default function ContentCalendar({ clientId }: ContentCalendarProps) {
         <div className="font-medium text-xs truncate">{event.title}</div>
         {asset.platforms && asset.platforms.length > 0 && (
           <div className="flex gap-1 flex-wrap">
-            {asset.platforms.slice(0, 2).map(platform => (
+            {asset.platforms.slice(0, 2).map((platform) => (
               <Badge key={platform} variant="secondary" className="text-[10px] px-1 py-0">
                 {platform}
               </Badge>
@@ -202,9 +200,7 @@ export default function ContentCalendar({ clientId }: ContentCalendarProps) {
   };
 
   const UnscheduledSection = () => {
-    const unscheduledApproved = assets.filter(
-      a => a.pipeline_stage === 'approved' && !a.scheduled_time
-    );
+    const unscheduledApproved = assets.filter((a) => a.pipeline_stage === "approved" && !a.scheduled_time);
 
     if (unscheduledApproved.length === 0) return null;
 
@@ -215,23 +211,21 @@ export default function ContentCalendar({ clientId }: ContentCalendarProps) {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {unscheduledApproved.map(asset => (
+            {unscheduledApproved.map((asset) => (
               <Card key={asset.id} className="cursor-move hover:shadow-md transition-shadow">
                 <CardContent className="p-3">
-                  {asset.file_type.startsWith('video') ? (
+                  {asset.file_type.startsWith("video") ? (
                     <video
                       src={asset.thumbnail_url || asset.file_url}
                       className="w-full h-24 object-cover rounded mb-2"
                     />
                   ) : (
-                    <img
-                      src={asset.file_url}
-                      alt={asset.filename}
-                      className="w-full h-24 object-cover rounded mb-2"
-                    />
+                    <img src={asset.file_url} alt={asset.filename} className="w-full h-24 object-cover rounded mb-2" />
                   )}
                   <div className="text-xs font-medium truncate">{asset.filename}</div>
-                  <Badge variant="secondary" className="text-[10px] mt-1">Approved</Badge>
+                  <Badge variant="secondary" className="text-[10px] mt-1">
+                    Approved
+                  </Badge>
                 </CardContent>
               </Card>
             ))}
@@ -256,7 +250,7 @@ export default function ContentCalendar({ clientId }: ContentCalendarProps) {
           <CalendarIcon className="h-5 w-5" />
           <h2 className="text-2xl font-bold">Content Calendar</h2>
         </div>
-        
+
         <Tabs value={view} onValueChange={(v) => setView(v as View)}>
           <TabsList>
             <TabsTrigger value="week">Week</TabsTrigger>
@@ -267,13 +261,13 @@ export default function ContentCalendar({ clientId }: ContentCalendarProps) {
 
       <div className="flex gap-4 items-center">
         <Badge variant="outline" className="bg-[hsl(150,70%,50%)] text-white">
-          Approved: {assets.filter(a => a.pipeline_stage === 'approved').length}
+          Approved: {assets.filter((a) => a.pipeline_stage === "approved").length}
         </Badge>
         <Badge variant="outline" className="bg-[hsl(200,70%,50%)] text-white">
-          Scheduled: {assets.filter(a => a.pipeline_stage === 'scheduled').length}
+          Scheduled: {assets.filter((a) => a.pipeline_stage === "scheduled").length}
         </Badge>
         <Badge variant="outline" className="bg-[hsl(120,70%,50%)] text-white">
-          Published: {assets.filter(a => a.pipeline_stage === 'published').length}
+          Published: {assets.filter((a) => a.pipeline_stage === "published").length}
         </Badge>
       </div>
 
@@ -291,7 +285,7 @@ export default function ContentCalendar({ clientId }: ContentCalendarProps) {
             onNavigate={setDate}
             eventPropGetter={eventStyleGetter}
             components={{
-              event: EventComponent
+              event: EventComponent,
             }}
             draggableAccessor={() => true}
             resizable
