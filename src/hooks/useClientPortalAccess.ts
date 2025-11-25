@@ -3,15 +3,21 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 
 export function useClientPortalAccess(portalSlug?: string) {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [clientId, setClientId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [hasAccess, setHasAccess] = useState(false);
 
   useEffect(() => {
     const checkAccess = async () => {
+      // Wait for auth to finish loading first
+      if (authLoading) {
+        return;
+      }
+      
       if (!user || !portalSlug) {
         setLoading(false);
+        setHasAccess(false);
         return;
       }
 
@@ -52,7 +58,7 @@ export function useClientPortalAccess(portalSlug?: string) {
     };
 
     checkAccess();
-  }, [user, portalSlug]);
+  }, [user, portalSlug, authLoading]);
 
   return { clientId, loading, hasAccess };
 }
