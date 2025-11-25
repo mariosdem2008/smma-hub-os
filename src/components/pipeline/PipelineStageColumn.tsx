@@ -1,8 +1,10 @@
 import { ReactNode } from "react";
+import { Droppable } from "@hello-pangea/dnd";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 interface PipelineStageColumnProps {
+  stageId: string;
   title: string;
   count: number;
   color: string;
@@ -10,6 +12,7 @@ interface PipelineStageColumnProps {
 }
 
 export default function PipelineStageColumn({ 
+  stageId,
   title, 
   count, 
   color,
@@ -32,9 +35,20 @@ export default function PipelineStageColumn({
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="flex-1 overflow-y-auto space-y-3">
-        {children}
-      </CardContent>
+      <Droppable droppableId={stageId}>
+        {(provided, snapshot) => (
+          <CardContent 
+            ref={provided.innerRef}
+            {...provided.droppableProps}
+            className={`flex-1 overflow-y-auto space-y-3 transition-colors ${
+              snapshot.isDraggingOver ? 'bg-primary/5 border-2 border-dashed border-primary' : ''
+            }`}
+          >
+            {children}
+            {provided.placeholder}
+          </CardContent>
+        )}
+      </Droppable>
     </Card>
   );
 }
