@@ -117,10 +117,10 @@ export default function PortalApprovals() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6 px-2 md:px-4">
       <div>
-        <h1 className="text-3xl font-bold">Content Approvals</h1>
-        <p className="text-muted-foreground mt-2">
+        <h1 className="text-2xl md:text-3xl font-bold">Content Approvals</h1>
+        <p className="text-sm md:text-base text-muted-foreground mt-2">
           Review and approve content awaiting your feedback
         </p>
       </div>
@@ -128,36 +128,36 @@ export default function PortalApprovals() {
 
       {filteredAssets.length === 0 ? (
         <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">
+          <CardContent className="py-8 md:py-12 text-center">
+            <p className="text-sm md:text-base text-muted-foreground">
               No content awaiting your approval
             </p>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
           {filteredAssets.map(asset => (
             <Card 
               key={asset.id}
               className="cursor-pointer hover:shadow-lg transition-shadow"
               onClick={() => setSelectedAsset(asset)}
             >
-              <CardContent className="p-4 space-y-3">
+              <CardContent className="p-3 md:p-4 space-y-3">
                 {asset.file_type.startsWith('video/') ? (
                   <video
                     src={asset.file_url}
-                    className="w-full h-48 object-cover rounded"
+                    className="w-full h-40 md:h-48 object-cover rounded"
                   />
                 ) : (
                   <img
                     src={asset.file_url}
                     alt={asset.filename}
-                    className="w-full h-48 object-cover rounded"
+                    className="w-full h-40 md:h-48 object-cover rounded"
                   />
                 )}
 
                 <div className="space-y-2">
-                  <h3 className="font-semibold line-clamp-2">{asset.filename}</h3>
+                  <h3 className="text-sm md:text-base font-semibold line-clamp-2">{asset.filename}</h3>
                   
                   {asset.content_type && (
                     <Badge variant="secondary" className="text-xs">
@@ -166,7 +166,7 @@ export default function PortalApprovals() {
                   )}
 
                   <div className="flex items-center gap-2">
-                    <Badge>Version {asset.current_version}</Badge>
+                    <Badge className="text-xs">v{asset.current_version}</Badge>
                   </div>
                 </div>
               </CardContent>
