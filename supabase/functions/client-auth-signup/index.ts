@@ -1,7 +1,12 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 
-const JWT_SECRET = Deno.env.get("SUPABASE_JWT_SECRET") || "";
+const JWT_SECRET = Deno.env.get("CLIENT_PORTAL_JWT_SECRET");
+
+if (!JWT_SECRET) {
+  console.error("CLIENT_PORTAL_JWT_SECRET is not configured");
+  throw new Error("CLIENT_PORTAL_JWT_SECRET environment variable is required");
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
