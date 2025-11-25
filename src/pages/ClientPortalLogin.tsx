@@ -132,10 +132,7 @@ export function ClientPortalLogin() {
       }
 
       toast({ title: "Welcome back!" });
-      // Wait a brief moment for the toast to show before navigating
-      setTimeout(() => {
-        navigate(`/client-portal/${portalSlug}`);
-      }, 100);
+      // Navigation will happen automatically via the useEffect that watches `user`
     } catch (error: any) {
       console.error("Login error:", error);
       toast({
