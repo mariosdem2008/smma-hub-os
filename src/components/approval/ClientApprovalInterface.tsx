@@ -188,14 +188,14 @@ export default function ClientApprovalInterface({
 
   const renderAssetPreview = () => {
     if (asset.file_type.startsWith('image')) {
-      return <img src={asset.file_url} alt={asset.filename} className="w-full h-auto max-h-[300px] object-contain rounded-lg" />;
+      return <img src={asset.file_url} alt={asset.filename} className="w-full h-auto max-h-[200px] object-contain rounded-lg" />;
     }
     if (asset.file_type.startsWith('video')) {
       return (
         <video 
           src={asset.file_url} 
           controls 
-          className="w-full h-auto max-h-[300px] rounded-lg"
+          className="w-full h-auto max-h-[200px] rounded-lg"
           playsInline
         />
       );
@@ -220,19 +220,19 @@ export default function ClientApprovalInterface({
             </TabsList>
 
             <TabsContent value="current" className="mt-4">
-              <div className="rounded-lg overflow-hidden bg-muted max-w-md mx-auto">
+              <div className="rounded-lg overflow-hidden bg-muted max-w-sm mx-auto">
                 {renderAssetPreview()}
               </div>
             </TabsContent>
 
             {previousVersionUrl && (
               <TabsContent value="previous" className="mt-4">
-                <div className="rounded-lg overflow-hidden bg-muted max-w-md mx-auto">
+                <div className="rounded-lg overflow-hidden bg-muted max-w-sm mx-auto">
                   {asset.file_type.startsWith('image') && (
-                    <img src={previousVersionUrl} alt="Previous version" className="w-full h-auto max-h-[300px] object-contain" />
+                    <img src={previousVersionUrl} alt="Previous version" className="w-full h-auto max-h-[200px] object-contain" />
                   )}
                   {asset.file_type.startsWith('video') && (
-                    <video src={previousVersionUrl} controls className="w-full h-auto max-h-[300px]" playsInline />
+                    <video src={previousVersionUrl} controls className="w-full h-auto max-h-[200px]" playsInline />
                   )}
                 </div>
               </TabsContent>
