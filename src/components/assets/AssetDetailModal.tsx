@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useRole } from "@/hooks/useRole";
@@ -44,6 +45,9 @@ interface Asset {
   file_type: string;
   file_size: number | null;
   client_id: string;
+  title: string | null;
+  content_type: string | null;
+  final_caption: string | null;
   custom_category: string | null;
   visible_to_client: boolean | null;
   created_at: string;
@@ -66,6 +70,11 @@ export function AssetDetailModal({ asset, agencyId, onClose, onAssetUpdated }: A
   const [currentAsset, setCurrentAsset] = useState(asset);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(asset.title || "");
+  const [editContentType, setEditContentType] = useState(asset.content_type || "");
+  const [editDescription, setEditDescription] = useState(asset.final_caption || "");
+  const [editNotes, setEditNotes] = useState(asset.custom_category || "");
 
   useEffect(() => {
     // Subscribe to realtime updates for this asset
@@ -80,7 +89,12 @@ export function AssetDetailModal({ asset, agencyId, onClose, onAssetUpdated }: A
           filter: `id=eq.${asset.id}`,
         },
         (payload) => {
-          setCurrentAsset(payload.new as Asset);
+          const updated = payload.new as Asset;
+          setCurrentAsset(updated);
+          setEditTitle(updated.title || "");
+          setEditContentType(updated.content_type || "");
+          setEditDescription(updated.final_caption || "");
+          setEditNotes(updated.custom_category || "");
         }
       )
       .subscribe();
@@ -89,6 +103,40 @@ export function AssetDetailModal({ asset, agencyId, onClose, onAssetUpdated }: A
       supabase.removeChannel(channel);
     };
   }, [asset.id]);
+
+  const handleSaveMetadata = async () => {
+    if (!canEditSettings) return;
+
+    try {
+      const { error } = await supabase
+        .from('assets')
+        .update({
+          title: editTitle || null,
+          content_type: editContentType || null,
+          final_caption: editDescription || null,
+          custom_category: editNotes || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', currentAsset.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Asset metadata updated successfully",
+      });
+
+      setIsEditing(false);
+      onAssetUpdated();
+    } catch (error) {
+      console.error('Error updating metadata:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update asset metadata",
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleUploadNewVersion = async (event: React.ChangeEvent<HTMLInputElement>) => {
     if (!event.target.files || event.target.files.length === 0 || !canEditSettings) {
@@ -465,36 +513,126 @@ export function AssetDetailModal({ asset, agencyId, onClose, onAssetUpdated }: A
 
           <TabsContent value="info" className="space-y-4">
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Filename</Label>
-                  <p className="text-sm mt-1">{currentAsset.filename}</p>
-                </div>
-                <div>
-                  <Label>File Type</Label>
-                  <p className="text-sm mt-1">{currentAsset.file_type}</p>
-                </div>
-                <div>
-                  <Label>Size</Label>
-                  <p className="text-sm mt-1">{formatFileSize(currentAsset.file_size)}</p>
-                </div>
-                <div>
-                  <Label>Current Version</Label>
-                  <p className="text-sm mt-1">v{currentAsset.current_version}</p>
-                </div>
-                <div>
-                  <Label>Uploaded</Label>
-                  <p className="text-sm mt-1">
-                    {format(new Date(currentAsset.created_at), 'MMM d, yyyy • h:mm a')}
-                  </p>
-                </div>
-                <div>
-                  <Label>Category</Label>
-                  <p className="text-sm mt-1">{currentAsset.custom_category || 'Uncategorized'}</p>
-                </div>
-              </div>
+              {!isEditing ? (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="col-span-2">
+                      <Label>Title</Label>
+                      <p className="text-sm mt-1">{currentAsset.title || 'No title'}</p>
+                    </div>
+                    <div>
+                      <Label>Content Type</Label>
+                      <p className="text-sm mt-1 capitalize">{currentAsset.content_type?.replace(/_/g, ' ') || 'Not specified'}</p>
+                    </div>
+                    <div>
+                      <Label>Filename</Label>
+                      <p className="text-sm mt-1">{currentAsset.filename}</p>
+                    </div>
+                    <div>
+                      <Label>File Type</Label>
+                      <p className="text-sm mt-1">{currentAsset.file_type}</p>
+                    </div>
+                    <div>
+                      <Label>Size</Label>
+                      <p className="text-sm mt-1">{formatFileSize(currentAsset.file_size)}</p>
+                    </div>
+                    <div>
+                      <Label>Current Version</Label>
+                      <p className="text-sm mt-1">v{currentAsset.current_version}</p>
+                    </div>
+                    <div>
+                      <Label>Uploaded</Label>
+                      <p className="text-sm mt-1">
+                        {format(new Date(currentAsset.created_at), 'MMM d, yyyy • h:mm a')}
+                      </p>
+                    </div>
+                    <div className="col-span-2">
+                      <Label>Description</Label>
+                      <p className="text-sm mt-1">{currentAsset.final_caption || 'No description'}</p>
+                    </div>
+                    <div className="col-span-2">
+                      <Label>Notes</Label>
+                      <p className="text-sm mt-1">{currentAsset.custom_category || 'No notes'}</p>
+                    </div>
+                  </div>
 
-              {canEditSettings && (
+                  {canEditSettings && (
+                    <Button onClick={() => setIsEditing(true)} variant="outline">
+                      Edit Metadata
+                    </Button>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="edit-title">Title</Label>
+                      <Input
+                        id="edit-title"
+                        value={editTitle}
+                        onChange={(e) => setEditTitle(e.target.value)}
+                        placeholder="Enter title"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-content-type">Content Type</Label>
+                      <select
+                        id="edit-content-type"
+                        value={editContentType}
+                        onChange={(e) => setEditContentType(e.target.value)}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        <option value="">Select type</option>
+                        <option value="educational">Educational</option>
+                        <option value="promotional">Promotional</option>
+                        <option value="ugc">UGC</option>
+                        <option value="reel">Reel</option>
+                        <option value="story">Story</option>
+                        <option value="tutorial">Tutorial</option>
+                        <option value="behind_the_scenes">Behind the Scenes</option>
+                        <option value="testimonial">Testimonial</option>
+                        <option value="product_showcase">Product Showcase</option>
+                        <option value="announcement">Announcement</option>
+                      </select>
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-description">Description</Label>
+                      <Textarea
+                        id="edit-description"
+                        value={editDescription}
+                        onChange={(e) => setEditDescription(e.target.value)}
+                        placeholder="Brief description"
+                        rows={3}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-notes">Notes</Label>
+                      <Textarea
+                        id="edit-notes"
+                        value={editNotes}
+                        onChange={(e) => setEditNotes(e.target.value)}
+                        placeholder="Additional notes"
+                        rows={3}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button onClick={handleSaveMetadata}>Save Changes</Button>
+                    <Button variant="outline" onClick={() => {
+                      setIsEditing(false);
+                      setEditTitle(currentAsset.title || "");
+                      setEditContentType(currentAsset.content_type || "");
+                      setEditDescription(currentAsset.final_caption || "");
+                      setEditNotes(currentAsset.custom_category || "");
+                    }}>
+                      Cancel
+                    </Button>
+                  </div>
+                </>
+              )}
+
+              {canEditSettings && !isEditing && (
                 <div className="pt-4 border-t">
                   <Label className="mb-2 block">Client Portal Visibility</Label>
                   <Button

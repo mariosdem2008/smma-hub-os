@@ -19,6 +19,9 @@ interface Asset {
   created_at: string;
   status: string | null;
   visible_to_client: boolean | null;
+  title: string | null;
+  content_type: string | null;
+  final_caption: string | null;
   thumbnail_url: string | null;
   client_id: string;
   custom_category: string | null;

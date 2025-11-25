@@ -70,6 +70,9 @@ interface Asset {
   created_at: string;
   status: string;
   visible_to_client: boolean;
+  title: string | null;
+  content_type: string | null;
+  final_caption: string | null;
   custom_category: string | null;
   current_version: number;
   thumbnail_url: string | null;
