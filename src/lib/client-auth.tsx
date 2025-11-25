@@ -69,6 +69,9 @@ export function ClientAuthProvider({ children }: { children: React.ReactNode }) 
   };
 
   const signup = async (inviteToken: string, password: string, fullName?: string) => {
+    console.log("Client-auth signup called");
+    console.log("URL:", `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/client-auth-signup`);
+    
     const response = await fetch(
       `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/client-auth-signup`,
       {
@@ -81,12 +84,16 @@ export function ClientAuthProvider({ children }: { children: React.ReactNode }) 
       }
     );
 
+    console.log("Response status:", response.status);
+
     if (!response.ok) {
       const error = await response.json();
+      console.error("Signup error response:", error);
       throw new Error(error.error || "Signup failed");
     }
 
     const { token, user } = await response.json();
+    console.log("Signup successful, user:", user);
     localStorage.setItem(CLIENT_AUTH_TOKEN_KEY, token);
     localStorage.setItem(CLIENT_USER_KEY, JSON.stringify(user));
     setClientUser(user);
