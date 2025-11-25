@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Upload, FileIcon, Clock, CheckCircle, XCircle } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/lib/auth";
+import { useClientAuth } from "@/lib/client-auth";
 
 interface ClientUpload {
   id: string;
@@ -22,7 +22,7 @@ interface ClientUpload {
 
 export default function PortalUploads() {
   const { clientId } = useOutletContext<{ clientId: string; client: any }>();
-  const { user } = useAuth();
+  const { clientUser } = useClientAuth();
   const { toast } = useToast();
   const [uploads, setUploads] = useState<ClientUpload[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,7 +40,7 @@ export default function PortalUploads() {
         .from("client_uploads")
         .select("*")
         .eq("client_id", clientId)
-        .eq("uploaded_by", user?.id || "")
+        .eq("uploaded_by", clientUser?.id || "")
         .order("created_at", { ascending: false });
 
       if (data) {
@@ -77,7 +77,7 @@ export default function PortalUploads() {
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file || !user) return;
+    if (!file || !clientUser) return;
 
     setUploading(true);
     try {
@@ -111,7 +111,7 @@ export default function PortalUploads() {
         .insert({
           client_id: clientId,
           agency_id: client.agency_id,
-          uploaded_by: user.id,
+          uploaded_by: clientUser.id,
           file_name: file.name,
           file_url: publicUrl,
           file_type: file.type,

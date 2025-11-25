@@ -2,11 +2,13 @@ import { useState, useEffect } from "react";
 import { DragDropContext, DropResult } from "@hello-pangea/dnd";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import RawUploadZone from "@/components/pipeline/RawUploadZone";
 import PipelineStageColumn from "@/components/pipeline/PipelineStageColumn";
 import AssetPipelineCard from "@/components/pipeline/AssetPipelineCard";
 import { AssetDetailModal } from "@/components/assets/AssetDetailModal";
 import { FinalStageEditor } from "@/components/pipeline/FinalStageEditor";
+import ContentLibraryTab from "@/components/client-tabs/ContentLibraryTab";
 import { Loader2 } from "lucide-react";
 
 interface PipelineTabProps {
@@ -58,6 +60,7 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
   const [loading, setLoading] = useState(true);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [editingFinalAsset, setEditingFinalAsset] = useState<Asset | null>(null);
+  const [activeTab, setActiveTab] = useState("board");
   const { toast } = useToast();
 
   const fetchAssets = async () => {
@@ -196,54 +199,67 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
 
   return (
     <div className="space-y-6">
-      {/* Raw Upload Zone */}
-      <RawUploadZone
-        clientId={clientId}
-        agencyId={agencyId}
-        onUploadComplete={fetchAssets}
-      />
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList>
+          <TabsTrigger value="board">Pipeline Board</TabsTrigger>
+          <TabsTrigger value="library">Asset Library</TabsTrigger>
+        </TabsList>
 
-      {/* Pipeline Board */}
-      <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-          {PIPELINE_STAGES.map(stage => {
-            const stageAssets = getAssetsByStage(stage.key);
-            return (
-              <PipelineStageColumn
-                key={stage.key}
-                stageId={stage.key}
-                title={stage.label}
-                count={stageAssets.length}
-                color={stage.color}
-              >
-                {stageAssets.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-8">
-                    No assets in {stage.label.toLowerCase()}
-                  </p>
-                ) : (
-                  stageAssets.map((asset, index) => (
-                    <AssetPipelineCard
-                      key={asset.id}
-                      asset={asset}
-                      index={index}
-                      uploaderEmail={asset.uploaded_by ? profiles[asset.uploaded_by]?.email : undefined}
-                      onMoveStage={handleMoveStage}
-                      onView={(id) => {
-                        const foundAsset = assets.find(a => a.id === id);
-                        if (foundAsset?.pipeline_stage === 'approved') {
-                          setEditingFinalAsset(foundAsset);
-                        } else {
-                          setSelectedAsset(foundAsset || null);
-                        }
-                      }}
-                    />
-                  ))
-                )}
-              </PipelineStageColumn>
-            );
-          })}
-        </div>
-      </DragDropContext>
+        <TabsContent value="board" className="space-y-6 mt-6">
+          {/* Raw Upload Zone */}
+          <RawUploadZone
+            clientId={clientId}
+            agencyId={agencyId}
+            onUploadComplete={fetchAssets}
+          />
+
+          {/* Pipeline Board */}
+          <DragDropContext onDragEnd={handleDragEnd}>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+              {PIPELINE_STAGES.map(stage => {
+                const stageAssets = getAssetsByStage(stage.key);
+                return (
+                  <PipelineStageColumn
+                    key={stage.key}
+                    stageId={stage.key}
+                    title={stage.label}
+                    count={stageAssets.length}
+                    color={stage.color}
+                  >
+                    {stageAssets.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-8">
+                        No assets in {stage.label.toLowerCase()}
+                      </p>
+                    ) : (
+                      stageAssets.map((asset, index) => (
+                        <AssetPipelineCard
+                          key={asset.id}
+                          asset={asset}
+                          index={index}
+                          uploaderEmail={asset.uploaded_by ? profiles[asset.uploaded_by]?.email : undefined}
+                          onMoveStage={handleMoveStage}
+                          onView={(id) => {
+                            const foundAsset = assets.find(a => a.id === id);
+                            if (foundAsset?.pipeline_stage === 'approved') {
+                              setEditingFinalAsset(foundAsset);
+                            } else {
+                              setSelectedAsset(foundAsset || null);
+                            }
+                          }}
+                        />
+                      ))
+                    )}
+                  </PipelineStageColumn>
+                );
+              })}
+            </div>
+          </DragDropContext>
+        </TabsContent>
+
+        <TabsContent value="library" className="mt-6">
+          <ContentLibraryTab clientId={clientId} agencyId={agencyId} />
+        </TabsContent>
+      </Tabs>
 
       {/* Asset Detail Modal */}
       {selectedAsset && (
