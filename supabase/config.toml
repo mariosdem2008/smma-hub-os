@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.client-auth-validate-invite]
 verify_jwt = false
+
+[functions.auto-publisher]
+verify_jwt = false
