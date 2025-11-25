@@ -295,6 +295,7 @@ export type Database = {
           id: string
           is_client_upload: boolean | null
           pipeline_stage: Database["public"]["Enums"]["pipeline_stage"] | null
+          platform_captions: Json | null
           platforms: string[] | null
           post_url: string | null
           scheduled_time: string | null
@@ -319,6 +320,7 @@ export type Database = {
           id?: string
           is_client_upload?: boolean | null
           pipeline_stage?: Database["public"]["Enums"]["pipeline_stage"] | null
+          platform_captions?: Json | null
           platforms?: string[] | null
           post_url?: string | null
           scheduled_time?: string | null
@@ -343,6 +345,7 @@ export type Database = {
           id?: string
           is_client_upload?: boolean | null
           pipeline_stage?: Database["public"]["Enums"]["pipeline_stage"] | null
+          platform_captions?: Json | null
           platforms?: string[] | null
           post_url?: string | null
           scheduled_time?: string | null
