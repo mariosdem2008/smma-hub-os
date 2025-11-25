@@ -28,21 +28,41 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
+    // First check if invite exists (regardless of accepted status)
     const { data: invite, error } = await supabaseAdmin
       .from("client_invites")
       .select("*, clients!inner(name, portal_slug)")
       .eq("invite_token", invite_token)
-      .eq("accepted", false)
-      .gt("expires_at", new Date().toISOString())
       .single();
 
     if (error || !invite) {
       return new Response(
-        JSON.stringify({ error: "Invalid or expired invitation" }),
+        JSON.stringify({ error: "Invalid invitation token" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    // Check if invite was already accepted
+    if (invite.accepted) {
+      return new Response(
+        JSON.stringify({
+          already_accepted: true,
+          portal_slug: invite.clients.portal_slug,
+          message: "This invitation has already been accepted"
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Check if invite has expired
+    if (new Date(invite.expires_at) < new Date()) {
+      return new Response(
+        JSON.stringify({ error: "Invitation has expired" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Valid, unaccepted invite
     return new Response(
       JSON.stringify({
         email: invite.email,

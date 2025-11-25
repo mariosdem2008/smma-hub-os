@@ -49,6 +49,17 @@ export default function ClientAcceptInvite() {
           throw error || new Error("Invalid invitation");
         }
 
+        // Check if invite was already accepted
+        if (data.already_accepted) {
+          setPortalSlug(data.portal_slug);
+          setInviteValid(false);
+          toast({
+            title: "Invitation Already Used",
+            description: "This invitation has already been accepted. Please log in.",
+          });
+          return;
+        }
+
         setInviteValid(true);
         setInviteEmail(data.email);
         setClientName(data.client_name);
@@ -134,11 +145,12 @@ export default function ClientAcceptInvite() {
             If you already have an account, please use the login page.
           </p>
           <Button
-            onClick={() => navigate("/client/login")}
+            onClick={() => navigate(portalSlug ? `/client/login/${portalSlug}` : "/client/login")}
             variant="default"
             className="w-full"
+            disabled={!portalSlug}
           >
-            Go to Login
+            {portalSlug ? "Go to Login" : "Contact your agency"}
           </Button>
         </Card>
       </div>
