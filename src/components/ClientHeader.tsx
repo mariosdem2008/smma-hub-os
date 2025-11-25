@@ -1,18 +1,32 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useRole } from "@/hooks/useRole";
-import { ExternalLink, FileText, Upload, CalendarIcon } from "lucide-react";
+import { ExternalLink, FileText, Upload, CalendarIcon, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ClientSearchBar from "./ClientSearchBar";
 
@@ -33,10 +47,13 @@ export default function ClientHeader({
   website,
   primaryColor,
 }: ClientHeaderProps) {
+  const navigate = useNavigate();
   const { toast } = useToast();
-  const { canCreateContent, role } = useRole();
+  const { canCreateContent, role, canDeleteClients } = useRole();
   const [showPostDialog, setShowPostDialog] = useState(false);
   const [showAssetDialog, setShowAssetDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [postForm, setPostForm] = useState({
     title: "",
     platform: "",
@@ -150,7 +167,7 @@ export default function ClientHeader({
     if (!file) return;
 
     // Validate file type
-    if (!file.type.startsWith('image/')) {
+    if (!file.type.startsWith("image/")) {
       toast({
         title: "Invalid File",
         description: "Please upload an image file",
@@ -176,9 +193,9 @@ export default function ClientHeader({
       if (uploadError) throw uploadError;
 
       // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from("client-logos")
-        .getPublicUrl(fileName);
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("client-logos").getPublicUrl(fileName);
 
       // Update client record
       const { error: updateError } = await supabase
@@ -205,7 +222,35 @@ export default function ClientHeader({
     }
   };
 
-  const canManageLogo = role === 'owner' || role === 'admin' || role === 'manager';
+  const handleDeleteClient = async () => {
+    setDeleting(true);
+    try {
+      const { error } = await supabase.rpc("delete_client_cascade", {
+        p_client_id: clientId,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Client deleted",
+        description: "The client and all related data were deleted.",
+      });
+
+      setShowDeleteDialog(false);
+      navigate("/clients");
+    } catch (error: any) {
+      console.error("Delete client error:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete client",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const canManageLogo = role === "owner" || role === "admin" || role === "manager";
 
   return (
     <>
@@ -219,14 +264,14 @@ export default function ClientHeader({
             onChange={handleLogoUpload}
             disabled={!canManageLogo || uploadingLogo}
           />
-          <Avatar 
+          <Avatar
             className={cn(
               "h-16 w-16 sm:h-20 sm:w-20 ring-2 ring-[#4E5DFF]/20",
               canManageLogo && "cursor-pointer hover:ring-4 hover:ring-[#4E5DFF]/40 transition-all"
             )}
             onClick={() => {
               if (canManageLogo) {
-                document.getElementById('logo-upload')?.click();
+                document.getElementById("logo-upload")?.click();
               }
             }}
           >
@@ -244,31 +289,48 @@ export default function ClientHeader({
 
         <div className="flex-1 space-y-3 w-full">
           <div className="flex flex-col gap-3">
-            <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] bg-clip-text text-transparent">{name}</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] bg-clip-text text-transparent">
+              {name}
+            </h1>
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
               <div className="w-full sm:w-auto sm:flex-1">
                 <ClientSearchBar clientId={clientId} />
               </div>
-              {canCreateContent && (
+              {(canCreateContent || canDeleteClients) && (
                 <div className="flex gap-2 flex-wrap">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowPostDialog(true)}
-                    className="h-8 gap-2 flex-1 sm:flex-none transition-all duration-200"
-                  >
-                    <FileText className="h-4 w-4 icon-hover" />
-                    <span className="sm:inline">New Post</span>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowAssetDialog(true)}
-                    className="h-8 gap-2 flex-1 sm:flex-none transition-all duration-200"
-                  >
-                    <Upload className="h-4 w-4 icon-hover" />
-                    <span className="sm:inline">Upload</span>
-                  </Button>
+                  {canCreateContent && (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowPostDialog(true)}
+                        className="h-8 gap-2 flex-1 sm:flex-none transition-all duration-200"
+                      >
+                        <FileText className="h-4 w-4 icon-hover" />
+                        <span className="sm:inline">New Post</span>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowAssetDialog(true)}
+                        className="h-8 gap-2 flex-1 sm:flex-none transition-all duration-200"
+                      >
+                        <Upload className="h-4 w-4 icon-hover" />
+                        <span className="sm:inline">Upload</span>
+                      </Button>
+                    </>
+                  )}
+                  {canDeleteClients && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => setShowDeleteDialog(true)}
+                      className="h-8 gap-2 flex-1 sm:flex-none transition-all duration-200"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      <span className="sm:inline">Delete Client</span>
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
@@ -316,9 +378,7 @@ export default function ClientHeader({
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Create New Post</DialogTitle>
-            <DialogDescription>
-              Schedule a new post for this client
-            </DialogDescription>
+            <DialogDescription>Schedule a new post for this client</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
@@ -328,9 +388,7 @@ export default function ClientHeader({
               <Input
                 id="title"
                 value={postForm.title}
-                onChange={(e) =>
-                  setPostForm({ ...postForm, title: e.target.value })
-                }
+                onChange={(e) => setPostForm({ ...postForm, title: e.target.value })}
                 placeholder="Enter post title"
               />
             </div>
@@ -341,9 +399,7 @@ export default function ClientHeader({
               </Label>
               <Select
                 value={postForm.platform}
-                onValueChange={(value) =>
-                  setPostForm({ ...postForm, platform: value })
-                }
+                onValueChange={(value) => setPostForm({ ...postForm, platform: value })}
               >
                 <SelectTrigger id="platform">
                   <SelectValue placeholder="Select platform" />
@@ -393,9 +449,7 @@ export default function ClientHeader({
               <Label htmlFor="status">Status</Label>
               <Select
                 value={postForm.status}
-                onValueChange={(value) =>
-                  setPostForm({ ...postForm, status: value })
-                }
+                onValueChange={(value) => setPostForm({ ...postForm, status: value })}
               >
                 <SelectTrigger id="status">
                   <SelectValue />
@@ -409,10 +463,7 @@ export default function ClientHeader({
             </div>
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowPostDialog(false)}
-            >
+            <Button variant="outline" onClick={() => setShowPostDialog(false)}>
               Cancel
             </Button>
             <Button onClick={handleCreatePost}>Create Post</Button>
@@ -425,9 +476,7 @@ export default function ClientHeader({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Upload Asset</DialogTitle>
-            <DialogDescription>
-              Upload files to the asset library
-            </DialogDescription>
+            <DialogDescription>Upload files to the asset library</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -458,6 +507,35 @@ export default function ClientHeader({
               disabled={uploading}
             >
               Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Client Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete client</DialogTitle>
+            <DialogDescription>
+              This will permanently delete this client and all related data including
+              assets, uploads, comments, and messages. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex flex-col sm:flex-row sm:justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteDialog(false)}
+              disabled={deleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteClient}
+              disabled={deleting}
+            >
+              {deleting ? "Deleting..." : "Delete client"}
             </Button>
           </DialogFooter>
         </DialogContent>
