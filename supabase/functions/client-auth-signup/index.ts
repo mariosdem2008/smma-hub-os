@@ -9,9 +9,12 @@ Deno.serve(async (req) => {
   }
 
   try {
+    console.log("Signup request received");
     const { invite_token, password, full_name } = await req.json();
+    console.log("Request data:", { invite_token: invite_token?.substring(0, 10), has_password: !!password, full_name });
 
     if (!invite_token || !password) {
+      console.error("Missing required fields");
       return new Response(
         JSON.stringify({ error: "Missing required fields" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -24,6 +27,7 @@ Deno.serve(async (req) => {
     );
 
     // Validate invite token
+    console.log("Validating invite token");
     const { data: invite, error: inviteError } = await supabaseAdmin
       .from("client_invites")
       .select("*")
@@ -33,13 +37,16 @@ Deno.serve(async (req) => {
       .single();
 
     if (inviteError || !invite) {
+      console.error("Invalid invite:", inviteError);
       return new Response(
         JSON.stringify({ error: "Invalid or expired invitation" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+    console.log("Invite validated for email:", invite.email);
 
     // Check if user already exists
+    console.log("Checking for existing user");
     const { data: existingUser } = await supabaseAdmin
       .from("client_users")
       .select("id")
@@ -48,11 +55,13 @@ Deno.serve(async (req) => {
       .single();
 
     if (existingUser) {
+      console.error("User already exists");
       return new Response(
         JSON.stringify({ error: "User already exists" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+    console.log("No existing user found");
 
     // Hash password using Web Crypto API
     const encoder = new TextEncoder();
@@ -62,6 +71,7 @@ Deno.serve(async (req) => {
     const password_hash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
     // Create client user
+    console.log("Creating client user");
     const { data: newUser, error: createError } = await supabaseAdmin
       .from("client_users")
       .insert({
@@ -79,10 +89,11 @@ Deno.serve(async (req) => {
     if (createError) {
       console.error("Error creating user:", createError);
       return new Response(
-        JSON.stringify({ error: "Failed to create user" }),
+        JSON.stringify({ error: "Failed to create user", details: createError.message }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+    console.log("User created successfully:", newUser.id);
 
     // Mark invite as accepted
     await supabaseAdmin
