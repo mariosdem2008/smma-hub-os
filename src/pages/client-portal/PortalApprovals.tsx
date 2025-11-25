@@ -68,12 +68,12 @@ export default function PortalApprovals() {
       
       const clientUser = JSON.parse(clientUserStr);
 
-      // Get assets in approval stage
+      // Get assets in review stage
       const { data: assets, error: assetsError } = await supabase
         .from('assets')
         .select('*')
         .eq('client_id', clientId)
-        .eq('pipeline_stage', 'approval')
+        .eq('pipeline_stage', 'review')
         .order('created_at', { ascending: false });
 
       if (assetsError) throw assetsError;

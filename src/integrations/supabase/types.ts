@@ -1632,10 +1632,10 @@ export type Database = {
       app_role: "owner" | "manager" | "client"
       approval_status: "pending" | "approved" | "changes_requested"
       pipeline_stage:
-        | "raw"
-        | "editing"
-        | "approval"
-        | "final"
+        | "idea"
+        | "in_production"
+        | "review"
+        | "approved"
         | "scheduled"
         | "published"
     }
@@ -1768,10 +1768,10 @@ export const Constants = {
       app_role: ["owner", "manager", "client"],
       approval_status: ["pending", "approved", "changes_requested"],
       pipeline_stage: [
-        "raw",
-        "editing",
-        "approval",
-        "final",
+        "idea",
+        "in_production",
+        "review",
+        "approved",
         "scheduled",
         "published",
       ],

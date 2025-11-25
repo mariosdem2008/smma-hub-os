@@ -43,10 +43,10 @@ interface Profile {
 }
 
 const PIPELINE_STAGES = [
-  { key: 'raw', label: 'Raw', color: '220 70% 50%' },
-  { key: 'editing', label: 'Editing', color: '270 70% 50%' },
-  { key: 'approval', label: 'Approval', color: '30 70% 50%' },
-  { key: 'final', label: 'Final', color: '150 70% 50%' },
+  { key: 'idea', label: 'Idea', color: '220 70% 50%' },
+  { key: 'in_production', label: 'In Production', color: '270 70% 50%' },
+  { key: 'review', label: 'Review', color: '30 70% 50%' },
+  { key: 'approved', label: 'Approved', color: '150 70% 50%' },
   { key: 'scheduled', label: 'Scheduled', color: '200 70% 50%' },
   { key: 'published', label: 'Published', color: '120 70% 50%' }
 ];
@@ -122,7 +122,7 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
     };
   }, [clientId]);
 
-  const handleMoveStage = async (assetId: string, newStage: 'raw' | 'editing' | 'approval' | 'final' | 'scheduled' | 'published') => {
+  const handleMoveStage = async (assetId: string, newStage: 'idea' | 'in_production' | 'review' | 'approved' | 'scheduled' | 'published') => {
     try {
       const { data, error } = await supabase
         .from('assets')
@@ -169,7 +169,7 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
     }
 
     const assetId = draggableId;
-    const newStage = destination.droppableId as 'raw' | 'editing' | 'approval' | 'final' | 'scheduled' | 'published';
+    const newStage = destination.droppableId as 'idea' | 'in_production' | 'review' | 'approved' | 'scheduled' | 'published';
 
     // Optimistically update UI
     const asset = assets.find(a => a.id === assetId);
