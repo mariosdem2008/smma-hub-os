@@ -17,6 +17,7 @@ interface PipelineTabProps {
 interface Asset {
   id: string;
   client_id: string;
+  title: string | null;
   filename: string;
   file_url: string;
   file_type: string;

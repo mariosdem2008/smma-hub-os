@@ -14,6 +14,7 @@ interface OutletContext {
 
 interface Asset {
   id: string;
+  title: string | null;
   filename: string;
   file_url: string;
   file_type: string;

@@ -302,6 +302,7 @@ export type Database = {
           scheduled_time: string | null
           status: string | null
           thumbnail_url: string | null
+          title: string | null
           updated_at: string
           uploaded_by: string | null
           visible_to_client: boolean | null
@@ -328,6 +329,7 @@ export type Database = {
           scheduled_time?: string | null
           status?: string | null
           thumbnail_url?: string | null
+          title?: string | null
           updated_at?: string
           uploaded_by?: string | null
           visible_to_client?: boolean | null
@@ -354,6 +356,7 @@ export type Database = {
           scheduled_time?: string | null
           status?: string | null
           thumbnail_url?: string | null
+          title?: string | null
           updated_at?: string
           uploaded_by?: string | null
           visible_to_client?: boolean | null

@@ -121,7 +121,8 @@ export default function RawUploadZone({ clientId, agencyId, onUploadComplete }: 
         .from('assets')
         .insert({
           client_id: clientId,
-          filename: title,
+          title: title || null,
+          filename: selectedFile.name,
           file_url: publicUrl,
           file_type: fileType,
           file_size: selectedFile.size,
