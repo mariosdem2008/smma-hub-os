@@ -128,6 +128,29 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
 
   const handleMoveStage = async (assetId: string, newStage: 'idea' | 'in_production' | 'review' | 'approved' | 'scheduled' | 'published') => {
     try {
+      // Validate scheduling requirements before moving to scheduled stage
+      if (newStage === 'scheduled') {
+        const asset = assets.find(a => a.id === assetId);
+        
+        if (!asset?.platforms || asset.platforms.length === 0) {
+          toast({
+            title: "Platforms required",
+            description: "Please select at least one platform before scheduling",
+            variant: "destructive"
+          });
+          return;
+        }
+
+        if (!asset?.scheduled_time) {
+          toast({
+            title: "Schedule time required",
+            description: "Please set a scheduled date and time before scheduling",
+            variant: "destructive"
+          });
+          return;
+        }
+      }
+
       const { data, error } = await supabase
         .from('assets')
         .update({ pipeline_stage: newStage })
@@ -174,6 +197,29 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
 
     const assetId = draggableId;
     const newStage = destination.droppableId as 'idea' | 'in_production' | 'review' | 'approved' | 'scheduled' | 'published';
+
+    // Validate scheduling requirements before moving to scheduled stage
+    if (newStage === 'scheduled') {
+      const asset = assets.find(a => a.id === assetId);
+      
+      if (!asset?.platforms || asset.platforms.length === 0) {
+        toast({
+          title: "Platforms required",
+          description: "Please select at least one platform before scheduling",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (!asset?.scheduled_time) {
+        toast({
+          title: "Schedule time required",
+          description: "Please set a scheduled date and time before scheduling",
+          variant: "destructive"
+        });
+        return;
+      }
+    }
 
     // Optimistically update UI
     const asset = assets.find(a => a.id === assetId);
