@@ -47,9 +47,7 @@ const PRIORITIES = ["low", "medium", "high", "urgent"];
 const TASK_STATUSES = ["pending", "in_progress", "completed"];
 
 export default function Dashboard() {
-  console.log("Dashboard component rendering");
   const { user } = useAuth();
-  console.log("Dashboard user:", user);
   const { canManageClients, canCreateContent } = useRole();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -91,12 +89,10 @@ export default function Dashboard() {
   }, [user]);
 
   const fetchDashboardData = async () => {
-    console.log("fetchDashboardData called, user:", user);
     if (!user) return;
 
     setLoading(true);
     try {
-      console.log("Fetching agency data...");
       // Get agency IDs for the current user (either as owner or team member)
       const { data: agencyOwner } = await supabase
         .from("agencies")
@@ -111,10 +107,8 @@ export default function Dashboard() {
         .maybeSingle();
 
       const agencyId = agencyOwner?.id || agencyMember?.agency_id;
-      console.log("Agency ID:", agencyId);
 
       if (!agencyId) {
-        console.log("No agency found for user");
         setLoading(false);
         return;
       }
