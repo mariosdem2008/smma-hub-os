@@ -24,6 +24,7 @@ interface Asset {
   platforms: string[] | null;
   current_version: number;
   created_at: string;
+  pipeline_stage: string;
 }
 
 export default function PortalApprovals() {
