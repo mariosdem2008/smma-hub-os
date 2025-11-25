@@ -15,6 +15,7 @@ import {
   CalendarDays,
   CheckCircle,
   Upload,
+  GitBranch,
 } from "lucide-react";
 
 interface Client {
@@ -41,6 +42,7 @@ const navItems = [
   { path: "social", label: "Social Profiles", key: "social", icon: Share2 },
   { path: "deliverables", label: "Deliverables", key: "deliverables", icon: FolderOpen },
   { path: "uploads", label: "My Uploads", key: "uploads", icon: Upload },
+  { path: "workflow", label: "Approval Workflow", key: "workflow", icon: GitBranch },
 ];
 
 function ClientPortalLayoutContent() {

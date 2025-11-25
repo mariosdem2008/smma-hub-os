@@ -41,6 +41,7 @@ import { PortalContentCalendar } from "./pages/client-portal/PortalContentCalend
 import PortalDeliverables from "./pages/client-portal/PortalDeliverables";
 import PortalUploads from "./pages/client-portal/PortalUploads";
 import PortalApprovals from "./pages/client-portal/PortalApprovals";
+import { PortalWorkflow } from "./pages/client-portal/PortalWorkflow";
 
 const queryClient = new QueryClient();
 
@@ -80,6 +81,7 @@ const App = () => (
                     <Route path="social" element={<PortalSocial />} />
                     <Route path="deliverables" element={<PortalDeliverables />} />
                     <Route path="uploads" element={<PortalUploads />} />
+                    <Route path="workflow" element={<PortalWorkflow />} />
                   </Route>
                   
                   {/* Onboarding */}
