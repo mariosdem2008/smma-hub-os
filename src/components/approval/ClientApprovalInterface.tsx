@@ -13,6 +13,7 @@ import { CheckCircle, XCircle } from "lucide-react";
 
 interface Asset {
   id: string;
+  title: string | null;
   filename: string;
   file_url: string;
   file_type: string;
@@ -45,7 +46,7 @@ export default function ClientApprovalInterface({
   const { clientUser } = useClientAuth();
   const [loading, setLoading] = useState(false);
   const [comment, setComment] = useState("");
-  const [title, setTitle] = useState(asset.filename || "");
+  const [title] = useState(asset.title || asset.filename || "");
   const [description, setDescription] = useState(asset.final_caption || "");
   const [clientNotes, setClientNotes] = useState<string>("");
   const [previousVersionUrl, setPreviousVersionUrl] = useState<string | null>(null);

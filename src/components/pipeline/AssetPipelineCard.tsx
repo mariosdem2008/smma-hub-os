@@ -15,6 +15,7 @@ import { format } from "date-fns";
 interface AssetPipelineCardProps {
   asset: {
     id: string;
+    title: string | null;
     filename: string;
     file_url: string;
     file_type: string;
@@ -142,7 +143,7 @@ export default function AssetPipelineCard({
           
           <CardContent className="p-4 space-y-3">
             <div className="flex items-start justify-between gap-2">
-              <h4 className="font-medium line-clamp-2 text-sm">{asset.filename}</h4>
+              <h4 className="font-medium line-clamp-2 text-sm">{asset.title || asset.filename}</h4>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
