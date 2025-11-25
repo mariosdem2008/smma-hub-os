@@ -94,10 +94,10 @@ export default function ClientApprovalInterface({
           .eq('id', asset.id);
       }
 
-      // Single-step approval: move directly to scheduled stage
+      // Move to approved stage so agency can finalize before scheduling
       await supabase
         .from('assets')
-        .update({ pipeline_stage: 'scheduled' })
+        .update({ pipeline_stage: 'approved' })
         .eq('id', asset.id);
 
       // Add approval comment if provided
