@@ -1,5 +1,4 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import ContentCalendarTab from "./ContentCalendarTab";
 import IdeasTab from "./IdeasTab";
 import ContentPillarsTab from "./ContentPillarsTab";
 
@@ -13,7 +12,6 @@ export default function ContentPlanningTab({ clientId }: ContentPlanningTabProps
       <TabsList>
         <TabsTrigger value="ideas">Ideas</TabsTrigger>
         <TabsTrigger value="pillars">Content Pillars</TabsTrigger>
-        <TabsTrigger value="calendar">Content Calendar</TabsTrigger>
       </TabsList>
 
       <TabsContent value="ideas" className="mt-4">
@@ -22,10 +20,6 @@ export default function ContentPlanningTab({ clientId }: ContentPlanningTabProps
 
       <TabsContent value="pillars" className="mt-4">
         <ContentPillarsTab clientId={clientId} />
-      </TabsContent>
-
-      <TabsContent value="calendar" className="mt-4">
-        <ContentCalendarTab clientId={clientId} />
       </TabsContent>
     </Tabs>
   );
