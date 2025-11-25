@@ -51,11 +51,11 @@ serve(async (req) => {
     console.log('[AI-CONTENT] Step 3: User authenticated:', user.id);
 
     console.log('[AI-CONTENT] Step 4: Parsing request body...');
-    const { type, platform, tone, keywords, niche, contentPillars, trends, brandVoice } = await req.json();
+    const { type, platform, tone, keywords, niche, contentPillars, trends, brandVoice, platforms, clientId } = await req.json();
 
-    if (!type || !['caption', 'idea'].includes(type)) {
+    if (!type || !['caption', 'idea', 'caption_variants'].includes(type)) {
       console.error('[AI-CONTENT] Invalid type:', type);
-      return new Response(JSON.stringify({ error: 'Invalid generation type. Must be "caption" or "idea"' }), {
+      return new Response(JSON.stringify({ error: 'Invalid generation type. Must be "caption", "idea", or "caption_variants"' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -132,7 +132,21 @@ serve(async (req) => {
     let systemPrompt = '';
     let userPrompt = '';
 
-    if (type === 'caption') {
+    if (type === 'caption_variants') {
+      systemPrompt = 'You are an expert social media content creator. Generate engaging caption variations optimized for each platform.';
+      const platformNames = platforms.join(', ');
+      userPrompt = `Generate 3 caption variations (short, medium, long) for posting on: ${platformNames}.
+
+For each variation, provide:
+1. The caption text appropriate for the platform(s)
+2. Length indicator (short/medium/long)
+
+Short: 50-100 characters, punchy and direct
+Medium: 100-300 characters, engaging with context
+Long: 300-500 characters, detailed storytelling
+
+Return as JSON array: [{"caption": "...", "length": "short/medium/long"}]`;
+    } else if (type === 'caption') {
       const brandVoiceContext = brandVoice 
         ? `\n\nIMPORTANT: Apply this brand voice:\n- Tone: ${brandVoice.tone.join(', ')}\n- Key vocabulary: ${brandVoice.vocabulary.slice(0, 10).join(', ')}\n- Writing rules: ${brandVoice.rules.do.slice(0, 3).join('; ')}`
         : '';
