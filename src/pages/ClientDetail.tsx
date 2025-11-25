@@ -9,10 +9,14 @@ import { useToast } from "@/hooks/use-toast";
 import { useClientFonts } from "@/hooks/useClientFonts";
 import ClientHeader from "@/components/ClientHeader";
 import OverviewTab from "@/components/client-tabs/OverviewTab";
+import BrandIdentityTab from "@/components/client-tabs/BrandIdentityTab";
 import SocialProfilesTab from "@/components/SocialProfilesTab";
+import ContentPlanningTab from "@/components/client-tabs/ContentPlanningTab";
+import ContentLibraryTab from "@/components/client-tabs/ContentLibraryTab";
 import PipelineTab from "@/components/client-tabs/PipelineTab";
+import ClientUploadsTab from "@/components/client-tabs/ClientUploadsTab";
+import WorkspaceTab from "@/components/client-tabs/WorkspaceTab";
 import { ClientPortalTab } from "@/components/client-tabs/ClientPortalTab";
-import ContentCalendarTab from "@/components/client-tabs/ContentCalendarTab";
 import { useEffect } from "react";
 
 interface Client {
@@ -31,8 +35,6 @@ interface Client {
   notes: string | null;
   primary_font: string | null;
   secondary_font: string | null;
-  portal_slug: string | null;
-  portal_enabled: boolean;
 }
 
 interface ClientBranding {
@@ -158,11 +160,15 @@ export default function ClientDetail() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="overflow-x-auto">
-          <TabsList className="inline-flex w-auto min-w-full md:grid md:grid-cols-5">
+          <TabsList className="inline-flex w-auto min-w-full md:grid md:grid-cols-8">
             <TabsTrigger value="overview" className="flex-shrink-0">Overview</TabsTrigger>
             <TabsTrigger value="pipeline" className="flex-shrink-0">Pipeline</TabsTrigger>
-            <TabsTrigger value="calendar" className="flex-shrink-0">Calendar</TabsTrigger>
-            <TabsTrigger value="social" className="flex-shrink-0">Social Connections</TabsTrigger>
+            <TabsTrigger value="brand" className="flex-shrink-0">Brand Identity</TabsTrigger>
+            <TabsTrigger value="social" className="flex-shrink-0">Social Profiles</TabsTrigger>
+            <TabsTrigger value="planning" className="flex-shrink-0">Content Planning</TabsTrigger>
+            <TabsTrigger value="library" className="flex-shrink-0">Content Library</TabsTrigger>
+            <TabsTrigger value="workspace" className="flex-shrink-0">Workspace</TabsTrigger>
+            <TabsTrigger value="uploads" className="flex-shrink-0">Client Uploads</TabsTrigger>
             <TabsTrigger value="portal" className="flex-shrink-0">Client Portal</TabsTrigger>
           </TabsList>
         </div>
@@ -175,16 +181,37 @@ export default function ClientDetail() {
           />
         </TabsContent>
 
-        <TabsContent value="pipeline" className="space-y-4">
-          <PipelineTab clientId={clientId!} agencyId={agencyId} />
-        </TabsContent>
-
-        <TabsContent value="calendar" className="space-y-4">
-          <ContentCalendarTab clientId={clientId!} />
+        <TabsContent value="brand" className="space-y-4">
+          <BrandIdentityTab clientId={clientId!} clientName={client.name} />
         </TabsContent>
 
         <TabsContent value="social" className="space-y-4">
           <SocialProfilesTab clientId={clientId!} />
+        </TabsContent>
+
+        <TabsContent value="planning" className="space-y-4">
+          <ContentPlanningTab clientId={clientId!} />
+        </TabsContent>
+
+        <TabsContent value="pipeline" className="space-y-4">
+          <PipelineTab clientId={clientId!} agencyId={agencyId} />
+        </TabsContent>
+
+
+        <TabsContent value="library" className="space-y-4">
+          <ContentLibraryTab clientId={clientId!} agencyId={agencyId} />
+        </TabsContent>
+
+        <TabsContent value="workspace" className="space-y-4">
+          <WorkspaceTab 
+            clientId={clientId!}
+            initialNotes={client.notes}
+            onNotesUpdate={handleNotesUpdate}
+          />
+        </TabsContent>
+
+        <TabsContent value="uploads" className="space-y-4">
+          <ClientUploadsTab clientId={clientId!} agencyId={agencyId} />
         </TabsContent>
 
         <TabsContent value="portal" className="space-y-4">
