@@ -12,33 +12,32 @@ interface OutletContext {
   clientId: string;
 }
 
-interface Asset {
+interface Project {
   id: string;
-  title: string | null;
-  filename: string;
-  file_url: string;
-  file_type: string;
-  content_type: string | null;
-  final_caption: string | null;
-  hashtags: string | null;
-  scheduled_time: string | null;
-  platforms: string[] | null;
-  current_version: number;
-  created_at: string;
+  title: string;
   pipeline_stage: string;
-  custom_category: string | null;
+  created_at: string;
+  thumbnail_url: string | null;
+  platforms: string[] | null;
+  scheduled_time: string | null;
+  final_asset?: {
+    id: string;
+    file_url: string;
+    file_type: string;
+    filename: string;
+    content_type: string | null;
+  };
 }
 
 export default function PortalApprovals() {
   const { clientId } = useOutletContext<OutletContext>();
   const { toast } = useToast();
-  const [assets, setAssets] = useState<Asset[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
-  const [filter, setFilter] = useState<'pending' | 'approved' | 'rejected' | 'all'>('pending');
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   useEffect(() => {
-    fetchAssetsForApproval();
+    fetchProjectsForApproval();
 
     // Subscribe to real-time changes
     const channel = supabase
@@ -48,11 +47,11 @@ export default function PortalApprovals() {
         {
           event: '*',
           schema: 'public',
-          table: 'assets',
+          table: 'projects',
           filter: `client_id=eq.${clientId}`
         },
         () => {
-          fetchAssetsForApproval();
+          fetchProjectsForApproval();
         }
       )
       .subscribe();
@@ -62,31 +61,64 @@ export default function PortalApprovals() {
     };
   }, [clientId]);
 
-  const fetchAssetsForApproval = async () => {
+  const fetchProjectsForApproval = async () => {
     try {
-      // Get assets in review stage
-      const { data: assets, error: assetsError } = await supabase
-        .from('assets')
-        .select('*')
+      // Get projects in Client Review stage
+      const { data: projectsData, error: projectsError } = await supabase
+        .from('projects')
+        .select(`
+          id,
+          title,
+          pipeline_stage,
+          created_at,
+          thumbnail_url,
+          platforms,
+          scheduled_time
+        `)
         .eq('client_id', clientId)
-        .eq('pipeline_stage', 'review')
+        .eq('pipeline_stage', 'client_review')
         .order('created_at', { ascending: false });
 
-      if (assetsError) throw assetsError;
-      setAssets(assets || []);
+      if (projectsError) throw projectsError;
+
+      // For each project, get the final asset
+      const projectsWithFinalAssets = await Promise.all(
+        (projectsData || []).map(async (project) => {
+          const { data: finalAssets } = await supabase
+            .from('project_assets')
+            .select(`
+              assets:asset_id (
+                id,
+                file_url,
+                file_type,
+                filename,
+                content_type
+              )
+            `)
+            .eq('project_id', project.id)
+            .eq('is_final_content', true)
+            .limit(1)
+            .single();
+
+          return {
+            ...project,
+            final_asset: finalAssets?.assets as any
+          };
+        })
+      );
+
+      setProjects(projectsWithFinalAssets);
     } catch (error: any) {
-      console.error("Error fetching assets:", error);
+      console.error("Error fetching projects:", error);
       toast({
         title: "Error",
-        description: "Failed to load assets for approval",
+        description: "Failed to load projects for approval",
         variant: "destructive"
       });
     } finally {
       setLoading(false);
     }
   };
-
-  const filteredAssets = assets;
 
   if (loading) {
     return (
@@ -96,22 +128,22 @@ export default function PortalApprovals() {
     );
   }
 
-  if (selectedAsset) {
+  if (selectedProject && selectedProject.final_asset) {
     return (
       <div className="space-y-4">
         <button
-          onClick={() => setSelectedAsset(null)}
+          onClick={() => setSelectedProject(null)}
           className="text-sm text-muted-foreground hover:text-foreground"
         >
           ← Back to Approvals
         </button>
         
         <ClientApprovalInterface
-          asset={selectedAsset}
+          asset={selectedProject.final_asset as any}
           clientId={clientId}
           onApprovalComplete={() => {
-            setSelectedAsset(null);
-            fetchAssetsForApproval();
+            setSelectedProject(null);
+            fetchProjectsForApproval();
           }}
         />
       </div>
@@ -128,7 +160,7 @@ export default function PortalApprovals() {
       </div>
 
 
-      {filteredAssets.length === 0 ? (
+      {projects.length === 0 ? (
         <Card>
           <CardContent className="py-8 md:py-12 text-center">
             <p className="text-sm md:text-base text-muted-foreground">
@@ -138,37 +170,43 @@ export default function PortalApprovals() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
-          {filteredAssets.map(asset => (
+          {projects.map(project => (
             <Card 
-              key={asset.id}
+              key={project.id}
               className="cursor-pointer hover:shadow-lg transition-shadow"
-              onClick={() => setSelectedAsset(asset)}
+              onClick={() => setSelectedProject(project)}
             >
               <CardContent className="p-3 md:p-4 space-y-3">
-                {asset.file_type.startsWith('video/') ? (
-                  <video
-                    src={asset.file_url}
-                    className="w-full h-40 md:h-48 object-cover rounded"
-                  />
+                {project.final_asset ? (
+                  project.final_asset.file_type.startsWith('video/') ? (
+                    <video
+                      src={project.final_asset.file_url}
+                      className="w-full h-40 md:h-48 object-cover rounded"
+                    />
+                  ) : (
+                    <img
+                      src={project.final_asset.file_url}
+                      alt={project.final_asset.filename}
+                      className="w-full h-40 md:h-48 object-cover rounded"
+                    />
+                  )
                 ) : (
-                  <img
-                    src={asset.file_url}
-                    alt={asset.filename}
-                    className="w-full h-40 md:h-48 object-cover rounded"
-                  />
+                  <div className="w-full h-40 md:h-48 bg-muted rounded flex items-center justify-center">
+                    <p className="text-muted-foreground text-sm">No preview</p>
+                  </div>
                 )}
 
                 <div className="space-y-2">
-                  <h3 className="text-sm md:text-base font-semibold line-clamp-2">{asset.filename}</h3>
+                  <h3 className="text-sm md:text-base font-semibold line-clamp-2">{project.title}</h3>
                   
-                  {asset.content_type && (
+                  {project.final_asset?.content_type && (
                     <Badge variant="secondary" className="text-xs">
-                      {asset.content_type.replace('_', ' ')}
+                      {project.final_asset.content_type.replace('_', ' ')}
                     </Badge>
                   )}
 
                   <div className="flex items-center gap-2">
-                    <Badge className="text-xs">v{asset.current_version}</Badge>
+                    <Badge className="text-xs">Client Review</Badge>
                   </div>
                 </div>
               </CardContent>
