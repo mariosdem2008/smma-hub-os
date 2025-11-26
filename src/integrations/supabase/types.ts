@@ -1063,6 +1063,39 @@ export type Database = {
           },
         ]
       }
+      notification_preferences: {
+        Row: {
+          created_at: string
+          email_on_approval: boolean
+          email_on_changes_requested: boolean
+          email_on_post_failed: boolean
+          email_weekly_reminders: boolean
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email_on_approval?: boolean
+          email_on_changes_requested?: boolean
+          email_on_post_failed?: boolean
+          email_weekly_reminders?: boolean
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email_on_approval?: boolean
+          email_on_changes_requested?: boolean
+          email_on_post_failed?: boolean
+          email_weekly_reminders?: boolean
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
