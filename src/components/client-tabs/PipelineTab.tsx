@@ -225,9 +225,12 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
                   <div
                     ref={provided.innerRef}
                     {...provided.droppableProps}
-                    className={`transition-all duration-700 ease-in-out ${
+                    className={`transition-all duration-1000 ease-in-out ${
                       isHovered ? 'flex-[2]' : 'flex-[0.5]'
                     } min-w-[80px]`}
+                    style={{ 
+                      transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)'
+                    }}
                     onMouseEnter={() => !isDragging && setHoveredStage(stage.key)}
                     onMouseLeave={() => setHoveredStage(null)}
                   >

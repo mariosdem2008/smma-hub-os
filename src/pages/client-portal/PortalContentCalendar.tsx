@@ -9,15 +9,12 @@ import { format, startOfWeek, endOfWeek, eachDayOfInterval, startOfMonth, endOfM
 import { CalendarDays, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-interface Asset {
+interface Project {
   id: string;
-  filename: string;
+  title: string;
   platforms: string[] | null;
   scheduled_time: string | null;
   pipeline_stage: string;
-  final_caption: string | null;
-  file_url: string;
-  file_type: string;
 }
 
 interface OutletContext {
@@ -32,23 +29,24 @@ const stageColors: Record<string, string> = {
 
 export function PortalContentCalendar() {
   const { clientId } = useOutletContext<OutletContext>();
-  const [assets, setAssets] = useState<Asset[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<"week" | "month">("week");
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const { toast } = useToast();
 
   useEffect(() => {
-    fetchAssets();
+    fetchProjects();
   }, [clientId]);
 
-  const fetchAssets = async () => {
+  const fetchProjects = async () => {
     const { data, error } = await supabase
-      .from("assets")
-      .select("*")
+      .from("projects")
+      .select("id, title, platforms, scheduled_time, pipeline_stage")
       .eq("client_id", clientId)
-      .in("pipeline_stage", ["approved", "scheduled", "published"])
-      .order("scheduled_time", { ascending: true, nullsFirst: false });
+      .in("pipeline_stage", ["scheduled", "published"])
+      .not("scheduled_time", "is", null)
+      .order("scheduled_time", { ascending: true });
 
     if (error) {
       toast({
@@ -57,7 +55,7 @@ export function PortalContentCalendar() {
         variant: "destructive",
       });
     } else {
-      setAssets(data || []);
+      setProjects(data || []);
     }
     setLoading(false);
   };
@@ -74,16 +72,12 @@ export function PortalContentCalendar() {
     return eachDayOfInterval({ start, end });
   };
 
-  const getAssetsForDay = (day: Date) => {
-    return assets.filter((asset) => {
-      if (!asset.scheduled_time) return false;
-      return isSameDay(parseISO(asset.scheduled_time), day);
+  const getProjectsForDay = (day: Date) => {
+    return projects.filter((project) => {
+      if (!project.scheduled_time) return false;
+      return isSameDay(parseISO(project.scheduled_time), day);
     });
   };
-
-  const unscheduledAssets = assets.filter(
-    (a) => a.pipeline_stage === "approved" && !a.scheduled_time
-  );
 
   if (loading) {
     return (
@@ -126,7 +120,7 @@ export function PortalContentCalendar() {
 
           <div className="grid grid-cols-1 md:grid-cols-7 gap-2 md:gap-4">
             {getWeekDays().map((day) => {
-              const dayAssets = getAssetsForDay(day);
+              const dayProjects = getProjectsForDay(day);
               return (
                 <Card key={day.toISOString()} className="p-3 md:p-4">
                   <div className="font-semibold mb-2 text-center md:text-left">
@@ -135,26 +129,26 @@ export function PortalContentCalendar() {
                     <span className="text-xl md:text-2xl">{format(day, "d")}</span>
                   </div>
                   <div className="space-y-2">
-                    {dayAssets.map((asset) => (
+                    {dayProjects.map((project) => (
                       <div
-                        key={asset.id}
+                        key={project.id}
                         className="p-2 rounded border bg-card"
                       >
                         <div className="flex items-center gap-2 mb-1">
                           <Clock className="h-3 w-3" />
                           <span className="text-xs">
-                            {asset.scheduled_time
-                              ? format(parseISO(asset.scheduled_time), "HH:mm")
+                            {project.scheduled_time
+                              ? format(parseISO(project.scheduled_time), "HH:mm")
                               : "Unscheduled"}
                           </span>
                         </div>
                         <p className="text-xs font-medium line-clamp-2">
-                          {asset.filename}
+                          {project.title}
                         </p>
                         <Badge
-                          className={`${stageColors[asset.pipeline_stage]} text-white text-xs mt-1`}
+                          className={`${stageColors[project.pipeline_stage]} text-white text-xs mt-1`}
                         >
-                          {asset.pipeline_stage}
+                          {project.pipeline_stage}
                         </Badge>
                       </div>
                     ))}
@@ -185,21 +179,21 @@ export function PortalContentCalendar() {
               </div>
             ))}
             {getMonthDays().map((day) => {
-              const dayAssets = getAssetsForDay(day);
+              const dayProjects = getProjectsForDay(day);
               return (
                 <Card key={day.toISOString()} className="p-1 md:p-2 min-h-[80px] md:min-h-[100px]">
                   <div className="text-xs md:text-sm font-semibold mb-1">
                     {format(day, "d")}
                   </div>
                   <div className="space-y-1">
-                    {dayAssets.map((asset) => (
+                    {dayProjects.map((project) => (
                       <div
-                        key={asset.id}
+                        key={project.id}
                         className={`${
-                          stageColors[asset.pipeline_stage]
+                          stageColors[project.pipeline_stage]
                         } text-white text-xs p-1 rounded`}
                       >
-                        <p className="line-clamp-1">{asset.filename}</p>
+                        <p className="line-clamp-1">{project.title}</p>
                       </div>
                     ))}
                   </div>
@@ -210,33 +204,6 @@ export function PortalContentCalendar() {
         </TabsContent>
       </Tabs>
 
-      {unscheduledAssets.length > 0 && (
-        <Card className="p-3 md:p-4">
-          <h3 className="text-sm md:text-base font-semibold mb-3 flex items-center gap-2">
-            <CalendarDays className="h-4 w-4 md:h-5 md:w-5" />
-            Approved (Unscheduled)
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {unscheduledAssets.map((asset) => (
-              <div key={asset.id} className="p-3 border rounded bg-card">
-                {asset.file_type.startsWith("image/") && (
-                  <img
-                    src={asset.file_url}
-                    alt={asset.filename}
-                    className="w-full h-32 object-cover rounded mb-2"
-                  />
-                )}
-                <p className="text-sm font-medium line-clamp-2 mb-2">
-                  {asset.filename}
-                </p>
-                <Badge variant="outline" className="text-xs">
-                  {asset.pipeline_stage}
-                </Badge>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
     </div>
   );
 }
