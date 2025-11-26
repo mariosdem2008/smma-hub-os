@@ -186,10 +186,11 @@ export default function PortalApprovals() {
             >
               <CardContent className="p-3 md:p-4 space-y-3">
                 {project.final_asset ? (
-                  project.final_asset.file_type.startsWith('video/') ? (
+                  project.final_asset.file_type.startsWith("video") ? (
                     <video
                       src={project.final_asset.file_url}
                       className="w-full h-40 md:h-48 object-cover rounded"
+                      controls
                     />
                   ) : (
                     <img
@@ -198,6 +199,12 @@ export default function PortalApprovals() {
                       className="w-full h-40 md:h-48 object-cover rounded"
                     />
                   )
+                ) : project.thumbnail_url ? (
+                  <img
+                    src={project.thumbnail_url}
+                    alt={project.title}
+                    className="w-full h-40 md:h-48 object-cover rounded"
+                  />
                 ) : (
                   <div className="w-full h-40 md:h-48 bg-muted rounded flex items-center justify-center">
                     <p className="text-muted-foreground text-sm">No preview</p>
