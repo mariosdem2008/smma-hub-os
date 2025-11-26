@@ -164,12 +164,12 @@ export default function ClientDetail() {
         <div className="overflow-x-auto">
           <TabsList className="inline-flex w-auto min-w-full md:grid md:grid-cols-9">
             <TabsTrigger value="overview" className="flex-shrink-0">Overview</TabsTrigger>
-            <TabsTrigger value="pipeline" className="flex-shrink-0">Pipeline</TabsTrigger>
-            <TabsTrigger value="calendar" className="flex-shrink-0">Calendar</TabsTrigger>
-            <TabsTrigger value="library" className="flex-shrink-0">Library</TabsTrigger>
             <TabsTrigger value="brand" className="flex-shrink-0">Brand Identity</TabsTrigger>
-            <TabsTrigger value="social" className="flex-shrink-0">Social Profiles</TabsTrigger>
+            <TabsTrigger value="pipeline" className="flex-shrink-0">Pipeline</TabsTrigger>
             <TabsTrigger value="planning" className="flex-shrink-0">Content Planning</TabsTrigger>
+            <TabsTrigger value="library" className="flex-shrink-0">Library</TabsTrigger>
+            <TabsTrigger value="calendar" className="flex-shrink-0">Calendar</TabsTrigger>
+            <TabsTrigger value="social" className="flex-shrink-0">Social Profiles</TabsTrigger>
             <TabsTrigger value="uploads" className="flex-shrink-0">Client Uploads</TabsTrigger>
             <TabsTrigger value="portal" className="flex-shrink-0">Client Portal</TabsTrigger>
           </TabsList>
