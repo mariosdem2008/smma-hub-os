@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { DragDropContext, DropResult, Draggable } from "@hello-pangea/dnd";
+import { DragDropContext, DropResult, Draggable, Droppable } from "@hello-pangea/dnd";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -207,7 +207,7 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
         </Button>
       </div>
 
-      {/* Pipeline Board - Compact Tabs */}
+      {/* Pipeline Board - Compact Tabs with Drag & Drop */}
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="flex gap-2 overflow-x-auto pb-4">
           {PIPELINE_STAGES.map(stage => {
@@ -215,76 +215,90 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
             const isHovered = hoveredStage === stage.key;
             
             return (
-              <div
-                key={stage.key}
-                className={`transition-all duration-300 ease-in-out ${
-                  isHovered ? 'flex-[2]' : 'flex-[0.5]'
-                } min-w-[80px]`}
-                onMouseEnter={() => setHoveredStage(stage.key)}
-                onMouseLeave={() => setHoveredStage(null)}
-              >
-                <div 
-                  className="h-full rounded-lg border bg-card transition-all cursor-pointer"
-                  onClick={() => setSelectedStage(stage)}
-                >
-                  <div className="p-4 border-b flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <h3 className={`font-semibold transition-all ${isHovered ? 'text-base' : 'text-sm'}`}>
-                        {stage.label}
-                      </h3>
-                      <Badge
-                        variant="secondary"
-                        className="text-xs"
-                        style={{
-                          backgroundColor: `hsl(${stage.color} / 0.1)`,
-                          color: `hsl(${stage.color})`,
-                        }}
-                      >
-                        {stageProjects.length}
-                      </Badge>
-                    </div>
-                  </div>
-                  
-                  {isHovered && (
-                    <div className="p-3 space-y-2 overflow-y-auto max-h-[600px]">
-                      {stageProjects.length === 0 ? (
-                        <p className="text-sm text-muted-foreground text-center py-8">
-                          No projects
-                        </p>
-                      ) : (
-                        stageProjects.slice(0, 3).map((project) => (
-                          <div
-                            key={project.id}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedProjectId(project.id);
+              <Droppable droppableId={stage.key} key={stage.key}>
+                {(provided, snapshot) => (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.droppableProps}
+                    className={`transition-all duration-300 ease-in-out ${
+                      isHovered ? 'flex-[2]' : 'flex-[0.5]'
+                    } min-w-[80px]`}
+                    onMouseEnter={() => setHoveredStage(stage.key)}
+                    onMouseLeave={() => setHoveredStage(null)}
+                  >
+                    <div 
+                      className={`h-full rounded-lg border bg-card transition-all cursor-pointer ${
+                        snapshot.isDraggingOver ? 'ring-2 ring-primary bg-primary/5' : ''
+                      }`}
+                      onClick={() => setSelectedStage(stage)}
+                    >
+                      <div className="p-4 border-b flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <h3 className={`font-semibold transition-all ${isHovered ? 'text-base' : 'text-sm'}`}>
+                            {stage.label}
+                          </h3>
+                          <Badge
+                            variant="secondary"
+                            className="text-xs"
+                            style={{
+                              backgroundColor: `hsl(${stage.color} / 0.1)`,
+                              color: `hsl(${stage.color})`,
                             }}
                           >
-                            <ProjectCard
-                              project={project}
-                              onClick={() => {}}
-                              isDragging={false}
-                            />
-                          </div>
-                        ))
+                            {stageProjects.length}
+                          </Badge>
+                        </div>
+                      </div>
+                      
+                      {isHovered && (
+                        <div className="p-3 space-y-2 overflow-y-auto max-h-[600px]">
+                          {stageProjects.length === 0 ? (
+                            <p className="text-sm text-muted-foreground text-center py-8">
+                              No projects
+                            </p>
+                          ) : (
+                            stageProjects.slice(0, 3).map((project, index) => (
+                              <Draggable key={project.id} draggableId={project.id} index={index}>
+                                {(provided, snapshot) => (
+                                  <div
+                                    ref={provided.innerRef}
+                                    {...provided.draggableProps}
+                                    {...provided.dragHandleProps}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedProjectId(project.id);
+                                    }}
+                                  >
+                                    <ProjectCard
+                                      project={project}
+                                      onClick={() => {}}
+                                      isDragging={snapshot.isDragging}
+                                    />
+                                  </div>
+                                )}
+                              </Draggable>
+                            ))
+                          )}
+                          {stageProjects.length > 3 && (
+                            <p className="text-xs text-muted-foreground text-center pt-2">
+                              +{stageProjects.length - 3} more projects
+                            </p>
+                          )}
+                        </div>
                       )}
-                      {stageProjects.length > 3 && (
-                        <p className="text-xs text-muted-foreground text-center pt-2">
-                          +{stageProjects.length - 3} more projects
-                        </p>
+                      
+                      {!isHovered && (
+                        <div className="p-3">
+                          <p className="text-xs text-muted-foreground text-center">
+                            Click to view all
+                          </p>
+                        </div>
                       )}
                     </div>
-                  )}
-                  
-                  {!isHovered && (
-                    <div className="p-3">
-                      <p className="text-xs text-muted-foreground text-center">
-                        Click to view all
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
             );
           })}
         </div>

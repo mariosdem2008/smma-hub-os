@@ -107,16 +107,16 @@ export default function LibraryTab({ clientId, agencyId }: LibraryTabProps) {
     setLoading(false);
   };
 
-  const handleCreateFolder = () => {
-    if (newFolderName.trim() && !folders.includes(newFolderName.trim())) {
-      setFolders([...folders, newFolderName.trim()]);
-      setNewFolderName("");
-      setShowFolderDialog(false);
-      toast({
-        title: "Success",
-        description: "Folder created",
-      });
-    }
+  const handleCreateFolder = async () => {
+    if (!newFolderName.trim() || folders.includes(newFolderName.trim())) return;
+    
+    setFolders([...folders, newFolderName.trim()]);
+    setNewFolderName("");
+    setShowFolderDialog(false);
+    toast({
+      title: "Success",
+      description: "Folder created",
+    });
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -150,7 +150,7 @@ export default function LibraryTab({ clientId, agencyId }: LibraryTabProps) {
           thumbnailUrl = publicUrl; // Use image itself as thumbnail
         }
 
-        // Save metadata to database
+        // Save metadata to database with pipeline_stage as null for library assets
         const { data: assetData, error: dbError } = await supabase
           .from("assets")
           .insert({
@@ -164,6 +164,7 @@ export default function LibraryTab({ clientId, agencyId }: LibraryTabProps) {
             thumbnail_url: thumbnailUrl,
             title: file.name,
             current_version: 1,
+            pipeline_stage: null, // Explicitly set to null for library assets
           })
           .select()
           .single();
@@ -380,27 +381,25 @@ export default function LibraryTab({ clientId, agencyId }: LibraryTabProps) {
                 </div>
 
                 {/* Actions */}
-                {!isViewer && (
-                  <div className="flex gap-1">
+                <div className="flex gap-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => handleDownload(asset)}
+                  >
+                    <Download className="h-4 w-4" />
+                  </Button>
+                  {canDeleteContent && (
                     <Button
                       variant="outline"
                       size="sm"
-                      className="flex-1"
-                      onClick={() => handleDownload(asset)}
+                      onClick={() => setDeleteAsset(asset)}
                     >
-                      <Download className="h-4 w-4" />
+                      <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
-                    {canDeleteContent && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setDeleteAsset(asset)}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    )}
-                  </div>
-                )}
+                  )}
+                </div>
               </CardContent>
             </Card>
           ))}
