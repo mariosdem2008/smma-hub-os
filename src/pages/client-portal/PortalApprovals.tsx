@@ -186,11 +186,17 @@ export default function PortalApprovals() {
             >
               <CardContent className="p-3 md:p-4 space-y-3">
                 {project.final_asset ? (
-                  project.final_asset.file_type.startsWith("video") ? (
+                  project.final_asset.file_type?.startsWith("video") ? (
                     <video
                       src={project.final_asset.file_url}
                       className="w-full h-40 md:h-48 object-cover rounded"
                       controls
+                    />
+                  ) : project.final_asset.file_type?.startsWith("image") ? (
+                    <img
+                      src={project.final_asset.file_url}
+                      alt={project.final_asset.filename}
+                      className="w-full h-40 md:h-48 object-cover rounded"
                     />
                   ) : (
                     <img
