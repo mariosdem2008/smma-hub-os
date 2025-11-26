@@ -299,6 +299,7 @@ export type Database = {
           platform_captions: Json | null
           platforms: string[] | null
           post_url: string | null
+          project_id: string | null
           scheduled_time: string | null
           status: string | null
           thumbnail_url: string | null
@@ -326,6 +327,7 @@ export type Database = {
           platform_captions?: Json | null
           platforms?: string[] | null
           post_url?: string | null
+          project_id?: string | null
           scheduled_time?: string | null
           status?: string | null
           thumbnail_url?: string | null
@@ -353,6 +355,7 @@ export type Database = {
           platform_captions?: Json | null
           platforms?: string[] | null
           post_url?: string | null
+          project_id?: string | null
           scheduled_time?: string | null
           status?: string | null
           thumbnail_url?: string | null
@@ -381,6 +384,13 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assets_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
@@ -952,10 +962,13 @@ export type Database = {
       }
       ideas: {
         Row: {
+          attachments: Json | null
           client_id: string
+          content_body: string | null
           created_at: string
           description: string | null
           id: string
+          idea_references: Json | null
           review_comment: string | null
           reviewed_at: string | null
           reviewed_by: string | null
@@ -965,10 +978,13 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          attachments?: Json | null
           client_id: string
+          content_body?: string | null
           created_at?: string
           description?: string | null
           id?: string
+          idea_references?: Json | null
           review_comment?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
@@ -978,10 +994,13 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          attachments?: Json | null
           client_id?: string
+          content_body?: string | null
           created_at?: string
           description?: string | null
           id?: string
+          idea_references?: Json | null
           review_comment?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
@@ -1119,6 +1138,224 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      project_assets: {
+        Row: {
+          asset_id: string
+          created_at: string | null
+          display_order: number | null
+          id: string
+          is_final_content: boolean | null
+          project_id: string
+        }
+        Insert: {
+          asset_id: string
+          created_at?: string | null
+          display_order?: number | null
+          id?: string
+          is_final_content?: boolean | null
+          project_id: string
+        }
+        Update: {
+          asset_id?: string
+          created_at?: string | null
+          display_order?: number | null
+          id?: string
+          is_final_content?: boolean | null
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_assets_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_assets_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          agency_id: string
+          client_id: string
+          created_at: string | null
+          editor_comments: string | null
+          final_asset_id: string | null
+          hashtags: string | null
+          id: string
+          idea_id: string | null
+          notes: string | null
+          pipeline_stage: string | null
+          platform_captions: Json | null
+          platforms: string[] | null
+          published_urls: Json | null
+          scheduled_time: string | null
+          script_id: string | null
+          status: string | null
+          thumbnail_url: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          agency_id: string
+          client_id: string
+          created_at?: string | null
+          editor_comments?: string | null
+          final_asset_id?: string | null
+          hashtags?: string | null
+          id?: string
+          idea_id?: string | null
+          notes?: string | null
+          pipeline_stage?: string | null
+          platform_captions?: Json | null
+          platforms?: string[] | null
+          published_urls?: Json | null
+          scheduled_time?: string | null
+          script_id?: string | null
+          status?: string | null
+          thumbnail_url?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          agency_id?: string
+          client_id?: string
+          created_at?: string | null
+          editor_comments?: string | null
+          final_asset_id?: string | null
+          hashtags?: string | null
+          id?: string
+          idea_id?: string | null
+          notes?: string | null
+          pipeline_stage?: string | null
+          platform_captions?: Json | null
+          platforms?: string[] | null
+          published_urls?: Json | null
+          scheduled_time?: string | null
+          script_id?: string | null
+          status?: string | null
+          thumbnail_url?: string | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projects_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_contacts_secure"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_portal_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_idea_id_fkey"
+            columns: ["idea_id"]
+            isOneToOne: false
+            referencedRelation: "ideas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "scripts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scripts: {
+        Row: {
+          client_id: string
+          created_at: string | null
+          cta: string | null
+          editor_notes: string | null
+          hook: string | null
+          id: string
+          idea_id: string | null
+          reference_attachments: Json | null
+          script_body: string | null
+          status: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          client_id: string
+          created_at?: string | null
+          cta?: string | null
+          editor_notes?: string | null
+          hook?: string | null
+          id?: string
+          idea_id?: string | null
+          reference_attachments?: Json | null
+          script_body?: string | null
+          status?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          client_id?: string
+          created_at?: string | null
+          cta?: string | null
+          editor_notes?: string | null
+          hook?: string | null
+          id?: string
+          idea_id?: string | null
+          reference_attachments?: Json | null
+          script_body?: string | null
+          status?: string | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scripts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_contacts_secure"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scripts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_portal_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scripts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scripts_idea_id_fkey"
+            columns: ["idea_id"]
+            isOneToOne: false
+            referencedRelation: "ideas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       social_connections: {
         Row: {

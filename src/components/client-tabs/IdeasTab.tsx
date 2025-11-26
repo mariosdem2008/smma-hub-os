@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import ApprovalReviewModal from "@/components/ApprovalReviewModal";
+import IdeaPage from "@/components/ideas/IdeaPage";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +23,7 @@ import {
   Lightbulb, 
   Plus, 
   Trash2,
+  Maximize2
 } from "lucide-react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { format } from "date-fns";
@@ -51,7 +53,7 @@ const STATUS_COLUMNS: { id: IdeaStatus; label: string; color: string }[] = [
   { id: "rejected", label: "Rejected", color: "bg-red-100 dark:bg-red-900" },
 ];
 
-export default function IdeasTab({ clientId }: IdeasTabProps) {
+export default function IdeasBoard({ clientId }: IdeasTabProps) {
   const { toast } = useToast();
   const { canCreateContent, isViewer, role, loading: roleLoading } = useRole();
   const [ideas, setIdeas] = useState<Idea[]>([]);
@@ -66,6 +68,8 @@ export default function IdeasTab({ clientId }: IdeasTabProps) {
   const [reviewAction, setReviewAction] = useState<'approve' | 'reject'>('approve');
   const [reviewIdeaId, setReviewIdeaId] = useState<string>('');
   const [reviewIdeaTitle, setReviewIdeaTitle] = useState<string>('');
+  const [ideaPageOpen, setIdeaPageOpen] = useState(false);
+  const [selectedIdeaId, setSelectedIdeaId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchIdeas();
@@ -440,9 +444,23 @@ export default function IdeasTab({ clientId }: IdeasTabProps) {
                               }`}
                             >
                               <div className="space-y-2">
-                                <h4 className="font-medium text-sm line-clamp-2">
-                                  {idea.title}
-                                </h4>
+                                <div className="flex items-start justify-between gap-2">
+                                  <h4 className="font-medium text-sm line-clamp-2 flex-1">
+                                    {idea.title}
+                                  </h4>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-6 w-6 p-0"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedIdeaId(idea.id);
+                                      setIdeaPageOpen(true);
+                                    }}
+                                  >
+                                    <Maximize2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
                                 {idea.description && (
                                   <p className="text-xs text-muted-foreground line-clamp-2">
                                     {idea.description}
@@ -552,6 +570,14 @@ export default function IdeasTab({ clientId }: IdeasTabProps) {
         contentTitle={reviewIdeaTitle}
         action={reviewAction}
         onSubmit={handleReviewSubmit}
+      />
+
+      <IdeaPage
+        open={ideaPageOpen}
+        onOpenChange={setIdeaPageOpen}
+        ideaId={selectedIdeaId}
+        clientId={clientId}
+        onSave={fetchIdeas}
       />
     </div>
   );
