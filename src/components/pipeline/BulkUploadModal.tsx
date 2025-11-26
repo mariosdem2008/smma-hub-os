@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, File, Loader2, Image as ImageIcon, X } from "lucide-react";
+import { Upload, File, Loader2, Image as ImageIcon, X, Video } from "lucide-react";
 import { Card } from "@/components/ui/card";
 
 interface BulkUploadModalProps {
@@ -35,6 +35,15 @@ interface SelectedFile {
   id: string;
 }
 
+interface LibraryAsset {
+  id: string;
+  file_url: string;
+  filename: string;
+  file_type: string;
+  file_size: number | null;
+  thumbnail_url: string | null;
+}
+
 export default function BulkUploadModal({
   open,
   onOpenChange,
@@ -45,6 +54,8 @@ export default function BulkUploadModal({
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
+  const [libraryAssets, setLibraryAssets] = useState<LibraryAsset[]>([]);
+  const [selectedLibraryAssets, setSelectedLibraryAssets] = useState<string[]>([]);
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [scripts, setScripts] = useState<Script[]>([]);
   const [thumbnail, setThumbnail] = useState<File | null>(null);
@@ -66,13 +77,18 @@ export default function BulkUploadModal({
 
   const fetchIdeasAndScripts = async () => {
     try {
-      const [ideasRes, scriptsRes] = await Promise.all([
+      const [ideasRes, scriptsRes, libraryRes] = await Promise.all([
         supabase.from("ideas").select("id, title").eq("client_id", clientId).order("created_at", { ascending: false }),
         supabase.from("scripts").select("id, title").eq("client_id", clientId).order("created_at", { ascending: false }),
+        supabase.from("assets").select("id, file_url, filename, file_type, file_size, thumbnail_url")
+          .eq("client_id", clientId)
+          .is("pipeline_stage", null)
+          .order("created_at", { ascending: false }),
       ]);
 
       if (ideasRes.data) setIdeas(ideasRes.data);
       if (scriptsRes.data) setScripts(scriptsRes.data);
+      if (libraryRes.data) setLibraryAssets(libraryRes.data);
     } catch (error) {
       console.error("Error fetching ideas/scripts:", error);
     }
@@ -102,6 +118,14 @@ export default function BulkUploadModal({
     setSelectedFiles(prev => prev.filter(f => f.id !== id));
   };
 
+  const toggleLibraryAsset = (assetId: string) => {
+    setSelectedLibraryAssets(prev => 
+      prev.includes(assetId) 
+        ? prev.filter(id => id !== assetId)
+        : [...prev, assetId]
+    );
+  };
+
   const handleSubmit = async () => {
     if (!formData.title.trim()) {
       toast({
@@ -112,10 +136,10 @@ export default function BulkUploadModal({
       return;
     }
 
-    if (selectedFiles.length === 0) {
+    if (selectedFiles.length === 0 && selectedLibraryAssets.length === 0) {
       toast({
         title: "Validation Error",
-        description: "Please select at least one file to upload",
+        description: "Please select at least one file or library asset",
         variant: "destructive",
       });
       return;
@@ -199,13 +223,36 @@ export default function BulkUploadModal({
 
       await Promise.all(uploadPromises);
 
+      // 4. Link selected library assets to project
+      const libraryLinkPromises = selectedLibraryAssets.map(async (assetId) => {
+        // Link asset to project
+        await supabase.from("project_assets").insert({
+          project_id: project.id,
+          asset_id: assetId,
+          display_order: 0,
+        });
+
+        // Update asset to have project_id and pipeline_stage
+        await supabase.from("assets")
+          .update({
+            project_id: project.id,
+            pipeline_stage: "idea",
+          })
+          .eq("id", assetId);
+      });
+
+      await Promise.all(libraryLinkPromises);
+
+      const totalAssets = selectedFiles.length + selectedLibraryAssets.length;
+
       toast({
         title: "Project Created",
-        description: `"${formData.title}" created with ${selectedFiles.length} assets`,
+        description: `"${formData.title}" created with ${totalAssets} asset(s)`,
       });
 
       // Reset form
       setSelectedFiles([]);
+      setSelectedLibraryAssets([]);
       setThumbnail(null);
       setThumbnailPreview(null);
       setFormData({ title: "", ideaId: "", scriptId: "", notes: "" });
@@ -417,10 +464,66 @@ export default function BulkUploadModal({
                 )}
               </TabsContent>
 
-              <TabsContent value="existing">
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>Select from existing client assets (Coming soon)</p>
-                </div>
+              <TabsContent value="existing" className="space-y-4">
+                {libraryAssets.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <p>No library assets available</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-96 overflow-y-auto">
+                    {libraryAssets.map((asset) => (
+                      <Card
+                        key={asset.id}
+                        className={`relative p-3 cursor-pointer transition-all ${
+                          selectedLibraryAssets.includes(asset.id)
+                            ? "ring-2 ring-primary"
+                            : "hover:bg-accent"
+                        }`}
+                        onClick={() => toggleLibraryAsset(asset.id)}
+                      >
+                        {asset.thumbnail_url || asset.file_type?.startsWith("image/") ? (
+                          <div className="aspect-video rounded overflow-hidden bg-muted mb-2">
+                            <img
+                              src={asset.file_url}
+                              alt={asset.filename}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        ) : (
+                          <div className="aspect-video rounded bg-muted flex items-center justify-center mb-2">
+                            {asset.file_type?.startsWith("video/") ? (
+                              <Video className="h-8 w-8 text-muted-foreground" />
+                            ) : (
+                              <File className="h-8 w-8 text-muted-foreground" />
+                            )}
+                          </div>
+                        )}
+                        <p className="text-xs truncate">{asset.filename}</p>
+                        {selectedLibraryAssets.includes(asset.id) && (
+                          <div className="absolute top-1 right-1 bg-primary text-primary-foreground rounded-full p-1">
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              viewBox="0 0 20 20"
+                              fill="currentColor"
+                              className="w-4 h-4"
+                            >
+                              <path
+                                fillRule="evenodd"
+                                d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                          </div>
+                        )}
+                      </Card>
+                    ))}
+                  </div>
+                )}
+                {selectedLibraryAssets.length > 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    {selectedLibraryAssets.length} asset(s) selected from library
+                  </p>
+                )}
               </TabsContent>
             </Tabs>
           </div>

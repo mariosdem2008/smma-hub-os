@@ -18,6 +18,7 @@ import CalendarTab from "@/components/client-tabs/CalendarTab";
 import ClientUploadsTab from "@/components/client-tabs/ClientUploadsTab";
 import WorkspaceTab from "@/components/client-tabs/WorkspaceTab";
 import { ClientPortalTab } from "@/components/client-tabs/ClientPortalTab";
+import LibraryTab from "@/components/client-tabs/LibraryTab";
 import { useEffect } from "react";
 
 interface Client {
@@ -161,10 +162,11 @@ export default function ClientDetail() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="overflow-x-auto">
-          <TabsList className="inline-flex w-auto min-w-full md:grid md:grid-cols-8">
+          <TabsList className="inline-flex w-auto min-w-full md:grid md:grid-cols-9">
             <TabsTrigger value="overview" className="flex-shrink-0">Overview</TabsTrigger>
             <TabsTrigger value="pipeline" className="flex-shrink-0">Pipeline</TabsTrigger>
             <TabsTrigger value="calendar" className="flex-shrink-0">Calendar</TabsTrigger>
+            <TabsTrigger value="library" className="flex-shrink-0">Library</TabsTrigger>
             <TabsTrigger value="brand" className="flex-shrink-0">Brand Identity</TabsTrigger>
             <TabsTrigger value="social" className="flex-shrink-0">Social Profiles</TabsTrigger>
             <TabsTrigger value="planning" className="flex-shrink-0">Content Planning</TabsTrigger>
@@ -199,6 +201,10 @@ export default function ClientDetail() {
 
         <TabsContent value="calendar" className="space-y-4">
           <CalendarTab clientId={clientId!} />
+        </TabsContent>
+
+        <TabsContent value="library" className="space-y-4">
+          <LibraryTab clientId={clientId!} agencyId={agencyId} />
         </TabsContent>
 
         <TabsContent value="uploads" className="space-y-4">
