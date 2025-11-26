@@ -145,22 +145,33 @@ export default function ScriptEditor({
 
           <div className="space-y-2">
             <Label htmlFor="idea">Link to Idea (Optional)</Label>
-            <Select
-              value={formData.idea_id}
-              onValueChange={(value) => setFormData({ ...formData, idea_id: value })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select an idea" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">None</SelectItem>
-                {ideas.map((idea) => (
-                  <SelectItem key={idea.id} value={idea.id}>
-                    {idea.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex gap-2">
+              <Select
+                value={formData.idea_id || undefined}
+                onValueChange={(value) => setFormData({ ...formData, idea_id: value })}
+              >
+                <SelectTrigger className="flex-1">
+                  <SelectValue placeholder="Select an idea (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ideas.map((idea) => (
+                    <SelectItem key={idea.id} value={idea.id}>
+                      {idea.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {formData.idea_id && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setFormData({ ...formData, idea_id: "" })}
+                >
+                  Clear
+                </Button>
+              )}
+            </div>
           </div>
 
           <div className="space-y-2">
