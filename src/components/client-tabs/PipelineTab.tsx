@@ -1,96 +1,88 @@
 import { useState, useEffect } from "react";
-import { DragDropContext, DropResult } from "@hello-pangea/dnd";
+import { DragDropContext, DropResult, Draggable } from "@hello-pangea/dnd";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import RawUploadZone from "@/components/pipeline/RawUploadZone";
+import { Button } from "@/components/ui/button";
+import { Plus, Loader2 } from "lucide-react";
 import PipelineStageColumn from "@/components/pipeline/PipelineStageColumn";
-import AssetPipelineCard from "@/components/pipeline/AssetPipelineCard";
-import { AssetDetailModal } from "@/components/assets/AssetDetailModal";
-import { FinalStageEditor } from "@/components/pipeline/FinalStageEditor";
-import ContentLibraryTab from "@/components/client-tabs/ContentLibraryTab";
-import { Loader2 } from "lucide-react";
+import ProjectCard from "@/components/pipeline/ProjectCard";
+import ProjectEditor from "@/components/pipeline/ProjectEditor";
+import BulkUploadModal from "@/components/pipeline/BulkUploadModal";
 
 interface PipelineTabProps {
   clientId: string;
   agencyId: string;
 }
 
-interface Asset {
+interface Project {
   id: string;
+  title: string;
   client_id: string;
-  title: string | null;
-  filename: string;
-  file_url: string;
-  file_type: string;
-  content_type: string | null;
-  custom_category: string | null;
-  uploaded_by: string | null;
-  created_at: string;
+  agency_id: string;
   pipeline_stage: string;
-  status: string;
-  visible_to_client: boolean;
   thumbnail_url: string | null;
-  file_size: number | null;
-  updated_at: string;
-  is_client_upload: boolean;
-  current_version: number;
-  final_caption: string | null;
-  hashtags: string | null;
-  platforms: string[] | null;
-  scheduled_time: string | null;
-}
-
-interface Profile {
-  email: string;
+  idea_id: string | null;
+  script_id: string | null;
+  created_at: string;
+  asset_count?: number;
 }
 
 const PIPELINE_STAGES = [
   { key: 'idea', label: 'Idea', color: '220 70% 50%' },
+  { key: 'scripting', label: 'Scripting', color: '250 70% 50%' },
   { key: 'in_production', label: 'In Production', color: '270 70% 50%' },
-  { key: 'review', label: 'Review', color: '30 70% 50%' },
+  { key: 'internal_review', label: 'Internal Review', color: '30 70% 50%' },
+  { key: 'review', label: 'Client Review', color: '35 70% 50%' },
   { key: 'approved', label: 'Approved', color: '150 70% 50%' },
   { key: 'scheduled', label: 'Scheduled', color: '200 70% 50%' },
   { key: 'published', label: 'Published', color: '120 70% 50%' }
 ];
 
 export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
-  const [assets, setAssets] = useState<Asset[]>([]);
-  const [profiles, setProfiles] = useState<Record<string, Profile>>({});
+  const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
-  const [editingFinalAsset, setEditingFinalAsset] = useState<Asset | null>(null);
-  const [activeTab, setActiveTab] = useState("board");
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [showBulkUpload, setShowBulkUpload] = useState(false);
   const { toast } = useToast();
 
-  const fetchAssets = async () => {
+  const fetchProjects = async () => {
     try {
-      const { data, error } = await supabase
-        .from('assets')
-        .select('*')
+      const { data: projectsData, error } = await supabase
+        .from('projects')
+        .select(`
+          id,
+          title,
+          client_id,
+          agency_id,
+          pipeline_stage,
+          thumbnail_url,
+          idea_id,
+          script_id,
+          created_at
+        `)
         .eq('client_id', clientId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      setAssets(data || []);
+      // Get asset counts for each project
+      const projectsWithCounts = await Promise.all(
+        (projectsData || []).map(async (project) => {
+          const { count } = await supabase
+            .from('project_assets')
+            .select('*', { count: 'exact', head: true })
+            .eq('project_id', project.id);
 
-      // Fetch uploader profiles
-      const uploaderIds = [...new Set(data?.map(a => a.uploaded_by).filter(Boolean))];
-      if (uploaderIds.length > 0) {
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('id, email')
-          .in('id', uploaderIds);
+          return {
+            ...project,
+            asset_count: count || 0
+          };
+        })
+      );
 
-        const profileMap: Record<string, Profile> = {};
-        profileData?.forEach(p => {
-          profileMap[p.id] = { email: p.email };
-        });
-        setProfiles(profileMap);
-      }
+      setProjects(projectsWithCounts);
     } catch (error: any) {
-      console.error("Error fetching assets:", error);
+      console.error("Error fetching projects:", error);
       toast({
         title: "Error loading pipeline",
         description: error.message,
@@ -102,21 +94,21 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
   };
 
   useEffect(() => {
-    fetchAssets();
+    fetchProjects();
 
     // Subscribe to real-time changes
     const channel = supabase
-      .channel('pipeline-changes')
+      .channel('pipeline-projects-changes')
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
-          table: 'assets',
+          table: 'projects',
           filter: `client_id=eq.${clientId}`
         },
         () => {
-          fetchAssets();
+          fetchProjects();
         }
       )
       .subscribe();
@@ -126,35 +118,12 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
     };
   }, [clientId]);
 
-  const handleMoveStage = async (assetId: string, newStage: 'idea' | 'in_production' | 'review' | 'approved' | 'scheduled' | 'published') => {
+  const handleMoveStage = async (projectId: string, newStage: string) => {
     try {
-      // Validate scheduling requirements before moving to scheduled stage
-      if (newStage === 'scheduled') {
-        const asset = assets.find(a => a.id === assetId);
-        
-        if (!asset?.platforms || asset.platforms.length === 0) {
-          toast({
-            title: "Platforms required",
-            description: "Please select at least one platform before scheduling",
-            variant: "destructive"
-          });
-          return;
-        }
-
-        if (!asset?.scheduled_time) {
-          toast({
-            title: "Schedule time required",
-            description: "Please set a scheduled date and time before scheduling",
-            variant: "destructive"
-          });
-          return;
-        }
-      }
-
       const { data, error } = await supabase
-        .from('assets')
+        .from('projects')
         .update({ pipeline_stage: newStage })
-        .eq('id', assetId)
+        .eq('id', projectId)
         .select()
         .single();
 
@@ -162,20 +131,20 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
 
       toast({
         title: "Stage updated",
-        description: `Asset moved to ${newStage}`
+        description: `Project moved to ${PIPELINE_STAGES.find(s => s.key === newStage)?.label || newStage}`
       });
 
       // Optimistically update local state
-      setAssets(assets.map(a => a.id === assetId ? { ...a, pipeline_stage: newStage } : a));
+      setProjects(projects.map(p => p.id === projectId ? { ...p, pipeline_stage: newStage } : p));
     } catch (error: any) {
       console.error('Stage transition error:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to move asset. Invalid stage transition.",
+        description: error.message || "Failed to move project",
         variant: "destructive"
       });
       // Revert optimistic update by refetching
-      fetchAssets();
+      fetchProjects();
     }
   };
 
@@ -195,44 +164,21 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
       return;
     }
 
-    const assetId = draggableId;
-    const newStage = destination.droppableId as 'idea' | 'in_production' | 'review' | 'approved' | 'scheduled' | 'published';
-
-    // Validate scheduling requirements before moving to scheduled stage
-    if (newStage === 'scheduled') {
-      const asset = assets.find(a => a.id === assetId);
-      
-      if (!asset?.platforms || asset.platforms.length === 0) {
-        toast({
-          title: "Platforms required",
-          description: "Please select at least one platform before scheduling",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      if (!asset?.scheduled_time) {
-        toast({
-          title: "Schedule time required",
-          description: "Please set a scheduled date and time before scheduling",
-          variant: "destructive"
-        });
-        return;
-      }
-    }
+    const projectId = draggableId;
+    const newStage = destination.droppableId;
 
     // Optimistically update UI
-    const asset = assets.find(a => a.id === assetId);
-    if (asset) {
-      setAssets(assets.map(a => a.id === assetId ? { ...a, pipeline_stage: newStage } : a));
+    const project = projects.find(p => p.id === projectId);
+    if (project) {
+      setProjects(projects.map(p => p.id === projectId ? { ...p, pipeline_stage: newStage } : p));
     }
 
     // Update in database
-    await handleMoveStage(assetId, newStage);
+    await handleMoveStage(projectId, newStage);
   };
 
-  const getAssetsByStage = (stage: string) => {
-    return assets.filter(a => a.pipeline_stage === stage);
+  const getProjectsByStage = (stage: string) => {
+    return projects.filter(p => p.pipeline_stage === stage);
   };
 
   if (loading) {
@@ -245,85 +191,85 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
 
   return (
     <div className="space-y-6">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList>
-          <TabsTrigger value="board">Pipeline Board</TabsTrigger>
-          <TabsTrigger value="library">Asset Library</TabsTrigger>
-        </TabsList>
+      {/* Header with Create Project Button */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold">Content Pipeline</h2>
+          <p className="text-sm text-muted-foreground">Manage projects through the production workflow</p>
+        </div>
+        <Button onClick={() => setShowBulkUpload(true)} size="lg">
+          <Plus className="h-4 w-4 mr-2" />
+          Create Project
+        </Button>
+      </div>
 
-        <TabsContent value="board" className="space-y-6 mt-6">
-          {/* Raw Upload Zone */}
-          <RawUploadZone
-            clientId={clientId}
-            agencyId={agencyId}
-            onUploadComplete={fetchAssets}
-          />
+      {/* Pipeline Board */}
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-4 overflow-x-auto pb-4">
+          {PIPELINE_STAGES.map(stage => {
+            const stageProjects = getProjectsByStage(stage.key);
+            return (
+              <PipelineStageColumn
+                key={stage.key}
+                stageId={stage.key}
+                title={stage.label}
+                count={stageProjects.length}
+                color={stage.color}
+              >
+                {stageProjects.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">
+                    No projects
+                  </p>
+                ) : (
+                  stageProjects.map((project, index) => (
+                    <Draggable
+                      key={project.id}
+                      draggableId={project.id}
+                      index={index}
+                    >
+                      {(provided, snapshot) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.draggableProps}
+                          {...provided.dragHandleProps}
+                        >
+                          <ProjectCard
+                            project={project}
+                            onClick={() => setSelectedProjectId(project.id)}
+                            isDragging={snapshot.isDragging}
+                          />
+                        </div>
+                      )}
+                    </Draggable>
+                  ))
+                )}
+              </PipelineStageColumn>
+            );
+          })}
+        </div>
+      </DragDropContext>
 
-          {/* Pipeline Board */}
-          <DragDropContext onDragEnd={handleDragEnd}>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-              {PIPELINE_STAGES.map(stage => {
-                const stageAssets = getAssetsByStage(stage.key);
-                return (
-                  <PipelineStageColumn
-                    key={stage.key}
-                    stageId={stage.key}
-                    title={stage.label}
-                    count={stageAssets.length}
-                    color={stage.color}
-                  >
-                    {stageAssets.length === 0 ? (
-                      <p className="text-sm text-muted-foreground text-center py-8">
-                        No assets in {stage.label.toLowerCase()}
-                      </p>
-                    ) : (
-                      stageAssets.map((asset, index) => (
-                        <AssetPipelineCard
-                          key={asset.id}
-                          asset={asset}
-                          index={index}
-                          uploaderEmail={asset.uploaded_by ? profiles[asset.uploaded_by]?.email : undefined}
-                          onMoveStage={handleMoveStage}
-                          onView={(id) => {
-                            const foundAsset = assets.find(a => a.id === id);
-                            if (foundAsset?.pipeline_stage === 'approved') {
-                              setEditingFinalAsset(foundAsset);
-                            } else {
-                              setSelectedAsset(foundAsset || null);
-                            }
-                          }}
-                        />
-                      ))
-                    )}
-                  </PipelineStageColumn>
-                );
-              })}
-            </div>
-          </DragDropContext>
-        </TabsContent>
-
-        <TabsContent value="library" className="mt-6">
-          <ContentLibraryTab clientId={clientId} agencyId={agencyId} />
-        </TabsContent>
-      </Tabs>
-
-      {/* Asset Detail Modal */}
-      {selectedAsset && (
-        <AssetDetailModal
-          asset={selectedAsset}
-          onClose={() => setSelectedAsset(null)}
-          onAssetUpdated={fetchAssets}
+      {/* Bulk Upload Modal */}
+      {showBulkUpload && (
+        <BulkUploadModal
+          open={showBulkUpload}
+          onOpenChange={setShowBulkUpload}
+          clientId={clientId}
           agencyId={agencyId}
+          onSuccess={() => {
+            setShowBulkUpload(false);
+            fetchProjects();
+          }}
         />
       )}
 
-      {/* Final Stage Editor */}
-      {editingFinalAsset && (
-        <FinalStageEditor
-          asset={editingFinalAsset}
-          clientId={clientId}
-          onClose={() => setEditingFinalAsset(null)}
-          onSuccess={fetchAssets}
+      {/* Project Editor */}
+      {selectedProjectId && (
+        <ProjectEditor
+          open={!!selectedProjectId}
+          onOpenChange={(open) => !open && setSelectedProjectId(null)}
+          projectId={selectedProjectId}
+          onUpdate={fetchProjects}
         />
       )}
     </div>
