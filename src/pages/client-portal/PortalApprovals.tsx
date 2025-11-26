@@ -84,9 +84,10 @@ export default function PortalApprovals() {
       // For each project, get the final asset
       const projectsWithFinalAssets = await Promise.all(
         (projectsData || []).map(async (project) => {
-          const { data: finalAssets } = await supabase
+          const { data: finalAssetsData, error: assetsError } = await supabase
             .from('project_assets')
             .select(`
+              asset_id,
               assets:asset_id (
                 id,
                 file_url,
@@ -96,13 +97,20 @@ export default function PortalApprovals() {
               )
             `)
             .eq('project_id', project.id)
-            .eq('is_final_content', true)
-            .limit(1)
-            .single();
+            .eq('is_final_content', true);
+
+          if (assetsError) {
+            console.error("Error fetching final assets:", assetsError);
+          }
+
+          // Get the first final asset if any exist
+          const finalAsset = finalAssetsData && finalAssetsData.length > 0 
+            ? finalAssetsData[0].assets 
+            : null;
 
           return {
             ...project,
-            final_asset: finalAssets?.assets as any
+            final_asset: finalAsset
           };
         })
       );
