@@ -6,12 +6,14 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Video, Image as ImageIcon, AlertCircle, Upload, X, Calendar as CalendarIcon } from "lucide-react";
+import { Video, Image as ImageIcon, AlertCircle, Upload, X, Calendar as CalendarIcon, Lightbulb } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
+import { getAllPlatformSuggestions } from "@/lib/platform-posting-times";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface Project {
   id: string;
@@ -467,6 +469,47 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
               Scheduled for: {format(scheduledDate, "PPP")} at {scheduledTime}
             </p>
           </div>
+        )}
+
+        {/* Optimal Posting Times */}
+        {selectedPlatforms.length > 0 && scheduledDate && (
+          <Card className="p-4 bg-blue-500/10 border-blue-500/20">
+            <div className="flex items-start gap-2 mb-3">
+              <Lightbulb className="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <h4 className="font-semibold text-sm mb-2">Optimal Posting Times</h4>
+                <ScrollArea className="max-h-[200px]">
+                  <div className="space-y-3">
+                    {getAllPlatformSuggestions(selectedPlatforms, scheduledDate).map(({ platform, suggestedTime, rules }) => (
+                      <div key={platform} className="space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge variant="outline" className="capitalize">{platform}</Badge>
+                          <span className="text-xs text-muted-foreground">
+                            Best time: {format(suggestedTime, "h:mm a")}
+                          </span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 text-xs"
+                            onClick={() => setScheduledTime(format(suggestedTime, "HH:mm"))}
+                          >
+                            Use this time
+                          </Button>
+                        </div>
+                        {rules && rules.bestPractices.length > 0 && (
+                          <ul className="text-xs text-muted-foreground ml-2 space-y-0.5">
+                            {rules.bestPractices.slice(0, 2).map((practice, idx) => (
+                              <li key={idx}>• {practice}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
+            </div>
+          </Card>
         )}
 
         <Button 
