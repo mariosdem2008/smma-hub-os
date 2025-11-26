@@ -3,11 +3,13 @@ import { DragDropContext, DropResult, Draggable } from "@hello-pangea/dnd";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Plus, Loader2 } from "lucide-react";
 import PipelineStageColumn from "@/components/pipeline/PipelineStageColumn";
 import ProjectCard from "@/components/pipeline/ProjectCard";
 import ProjectEditor from "@/components/pipeline/ProjectEditor";
 import BulkUploadModal from "@/components/pipeline/BulkUploadModal";
+import StageDetailModal from "@/components/pipeline/StageDetailModal";
 
 interface PipelineTabProps {
   clientId: string;
@@ -43,6 +45,8 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
   const [loading, setLoading] = useState(true);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [showBulkUpload, setShowBulkUpload] = useState(false);
+  const [selectedStage, setSelectedStage] = useState<{ key: string; label: string; color: string } | null>(null);
+  const [hoveredStage, setHoveredStage] = useState<string | null>(null);
   const { toast } = useToast();
 
   const fetchProjects = async () => {
@@ -203,47 +207,84 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
         </Button>
       </div>
 
-      {/* Pipeline Board */}
+      {/* Pipeline Board - Compact Tabs */}
       <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-4 overflow-x-auto pb-4">
+        <div className="flex gap-2 overflow-x-auto pb-4">
           {PIPELINE_STAGES.map(stage => {
             const stageProjects = getProjectsByStage(stage.key);
+            const isHovered = hoveredStage === stage.key;
+            
             return (
-              <PipelineStageColumn
+              <div
                 key={stage.key}
-                stageId={stage.key}
-                title={stage.label}
-                count={stageProjects.length}
-                color={stage.color}
+                className={`transition-all duration-300 ease-in-out ${
+                  isHovered ? 'flex-[2]' : 'flex-[0.5]'
+                } min-w-[80px]`}
+                onMouseEnter={() => setHoveredStage(stage.key)}
+                onMouseLeave={() => setHoveredStage(null)}
               >
-                {stageProjects.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-8">
-                    No projects
-                  </p>
-                ) : (
-                  stageProjects.map((project, index) => (
-                    <Draggable
-                      key={project.id}
-                      draggableId={project.id}
-                      index={index}
-                    >
-                      {(provided, snapshot) => (
-                        <div
-                          ref={provided.innerRef}
-                          {...provided.draggableProps}
-                          {...provided.dragHandleProps}
-                        >
-                          <ProjectCard
-                            project={project}
-                            onClick={() => setSelectedProjectId(project.id)}
-                            isDragging={snapshot.isDragging}
-                          />
-                        </div>
+                <div 
+                  className="h-full rounded-lg border bg-card transition-all cursor-pointer"
+                  onClick={() => setSelectedStage(stage)}
+                >
+                  <div className="p-4 border-b flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <h3 className={`font-semibold transition-all ${isHovered ? 'text-base' : 'text-sm'}`}>
+                        {stage.label}
+                      </h3>
+                      <Badge
+                        variant="secondary"
+                        className="text-xs"
+                        style={{
+                          backgroundColor: `hsl(${stage.color} / 0.1)`,
+                          color: `hsl(${stage.color})`,
+                        }}
+                      >
+                        {stageProjects.length}
+                      </Badge>
+                    </div>
+                  </div>
+                  
+                  {isHovered && (
+                    <div className="p-3 space-y-2 overflow-y-auto max-h-[600px]">
+                      {stageProjects.length === 0 ? (
+                        <p className="text-sm text-muted-foreground text-center py-8">
+                          No projects
+                        </p>
+                      ) : (
+                        stageProjects.slice(0, 3).map((project) => (
+                          <div
+                            key={project.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedProjectId(project.id);
+                            }}
+                          >
+                            <ProjectCard
+                              project={project}
+                              onClick={() => {}}
+                              isDragging={false}
+                            />
+                          </div>
+                        ))
                       )}
-                    </Draggable>
-                  ))
-                )}
-              </PipelineStageColumn>
+                      {stageProjects.length > 3 && (
+                        <p className="text-xs text-muted-foreground text-center pt-2">
+                          +{stageProjects.length - 3} more projects
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  
+                  {!isHovered && (
+                    <div className="p-3">
+                      <p className="text-xs text-muted-foreground text-center">
+                        Click to view all
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
             );
           })}
         </div>
@@ -262,6 +303,18 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
           }}
         />
       )}
+
+      {/* Stage Detail Modal */}
+      <StageDetailModal
+        open={!!selectedStage}
+        onOpenChange={(open) => !open && setSelectedStage(null)}
+        stage={selectedStage}
+        projects={selectedStage ? getProjectsByStage(selectedStage.key) : []}
+        onProjectClick={(projectId) => {
+          setSelectedStage(null);
+          setSelectedProjectId(projectId);
+        }}
+      />
 
       {/* Project Editor */}
       {selectedProjectId && (
