@@ -3,11 +3,15 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Video, Image as ImageIcon, AlertCircle, Upload, X } from "lucide-react";
+import { Video, Image as ImageIcon, AlertCircle, Upload, X, Calendar as CalendarIcon } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card } from "@/components/ui/card";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
 
 interface Project {
   id: string;
@@ -46,6 +50,12 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(project.platforms || []);
   const [captions, setCaptions] = useState<Record<string, string>>(project.platform_captions || {});
   const [hashtags, setHashtags] = useState(project.hashtags || "");
+  const [scheduledDate, setScheduledDate] = useState<Date | undefined>(
+    project.scheduled_time ? new Date(project.scheduled_time) : undefined
+  );
+  const [scheduledTime, setScheduledTime] = useState<string>(
+    project.scheduled_time ? format(new Date(project.scheduled_time), "HH:mm") : "12:00"
+  );
 
   useEffect(() => {
     fetchFinalAssets();
@@ -177,15 +187,86 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
     );
   };
 
-  const handleSaveSettings = async () => {
+  const handleSchedulePost = async () => {
+    if (!scheduledDate) {
+      toast({
+        title: "Missing information",
+        description: "Please select a date for scheduling",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (selectedPlatforms.length === 0) {
+      toast({
+        title: "Missing platforms",
+        description: "Please select at least one platform",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (finalAssets.length === 0) {
+      toast({
+        title: "Missing content",
+        description: "Please upload final content first",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
+      const [hours, minutes] = scheduledTime.split(':');
+      const scheduleDateTime = new Date(scheduledDate);
+      scheduleDateTime.setHours(parseInt(hours), parseInt(minutes));
+
       const { error } = await supabase
         .from("projects")
         .update({
+          scheduled_time: scheduleDateTime.toISOString(),
           platforms: selectedPlatforms,
           platform_captions: captions,
           hashtags: hashtags || null,
+          pipeline_stage: "scheduled",
         })
+        .eq("id", project.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Scheduled",
+        description: "Post scheduled successfully for " + format(scheduleDateTime, "PPP 'at' p"),
+      });
+
+      onUpdate();
+    } catch (error) {
+      console.error("Error scheduling post:", error);
+      toast({
+        title: "Error",
+        description: "Failed to schedule post",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSaveSettings = async () => {
+    try {
+      const updateData: any = {
+        platforms: selectedPlatforms,
+        platform_captions: captions,
+        hashtags: hashtags || null,
+      };
+
+      if (scheduledDate && scheduledTime) {
+        const [hours, minutes] = scheduledTime.split(':');
+        const scheduleDateTime = new Date(scheduledDate);
+        scheduleDateTime.setHours(parseInt(hours), parseInt(minutes));
+        updateData.scheduled_time = scheduleDateTime.toISOString();
+      }
+
+      const { error } = await supabase
+        .from("projects")
+        .update(updateData)
         .eq("id", project.id);
 
       if (error) throw error;
@@ -341,15 +422,61 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
         />
       </div>
 
-      {/* Scheduled Time Display */}
-      {project.scheduled_time && (
-        <div className="p-4 rounded-lg bg-muted">
-          <p className="text-sm font-medium mb-1">Scheduled Time</p>
-          <p className="text-sm text-muted-foreground">
-            {new Date(project.scheduled_time).toLocaleString()}
-          </p>
+      {/* Schedule Post Section */}
+      <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
+        <h3 className="text-lg font-semibold">Schedule Post</h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label>Date</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start text-left font-normal"
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {scheduledDate ? format(scheduledDate, "PPP") : "Pick a date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={scheduledDate}
+                  onSelect={setScheduledDate}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="time">Time</Label>
+            <Input
+              id="time"
+              type="time"
+              value={scheduledTime}
+              onChange={(e) => setScheduledTime(e.target.value)}
+            />
+          </div>
         </div>
-      )}
+
+        {scheduledDate && (
+          <div className="p-3 rounded bg-primary/10 border border-primary/20">
+            <p className="text-sm font-medium">
+              Scheduled for: {format(scheduledDate, "PPP")} at {scheduledTime}
+            </p>
+          </div>
+        )}
+
+        <Button 
+          onClick={handleSchedulePost} 
+          className="w-full"
+          disabled={!scheduledDate || selectedPlatforms.length === 0 || finalAssets.length === 0}
+        >
+          Schedule Post
+        </Button>
+      </div>
 
       {/* Save Button */}
       <div className="flex justify-end pt-4 border-t">

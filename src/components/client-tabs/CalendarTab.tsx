@@ -13,15 +13,12 @@ interface CalendarTabProps {
   clientId: string;
 }
 
-interface Asset {
+interface ScheduledItem {
   id: string;
-  filename: string;
-  platforms: string[] | null;
+  title: string;
   scheduled_time: string | null;
   pipeline_stage: string;
-  final_caption: string | null;
-  file_url: string;
-  file_type: string;
+  type: 'project' | 'asset';
 }
 
 const stageColors: Record<string, string> = {
@@ -31,56 +28,47 @@ const stageColors: Record<string, string> = {
 };
 
 export default function CalendarTab({ clientId }: CalendarTabProps) {
-  const [assets, setAssets] = useState<Asset[]>([]);
+  const [items, setItems] = useState<ScheduledItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<"week" | "month">("week");
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const { toast } = useToast();
 
   useEffect(() => {
-    fetchAssets();
+    fetchScheduledItems();
   }, [clientId]);
 
-  const fetchAssets = async () => {
-    const { data, error } = await supabase
-      .from("assets")
-      .select("*")
-      .eq("client_id", clientId)
-      .in("pipeline_stage", ["approved", "scheduled", "published"])
-      .order("scheduled_time", { ascending: true, nullsFirst: false });
+  const fetchScheduledItems = async () => {
+    try {
+      const { data: projects, error: projectsError } = await supabase
+        .from("projects")
+        .select("id, title, scheduled_time, pipeline_stage")
+        .eq("client_id", clientId)
+        .in("pipeline_stage", ["scheduled", "published"])
+        .not("scheduled_time", "is", null);
 
-    if (error) {
+      if (projectsError) throw projectsError;
+
+      const scheduledItems: ScheduledItem[] = (projects || []).map(p => ({
+        id: p.id,
+        title: p.title,
+        scheduled_time: p.scheduled_time,
+        pipeline_stage: p.pipeline_stage,
+        type: 'project' as const,
+      }));
+
+      setItems(scheduledItems);
+    } catch (error: any) {
       toast({
         title: "Error loading calendar",
         description: error.message,
         variant: "destructive",
       });
-    } else {
-      setAssets(data || []);
-    }
-    setLoading(false);
-  };
-
-  const handleDateChange = async (assetId: string, newDate: Date) => {
-    const { error } = await supabase
-      .from("assets")
-      .update({ scheduled_time: newDate.toISOString() })
-      .eq("id", assetId);
-
-    if (error) {
-      toast({
-        title: "Error updating schedule",
-        description: error.message,
-        variant: "destructive",
-      });
-    } else {
-      toast({
-        title: "Schedule updated",
-        description: "Asset rescheduled successfully",
-      });
-      fetchAssets();
+    } finally {
+      setLoading(false);
     }
   };
+
 
   const getWeekDays = () => {
     const start = startOfWeek(selectedDate, { weekStartsOn: 1 });
@@ -94,16 +82,12 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
     return eachDayOfInterval({ start, end });
   };
 
-  const getAssetsForDay = (day: Date) => {
-    return assets.filter((asset) => {
-      if (!asset.scheduled_time) return false;
-      return isSameDay(parseISO(asset.scheduled_time), day);
+  const getItemsForDay = (day: Date) => {
+    return items.filter((item) => {
+      if (!item.scheduled_time) return false;
+      return isSameDay(parseISO(item.scheduled_time), day);
     });
   };
-
-  const unscheduledAssets = assets.filter(
-    (a) => a.pipeline_stage === "approved" && !a.scheduled_time
-  );
 
   if (loading) {
     return (
@@ -146,7 +130,7 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
 
           <div className="grid grid-cols-7 gap-4">
             {getWeekDays().map((day) => {
-              const dayAssets = getAssetsForDay(day);
+              const dayItems = getItemsForDay(day);
               return (
                 <Card key={day.toISOString()} className="p-4">
                   <div className="font-semibold mb-2">
@@ -155,27 +139,26 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
                     <span className="text-2xl">{format(day, "d")}</span>
                   </div>
                   <div className="space-y-2">
-                    {dayAssets.map((asset) => (
+                    {dayItems.map((item) => (
                       <div
-                        key={asset.id}
-                        className="p-2 rounded border bg-card cursor-move"
-                        draggable
+                        key={item.id}
+                        className="p-2 rounded border bg-card"
                       >
                         <div className="flex items-center gap-2 mb-1">
                           <Clock className="h-3 w-3" />
                           <span className="text-xs">
-                            {asset.scheduled_time
-                              ? format(parseISO(asset.scheduled_time), "HH:mm")
+                            {item.scheduled_time
+                              ? format(parseISO(item.scheduled_time), "HH:mm")
                               : "Unscheduled"}
                           </span>
                         </div>
                         <p className="text-xs font-medium line-clamp-2">
-                          {asset.filename}
+                          {item.title}
                         </p>
                         <Badge
-                          className={`${stageColors[asset.pipeline_stage]} text-white text-xs mt-1`}
+                          className={`${stageColors[item.pipeline_stage]} text-white text-xs mt-1`}
                         >
-                          {asset.pipeline_stage}
+                          {item.pipeline_stage}
                         </Badge>
                       </div>
                     ))}
@@ -206,21 +189,21 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
               </div>
             ))}
             {getMonthDays().map((day) => {
-              const dayAssets = getAssetsForDay(day);
+              const dayItems = getItemsForDay(day);
               return (
                 <Card key={day.toISOString()} className="p-2 min-h-[100px]">
                   <div className="text-sm font-semibold mb-1">
                     {format(day, "d")}
                   </div>
                   <div className="space-y-1">
-                    {dayAssets.map((asset) => (
+                    {dayItems.map((item) => (
                       <div
-                        key={asset.id}
+                        key={item.id}
                         className={`${
-                          stageColors[asset.pipeline_stage]
+                          stageColors[item.pipeline_stage]
                         } text-white text-xs p-1 rounded`}
                       >
-                        <p className="line-clamp-1">{asset.filename}</p>
+                        <p className="line-clamp-1">{item.title}</p>
                       </div>
                     ))}
                   </div>
@@ -231,33 +214,6 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
         </TabsContent>
       </Tabs>
 
-      {unscheduledAssets.length > 0 && (
-        <Card className="p-4">
-          <h3 className="font-semibold mb-3 flex items-center gap-2">
-            <CalendarDays className="h-5 w-5" />
-            Approved (Unscheduled)
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {unscheduledAssets.map((asset) => (
-              <div key={asset.id} className="p-3 border rounded bg-card">
-                {asset.file_type.startsWith("image/") && (
-                  <img
-                    src={asset.file_url}
-                    alt={asset.filename}
-                    className="w-full h-32 object-cover rounded mb-2"
-                  />
-                )}
-                <p className="text-sm font-medium line-clamp-2 mb-2">
-                  {asset.filename}
-                </p>
-                <Badge variant="outline" className="text-xs">
-                  {asset.pipeline_stage}
-                </Badge>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
     </div>
   );
 }

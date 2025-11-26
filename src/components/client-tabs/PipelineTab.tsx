@@ -47,6 +47,7 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
   const [showBulkUpload, setShowBulkUpload] = useState(false);
   const [selectedStage, setSelectedStage] = useState<{ key: string; label: string; color: string } | null>(null);
   const [hoveredStage, setHoveredStage] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const { toast } = useToast();
 
   const fetchProjects = async () => {
@@ -153,6 +154,7 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
   };
 
   const handleDragEnd = async (result: DropResult) => {
+    setIsDragging(false);
     const { source, destination, draggableId } = result;
 
     // Dropped outside the list
@@ -208,11 +210,14 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
       </div>
 
       {/* Pipeline Board - Compact Tabs with Drag & Drop */}
-      <DragDropContext onDragEnd={handleDragEnd}>
+      <DragDropContext 
+        onDragEnd={handleDragEnd}
+        onDragStart={() => setIsDragging(true)}
+      >
         <div className="flex gap-2 overflow-x-auto pb-4">
           {PIPELINE_STAGES.map(stage => {
             const stageProjects = getProjectsByStage(stage.key);
-            const isHovered = hoveredStage === stage.key;
+            const isHovered = !isDragging && hoveredStage === stage.key;
             
             return (
               <Droppable droppableId={stage.key} key={stage.key}>
@@ -220,10 +225,10 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
                   <div
                     ref={provided.innerRef}
                     {...provided.droppableProps}
-                    className={`transition-all duration-300 ease-in-out ${
+                    className={`transition-all duration-700 ease-in-out ${
                       isHovered ? 'flex-[2]' : 'flex-[0.5]'
                     } min-w-[80px]`}
-                    onMouseEnter={() => setHoveredStage(stage.key)}
+                    onMouseEnter={() => !isDragging && setHoveredStage(stage.key)}
                     onMouseLeave={() => setHoveredStage(null)}
                   >
                     <div 
