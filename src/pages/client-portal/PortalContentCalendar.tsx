@@ -37,6 +37,27 @@ export function PortalContentCalendar() {
 
   useEffect(() => {
     fetchProjects();
+
+    // Subscribe to real-time changes
+    const channel = supabase
+      .channel('portal-calendar')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'projects',
+          filter: `client_id=eq.${clientId}`
+        },
+        () => {
+          fetchProjects();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [clientId]);
 
   const fetchProjects = async () => {

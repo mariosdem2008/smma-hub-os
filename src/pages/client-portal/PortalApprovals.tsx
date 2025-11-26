@@ -63,7 +63,7 @@ export default function PortalApprovals() {
 
   const fetchProjectsForApproval = async () => {
     try {
-      // Get projects in Client Review stage
+      // Get projects in Client Review stage (stage key is 'review')
       const { data: projectsData, error: projectsError } = await supabase
         .from('projects')
         .select(`
@@ -76,7 +76,7 @@ export default function PortalApprovals() {
           scheduled_time
         `)
         .eq('client_id', clientId)
-        .eq('pipeline_stage', 'client_review')
+        .eq('pipeline_stage', 'review')
         .order('created_at', { ascending: false });
 
       if (projectsError) throw projectsError;
