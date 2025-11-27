@@ -99,9 +99,10 @@ export function WaitlistModal({ open, onOpenChange }: WaitlistModalProps) {
         {!isSubmitted ? (
           <>
             <DialogHeader>
-              <DialogTitle className="text-2xl">Join the Waitlist</DialogTitle>
-              <DialogDescription>
-                Be the first to know when SMMAHUB launches. Get exclusive early access and special launch pricing.
+              <DialogTitle className="text-2xl">Get Early Access + 20% Lifetime Discount</DialogTitle>
+              <DialogDescription className="text-base">
+                Join the waitlist to get exclusive early access when we launch on December 23rd, 
+                plus lock in a <strong className="text-foreground">20% lifetime discount</strong> on any paid plan.
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4 mt-4">
