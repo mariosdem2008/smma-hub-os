@@ -146,8 +146,7 @@ export default function Landing() {
                 transition={{ duration: 0.6, delay: 0.1 }}
               >
                 <Badge variant="secondary" className="mb-6 text-sm px-4 py-1.5">
-                  <Zap className="mr-2 h-3 w-3" />
-                  Early Access + 20% Lifetime Discount
+                  Early Access • Lifetime 20% Discount
                 </Badge>
               </motion.div>
 
@@ -167,28 +166,19 @@ export default function Landing() {
                 transition={{ duration: 0.6, delay: 0.3 }}
               >
                 Auto-post to Instagram, Facebook & LinkedIn. Store brand guidelines, manage raw footage, share edited
-                content — everything your editors and clients need, organized and automated.
+                content — everything your editors and clients need, fully organized and automated.
               </motion.p>
 
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.4 }}
-                className="mb-8"
-              >
-                <LaunchCountdown />
-              </motion.div>
-
-              <motion.div
-                className="flex flex-col sm:flex-row items-center lg:items-start justify-center lg:justify-start gap-4 mb-8"
+                className="flex flex-col sm:flex-row items-center lg:items-start justify-center lg:justify-start gap-4 mb-4"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ duration: 0.6, delay: 0.5 }}
+                transition={{ duration: 0.6, delay: 0.4 }}
               >
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 0.6 }}
+                  transition={{ duration: 0.4, delay: 0.5 }}
                 >
                   <Button
                     size="lg"
@@ -203,7 +193,7 @@ export default function Landing() {
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 0.8 }}
+                  transition={{ duration: 0.4, delay: 0.6 }}
                 >
                   <Button
                     size="lg"
@@ -217,12 +207,21 @@ export default function Landing() {
                 </motion.div>
               </motion.div>
 
+              <motion.p
+                className="text-sm text-muted-foreground mb-6 text-center lg:text-left"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.6, delay: 0.7 }}
+              >
+                For SMMA owners, editors, content creators & account managers.
+              </motion.p>
+
               {/* Trust Badges */}
               <motion.div
                 className="flex flex-col sm:flex-row items-center lg:items-start justify-center lg:justify-start gap-3 sm:gap-4"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ duration: 0.6, delay: 1.0 }}
+                transition={{ duration: 0.6, delay: 0.8 }}
               >
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <CheckCircle2 className="h-4 w-4 text-primary" />
@@ -241,66 +240,19 @@ export default function Landing() {
               <HeroMockup />
             </div>
           </div>
-
-          {/* Mobile Mockup - Below Hero */}
-          <div className="mt-20 lg:hidden">
-            <MobileMockup />
-          </div>
         </div>
       </section>
 
-      {/* SECTION 2 - PROOF BAR */}
+      {/* COUNTDOWN - Below Hero */}
       <AnimatedSection>
-        <section className="border-y bg-muted/30 py-12">
+        <section className="py-12 border-y bg-muted/30">
           <div className="container mx-auto px-4">
-            <div className="flex flex-col items-center gap-8">
-              <motion.p variants={fadeInUp} className="text-sm font-medium text-muted-foreground">
-                Purpose-built for agencies managing 10–100+ client brands
-              </motion.p>
-
-              <motion.div variants={fadeInUp} className="grid grid-cols-2 md:grid-cols-4 gap-8 w-full max-w-4xl">
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-primary mb-1">10K+</div>
-                  <div className="text-sm text-muted-foreground">Hours Saved</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-primary mb-1">3</div>
-                  <div className="text-sm text-muted-foreground">Platforms Connected</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-primary mb-1">24/7</div>
-                  <div className="text-sm text-muted-foreground">Auto-Posting</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-primary mb-1">100%</div>
-                  <div className="text-sm text-muted-foreground">Organized Files</div>
-                </div>
-              </motion.div>
-
-              <motion.div variants={fadeInUp} className="flex flex-wrap items-center justify-center gap-8">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Building2 className="h-5 w-5" />
-                  <span className="text-sm">Real Estate</span>
-                </div>
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <ShoppingBag className="h-5 w-5" />
-                  <span className="text-sm">E-commerce</span>
-                </div>
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Heart className="h-5 w-5" />
-                  <span className="text-sm">Beauty</span>
-                </div>
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Dumbbell className="h-5 w-5" />
-                  <span className="text-sm">Fitness</span>
-                </div>
-              </motion.div>
-            </div>
+            <LaunchCountdown />
           </div>
         </section>
       </AnimatedSection>
 
-      {/* SECTION 3 - CORE BENEFITS */}
+      {/* SECTION 2 - WHY AGENCIES CHOOSE */}
       <section className="py-20">
         <div className="container mx-auto px-4">
           <AnimatedSection>
@@ -324,16 +276,16 @@ export default function Landing() {
                   "Every client's files, brand assets, guidelines, and notes organized in dedicated workspaces. Editors find what they need instantly.",
               },
               {
+                icon: Target,
+                title: "Auto-Post Everywhere",
+                description:
+                  "Schedule once, post to Instagram, Facebook & LinkedIn automatically. Save 6–18 hours per week with automation.",
+              },
+              {
                 icon: Upload,
                 title: "Seamless File Management",
                 description:
                   "Upload raw footage, share edited content, store brand assets. Everything accessible to your team and clients when they need it.",
-              },
-              {
-                icon: Target,
-                title: "Auto-Post Everywhere",
-                description:
-                  "Schedule once, post to Instagram, Facebook & LinkedIn automatically. Save hours of manual posting every week.",
               },
               {
                 icon: Palette,
@@ -370,32 +322,91 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* SECTION 3 - PROOF BAR */}
+      <AnimatedSection>
+        <section className="border-y bg-muted/30 py-12">
+          <div className="container mx-auto px-4">
+            <div className="flex flex-col items-center gap-8">
+              <motion.p variants={fadeInUp} className="text-sm font-medium text-muted-foreground">
+                Purpose-built for agencies managing 10–100+ client brands
+              </motion.p>
+
+              <motion.div variants={fadeInUp} className="grid grid-cols-2 md:grid-cols-4 gap-8 w-full max-w-4xl">
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-primary mb-1">6–18 hrs</div>
+                  <div className="text-sm text-muted-foreground">Saved per week</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-primary mb-1">3</div>
+                  <div className="text-sm text-muted-foreground">Platforms connected</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-primary mb-1">100%</div>
+                  <div className="text-sm text-muted-foreground">Centralized files</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-primary mb-1">Zero</div>
+                  <div className="text-sm text-muted-foreground">Manual posting</div>
+                </div>
+              </motion.div>
+
+              <motion.div variants={fadeInUp} className="flex flex-wrap items-center justify-center gap-8">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Building2 className="h-5 w-5" />
+                  <span className="text-sm">Real Estate</span>
+                </div>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <ShoppingBag className="h-5 w-5" />
+                  <span className="text-sm">E-commerce</span>
+                </div>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Heart className="h-5 w-5" />
+                  <span className="text-sm">Beauty</span>
+                </div>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Dumbbell className="h-5 w-5" />
+                  <span className="text-sm">Fitness</span>
+                </div>
+              </motion.div>
+            </div>
+          </div>
+        </section>
+      </AnimatedSection>
+
       {/* SECTION 4 - FEATURE SHOWCASE */}
       <section className="bg-muted/30 py-20">
         <div className="container mx-auto px-4">
           <div className="space-y-32">
-            {/* Feature 1 - Client Command Center */}
+            {/* Feature 1 - Client Workspaces */}
             <AnimatedSection>
               <div className="grid gap-12 lg:grid-cols-2 lg:gap-16 items-center">
                 <motion.div variants={fadeInLeft} className="order-2 lg:order-1">
                   <Badge className="mb-4">Client Workspaces</Badge>
-                  <h3 className="mb-4 text-3xl font-bold">Everything Your Editors Need to Execute</h3>
+                  <h3 className="mb-4 text-3xl font-bold">Everything Your Editors Need — In One Place</h3>
                   <p className="mb-6 text-lg text-muted-foreground">
-                    Give every client a dedicated workspace with brand guidelines, asset library, content ideas, and
-                    file sharing — all in one place. No more "where's that file?" messages.
+                    Give every client a dedicated workspace with brand guidelines, asset library, raw footage uploads,
+                    edited content storage, content ideas, and file sharing — all instantly accessible by your team.
                   </p>
                   <ul className="space-y-3">
                     <li className="flex items-start gap-3">
                       <CheckCircle2 className="h-5 w-5 text-primary mt-0.5" />
-                      <span>Brand colors, fonts, tone of voice & guidelines</span>
+                      <span>Brand colors, fonts & tone of voice</span>
                     </li>
                     <li className="flex items-start gap-3">
                       <CheckCircle2 className="h-5 w-5 text-primary mt-0.5" />
-                      <span>Raw footage uploads & edited content storage</span>
+                      <span>Raw footage uploads</span>
                     </li>
                     <li className="flex items-start gap-3">
                       <CheckCircle2 className="h-5 w-5 text-primary mt-0.5" />
-                      <span>Asset library with instant search & preview</span>
+                      <span>Edited graphics & video previews</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <CheckCircle2 className="h-5 w-5 text-primary mt-0.5" />
+                      <span>Asset library with instant search</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <CheckCircle2 className="h-5 w-5 text-primary mt-0.5" />
+                      <span>Notes & guidelines stored in one place</span>
                     </li>
                   </ul>
                 </motion.div>
@@ -659,7 +670,7 @@ export default function Landing() {
                       variant={tier.popular ? "default" : "outline"}
                       onClick={() => setShowWaitlistModal(true)}
                     >
-                      {tier.price === 0 ? "Join Waitlist" : "Get 20% Off"}
+                      Get Early Access + 20% Off
                     </Button>
                   </CardContent>
                 </Card>
@@ -711,6 +722,10 @@ export default function Landing() {
                       a: "Absolutely. All data is encrypted, backed up regularly, and stored on secure servers. We follow industry best practices and are compliant with GDPR regulations.",
                     },
                     {
+                      q: "Can my editors and clients upload raw and edited content?",
+                      a: "Yes. SMMAHUB supports raw footage, edited posts, graphics, reels, carousels, and all client assets in dedicated workspaces. Editors and clients can both upload files.",
+                    },
+                    {
                       q: "Can I cancel anytime?",
                       a: "Yes, you can cancel your subscription at any time. If you joined from the waitlist, you'll still keep your 20% discount if you ever decide to reactivate.",
                     },
@@ -736,8 +751,7 @@ export default function Landing() {
                 Stop Losing Hours to Disorganized Workflows
               </h2>
               <p className="mb-8 text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto">
-                Join the waitlist to get <strong className="text-foreground">early access on December 23rd</strong> plus
-                a <strong className="text-primary">20% lifetime discount</strong> on any plan. No credit card needed.
+                Join the waitlist to get early access on December 23rd plus a 20% lifetime discount on any plan.
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
                 <Button
@@ -753,21 +767,10 @@ export default function Landing() {
                   Watch Demo
                 </Button>
               </div>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 text-sm text-muted-foreground">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-primary" />
-                  <span>No credit card required</span>
-                </div>
-                <span className="hidden sm:inline">•</span>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-primary" />
-                  <span>Early access on Dec 23rd</span>
-                </div>
-                <span className="hidden sm:inline">•</span>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-primary" />
-                  <span>20% off for life</span>
-                </div>
+              <div className="flex items-center justify-center">
+                <Badge variant="secondary" className="text-sm px-4 py-1.5">
+                  No credit card required
+                </Badge>
               </div>
             </motion.div>
           </div>
