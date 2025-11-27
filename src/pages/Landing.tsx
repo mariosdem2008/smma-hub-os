@@ -41,6 +41,7 @@ import {
 } from "lucide-react";
 import { PLAN_NAMES, PLAN_PRICES } from "@/lib/plan-limits";
 import { WaitlistModal } from "@/components/WaitlistModal";
+import { LaunchCountdown } from "@/components/LaunchCountdown";
 
 // Animation variants
 const fadeInUp = {
@@ -151,31 +152,41 @@ export default function Landing() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.1 }}
               >
-                <Badge variant="secondary" className="mb-6 text-sm">
+                <Badge variant="secondary" className="mb-6 text-sm px-4 py-1.5">
                   <Zap className="mr-2 h-3 w-3" />
-                  The Operating System for Modern Agencies
+                  Early Access + 20% Lifetime Discount
                 </Badge>
               </motion.div>
 
               <motion.h1 
-                className="mb-6 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl"
+                className="mb-6 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl leading-tight"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.2 }}
               >
-                The Operating System for{" "}
-                <span className="text-primary">Modern Social Media Agencies</span>
+                All Your Client Files, Brand Assets & Content{" "}
+                <span className="text-primary">In One Place</span>
               </motion.h1>
 
               <motion.p 
-                className="mb-8 text-lg text-muted-foreground"
+                className="mb-8 text-lg sm:text-xl text-muted-foreground leading-relaxed"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.3 }}
+              >
+                Auto-post to Instagram, Facebook & LinkedIn. Store brand guidelines, 
+                manage raw footage, share edited content — everything your editors and 
+                clients need, organized and automated.
+              </motion.p>
+
+              <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.4 }}
+                className="mb-8"
               >
-                Run your entire agency — clients, content, branding, assets, inspiration, 
-                calendar, and team — all in one powerful workspace.
-              </motion.p>
+                <LaunchCountdown />
+              </motion.div>
 
               <motion.div 
                 className="flex flex-col sm:flex-row items-center lg:items-start justify-center lg:justify-start gap-4 mb-8"
@@ -190,10 +201,10 @@ export default function Landing() {
                 >
                   <Button 
                     size="lg" 
-                    className="text-base px-8"
+                    className="text-base px-8 shadow-lg hover:shadow-xl transition-shadow"
                     onClick={() => setShowWaitlistModal(true)}
                   >
-                    Join Waitlist
+                    Get Early Access + 20% Off
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </motion.div>
@@ -217,21 +228,20 @@ export default function Landing() {
 
               {/* Trust Badges */}
               <motion.div 
-                className="flex flex-wrap items-center justify-center lg:justify-start gap-4 text-sm text-muted-foreground"
+                className="flex flex-col sm:flex-row items-center lg:items-start justify-center lg:justify-start gap-3 sm:gap-4"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.6, delay: 1.0 }}
               >
-                <span className="flex items-center gap-2">
-                  <Instagram className="h-4 w-4" /> Instagram
-                </span>
-                <span className="flex items-center gap-2">
-                  <Facebook className="h-4 w-4" /> Facebook
-                </span>
-                <span className="flex items-center gap-2">
-                  <Linkedin className="h-4 w-4" /> LinkedIn
-                </span>
-                <span>& TikTok</span>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <CheckCircle2 className="h-4 w-4 text-primary" />
+                  <span>Auto-posts to Instagram, Facebook & LinkedIn</span>
+                </div>
+                <div className="hidden sm:block text-muted-foreground">•</div>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <CheckCircle2 className="h-4 w-4 text-primary" />
+                  <span>No credit card required</span>
+                </div>
               </motion.div>
             </div>
 
@@ -250,12 +260,32 @@ export default function Landing() {
 
       {/* SECTION 2 - PROOF BAR */}
       <AnimatedSection>
-        <section className="border-y bg-muted/30 py-8">
+        <section className="border-y bg-muted/30 py-12">
           <div className="container mx-auto px-4">
-            <div className="flex flex-col items-center gap-6 text-center">
+            <div className="flex flex-col items-center gap-8">
               <motion.p variants={fadeInUp} className="text-sm font-medium text-muted-foreground">
-                Trusted by agencies managing 10–100+ client brands
+                Purpose-built for agencies managing 10–100+ client brands
               </motion.p>
+              
+              <motion.div variants={fadeInUp} className="grid grid-cols-2 md:grid-cols-4 gap-8 w-full max-w-4xl">
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-primary mb-1">10K+</div>
+                  <div className="text-sm text-muted-foreground">Hours Saved</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-primary mb-1">3</div>
+                  <div className="text-sm text-muted-foreground">Platforms Connected</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-primary mb-1">24/7</div>
+                  <div className="text-sm text-muted-foreground">Auto-Posting</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-primary mb-1">100%</div>
+                  <div className="text-sm text-muted-foreground">Organized Files</div>
+                </div>
+              </motion.div>
+
               <motion.div variants={fadeInUp} className="flex flex-wrap items-center justify-center gap-8">
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Building2 className="h-5 w-5" />
@@ -285,40 +315,56 @@ export default function Landing() {
           <AnimatedSection>
             <div className="mb-12 text-center">
               <motion.h2 variants={fadeInUp} className="mb-4 text-3xl font-bold sm:text-4xl">
-                Everything You Need to Scale
+                Why Agencies Choose SMMAHUB
               </motion.h2>
-              <motion.p variants={fadeInUp} className="text-lg text-muted-foreground">
-                Purpose-built for social media marketing agencies
+              <motion.p variants={fadeInUp} className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                Everything you need to manage clients, content, and team in one place — 
+                no more juggling Google Drive, spreadsheets, and scheduling tools
               </motion.p>
             </div>
           </AnimatedSection>
 
-          <AnimatedSection className="grid gap-8 md:grid-cols-3">
+          <AnimatedSection className="grid gap-6 md:grid-cols-3">
             {[
               {
-                icon: LayoutGrid,
-                title: "Everything Organized",
-                description: "Centralize clients, branding, assets, tasks, and social profiles in one place."
+                icon: FolderOpen,
+                title: "Centralized Client Hub",
+                description: "Every client's files, brand assets, guidelines, and notes organized in dedicated workspaces. Editors find what they need instantly."
               },
               {
-                icon: Zap,
-                title: "Lightning-Fast Content Systems",
-                description: "Ideas, pillars, calendar, saved captions — all connected and ready to use."
+                icon: Upload,
+                title: "Seamless File Management",
+                description: "Upload raw footage, share edited content, store brand assets. Everything accessible to your team and clients when they need it."
+              },
+              {
+                icon: Target,
+                title: "Auto-Post Everywhere",
+                description: "Schedule once, post to Instagram, Facebook & LinkedIn automatically. Save hours of manual posting every week."
+              },
+              {
+                icon: Palette,
+                title: "Brand Guidelines Storage",
+                description: "Store colors, fonts, tone of voice, and brand rules. Your entire team stays on-brand for every client."
               },
               {
                 icon: Users,
-                title: "Team & Clients in One Workspace",
-                description: "Invite your team, assign roles, collaborate in real time with full control."
+                title: "Team Collaboration",
+                description: "Assign roles, share feedback, and collaborate in real-time. Everyone knows what to work on and when it's due."
+              },
+              {
+                icon: Calendar,
+                title: "Content Calendar",
+                description: "Plan and visualize all client content in one unified calendar. Never miss a deadline or double-book a slot."
               }
             ].map((benefit, index) => (
               <motion.div key={index} variants={fadeInUp}>
-                <Card className="border-2 hover:border-primary/50 transition-all duration-200 hover:shadow-lg hover:scale-[1.02] h-full">
+                <Card className="border hover:border-primary/50 transition-all duration-200 hover:shadow-lg h-full">
                   <CardHeader>
-                    <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                      <benefit.icon className="h-6 w-6 text-primary" />
+                    <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                      <benefit.icon className="h-5 w-5 text-primary" />
                     </div>
-                    <CardTitle>{benefit.title}</CardTitle>
-                    <CardDescription className="text-base">
+                    <CardTitle className="text-lg">{benefit.title}</CardTitle>
+                    <CardDescription className="text-sm leading-relaxed">
                       {benefit.description}
                     </CardDescription>
                   </CardHeader>
@@ -337,26 +383,26 @@ export default function Landing() {
             <AnimatedSection>
               <div className="grid gap-12 lg:grid-cols-2 lg:gap-16 items-center">
                 <motion.div variants={fadeInLeft} className="order-2 lg:order-1">
-                  <Badge className="mb-4">Client Management</Badge>
+                  <Badge className="mb-4">Client Workspaces</Badge>
                   <h3 className="mb-4 text-3xl font-bold">
-                    Client Command Center
+                    Everything Your Editors Need to Execute
                   </h3>
                   <p className="mb-6 text-lg text-muted-foreground">
-                    Every client gets their own workspace with branding guidelines, ideas board, 
-                    asset library, and inspiration panel — all customizable and organized.
+                    Give every client a dedicated workspace with brand guidelines, asset library, 
+                    content ideas, and file sharing — all in one place. No more "where's that file?" messages.
                   </p>
                   <ul className="space-y-3">
                     <li className="flex items-start gap-3">
                       <CheckCircle2 className="h-5 w-5 text-primary mt-0.5" />
-                      <span>Brand colors, voice, and guidelines</span>
+                      <span>Brand colors, fonts, tone of voice & guidelines</span>
                     </li>
                     <li className="flex items-start gap-3">
                       <CheckCircle2 className="h-5 w-5 text-primary mt-0.5" />
-                      <span>Kanban-style ideas board</span>
+                      <span>Raw footage uploads & edited content storage</span>
                     </li>
                     <li className="flex items-start gap-3">
                       <CheckCircle2 className="h-5 w-5 text-primary mt-0.5" />
-                      <span>Complete asset management system</span>
+                      <span>Asset library with instant search & preview</span>
                     </li>
                   </ul>
                 </motion.div>
@@ -373,26 +419,26 @@ export default function Landing() {
                   <CalendarMockup />
                 </motion.div>
                 <motion.div variants={fadeInRight}>
-                  <Badge className="mb-4">Content Planning</Badge>
+                  <Badge className="mb-4">Auto-Posting</Badge>
                   <h3 className="mb-4 text-3xl font-bold">
-                    Powerful Content Calendar
+                    Schedule Once, Post Everywhere
                   </h3>
                   <p className="mb-6 text-lg text-muted-foreground">
-                    Plan, schedule, and track all your social media posts across multiple 
-                    clients and platforms in a unified calendar view.
+                    Connect your clients' Instagram, Facebook & LinkedIn accounts. Schedule content 
+                    once and let SMMAHUB auto-post at the perfect time — no manual posting required.
                   </p>
                   <ul className="space-y-3">
                     <li className="flex items-start gap-3">
                       <CheckCircle2 className="h-5 w-5 text-primary mt-0.5" />
-                      <span>Monthly and weekly views</span>
+                      <span>Auto-post to Instagram, Facebook & LinkedIn</span>
                     </li>
                     <li className="flex items-start gap-3">
                       <CheckCircle2 className="h-5 w-5 text-primary mt-0.5" />
-                      <span>Multi-platform scheduling</span>
+                      <span>Unified calendar for all clients & platforms</span>
                     </li>
                     <li className="flex items-start gap-3">
                       <CheckCircle2 className="h-5 w-5 text-primary mt-0.5" />
-                      <span>Status tracking and analytics</span>
+                      <span>Timezone-aware scheduling</span>
                     </li>
                   </ul>
                 </motion.div>
@@ -482,6 +528,42 @@ export default function Landing() {
         </section>
       </AnimatedSection>
 
+      {/* SECTION 5.5 - URGENCY/EARLY ACCESS BANNER */}
+      <AnimatedSection>
+        <section className="py-16 bg-primary/5 border-y border-primary/20">
+          <div className="container mx-auto px-4">
+            <div className="max-w-4xl mx-auto text-center">
+              <motion.div variants={fadeInUp} className="mb-6">
+                <Badge variant="secondary" className="text-sm px-4 py-2 mb-4 bg-primary/10 text-primary border-primary/20">
+                  Limited Time Offer
+                </Badge>
+                <h2 className="text-3xl sm:text-4xl font-bold mb-4">
+                  Join the Waitlist, Get <span className="text-primary">20% Off for Life</span>
+                </h2>
+                <p className="text-lg text-muted-foreground mb-6 max-w-2xl mx-auto">
+                  Be among the first to access SMMAHUB when we launch on December 23rd. 
+                  Waitlist members get early access and lock in a permanent 20% discount on any paid plan — forever.
+                </p>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                  <Button 
+                    size="lg"
+                    onClick={() => setShowWaitlistModal(true)}
+                    className="px-8 shadow-lg"
+                  >
+                    Get Early Access + 20% Off
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <CheckCircle2 className="h-4 w-4 text-primary" />
+                    <span>No credit card required</span>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          </div>
+        </section>
+      </AnimatedSection>
+
       {/* SECTION 6 - PRICING */}
       <section className="bg-muted/30 py-20">
         <div className="container mx-auto px-4">
@@ -490,8 +572,11 @@ export default function Landing() {
               <motion.h2 variants={fadeInUp} className="mb-4 text-3xl font-bold sm:text-4xl">
                 Simple, Transparent Pricing
               </motion.h2>
-              <motion.p variants={fadeInUp} className="text-lg text-muted-foreground">
+              <motion.p variants={fadeInUp} className="text-lg text-muted-foreground mb-2">
                 Start free, scale as you grow
+              </motion.p>
+              <motion.p variants={fadeInUp} className="text-sm text-primary font-medium">
+                Waitlist members get 20% off any paid plan — for life 🎉
               </motion.p>
             </div>
           </AnimatedSection>
@@ -583,12 +668,12 @@ export default function Landing() {
                         </li>
                       ))}
                     </ul>
-                    <Button 
+                     <Button 
                       className="w-full" 
                       variant={tier.popular ? "default" : "outline"}
                       onClick={() => setShowWaitlistModal(true)}
                     >
-                      Join Waitlist
+                      {tier.price === 0 ? "Join Waitlist" : "Get 20% Off"}
                     </Button>
                   </CardContent>
                 </Card>
@@ -616,6 +701,14 @@ export default function Landing() {
                 <Accordion type="single" collapsible className="w-full">
                   {[
                     {
+                      q: "What do I get as a waitlist member?",
+                      a: "Waitlist members get exclusive early access on December 23rd, 2025, plus a permanent 20% lifetime discount on any paid plan. This discount applies forever — as long as you maintain your subscription."
+                    },
+                    {
+                      q: "When does SMMAHUB launch?",
+                      a: "SMMAHUB officially launches on December 23rd, 2025. Waitlist members will receive early access and onboarding instructions via email before the public launch."
+                    },
+                    {
                       q: "Is SMMAHUB replacing Notion or other tools?",
                       a: "SMMAHUB is purpose-built for social media agencies. While Notion is great for general productivity, SMMAHUB offers specialized features like content calendars, asset libraries, and client-specific workspaces that are tailored for SMMA workflows."
                     },
@@ -624,28 +717,20 @@ export default function Landing() {
                       a: "Yes! You can invite up to 3 team members on Freemium, 5 on Starter, 10 on Pro, and unlimited on Agency Plus, with role-based permissions to control access to clients and features."
                     },
                     {
+                      q: "Which social platforms are supported?",
+                      a: "Currently, SMMAHUB supports auto-posting to Instagram, Facebook, and LinkedIn. We're actively working on TikTok and YouTube integrations."
+                    },
+                    {
                       q: "How many clients can I manage?",
                       a: "It depends on your plan: Freemium (1 client), Starter (3 clients), Pro (10 clients), Agency Plus (unlimited clients)."
                     },
                     {
-                      q: "Do you support AI-powered features?",
-                      a: "Yes, SMMAHUB integrates AI capabilities for content suggestions, caption generation, and more. AI features are available on Pro and Agency+ plans."
-                    },
-                    {
-                      q: "Is there a free trial?",
-                      a: "Yes! All plans come with a 14-day free trial. No credit card required to start."
+                      q: "Is my data secure?",
+                      a: "Absolutely. All data is encrypted, backed up regularly, and stored on secure servers. We follow industry best practices and are compliant with GDPR regulations."
                     },
                     {
                       q: "Can I cancel anytime?",
-                      a: "Absolutely. You can cancel your subscription at any time from your account settings. No long-term contracts or commitments."
-                    },
-                    {
-                      q: "What payment methods do you accept?",
-                      a: "We accept all major credit cards (Visa, Mastercard, American Express) and PayPal for your convenience."
-                    },
-                    {
-                      q: "Do you offer custom enterprise solutions?",
-                      a: "Yes! For agencies managing 50+ clients or requiring custom integrations, please contact our sales team for a tailored enterprise solution."
+                      a: "Yes, you can cancel your subscription at any time. If you joined from the waitlist, you'll still keep your 20% discount if you ever decide to reactivate."
                     }
                   ].map((faq, index) => (
                     <AccordionItem key={index} value={`item-${index}`}>
@@ -672,20 +757,20 @@ export default function Landing() {
               variants={fadeInUp}
               className="mx-auto max-w-3xl text-center"
             >
-              <h2 className="mb-6 text-3xl font-bold sm:text-5xl">
-                Ready to Scale Your Agency?
+              <h2 className="mb-6 text-3xl font-bold sm:text-5xl leading-tight">
+                Stop Losing Hours to Disorganized Workflows
               </h2>
-              <p className="mb-8 text-lg text-muted-foreground">
-                Join hundreds of agencies already using SMMAHUB to streamline their workflows 
-                and deliver exceptional results to clients.
+              <p className="mb-8 text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto">
+                Join the waitlist to get <strong className="text-foreground">early access on December 23rd</strong> plus 
+                a <strong className="text-primary">20% lifetime discount</strong> on any plan. No credit card needed.
               </p>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
                 <Button 
                   size="lg" 
-                  className="text-base px-8"
+                  className="text-base px-8 shadow-lg hover:shadow-xl transition-shadow"
                   onClick={() => setShowWaitlistModal(true)}
                 >
-                  Join Waitlist
+                  Get Early Access + 20% Off
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
                 <Button 
@@ -697,6 +782,22 @@ export default function Landing() {
                   <Play className="mr-2 h-4 w-4" />
                   Watch Demo
                 </Button>
+              </div>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-primary" />
+                  <span>No credit card required</span>
+                </div>
+                <span className="hidden sm:inline">•</span>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-primary" />
+                  <span>Early access on Dec 23rd</span>
+                </div>
+                <span className="hidden sm:inline">•</span>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-primary" />
+                  <span>20% off for life</span>
+                </div>
               </div>
             </motion.div>
           </div>
