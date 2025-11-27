@@ -1571,6 +1571,33 @@ export type Database = {
         }
         Relationships: []
       }
+      waitlist_subscribers: {
+        Row: {
+          agency_size: string | null
+          created_at: string | null
+          email: string
+          id: string
+          name: string | null
+          pain_point: string | null
+        }
+        Insert: {
+          agency_size?: string | null
+          created_at?: string | null
+          email: string
+          id?: string
+          name?: string | null
+          pain_point?: string | null
+        }
+        Update: {
+          agency_size?: string | null
+          created_at?: string | null
+          email?: string
+          id?: string
+          name?: string | null
+          pain_point?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       client_contacts_secure: {
