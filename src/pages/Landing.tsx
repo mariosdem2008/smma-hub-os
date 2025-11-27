@@ -1,7 +1,6 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { useInView } from "framer-motion";
-import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +16,9 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { WaitlistForm } from "@/components/WaitlistForm";
+import { WaitlistModal } from "@/components/WaitlistModal";
+import { VideoEmbed } from "@/components/VideoEmbed";
 import { 
   LayoutGrid, 
   Zap, 
@@ -37,10 +39,13 @@ import {
   Dumbbell,
   Instagram,
   Facebook,
-  Linkedin
+  Linkedin,
+  MessageSquare,
+  Folder,
+  X,
+  AlertCircle
 } from "lucide-react";
 import { PLAN_NAMES, PLAN_PRICES } from "@/lib/plan-limits";
-import { WaitlistModal } from "@/components/WaitlistModal";
 
 // Animation variants
 const fadeInUp = {
@@ -103,6 +108,7 @@ export default function Landing() {
   const [showVideoDialog, setShowVideoDialog] = useState(false);
   const [showWaitlistModal, setShowWaitlistModal] = useState(false);
   const heroRef = useRef(null);
+  const waitlistRef = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({
     target: heroRef,
     offset: ["start start", "end start"]
@@ -110,6 +116,10 @@ export default function Landing() {
   
   // Parallax effect for hero image
   const heroImageY = useTransform(scrollYProgress, [0, 1], [0, 100]);
+
+  const scrollToWaitlist = () => {
+    waitlistRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -133,7 +143,7 @@ export default function Landing() {
             transition={{ duration: 0.5 }}
             className="flex items-center gap-4"
           >
-            <Button onClick={() => setShowWaitlistModal(true)}>
+            <Button onClick={scrollToWaitlist}>
               Join Waitlist
             </Button>
           </motion.div>
@@ -153,7 +163,7 @@ export default function Landing() {
               >
                 <Badge variant="secondary" className="mb-6 text-sm">
                   <Zap className="mr-2 h-3 w-3" />
-                  The Operating System for Modern Agencies
+                  Early Access + Lifetime 20% Discount for Waitlist Members
                 </Badge>
               </motion.div>
 
@@ -163,8 +173,8 @@ export default function Landing() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.2 }}
               >
-                The Operating System for{" "}
-                <span className="text-primary">Modern Social Media Agencies</span>
+                Everything in One Place{" "}
+                <span className="text-primary">for Every Client</span>
               </motion.h1>
 
               <motion.p 
@@ -173,8 +183,7 @@ export default function Landing() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.4 }}
               >
-                Run your entire agency — clients, content, branding, assets, inspiration, 
-                calendar, and team — all in one powerful workspace.
+                It puts all your client's files, brand assets, and notes in one place — and auto-posts content to Instagram, Facebook, and LinkedIn. One workspace for brand guidelines, assets, raw and edited footage, approvals, and posting.
               </motion.p>
 
               <motion.div 
@@ -191,7 +200,7 @@ export default function Landing() {
                   <Button 
                     size="lg" 
                     className="text-base px-8"
-                    onClick={() => setShowWaitlistModal(true)}
+                    onClick={scrollToWaitlist}
                   >
                     Join Waitlist
                     <ArrowRight className="ml-2 h-4 w-4" />
@@ -231,7 +240,7 @@ export default function Landing() {
                 <span className="flex items-center gap-2">
                   <Linkedin className="h-4 w-4" /> LinkedIn
                 </span>
-                <span>& TikTok</span>
+                <span>Auto-posting</span>
               </motion.div>
             </div>
 
@@ -248,7 +257,109 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* SECTION 2 - PROOF BAR */}
+      {/* SECTION 2 - SOUNDBITE BAR */}
+      <AnimatedSection>
+        <section className="border-y bg-primary/5 py-12">
+          <div className="container mx-auto px-4">
+            <div className="text-center space-y-4">
+              <motion.h2 variants={fadeInUp} className="text-2xl sm:text-3xl font-bold">
+                Store everything. Approve everything. Auto-post everywhere.
+              </motion.h2>
+              <motion.p variants={fadeInUp} className="text-base text-muted-foreground max-w-3xl mx-auto">
+                Brand guidelines, assets, raw videos, edited posts, captions, approvals, and scheduling — all in one place for every client.
+              </motion.p>
+            </div>
+          </div>
+        </section>
+      </AnimatedSection>
+
+      {/* SECTION 3 - WAITLIST FORM */}
+      <AnimatedSection>
+        <section ref={waitlistRef} className="py-20 scroll-mt-20">
+          <div className="container mx-auto px-4">
+            <div className="mx-auto max-w-4xl">
+              <motion.div variants={fadeInUp} className="mb-8 text-center">
+                <h2 className="mb-4 text-3xl font-bold sm:text-4xl">
+                  Get Early Access + Lifetime 20% Off
+                </h2>
+                <p className="text-lg text-muted-foreground">
+                  Join the waitlist now to secure your early access discount
+                </p>
+              </motion.div>
+              <motion.div variants={fadeInUp}>
+                <WaitlistForm />
+              </motion.div>
+            </div>
+          </div>
+        </section>
+      </AnimatedSection>
+
+      {/* SECTION 4 - PAIN POINTS */}
+      <section className="bg-muted/30 py-20">
+        <div className="container mx-auto px-4">
+          <AnimatedSection>
+            <div className="mb-12 text-center">
+              <motion.h2 variants={fadeInUp} className="mb-4 text-3xl font-bold sm:text-4xl">
+                Why Agencies Need SMMAHUB
+              </motion.h2>
+              <motion.p variants={fadeInUp} className="text-lg text-muted-foreground">
+                The real problems we solve
+              </motion.p>
+            </div>
+          </AnimatedSection>
+
+          <AnimatedSection className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 max-w-6xl mx-auto">
+            {[
+              {
+                icon: MessageSquare,
+                title: "Client assets scattered across WhatsApp, Drive, Dropbox",
+                description: "No single source of truth for brand files"
+              },
+              {
+                icon: Palette,
+                title: "Editors have no centralized place for brand guidelines",
+                description: "Time wasted searching for colors, fonts, and voice"
+              },
+              {
+                icon: Folder,
+                title: "No system to store raw video files & edited content",
+                description: "Assets lost, versions confused, chaos everywhere"
+              },
+              {
+                icon: Upload,
+                title: "Manual posting to multiple platforms",
+                description: "Hours wasted copy-pasting to Instagram, Facebook, LinkedIn"
+              },
+              {
+                icon: X,
+                title: "Confusing approval workflows",
+                description: "Endless email chains and WhatsApp threads"
+              },
+              {
+                icon: AlertCircle,
+                title: "Time wasted on endless back-and-forth",
+                description: "Clients can't find content, teams can't collaborate"
+              }
+            ].map((pain, index) => (
+              <motion.div key={index} variants={fadeInUp}>
+                <Card className="h-full border-destructive/20 hover:border-destructive/40 transition-all duration-200">
+                  <CardHeader>
+                    <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-destructive/10">
+                      <pain.icon className="h-6 w-6 text-destructive" />
+                    </div>
+                    <CardTitle className="text-lg">{pain.title}</CardTitle>
+                    <CardDescription>
+                      {pain.description}
+                    </CardDescription>
+                  </CardHeader>
+                </Card>
+              </motion.div>
+            ))}
+          </AnimatedSection>
+        </div>
+      </section>
+
+      {/* SECTION 5 - PROOF BAR */}
       <AnimatedSection>
         <section className="border-y bg-muted/30 py-8">
           <div className="container mx-auto px-4">
@@ -279,7 +390,7 @@ export default function Landing() {
         </section>
       </AnimatedSection>
 
-      {/* SECTION 3 - CORE BENEFITS */}
+      {/* SECTION 6 - CORE BENEFITS */}
       <section className="py-20">
         <div className="container mx-auto px-4">
           <AnimatedSection>
@@ -329,7 +440,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* SECTION 4 - FEATURE SHOWCASE */}
+      {/* SECTION 7 - FEATURE SHOWCASE */}
       <section className="bg-muted/30 py-20">
         <div className="container mx-auto px-4">
           <div className="space-y-32">
@@ -452,7 +563,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* SECTION 5 - VIDEO DEMO */}
+      {/* SECTION 8 - VIDEO DEMO */}
       <AnimatedSection>
         <section className="py-20">
           <div className="container mx-auto px-4">
@@ -461,7 +572,7 @@ export default function Landing() {
                 See SMMAHUB in Action
               </motion.h2>
               <motion.p variants={fadeInUp} className="mb-8 text-lg text-muted-foreground">
-                Watch how agencies use SMMAHUB to scale their operations (60 seconds)
+                Watch how agencies use SMMAHUB to scale their operations
               </motion.p>
               <motion.div variants={fadeInUp}>
                 <Card 
@@ -482,7 +593,7 @@ export default function Landing() {
         </section>
       </AnimatedSection>
 
-      {/* SECTION 6 - PRICING */}
+      {/* SECTION 9 - PRICING */}
       <section className="bg-muted/30 py-20">
         <div className="container mx-auto px-4">
           <AnimatedSection>
@@ -583,10 +694,13 @@ export default function Landing() {
                         </li>
                       ))}
                     </ul>
+                    <p className="text-xs text-muted-foreground mb-4 italic">
+                      Waitlist members get lifetime 20% off
+                    </p>
                     <Button 
                       className="w-full" 
                       variant={tier.popular ? "default" : "outline"}
-                      onClick={() => setShowWaitlistModal(true)}
+                      onClick={scrollToWaitlist}
                     >
                       Join Waitlist
                     </Button>
@@ -598,7 +712,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* SECTION 7 - FAQ */}
+      {/* SECTION 10 - FAQ */}
       <AnimatedSection>
         <section className="py-20">
           <div className="container mx-auto px-4">
@@ -664,7 +778,7 @@ export default function Landing() {
         </section>
       </AnimatedSection>
 
-      {/* SECTION 8 - FINAL CTA */}
+      {/* SECTION 11 - FINAL CTA */}
       <AnimatedSection>
         <section className="py-20 bg-muted/30">
           <div className="container mx-auto px-4">
@@ -673,17 +787,16 @@ export default function Landing() {
               className="mx-auto max-w-3xl text-center"
             >
               <h2 className="mb-6 text-3xl font-bold sm:text-5xl">
-                Ready to Scale Your Agency?
+                Get Early Access + Lifetime 20% Off
               </h2>
               <p className="mb-8 text-lg text-muted-foreground">
-                Join hundreds of agencies already using SMMAHUB to streamline their workflows 
-                and deliver exceptional results to clients.
+                Join the waitlist now to secure your early access discount and be first to experience SMMAHUB when we launch.
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <Button 
                   size="lg" 
                   className="text-base px-8"
-                  onClick={() => setShowWaitlistModal(true)}
+                  onClick={scrollToWaitlist}
                 >
                   Join Waitlist
                   <ArrowRight className="ml-2 h-4 w-4" />
@@ -726,15 +839,7 @@ export default function Landing() {
           <DialogHeader>
             <DialogTitle>SMMAHUB Demo Video</DialogTitle>
           </DialogHeader>
-          <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
-            <div className="text-center">
-              <Play className="mx-auto h-16 w-16 text-primary mb-4" />
-              <p className="text-muted-foreground">Demo video placeholder</p>
-              <p className="text-sm text-muted-foreground mt-2">
-                Replace with actual video embed
-              </p>
-            </div>
-          </div>
+          <VideoEmbed url="https://www.youtube.com/watch?v=dQw4w9WgXcQ" />
         </DialogContent>
       </Dialog>
 
