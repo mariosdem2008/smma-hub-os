@@ -123,8 +123,17 @@ export default function SocialConnectionsSection({ clientId }: SocialConnections
     setConnectingPlatform(platformId);
     
     try {
+      console.log(`[CONNECT] Initiating ${platformId} connection for client ${clientId}`);
+      
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
+      const token = session?.access_token;
+      
+      console.log('[CONNECT] Token:', token ? 'present' : 'missing');
+      console.log('[CONNECT] ClientId:', clientId);
+      console.log('[CONNECT] Platform:', platformId);
+      
+      if (!session || !token) {
+        console.error('[CONNECT] No auth token available');
         toast({
           title: "Authentication Required",
           description: "Please log in to connect social accounts",
@@ -146,9 +155,12 @@ export default function SocialConnectionsSection({ clientId }: SocialConnections
           clientId: clientId,
         },
         headers: {
-          Authorization: `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${token}`,
         },
       });
+      
+      console.log('[CONNECT] Response data:', data);
+      console.log('[CONNECT] Response error:', error);
 
       if (error) throw error;
 

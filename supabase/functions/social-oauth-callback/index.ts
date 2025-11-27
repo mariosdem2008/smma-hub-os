@@ -13,50 +13,69 @@ serve(async (req) => {
     const state = url.searchParams.get('state');
     const error = url.searchParams.get('error');
 
+    console.log('[OAUTH-CALLBACK] code:', code ? 'present' : 'missing');
+    console.log('[OAUTH-CALLBACK] state:', state);
+    console.log('[OAUTH-CALLBACK] error:', error);
+
+    // Handle OAuth errors
     if (error) {
       console.error('[OAUTH-CALLBACK] OAuth error:', error);
       return new Response(
-        `<html><body><h1>Authorization Failed</h1><p>${error}</p><script>setTimeout(() => window.close(), 3000)</script></body></html>`,
-        { headers: { 'Content-Type': 'text/html' } }
+        `<html><body><script>alert('OAuth error: ${error}'); window.close();</script></body></html>`,
+        { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
       );
     }
 
     if (!code || !state) {
-      throw new Error('Missing authorization code or state');
+      console.error('[OAUTH-CALLBACK] Missing code or state');
+      return new Response(
+        '<html><body><script>alert("Missing authorization code or state"); window.close();</script></body></html>',
+        { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
+      );
     }
 
     // Decode state
-    const { platform, clientId, userId } = JSON.parse(atob(state));
-    console.log(`[OAUTH-CALLBACK] Processing ${platform} callback for client ${clientId}`);
+    const decodedState = JSON.parse(atob(state));
+    const { platform, clientId, userId } = decodedState;
+    console.log('[OAUTH-CALLBACK] STATE:', decodedState);
 
-    // Create Supabase admin client
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    // Validate environment variables
+    const META_APP_ID = Deno.env.get('META_APP_ID');
+    const META_APP_SECRET = Deno.env.get('META_APP_SECRET');
+    const META_REDIRECT_URI = Deno.env.get('META_REDIRECT_URI');
+    const GRAPH_API_VERSION = Deno.env.get('GRAPH_API_VERSION') || 'v21.0';
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-    // Exchange code for access token
-    const tokenData = await exchangeCodeForToken(platform, code);
+    if (!META_APP_ID) throw new Error('Missing META_APP_ID');
+    if (!META_APP_SECRET) throw new Error('Missing META_APP_SECRET');
+    if (!META_REDIRECT_URI) throw new Error('Missing META_REDIRECT_URI');
+    if (!SUPABASE_URL) throw new Error('Missing SUPABASE_URL');
+    if (!SUPABASE_SERVICE_ROLE_KEY) throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY');
 
-    if (!tokenData) {
-      throw new Error(`Failed to exchange code for ${platform} token`);
+    console.log('[OAUTH-CALLBACK] Environment variables validated');
+
+    // Create admin client with service role
+    const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    // Exchange code for tokens
+    const tokens = await exchangeCodeForToken(code, META_APP_ID, META_APP_SECRET, META_REDIRECT_URI, GRAPH_API_VERSION);
+    console.log('[OAUTH-CALLBACK] TOKEN EXCHANGE RESPONSE:', tokens ? 'success' : 'failed');
+
+    if (!tokens) {
+      throw new Error('Failed to exchange code for token');
     }
 
-    // Fetch account information
-    const accountInfo = await fetchAccountInfo(platform, tokenData.access_token);
+    // Fetch account info
+    const accountInfo = await fetchAccountInfo(tokens.access_token, GRAPH_API_VERSION);
+    console.log('[OAUTH-CALLBACK] IG ACCOUNT:', accountInfo);
 
     if (!accountInfo) {
-      throw new Error(`Failed to fetch ${platform} account info`);
+      throw new Error('Failed to fetch account information');
     }
 
-    console.log(`[OAUTH-CALLBACK] Connected account:`, {
-      platform,
-      accountName: accountInfo.name,
-      accountId: accountInfo.id
-    });
-
-    // Store connection in database
-    const { error: upsertError } = await supabaseAdmin
+    // Upsert connection to database using admin client
+    const { data: upsertResult, error: upsertError } = await admin
       .from('social_connections')
       .upsert({
         client_id: clientId,
@@ -64,145 +83,160 @@ serve(async (req) => {
         account_name: accountInfo.name,
         account_handle: accountInfo.handle,
         account_id: accountInfo.id,
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token || null,
         status: 'connected',
-        access_token: tokenData.access_token,
-        refresh_token: tokenData.refresh_token || null,
-        token_expires_at: tokenData.expires_at || null,
+        token_expires_at: tokens.expires_at,
         last_synced_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       }, {
-        onConflict: 'client_id,platform',
-      });
+        onConflict: 'client_id,platform'
+      })
+      .select();
+
+    console.log('[OAUTH-CALLBACK] UPSERT RESULT:', upsertResult);
+    console.log('[OAUTH-CALLBACK] UPSERT ERROR:', upsertError);
 
     if (upsertError) {
-      console.error('[OAUTH-CALLBACK] Database error:', upsertError);
-      throw new Error('Failed to save connection');
+      throw new Error(`Database upsert failed: ${upsertError.message}`);
     }
 
-    console.log(`[OAUTH-CALLBACK] Successfully saved ${platform} connection for client ${clientId}`);
+    console.log('[OAUTH-CALLBACK] Connection saved successfully');
 
-    // Redirect back to app
-    const appUrl = Deno.env.get('SUPABASE_URL')?.replace('/supabase', '') || '';
-    const redirectUrl = `${appUrl}/clients/${clientId}?tab=social&connected=${platform}`;
-    
+    // Return HTML that closes the popup
     return new Response(
-      `<html><body><h1>Success!</h1><p>Your ${platform} account has been connected.</p><script>window.location.href = '${redirectUrl}';</script></body></html>`,
-      { headers: { 'Content-Type': 'text/html' } }
+      `<html>
+        <body>
+          <script>
+            console.log('OAuth callback successful');
+            window.close();
+          </script>
+          <p>Connection successful! This window will close automatically.</p>
+        </body>
+      </html>`,
+      { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
     );
 
   } catch (error) {
     console.error('[OAUTH-CALLBACK] Error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     return new Response(
-      `<html><body><h1>Connection Failed</h1><p>${errorMessage}</p><script>setTimeout(() => window.close(), 5000)</script></body></html>`,
-      { headers: { 'Content-Type': 'text/html' }, status: 400 }
+      `<html><body><script>alert('Error: ${errorMessage}'); window.close();</script></body></html>`,
+      { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
     );
   }
 });
 
-async function exchangeCodeForToken(platform: string, code: string): Promise<any> {
-  const META_APP_ID = Deno.env.get('META_APP_ID');
-  const META_APP_SECRET = Deno.env.get('META_APP_SECRET');
-  const META_REDIRECT_URI = Deno.env.get('META_REDIRECT_URI');
-  const GRAPH_API_VERSION = Deno.env.get('GRAPH_API_VERSION') || 'v21.0';
-
-  if (platform === 'instagram' || platform === 'facebook') {
-    console.log('[OAUTH-CALLBACK] Exchanging code for Meta access token');
-
-    const tokenUrl = `https://graph.facebook.com/${GRAPH_API_VERSION}/oauth/access_token?client_id=${META_APP_ID}&redirect_uri=${encodeURIComponent(META_REDIRECT_URI!)}&client_secret=${META_APP_SECRET}&code=${code}`;
-
+async function exchangeCodeForToken(
+  code: string,
+  appId: string,
+  appSecret: string,
+  redirectUri: string,
+  graphApiVersion: string
+): Promise<{ access_token: string; refresh_token?: string; expires_at: string } | null> {
+  try {
+    console.log('[TOKEN-EXCHANGE] Starting token exchange');
+    
+    // Exchange code for short-lived token
+    const tokenUrl = `https://graph.facebook.com/${graphApiVersion}/oauth/access_token?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&client_secret=${appSecret}&code=${code}`;
+    
     const tokenResponse = await fetch(tokenUrl);
     const tokenData = await tokenResponse.json();
+    
+    console.log('[TOKEN-EXCHANGE] TOKEN EXCHANGE RESPONSE:', tokenData);
 
-    if (tokenData.error) {
-      console.error('[OAUTH-CALLBACK] Token exchange error:', tokenData.error);
-      throw new Error(tokenData.error.message);
+    if (!tokenData.access_token) {
+      console.error('[TOKEN-EXCHANGE] No access token in response');
+      return null;
     }
 
-    console.log('[OAUTH-CALLBACK] Successfully obtained access token');
-
-    // Exchange short-lived token for long-lived token
-    const longLivedUrl = `https://graph.facebook.com/${GRAPH_API_VERSION}/oauth/access_token?grant_type=fb_exchange_token&client_id=${META_APP_ID}&client_secret=${META_APP_SECRET}&fb_exchange_token=${tokenData.access_token}`;
-
+    // Exchange short-lived for long-lived token
+    const longLivedUrl = `https://graph.facebook.com/${graphApiVersion}/oauth/access_token?grant_type=fb_exchange_token&client_id=${appId}&client_secret=${appSecret}&fb_exchange_token=${tokenData.access_token}`;
+    
     const longLivedResponse = await fetch(longLivedUrl);
     const longLivedData = await longLivedResponse.json();
+    
+    console.log('[TOKEN-EXCHANGE] Long-lived token response:', longLivedData);
 
-    if (longLivedData.error) {
-      console.error('[OAUTH-CALLBACK] Long-lived token error:', longLivedData.error);
-      // Continue with short-lived token if long-lived fails
-      return {
-        access_token: tokenData.access_token,
-        expires_at: new Date(Date.now() + 3600 * 1000).toISOString(), // 1 hour
-      };
+    if (!longLivedData.access_token) {
+      console.error('[TOKEN-EXCHANGE] No long-lived access token in response');
+      return null;
     }
 
-    console.log('[OAUTH-CALLBACK] Obtained long-lived access token');
+    // Calculate expiration (60 days for long-lived tokens)
+    const expiresIn = longLivedData.expires_in || 5184000; // 60 days default
+    const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
 
     return {
       access_token: longLivedData.access_token,
-      expires_at: new Date(Date.now() + longLivedData.expires_in * 1000).toISOString(),
+      expires_at: expiresAt
     };
+  } catch (error) {
+    console.error('[TOKEN-EXCHANGE] Error:', error);
+    return null;
   }
-
-  return null;
 }
 
-async function fetchAccountInfo(platform: string, accessToken: string): Promise<any> {
-  const GRAPH_API_VERSION = Deno.env.get('GRAPH_API_VERSION') || 'v21.0';
-
-  if (platform === 'instagram' || platform === 'facebook') {
-    console.log('[OAUTH-CALLBACK] Fetching Facebook pages');
-
-    // Get user's Facebook pages
-    const pagesUrl = `https://graph.facebook.com/${GRAPH_API_VERSION}/me/accounts?access_token=${accessToken}`;
+async function fetchAccountInfo(
+  accessToken: string,
+  graphApiVersion: string
+): Promise<{ id: string; name: string; handle: string; page_access_token?: string } | null> {
+  try {
+    console.log('[FETCH-ACCOUNT] Fetching Facebook pages');
+    
+    // Fetch Facebook pages
+    const pagesUrl = `https://graph.facebook.com/${graphApiVersion}/me/accounts?access_token=${accessToken}`;
     const pagesResponse = await fetch(pagesUrl);
     const pagesData = await pagesResponse.json();
-
-    if (pagesData.error) {
-      console.error('[OAUTH-CALLBACK] Pages fetch error:', pagesData.error);
-      throw new Error(pagesData.error.message);
-    }
+    
+    console.log('[FETCH-ACCOUNT] PAGES RESPONSE:', pagesData);
 
     if (!pagesData.data || pagesData.data.length === 0) {
-      throw new Error('No Facebook pages found. Please create a Facebook page and connect it to an Instagram Business account.');
+      console.error('[FETCH-ACCOUNT] No pages found');
+      return null;
     }
 
-    console.log(`[OAUTH-CALLBACK] Found ${pagesData.data.length} Facebook pages`);
-
-    // Find page with Instagram Business account
+    // Find page with Instagram Business Account
     for (const page of pagesData.data) {
-      const pageInfoUrl = `https://graph.facebook.com/${GRAPH_API_VERSION}/${page.id}?fields=instagram_business_account,name&access_token=${page.access_token}`;
-      const pageInfoResponse = await fetch(pageInfoUrl);
-      const pageInfo = await pageInfoResponse.json();
+      console.log('[FETCH-ACCOUNT] Checking page:', page.name);
+      
+      const igAccountUrl = `https://graph.facebook.com/${graphApiVersion}/${page.id}?fields=instagram_business_account&access_token=${page.access_token}`;
+      const igAccountResponse = await fetch(igAccountUrl);
+      const igAccountData = await igAccountResponse.json();
+      
+      console.log('[FETCH-ACCOUNT] IG account check for page:', igAccountData);
 
-      if (pageInfo.instagram_business_account) {
-        console.log('[OAUTH-CALLBACK] Found Instagram Business account:', pageInfo.instagram_business_account.id);
-
-        // Get Instagram account details
-        const igUrl = `https://graph.facebook.com/${GRAPH_API_VERSION}/${pageInfo.instagram_business_account.id}?fields=username,name&access_token=${page.access_token}`;
-        const igResponse = await fetch(igUrl);
-        const igData = await igResponse.json();
+      if (igAccountData.instagram_business_account) {
+        const igId = igAccountData.instagram_business_account.id;
+        
+        // Fetch Instagram Business Account details
+        const igDetailsUrl = `https://graph.facebook.com/${graphApiVersion}/${igId}?fields=name,username&access_token=${page.access_token}`;
+        const igDetailsResponse = await fetch(igDetailsUrl);
+        const igDetails = await igDetailsResponse.json();
+        
+        console.log('[FETCH-ACCOUNT] IG ACCOUNT:', igDetails);
 
         return {
-          id: pageInfo.instagram_business_account.id,
-          name: igData.name || pageInfo.name,
-          handle: igData.username ? `@${igData.username}` : null,
-          page_access_token: page.access_token, // Store page token for posting
+          id: igId,
+          name: igDetails.name || page.name,
+          handle: igDetails.username || '',
+          page_access_token: page.access_token
         };
       }
     }
 
     // If no Instagram account found, use first Facebook page
+    console.log('[FETCH-ACCOUNT] No Instagram account found, using first Facebook page');
     const firstPage = pagesData.data[0];
-    console.log('[OAUTH-CALLBACK] No Instagram Business account found, using Facebook page');
-
     return {
       id: firstPage.id,
       name: firstPage.name,
-      handle: null,
-      page_access_token: firstPage.access_token,
+      handle: '',
+      page_access_token: firstPage.access_token
     };
-  }
 
-  return null;
+  } catch (error) {
+    console.error('[FETCH-ACCOUNT] Error:', error);
+    return null;
+  }
 }
