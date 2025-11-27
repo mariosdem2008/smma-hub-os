@@ -45,6 +45,7 @@ export function WaitlistModal({ open, onOpenChange }: WaitlistModalProps) {
     setIsSubmitting(true);
     
     try {
+      // Insert into Supabase
       const { error } = await supabase
         .from("waitlist_subscribers")
         .insert({
@@ -64,9 +65,37 @@ export function WaitlistModal({ open, onOpenChange }: WaitlistModalProps) {
         return;
       }
 
+      // Send to MailerLite (don't block on failure)
+      try {
+        const apiKey = import.meta.env.VITE_MAILERLITE_API_KEY;
+        const groupId = import.meta.env.VITE_MAILERLITE_GROUP_ID;
+        
+        if (apiKey && groupId) {
+          await fetch("https://connect.mailerlite.com/api/subscribers", {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${apiKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              email,
+              fields: {
+                name,
+                agency_size: agencySize || "",
+                pain_point: painPoint || "",
+              },
+              groups: [groupId],
+            }),
+          });
+        }
+      } catch (mailerliteError) {
+        // Log but don't show error to user
+        console.error("MailerLite sync failed:", mailerliteError);
+      }
+
       setIsSubmitting(false);
       setIsSubmitted(true);
-      toast.success("Successfully joined the waitlist!");
+      toast.success("You're in! Early access + lifetime 20% discount secured.");
       
       // Reset form after 3 seconds and close
       setTimeout(() => {
@@ -101,7 +130,7 @@ export function WaitlistModal({ open, onOpenChange }: WaitlistModalProps) {
             <DialogHeader>
               <DialogTitle className="text-2xl">Join the Waitlist</DialogTitle>
               <DialogDescription>
-                Be the first to know when SMMAHUB launches. Get exclusive early access and special launch pricing.
+                Get early access + lifetime 20% discount when SMMAHUB launches.
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4 mt-4">
@@ -136,9 +165,9 @@ export function WaitlistModal({ open, onOpenChange }: WaitlistModalProps) {
                     <SelectValue placeholder="Select team size" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="solo">Solo</SelectItem>
-                    <SelectItem value="2-5">2–5</SelectItem>
-                    <SelectItem value="6-10">6–10</SelectItem>
+                    <SelectItem value="Solo">Solo</SelectItem>
+                    <SelectItem value="2–5">2–5</SelectItem>
+                    <SelectItem value="6–10">6–10</SelectItem>
                     <SelectItem value="10+">10+</SelectItem>
                   </SelectContent>
                 </Select>
@@ -177,8 +206,8 @@ export function WaitlistModal({ open, onOpenChange }: WaitlistModalProps) {
             </div>
             <DialogTitle className="text-2xl mb-2">You're on the list!</DialogTitle>
             <DialogDescription className="text-base">
-              We'll send you an email when SMMAHUB launches. <br />
-              Check your inbox for a confirmation.
+              Early access + lifetime 20% discount secured. <br />
+              Check your inbox for confirmation.
             </DialogDescription>
           </div>
         )}
