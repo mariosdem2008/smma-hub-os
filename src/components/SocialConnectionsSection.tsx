@@ -33,6 +33,7 @@ import {
   Clock
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { InstagramRequirementsModal } from "./InstagramRequirementsModal";
 
 interface SocialConnection {
   id: string;
@@ -94,6 +95,14 @@ export default function SocialConnectionsSection({ clientId }: SocialConnections
     open: false,
     connectionId: null,
   });
+  const [instagramRequirementsModal, setInstagramRequirementsModal] = useState<{
+    open: boolean;
+    showError: boolean;
+    errorMessage?: string;
+  }>({
+    open: false,
+    showError: false,
+  });
 
   useEffect(() => {
     fetchConnections();
@@ -120,6 +129,26 @@ export default function SocialConnectionsSection({ clientId }: SocialConnections
   };
 
   const handleConnect = async (platformId: string) => {
+    // Check if Instagram and show requirements modal first
+    if (platformId === "instagram") {
+      const existingConnection = getConnectionForPlatform("instagram");
+      const hadPreviousError = existingConnection?.status === "error";
+      
+      setInstagramRequirementsModal({
+        open: true,
+        showError: hadPreviousError,
+        errorMessage: hadPreviousError 
+          ? "We could not find any Facebook Pages linked to this Instagram account. Please make sure your Instagram is linked to a Facebook Page, not a personal profile."
+          : undefined,
+      });
+      return;
+    }
+
+    // Proceed with normal connection flow for non-Instagram platforms
+    await initiateOAuthFlow(platformId);
+  };
+
+  const initiateOAuthFlow = async (platformId: string) => {
     setConnectingPlatform(platformId);
     
     try {
@@ -192,6 +221,19 @@ export default function SocialConnectionsSection({ clientId }: SocialConnections
           if (popup.closed) {
             clearInterval(pollInterval);
             await fetchConnections();
+            
+            // Check if Instagram connection failed
+            if (platformId === "instagram") {
+              const connection = getConnectionForPlatform("instagram");
+              if (connection?.status === "error" || !connection) {
+                setInstagramRequirementsModal({
+                  open: true,
+                  showError: true,
+                  errorMessage: "We could not find any Facebook Pages linked to this Instagram account. Please make sure your Instagram is linked to a Facebook Page, not a personal profile.",
+                });
+              }
+            }
+            
             setConnectingPlatform(null);
           }
         }, 1000);
@@ -432,6 +474,16 @@ export default function SocialConnectionsSection({ clientId }: SocialConnections
           );
         })}
       </div>
+
+      <InstagramRequirementsModal
+        open={instagramRequirementsModal.open}
+        onOpenChange={(open) =>
+          setInstagramRequirementsModal({ ...instagramRequirementsModal, open })
+        }
+        onConfirm={() => initiateOAuthFlow("instagram")}
+        showError={instagramRequirementsModal.showError}
+        errorMessage={instagramRequirementsModal.errorMessage}
+      />
 
       <AlertDialog
         open={disconnectDialog.open}
