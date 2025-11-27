@@ -67,9 +67,12 @@ export default function ProjectEditor({
 
       if (error) throw error;
 
+      const projectData = data as any;
       setProject({
-        ...data,
-        platform_captions: (data.platform_captions as Record<string, string>) || {},
+        ...projectData,
+        platform_captions: (projectData.platform_captions as Record<string, string>) || {},
+        published_urls: (projectData.published_urls as Record<string, string>) || null,
+        error_message: projectData.error_message || null,
       });
       setTitle(data.title);
     } catch (error) {
