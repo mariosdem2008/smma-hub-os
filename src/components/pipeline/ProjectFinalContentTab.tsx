@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Video, Image as ImageIcon, AlertCircle, Upload, X, Calendar as CalendarIcon, Lightbulb } from "lucide-react";
+import { Video, Image as ImageIcon, AlertCircle, Upload, X, Calendar as CalendarIcon, Lightbulb, Send, Loader2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
@@ -23,6 +23,9 @@ interface Project {
   platform_captions: Record<string, string>;
   hashtags: string | null;
   scheduled_time: string | null;
+  pipeline_stage: string | null;
+  published_urls: Record<string, string> | null;
+  error_message: string | null;
 }
 
 interface Asset {
@@ -515,10 +518,51 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
         <Button 
           onClick={handleSchedulePost} 
           className="w-full"
-          disabled={!scheduledDate || selectedPlatforms.length === 0 || finalAssets.length === 0}
+          disabled={!scheduledDate || selectedPlatforms.length === 0 || finalAssets.length === 0 || uploading}
         >
-          Schedule Post
+          {uploading ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Scheduling...
+            </>
+          ) : (
+            <>
+              <Send className="w-4 h-4 mr-2" />
+              Schedule Post
+            </>
+          )}
         </Button>
+
+        {project.pipeline_stage === 'published' && project.published_urls && (
+          <div className="space-y-2 mt-4 p-3 rounded bg-green-500/10 border border-green-500/20">
+            <p className="text-sm font-medium text-green-600">✓ Published successfully</p>
+            <div className="space-y-1">
+              {Object.entries(project.published_urls as Record<string, string>).map(([platform, url]) => (
+                <a
+                  key={platform}
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-600 hover:underline block"
+                >
+                  View on {platform.charAt(0).toUpperCase() + platform.slice(1)} →
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+        
+        {project.pipeline_stage === 'scheduled' && project.scheduled_time && (
+          <p className="text-sm text-muted-foreground mt-4">
+            ⏱ Scheduled for auto-publishing at {format(new Date(project.scheduled_time), 'PPp')}
+          </p>
+        )}
+        
+        {project.pipeline_stage === 'failed' && project.error_message && (
+          <p className="text-sm text-red-600 mt-4">
+            ✕ Publishing failed: {project.error_message}
+          </p>
+        )}
       </div>
 
       {/* Save Button */}

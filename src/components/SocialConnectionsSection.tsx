@@ -123,7 +123,22 @@ export default function SocialConnectionsSection({ clientId }: SocialConnections
     setConnectingPlatform(platformId);
     
     try {
-      // Call edge function to initiate OAuth flow
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast({
+          title: "Authentication Required",
+          description: "Please log in to connect social accounts",
+          variant: "destructive",
+        });
+        setConnectingPlatform(null);
+        return;
+      }
+
+      toast({
+        title: "Connecting",
+        description: "Opening authorization window...",
+      });
+
       const { data, error } = await supabase.functions.invoke("social-oauth", {
         body: { 
           action: "connect",
@@ -134,16 +149,45 @@ export default function SocialConnectionsSection({ clientId }: SocialConnections
 
       if (error) throw error;
 
-      if (data?.authUrl) {
-        // Redirect to OAuth provider
-        window.location.href = data.authUrl;
+      if (data?.url) {
+        // Open OAuth flow in popup
+        const width = 600;
+        const height = 700;
+        const left = window.screenX + (window.outerWidth - width) / 2;
+        const top = window.screenY + (window.outerHeight - height) / 2;
+        
+        const popup = window.open(
+          data.url,
+          'OAuth',
+          `width=${width},height=${height},left=${left},top=${top}`
+        );
+
+        if (!popup) {
+          toast({
+            title: "Popup Blocked",
+            description: "Please allow popups to connect social accounts",
+            variant: "destructive",
+          });
+          setConnectingPlatform(null);
+          return;
+        }
+
+        // Poll for connection success
+        const pollInterval = setInterval(async () => {
+          if (popup.closed) {
+            clearInterval(pollInterval);
+            await fetchConnections();
+            setConnectingPlatform(null);
+          }
+        }, 1000);
       } else {
-        throw new Error("No auth URL returned");
+        throw new Error("No OAuth URL returned");
       }
     } catch (error) {
+      console.error('Connection error:', error);
       toast({
         title: "Connection Error",
-        description: error instanceof Error ? error.message : "Failed to initiate connection. Please ensure OAuth credentials are configured.",
+        description: error instanceof Error ? error.message : "Failed to initiate connection",
         variant: "destructive",
       });
       setConnectingPlatform(null);
@@ -305,16 +349,16 @@ export default function SocialConnectionsSection({ clientId }: SocialConnections
 
                 {connection && connection.status === "connected" && (
                   <div className="space-y-2">
+                    {connection.account_name && (
+                      <div className="text-sm">
+                        <span className="text-muted-foreground">Account: </span>
+                        <span className="font-medium">{connection.account_name}</span>
+                      </div>
+                    )}
                     {connection.account_handle && (
                       <div className="text-sm">
                         <span className="text-muted-foreground">Handle: </span>
-                        <span className="font-medium">@{connection.account_handle}</span>
-                      </div>
-                    )}
-                    {connection.account_name && (
-                      <div className="text-sm truncate">
-                        <span className="text-muted-foreground">Name: </span>
-                        <span className="font-medium">{connection.account_name}</span>
+                        <span className="font-medium">{connection.account_handle}</span>
                       </div>
                     )}
                     {connection.last_synced_at && (
