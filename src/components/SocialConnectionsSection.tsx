@@ -145,6 +145,9 @@ export default function SocialConnectionsSection({ clientId }: SocialConnections
           platform: platformId,
           clientId: clientId,
         },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
       });
 
       if (error) throw error;
@@ -198,12 +201,26 @@ export default function SocialConnectionsSection({ clientId }: SocialConnections
     setConnectingPlatform(platform);
     
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast({
+          title: "Authentication Required",
+          description: "Please log in to connect social accounts",
+          variant: "destructive",
+        });
+        setConnectingPlatform(null);
+        return;
+      }
+
       const { data, error } = await supabase.functions.invoke("social-oauth", {
         body: { 
           action: "reconnect",
           platform: platform,
           clientId: clientId,
           connectionId: connectionId,
+        },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
         },
       });
 
