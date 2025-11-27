@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { useInView } from "framer-motion";
 import { useRef } from "react";
@@ -41,6 +40,7 @@ import {
   Linkedin
 } from "lucide-react";
 import { PLAN_NAMES, PLAN_PRICES } from "@/lib/plan-limits";
+import { WaitlistModal } from "@/components/WaitlistModal";
 
 // Animation variants
 const fadeInUp = {
@@ -101,6 +101,7 @@ const AnimatedSection = ({ children, className = "" }: { children: React.ReactNo
 
 export default function Landing() {
   const [showVideoDialog, setShowVideoDialog] = useState(false);
+  const [showWaitlistModal, setShowWaitlistModal] = useState(false);
   const heroRef = useRef(null);
   const { scrollYProgress } = useScroll({
     target: heroRef,
@@ -132,12 +133,9 @@ export default function Landing() {
             transition={{ duration: 0.5 }}
             className="flex items-center gap-4"
           >
-            <Link to="/auth">
-              <Button variant="ghost">Sign In</Button>
-            </Link>
-            <Link to="/auth">
-              <Button>Get Started Free</Button>
-            </Link>
+            <Button onClick={() => setShowWaitlistModal(true)}>
+              Join Waitlist
+            </Button>
           </motion.div>
         </div>
       </nav>
@@ -190,12 +188,14 @@ export default function Landing() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4, delay: 0.6 }}
                 >
-                  <Link to="/auth">
-                    <Button size="lg" className="text-base px-8">
-                      Get Started Free
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  </Link>
+                  <Button 
+                    size="lg" 
+                    className="text-base px-8"
+                    onClick={() => setShowWaitlistModal(true)}
+                  >
+                    Join Waitlist
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
                 </motion.div>
                 
                 <motion.div
@@ -583,11 +583,13 @@ export default function Landing() {
                         </li>
                       ))}
                     </ul>
-                    <Link to="/auth" className="block">
-                      <Button className="w-full" variant={tier.popular ? "default" : "outline"}>
-                        {tier.price === 0 ? "Get Started" : "Start Free Trial"}
-                      </Button>
-                    </Link>
+                    <Button 
+                      className="w-full" 
+                      variant={tier.popular ? "default" : "outline"}
+                      onClick={() => setShowWaitlistModal(true)}
+                    >
+                      Join Waitlist
+                    </Button>
                   </CardContent>
                 </Card>
               </motion.div>
@@ -678,12 +680,14 @@ export default function Landing() {
                 and deliver exceptional results to clients.
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <Link to="/auth">
-                  <Button size="lg" className="text-base px-8">
-                    Start Free
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </Link>
+                <Button 
+                  size="lg" 
+                  className="text-base px-8"
+                  onClick={() => setShowWaitlistModal(true)}
+                >
+                  Join Waitlist
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
                 <Button 
                   size="lg" 
                   variant="outline" 
@@ -733,6 +737,9 @@ export default function Landing() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Waitlist Modal */}
+      <WaitlistModal open={showWaitlistModal} onOpenChange={setShowWaitlistModal} />
     </div>
   );
 }
