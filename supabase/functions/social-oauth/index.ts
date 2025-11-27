@@ -55,8 +55,7 @@ serve(async (req) => {
     // Build Facebook OAuth URL
     const scopes = [
       'instagram_basic',
-      'instagram_business_basic',
-      'instagram_business_content_publish',
+      'instagram_content_publish',
       'pages_show_list',
       'pages_read_engagement',
       'pages_manage_posts',
