@@ -7,7 +7,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, Check, ExternalLink } from "lucide-react";
+import { AlertCircle, Check, Copy } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 
 interface InstagramRequirementsModalProps {
   open: boolean;
@@ -24,9 +26,22 @@ export function InstagramRequirementsModal({
   showError = false,
   errorMessage,
 }: InstagramRequirementsModalProps) {
+  const [copied, setCopied] = useState(false);
+
   const handleConfirm = () => {
     onConfirm();
     onOpenChange(false);
+  };
+
+  const handleCopyUrl = async () => {
+    try {
+      await navigator.clipboard.writeText("https://facebook.com/pages/create");
+      setCopied(true);
+      toast.success("URL copied to clipboard");
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      toast.error("Failed to copy URL");
+    }
   };
 
   return (
@@ -110,14 +125,13 @@ export function InstagramRequirementsModal({
                 <span className="font-medium text-foreground">2)</span>
                 <div>
                   <p className="text-foreground">You have a Facebook Page</p>
-                  <a
-                    href="https://facebook.com/pages/create"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+                  <button
+                    onClick={handleCopyUrl}
+                    className="text-xs text-primary hover:text-primary/80 inline-flex items-center gap-1 mt-1 transition-colors"
                   >
-                    Create one here <ExternalLink className="h-3 w-3" />
-                  </a>
+                    <span className="font-mono">https://facebook.com/pages/create</span>
+                    <Copy className={`h-3 w-3 ${copied ? "text-green-500" : ""}`} />
+                  </button>
                 </div>
               </div>
 
