@@ -26,6 +26,8 @@ interface Project {
   scheduled_time: string | null;
   platform_captions: Record<string, string>;
   hashtags: string | null;
+  published_urls: Record<string, string> | null;
+  error_message: string | null;
 }
 
 interface ProjectEditorProps {

@@ -1,10 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { corsHeaders } from "../_shared/cors.ts";
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -18,7 +14,7 @@ serve(async (req) => {
     const error = url.searchParams.get('error');
 
     if (error) {
-      console.error('OAuth error:', error);
+      console.error('[OAUTH-CALLBACK] OAuth error:', error);
       return new Response(
         `<html><body><h1>Authorization Failed</h1><p>${error}</p><script>setTimeout(() => window.close(), 3000)</script></body></html>`,
         { headers: { 'Content-Type': 'text/html' } }
@@ -29,36 +25,45 @@ serve(async (req) => {
       throw new Error('Missing authorization code or state');
     }
 
-    // Decode state to get platform, clientId, and userId
+    // Decode state
     const { platform, clientId, userId } = JSON.parse(atob(state));
+    console.log(`[OAUTH-CALLBACK] Processing ${platform} callback for client ${clientId}`);
 
-    console.log(`OAuth callback for platform: ${platform}, client: ${clientId}`);
+    // Create Supabase admin client
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
 
-    // Exchange authorization code for access token
+    // Exchange code for access token
     const tokenData = await exchangeCodeForToken(platform, code);
 
     if (!tokenData) {
       throw new Error(`Failed to exchange code for ${platform} token`);
     }
 
-    // Create Supabase client with service role to bypass RLS
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
-    // Fetch account information from the platform
+    // Fetch account information
     const accountInfo = await fetchAccountInfo(platform, tokenData.access_token);
 
-    // Store or update the connection in the database
+    if (!accountInfo) {
+      throw new Error(`Failed to fetch ${platform} account info`);
+    }
+
+    console.log(`[OAUTH-CALLBACK] Connected account:`, {
+      platform,
+      accountName: accountInfo.name,
+      accountId: accountInfo.id
+    });
+
+    // Store connection in database
     const { error: upsertError } = await supabaseAdmin
       .from('social_connections')
       .upsert({
         client_id: clientId,
-        platform: platform,
-        account_name: accountInfo?.name || null,
-        account_handle: accountInfo?.handle || null,
-        account_id: accountInfo?.id || null,
+        platform: platform.toLowerCase(),
+        account_name: accountInfo.name,
+        account_handle: accountInfo.handle,
+        account_id: accountInfo.id,
         status: 'connected',
         access_token: tokenData.access_token,
         refresh_token: tokenData.refresh_token || null,
@@ -70,15 +75,15 @@ serve(async (req) => {
       });
 
     if (upsertError) {
-      console.error('Database error:', upsertError);
+      console.error('[OAUTH-CALLBACK] Database error:', upsertError);
       throw new Error('Failed to save connection');
     }
 
-    console.log(`Successfully connected ${platform} for client ${clientId}`);
+    console.log(`[OAUTH-CALLBACK] Successfully saved ${platform} connection for client ${clientId}`);
 
-    // Redirect back to the app with success message
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-    const redirectUrl = `${supabaseUrl.replace('/supabase', '')}/clients/${clientId}?tab=social&connected=${platform}`;
+    // Redirect back to app
+    const appUrl = Deno.env.get('SUPABASE_URL')?.replace('/supabase', '') || '';
+    const redirectUrl = `${appUrl}/clients/${clientId}?tab=social&connected=${platform}`;
     
     return new Response(
       `<html><body><h1>Success!</h1><p>Your ${platform} account has been connected.</p><script>window.location.href = '${redirectUrl}';</script></body></html>`,
@@ -86,7 +91,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Callback error:', error);
+    console.error('[OAUTH-CALLBACK] Error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     return new Response(
       `<html><body><h1>Connection Failed</h1><p>${errorMessage}</p><script>setTimeout(() => window.close(), 5000)</script></body></html>`,
@@ -96,25 +101,108 @@ serve(async (req) => {
 });
 
 async function exchangeCodeForToken(platform: string, code: string): Promise<any> {
-  // STUB: Simulating successful token exchange
-  // In production, this would make real API calls to each platform
-  console.log(`[STUB] Simulating token exchange for ${platform} with code: ${code}`);
-  
-  return {
-    access_token: `fake_access_token_${platform}_${Date.now()}`,
-    refresh_token: `fake_refresh_token_${platform}_${Date.now()}`,
-    expires_at: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(), // 60 days from now
-  };
+  const META_APP_ID = Deno.env.get('META_APP_ID');
+  const META_APP_SECRET = Deno.env.get('META_APP_SECRET');
+  const META_REDIRECT_URI = Deno.env.get('META_REDIRECT_URI');
+  const GRAPH_API_VERSION = Deno.env.get('GRAPH_API_VERSION') || 'v21.0';
+
+  if (platform === 'instagram' || platform === 'facebook') {
+    console.log('[OAUTH-CALLBACK] Exchanging code for Meta access token');
+
+    const tokenUrl = `https://graph.facebook.com/${GRAPH_API_VERSION}/oauth/access_token?client_id=${META_APP_ID}&redirect_uri=${encodeURIComponent(META_REDIRECT_URI!)}&client_secret=${META_APP_SECRET}&code=${code}`;
+
+    const tokenResponse = await fetch(tokenUrl);
+    const tokenData = await tokenResponse.json();
+
+    if (tokenData.error) {
+      console.error('[OAUTH-CALLBACK] Token exchange error:', tokenData.error);
+      throw new Error(tokenData.error.message);
+    }
+
+    console.log('[OAUTH-CALLBACK] Successfully obtained access token');
+
+    // Exchange short-lived token for long-lived token
+    const longLivedUrl = `https://graph.facebook.com/${GRAPH_API_VERSION}/oauth/access_token?grant_type=fb_exchange_token&client_id=${META_APP_ID}&client_secret=${META_APP_SECRET}&fb_exchange_token=${tokenData.access_token}`;
+
+    const longLivedResponse = await fetch(longLivedUrl);
+    const longLivedData = await longLivedResponse.json();
+
+    if (longLivedData.error) {
+      console.error('[OAUTH-CALLBACK] Long-lived token error:', longLivedData.error);
+      // Continue with short-lived token if long-lived fails
+      return {
+        access_token: tokenData.access_token,
+        expires_at: new Date(Date.now() + 3600 * 1000).toISOString(), // 1 hour
+      };
+    }
+
+    console.log('[OAUTH-CALLBACK] Obtained long-lived access token');
+
+    return {
+      access_token: longLivedData.access_token,
+      expires_at: new Date(Date.now() + longLivedData.expires_in * 1000).toISOString(),
+    };
+  }
+
+  return null;
 }
 
 async function fetchAccountInfo(platform: string, accessToken: string): Promise<any> {
-  // STUB: Simulating account info fetch
-  // In production, this would make real API calls to each platform
-  console.log(`[STUB] Simulating account info fetch for ${platform}`);
-  
-  return {
-    id: `fake_account_id_${platform}_${Math.random().toString(36).substring(7)}`,
-    handle: `@${platform}_user_${Math.random().toString(36).substring(7)}`,
-    name: `${platform.charAt(0).toUpperCase() + platform.slice(1)} Test Account`,
-  };
+  const GRAPH_API_VERSION = Deno.env.get('GRAPH_API_VERSION') || 'v21.0';
+
+  if (platform === 'instagram' || platform === 'facebook') {
+    console.log('[OAUTH-CALLBACK] Fetching Facebook pages');
+
+    // Get user's Facebook pages
+    const pagesUrl = `https://graph.facebook.com/${GRAPH_API_VERSION}/me/accounts?access_token=${accessToken}`;
+    const pagesResponse = await fetch(pagesUrl);
+    const pagesData = await pagesResponse.json();
+
+    if (pagesData.error) {
+      console.error('[OAUTH-CALLBACK] Pages fetch error:', pagesData.error);
+      throw new Error(pagesData.error.message);
+    }
+
+    if (!pagesData.data || pagesData.data.length === 0) {
+      throw new Error('No Facebook pages found. Please create a Facebook page and connect it to an Instagram Business account.');
+    }
+
+    console.log(`[OAUTH-CALLBACK] Found ${pagesData.data.length} Facebook pages`);
+
+    // Find page with Instagram Business account
+    for (const page of pagesData.data) {
+      const pageInfoUrl = `https://graph.facebook.com/${GRAPH_API_VERSION}/${page.id}?fields=instagram_business_account,name&access_token=${page.access_token}`;
+      const pageInfoResponse = await fetch(pageInfoUrl);
+      const pageInfo = await pageInfoResponse.json();
+
+      if (pageInfo.instagram_business_account) {
+        console.log('[OAUTH-CALLBACK] Found Instagram Business account:', pageInfo.instagram_business_account.id);
+
+        // Get Instagram account details
+        const igUrl = `https://graph.facebook.com/${GRAPH_API_VERSION}/${pageInfo.instagram_business_account.id}?fields=username,name&access_token=${page.access_token}`;
+        const igResponse = await fetch(igUrl);
+        const igData = await igResponse.json();
+
+        return {
+          id: pageInfo.instagram_business_account.id,
+          name: igData.name || pageInfo.name,
+          handle: igData.username ? `@${igData.username}` : null,
+          page_access_token: page.access_token, // Store page token for posting
+        };
+      }
+    }
+
+    // If no Instagram account found, use first Facebook page
+    const firstPage = pagesData.data[0];
+    console.log('[OAUTH-CALLBACK] No Instagram Business account found, using Facebook page');
+
+    return {
+      id: firstPage.id,
+      name: firstPage.name,
+      handle: null,
+      page_access_token: firstPage.access_token,
+    };
+  }
+
+  return null;
 }
