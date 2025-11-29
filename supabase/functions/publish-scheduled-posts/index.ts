@@ -29,7 +29,7 @@ serve(async (req) => {
         hashtags,
         scheduled_time,
         final_asset_id,
-        final_asset:assets (
+        final_asset:assets!projects_final_asset_id_fkey (
           id,
           file_url,
           file_type,
