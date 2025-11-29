@@ -5,16 +5,26 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar } from "@/components/ui/calendar";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, startOfMonth, endOfMonth, isSameDay, parseISO } from "date-fns";
-import { CalendarDays, Clock, Edit, Copy, X, ArrowRight, AlertCircle, Globe } from "lucide-react";
+import { CalendarDays, Clock, Edit, Copy, X, ArrowRight, AlertCircle, Globe, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { convertToLocal, convertToUTC } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface CalendarTabProps {
   clientId: string;
@@ -42,10 +52,8 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<"week" | "month" | "queue">("week");
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<ScheduledItem | null>(null);
-  const [newScheduledDate, setNewScheduledDate] = useState("");
-  const [newScheduledTime, setNewScheduledTime] = useState("");
   const [draggedItem, setDraggedItem] = useState<ScheduledItem | null>(null);
   const [userTimezone, setUserTimezone] = useState<string>("UTC");
   const { toast } = useToast();
@@ -138,43 +146,36 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
     return format(localDate, "MMM d, yyyy 'at' h:mm a");
   };
 
-  const handleOpenRescheduleDialog = (item: ScheduledItem) => {
+  const handleOpenDeleteDialog = (item: ScheduledItem) => {
     setSelectedItem(item);
-    if (item.scheduled_time) {
-      // Convert UTC to local time for editing
-      const localDate = convertToLocal(item.scheduled_time, userTimezone);
-      setNewScheduledDate(format(localDate, "yyyy-MM-dd"));
-      setNewScheduledTime(format(localDate, "HH:mm"));
-    }
-    setRescheduleDialogOpen(true);
+    setDeleteDialogOpen(true);
   };
 
-  const handleReschedule = async () => {
-    if (!selectedItem || !newScheduledDate || !newScheduledTime) return;
+  const handleDeleteSchedule = async () => {
+    if (!selectedItem) return;
 
     try {
-      const scheduledDateTime = new Date(`${newScheduledDate}T${newScheduledTime}`);
-      
-      // Convert local time to UTC before saving
-      const utcDateTime = convertToUTC(scheduledDateTime, userTimezone);
-      
       const { error } = await supabase
         .from("projects")
-        .update({ scheduled_time: utcDateTime })
+        .update({ 
+          scheduled_time: null,
+          pipeline_stage: "approved"
+        })
         .eq("id", selectedItem.id);
 
       if (error) throw error;
 
       toast({
-        title: "Post rescheduled",
-        description: `Successfully rescheduled to ${format(scheduledDateTime, "MMM d, yyyy 'at' h:mm a")} (${userTimezone})`,
+        title: "Schedule deleted",
+        description: "The post has been unscheduled and moved back to Approved stage",
       });
 
-      setRescheduleDialogOpen(false);
+      setDeleteDialogOpen(false);
+      setSelectedItem(null);
       fetchScheduledItems();
     } catch (error: any) {
       toast({
-        title: "Error rescheduling",
+        title: "Error deleting schedule",
         description: error.message,
         variant: "destructive",
       });
@@ -270,33 +271,6 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
     }
   };
 
-  const handleCancel = async (item: ScheduledItem) => {
-    try {
-      const { error } = await supabase
-        .from("projects")
-        .update({ 
-          pipeline_stage: "approved",
-          scheduled_time: null 
-        })
-        .eq("id", item.id);
-
-      if (error) throw error;
-
-      toast({
-        title: "Post cancelled",
-        description: "The post has been moved back to Approved stage",
-      });
-
-      fetchScheduledItems();
-    } catch (error: any) {
-      toast({
-        title: "Error cancelling",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -364,8 +338,8 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
                         key={item.id}
                         draggable
                         onDragStart={() => handleDragStart(item)}
-                        onClick={() => handleOpenRescheduleDialog(item)}
-                        className="p-2 rounded border bg-card cursor-move hover:bg-accent/50 transition-colors"
+                        onClick={() => handleOpenDeleteDialog(item)}
+                        className="p-2 rounded border bg-card cursor-pointer hover:bg-accent/50 transition-colors"
                       >
                         <div className="flex items-center gap-2 mb-1">
                           <Clock className="h-3 w-3" />
@@ -429,10 +403,10 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
                         key={item.id}
                         draggable
                         onDragStart={() => handleDragStart(item)}
-                        onClick={() => handleOpenRescheduleDialog(item)}
+                        onClick={() => handleOpenDeleteDialog(item)}
                         className={`${
                           stageColors[item.pipeline_stage]
-                        } text-white text-xs p-1 rounded cursor-move hover:opacity-80 transition-opacity`}
+                        } text-white text-xs p-1 rounded cursor-pointer hover:opacity-80 transition-opacity`}
                       >
                         <p className="line-clamp-1">{item.title}</p>
                       </div>
@@ -501,9 +475,9 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() => handleOpenRescheduleDialog(item)}
+                          onClick={() => handleOpenDeleteDialog(item)}
                         >
-                          <Edit className="h-4 w-4" />
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                         <Button
                           size="sm"
@@ -511,13 +485,6 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
                           onClick={() => handleDuplicate(item)}
                         >
                           <Copy className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleCancel(item)}
-                        >
-                          <X className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
@@ -529,52 +496,40 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
         </TabsContent>
       </Tabs>
 
-      <Dialog open={rescheduleDialogOpen} onOpenChange={setRescheduleDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Reschedule Post</DialogTitle>
-          </DialogHeader>
-          {selectedItem && (
-            <div className="space-y-4">
-              <div>
-                <h4 className="font-medium mb-2">{selectedItem.title}</h4>
-                <p className="text-sm text-muted-foreground">
-                  Current schedule:{" "}
-                  {selectedItem.scheduled_time &&
-                    formatLocalDateTime(selectedItem.scheduled_time)} ({userTimezone})
-                </p>
-              </div>
-              <Separator />
-              <div className="space-y-4">
-                <div>
-                  <Label>New Date</Label>
-                  <Input
-                    type="date"
-                    value={newScheduledDate}
-                    onChange={(e) => setNewScheduledDate(e.target.value)}
-                  />
+      {/* Delete Schedule Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Schedule</AlertDialogTitle>
+            <AlertDialogDescription>
+              {selectedItem && (
+                <div className="space-y-2">
+                  <p>Are you sure you want to unschedule this post?</p>
+                  <div className="mt-4 p-3 bg-muted rounded-lg space-y-1">
+                    <p className="font-medium text-foreground">{selectedItem.title}</p>
+                    {selectedItem.scheduled_time && (
+                      <p className="text-sm flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {formatLocalDateTime(selectedItem.scheduled_time)}
+                      </p>
+                    )}
+                  </div>
+                  <p className="text-sm mt-3">
+                    The post will be moved back to "Approved" stage and can be rescheduled later.
+                  </p>
                 </div>
-                <div>
-                  <Label>New Time</Label>
-                  <Input
-                    type="time"
-                    value={newScheduledTime}
-                    onChange={(e) => setNewScheduledTime(e.target.value)}
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setRescheduleDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleReschedule}>
-                  Reschedule
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteSchedule} className="bg-destructive hover:bg-destructive/90">
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete Schedule
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
