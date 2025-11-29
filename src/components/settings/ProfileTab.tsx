@@ -224,23 +224,10 @@ export default function ProfileTab() {
               <SelectValue placeholder="Select timezone" />
             </SelectTrigger>
             <SelectContent className="max-h-[300px]">
-              {Object.entries(
-                TIMEZONES.reduce((acc, tz) => {
-                  if (!acc[tz.group]) acc[tz.group] = [];
-                  acc[tz.group].push(tz);
-                  return acc;
-                }, {} as Record<string, typeof TIMEZONES>)
-              ).map(([group, timezones]) => (
-                <div key={group}>
-                  <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-                    {group}
-                  </div>
-                  {timezones.map((tz) => (
-                    <SelectItem key={tz.value} value={tz.value}>
-                      {tz.label}
-                    </SelectItem>
-                  ))}
-                </div>
+              {TIMEZONES.map((tz) => (
+                <SelectItem key={tz} value={tz}>
+                  {tz}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
