@@ -49,7 +49,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import { useRole } from "@/hooks/useRole";
-import { Plus, Pencil, Trash2, CalendarIcon, Clock } from "lucide-react";
+import { Plus, Pencil, Trash2, CalendarIcon, Clock, Filter, ArrowUpDown, BookTemplate } from "lucide-react";
 import { format, isPast } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -80,21 +80,60 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [showTaskDialog, setShowTaskDialog] = useState(false);
+  const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
+  const [templates, setTemplates] = useState<any[]>([]);
+  
+  // Filter & Sort state
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterPriority, setFilterPriority] = useState<string>("all");
+  const [filterAssigned, setFilterAssigned] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<string>("due_date");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   
   const [taskFormData, setTaskFormData] = useState({
     title: "",
     description: "",
     priority: "medium",
     status: "todo",
+    assigned_to: "",
   });
   const [taskDueDate, setTaskDueDate] = useState<Date | undefined>();
 
   useEffect(() => {
     fetchTasks();
+    fetchTeamMembers();
+    fetchTemplates();
   }, [clientId]);
+
+  const fetchTeamMembers = async () => {
+    const { data } = await supabase
+      .from("agency_members")
+      .select(`
+        user_id,
+        role,
+        profiles:user_id (
+          full_name,
+          email
+        )
+      `)
+      .eq("agency_id", agencyId);
+
+    setTeamMembers(data || []);
+  };
+
+  const fetchTemplates = async () => {
+    const { data } = await supabase
+      .from("task_templates")
+      .select("*")
+      .eq("agency_id", agencyId)
+      .order("name");
+
+    setTemplates(data || []);
+  };
 
   const fetchTasks = async () => {
     setLoading(true);
@@ -114,6 +153,17 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
       setTasks(data || []);
     }
     setLoading(false);
+  };
+
+  const applyTemplate = (template: any) => {
+    setTaskFormData({
+      ...taskFormData,
+      title: template.name,
+      description: template.description || "",
+      priority: template.default_priority,
+      status: template.default_status,
+    });
+    setShowTemplateDialog(false);
   };
 
   const handleCreateOrUpdateTask = async () => {
@@ -137,6 +187,7 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
         priority: taskFormData.priority,
         status: taskFormData.status,
         due_date: taskDueDate ? taskDueDate.toISOString() : null,
+        assigned_to: taskFormData.assigned_to || null,
         ...(editingTask ? {} : { created_by: user?.id }),
       };
 
@@ -170,6 +221,7 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
         description: "",
         priority: "medium",
         status: "todo",
+        assigned_to: "",
       });
       setTaskDueDate(undefined);
       setEditingTask(null);
@@ -193,6 +245,7 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
       description: task.description || "",
       priority: task.priority,
       status: task.status,
+      assigned_to: task.assigned_to || "",
     });
     setTaskDueDate(task.due_date ? new Date(task.due_date) : undefined);
     setShowTaskDialog(true);
@@ -230,6 +283,7 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
       description: "",
       priority: "medium",
       status: "todo",
+      assigned_to: "",
     });
     setTaskDueDate(undefined);
   };
@@ -263,6 +317,55 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
     return isPast(new Date(dueDate));
   };
 
+  const getAssignedMemberName = (userId: string | null) => {
+    if (!userId) return "Unassigned";
+    const member = teamMembers.find(m => m.user_id === userId);
+    return member?.profiles?.full_name || member?.profiles?.email || "Unknown";
+  };
+
+  // Apply filters and sorting
+  const filteredAndSortedTasks = tasks
+    .filter(task => {
+      if (filterStatus !== "all" && task.status !== filterStatus) return false;
+      if (filterPriority !== "all" && task.priority !== filterPriority) return false;
+      if (filterAssigned !== "all") {
+        if (filterAssigned === "unassigned" && task.assigned_to !== null) return false;
+        if (filterAssigned !== "unassigned" && task.assigned_to !== filterAssigned) return false;
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      let aVal, bVal;
+      
+      switch (sortBy) {
+        case "due_date":
+          aVal = a.due_date ? new Date(a.due_date).getTime() : Infinity;
+          bVal = b.due_date ? new Date(b.due_date).getTime() : Infinity;
+          break;
+        case "priority":
+          const priorityOrder = { urgent: 4, high: 3, medium: 2, low: 1 };
+          aVal = priorityOrder[a.priority as keyof typeof priorityOrder] || 0;
+          bVal = priorityOrder[b.priority as keyof typeof priorityOrder] || 0;
+          break;
+        case "status":
+          aVal = a.status;
+          bVal = b.status;
+          break;
+        case "title":
+          aVal = a.title.toLowerCase();
+          bVal = b.title.toLowerCase();
+          break;
+        default:
+          return 0;
+      }
+
+      if (sortOrder === "asc") {
+        return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+      } else {
+        return aVal > bVal ? -1 : aVal < bVal ? 1 : 0;
+      }
+    });
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -277,150 +380,295 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
           <CardTitle>Tasks</CardTitle>
           {canCreateContent && (
-            <Dialog open={showTaskDialog} onOpenChange={handleDialogClose}>
-              <DialogTrigger asChild>
-                <Button size="sm">
-                  <Plus className="mr-2 h-4 w-4" />
-                  New Task
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-md">
-                <DialogHeader>
-                  <DialogTitle>
-                    {editingTask ? "Edit Task" : "Create New Task"}
-                  </DialogTitle>
-                  <DialogDescription>
-                    {editingTask ? "Update task details" : "Add a new task for this client"}
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="task-title">
-                      Title <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      id="task-title"
-                      value={taskFormData.title}
-                      onChange={(e) =>
-                        setTaskFormData({ ...taskFormData, title: e.target.value })
-                      }
-                      placeholder="Enter task title"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="task-description">Description</Label>
-                    <Textarea
-                      id="task-description"
-                      value={taskFormData.description}
-                      onChange={(e) =>
-                        setTaskFormData({ ...taskFormData, description: e.target.value })
-                      }
-                      placeholder="Enter task description"
-                      rows={3}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Due Date</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "w-full justify-start text-left font-normal",
-                            !taskDueDate && "text-muted-foreground"
-                          )}
+            <div className="flex gap-2">
+              <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
+                <DialogTrigger asChild>
+                  <Button size="sm" variant="outline">
+                    <BookTemplate className="mr-2 h-4 w-4" />
+                    Templates
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Task Templates</DialogTitle>
+                    <DialogDescription>
+                      Select a template to quickly create tasks
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                    {templates.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        No templates available. Create templates in Settings.
+                      </p>
+                    ) : (
+                      templates.map((template) => (
+                        <Card
+                          key={template.id}
+                          className="p-3 cursor-pointer hover:bg-accent transition-colors"
+                          onClick={() => applyTemplate(template)}
                         >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {taskDueDate ? format(taskDueDate, "PPP") : <span>Pick a date</span>}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <CalendarComponent
-                          mode="single"
-                          selected={taskDueDate}
-                          onSelect={setTaskDueDate}
-                          initialFocus
-                          className={cn("p-3 pointer-events-auto")}
-                        />
-                      </PopoverContent>
-                    </Popover>
+                          <div className="font-medium">{template.name}</div>
+                          {template.description && (
+                            <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
+                              {template.description}
+                            </p>
+                          )}
+                          <div className="flex gap-2 mt-2">
+                            <Badge variant="secondary" className="text-xs">
+                              {template.default_priority}
+                            </Badge>
+                            <Badge variant="outline" className="text-xs">
+                              {template.default_status}
+                            </Badge>
+                          </div>
+                        </Card>
+                      ))
+                    )}
                   </div>
-
-                  <div className="grid grid-cols-2 gap-4">
+                </DialogContent>
+              </Dialog>
+              <Dialog open={showTaskDialog} onOpenChange={handleDialogClose}>
+                <DialogTrigger asChild>
+                  <Button size="sm">
+                    <Plus className="mr-2 h-4 w-4" />
+                    New Task
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>
+                      {editingTask ? "Edit Task" : "Create New Task"}
+                    </DialogTitle>
+                    <DialogDescription>
+                      {editingTask ? "Update task details" : "Add a new task for this client"}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="task-priority">Priority</Label>
+                      <Label htmlFor="task-title">
+                        Title <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="task-title"
+                        value={taskFormData.title}
+                        onChange={(e) =>
+                          setTaskFormData({ ...taskFormData, title: e.target.value })
+                        }
+                        placeholder="Enter task title"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="task-description">Description</Label>
+                      <Textarea
+                        id="task-description"
+                        value={taskFormData.description}
+                        onChange={(e) =>
+                          setTaskFormData({ ...taskFormData, description: e.target.value })
+                        }
+                        placeholder="Enter task description"
+                        rows={3}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Due Date</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !taskDueDate && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {taskDueDate ? format(taskDueDate, "PPP") : <span>Pick a date</span>}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <CalendarComponent
+                            mode="single"
+                            selected={taskDueDate}
+                            onSelect={setTaskDueDate}
+                            initialFocus
+                            className={cn("p-3 pointer-events-auto")}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="task-priority">Priority</Label>
+                        <Select
+                          value={taskFormData.priority}
+                          onValueChange={(value) =>
+                            setTaskFormData({ ...taskFormData, priority: value })
+                          }
+                        >
+                          <SelectTrigger id="task-priority">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {PRIORITIES.map((priority) => (
+                              <SelectItem key={priority} value={priority}>
+                                {priority.charAt(0).toUpperCase() + priority.slice(1)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="task-status">Status</Label>
+                        <Select
+                          value={taskFormData.status}
+                          onValueChange={(value) =>
+                            setTaskFormData({ ...taskFormData, status: value })
+                          }
+                        >
+                          <SelectTrigger id="task-status">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {TASK_STATUSES.map((status) => (
+                              <SelectItem key={status} value={status}>
+                                {status.replace("_", " ").charAt(0).toUpperCase() +
+                                  status.replace("_", " ").slice(1)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="task-assigned">Assign To</Label>
                       <Select
-                        value={taskFormData.priority}
+                        value={taskFormData.assigned_to}
                         onValueChange={(value) =>
-                          setTaskFormData({ ...taskFormData, priority: value })
+                          setTaskFormData({ ...taskFormData, assigned_to: value })
                         }
                       >
-                        <SelectTrigger id="task-priority">
-                          <SelectValue />
+                        <SelectTrigger id="task-assigned">
+                          <SelectValue placeholder="Unassigned" />
                         </SelectTrigger>
                         <SelectContent>
-                          {PRIORITIES.map((priority) => (
-                            <SelectItem key={priority} value={priority}>
-                              {priority.charAt(0).toUpperCase() + priority.slice(1)}
+                          <SelectItem value="">Unassigned</SelectItem>
+                          {teamMembers.map((member) => (
+                            <SelectItem key={member.user_id} value={member.user_id}>
+                              {member.profiles?.full_name || member.profiles?.email || "Unknown"}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="task-status">Status</Label>
-                      <Select
-                        value={taskFormData.status}
-                        onValueChange={(value) =>
-                          setTaskFormData({ ...taskFormData, status: value })
-                        }
-                      >
-                        <SelectTrigger id="task-status">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {TASK_STATUSES.map((status) => (
-                            <SelectItem key={status} value={status}>
-                              {status.replace("_", " ").charAt(0).toUpperCase() +
-                                status.replace("_", " ").slice(1)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
                   </div>
-                </div>
-                <DialogFooter>
-                  <Button
-                    variant="outline"
-                    onClick={handleDialogClose}
-                    disabled={submitting}
-                  >
-                    Cancel
-                  </Button>
-                  <Button onClick={handleCreateOrUpdateTask} disabled={submitting}>
-                    {submitting ? "Saving..." : editingTask ? "Update Task" : "Create Task"}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+                  <DialogFooter>
+                    <Button
+                      variant="outline"
+                      onClick={handleDialogClose}
+                      disabled={submitting}
+                    >
+                      Cancel
+                    </Button>
+                    <Button onClick={handleCreateOrUpdateTask} disabled={submitting}>
+                      {submitting ? "Saving..." : editingTask ? "Update Task" : "Create Task"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
           )}
         </CardHeader>
         <CardContent>
-          {tasks.length === 0 ? (
+          {/* Filters and Sorting */}
+          <div className="mb-4 flex flex-wrap gap-2 items-center">
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger className="w-32">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  {TASK_STATUSES.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {status.replace("_", " ").charAt(0).toUpperCase() + status.replace("_", " ").slice(1)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Select value={filterPriority} onValueChange={setFilterPriority}>
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Priority</SelectItem>
+                {PRIORITIES.map((priority) => (
+                  <SelectItem key={priority} value={priority}>
+                    {priority.charAt(0).toUpperCase() + priority.slice(1)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={filterAssigned} onValueChange={setFilterAssigned}>
+              <SelectTrigger className="w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Members</SelectItem>
+                <SelectItem value="unassigned">Unassigned</SelectItem>
+                {teamMembers.map((member) => (
+                  <SelectItem key={member.user_id} value={member.user_id}>
+                    {member.profiles?.full_name || member.profiles?.email || "Unknown"}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <div className="flex items-center gap-2 ml-auto">
+              <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="w-32">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="due_date">Due Date</SelectItem>
+                  <SelectItem value="priority">Priority</SelectItem>
+                  <SelectItem value="status">Status</SelectItem>
+                  <SelectItem value="title">Title</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+              >
+                {sortOrder === "asc" ? "↑" : "↓"}
+              </Button>
+            </div>
+          </div>
+
+          {filteredAndSortedTasks.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <Clock className="h-12 w-12 text-muted-foreground mb-4" />
-              <p className="text-muted-foreground mb-2">No tasks yet</p>
-              <p className="text-sm text-muted-foreground">Create a task to get started</p>
+              <p className="text-muted-foreground mb-2">No tasks found</p>
+              <p className="text-sm text-muted-foreground">
+                {tasks.length === 0 ? "Create a task to get started" : "Try adjusting your filters"}
+              </p>
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Task</TableHead>
+                  <TableHead>Assigned To</TableHead>
                   <TableHead>Due Date</TableHead>
                   <TableHead>Priority</TableHead>
                   <TableHead>Status</TableHead>
@@ -428,7 +676,7 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {tasks.map((task) => (
+                {filteredAndSortedTasks.map((task) => (
                   <TableRow key={task.id}>
                     <TableCell>
                       <div>
@@ -439,6 +687,9 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
                           </p>
                         )}
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm">{getAssignedMemberName(task.assigned_to)}</span>
                     </TableCell>
                     <TableCell>
                       {task.due_date ? (

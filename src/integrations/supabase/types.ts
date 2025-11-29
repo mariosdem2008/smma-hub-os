@@ -1616,6 +1616,56 @@ export type Database = {
         }
         Relationships: []
       }
+      task_templates: {
+        Row: {
+          agency_id: string
+          checklist: Json | null
+          created_at: string
+          created_by: string | null
+          default_priority: string
+          default_status: string
+          description: string | null
+          estimated_hours: number | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          agency_id: string
+          checklist?: Json | null
+          created_at?: string
+          created_by?: string | null
+          default_priority?: string
+          default_status?: string
+          description?: string | null
+          estimated_hours?: number | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          agency_id?: string
+          checklist?: Json | null
+          created_at?: string
+          created_by?: string | null
+          default_priority?: string
+          default_status?: string
+          description?: string | null
+          estimated_hours?: number | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_templates_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tasks: {
         Row: {
           agency_id: string

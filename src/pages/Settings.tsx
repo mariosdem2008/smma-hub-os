@@ -5,6 +5,7 @@ import TeamTab from "@/components/settings/TeamTab";
 import NotificationsTab from "@/components/settings/NotificationsTab";
 import BillingTab from "@/components/settings/BillingTab";
 import SocialConnectionsTab from "@/components/settings/SocialConnectionsTab";
+import TaskTemplatesTab from "@/components/settings/TaskTemplatesTab";
 import LogsTab from "@/pages/settings/LogsTab";
 
 export default function Settings() {
@@ -29,6 +30,7 @@ export default function Settings() {
           {canAccessTeam && <TabsTrigger value="team">Team</TabsTrigger>}
           {canAccessSocial && <TabsTrigger value="social">Social Connections</TabsTrigger>}
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
+          <TabsTrigger value="templates">Task Templates</TabsTrigger>
           {canAccessBilling && <TabsTrigger value="billing">Billing</TabsTrigger>}
           <TabsTrigger value="logs">System Logs</TabsTrigger>
         </TabsList>
@@ -51,6 +53,10 @@ export default function Settings() {
 
         <TabsContent value="notifications">
           <NotificationsTab />
+        </TabsContent>
+
+        <TabsContent value="templates">
+          <TaskTemplatesTab />
         </TabsContent>
 
         {canAccessBilling && (
