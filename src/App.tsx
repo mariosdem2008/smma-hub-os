@@ -25,14 +25,12 @@ import Pricing from "./pages/Pricing";
 import Billing from "./pages/Billing";
 import BillingOverview from "./pages/BillingOverview";
 import InviteAccept from "./pages/InviteAccept";
-import TeamAuditDebug from "./pages/TeamAuditDebug";
 import NotFound from "./pages/NotFound";
 import { ClientPortalLayout } from "./pages/ClientPortalLayout";
 import ClientLogin from "./pages/client/ClientLogin";
 import ClientAcceptInvite from "./pages/client/ClientAcceptInvite";
 import ClientForgotPassword from "./pages/client/ClientForgotPassword";
 import ClientResetPassword from "./pages/client/ClientResetPassword";
-import SchedulingDebug from "./pages/SchedulingDebug";
 
 import { PortalOverview } from "./pages/client-portal/PortalOverview";
 import { PortalBranding } from "./pages/client-portal/PortalBranding";
@@ -110,8 +108,6 @@ const App = () => {
                     <Route path="/clients" element={<Clients />} />
                     <Route path="/clients/:clientId" element={<ClientDetail />} />
                     <Route path="/team" element={<Team />} />
-                    <Route path="/team/audit-debug" element={<TeamAuditDebug />} />
-                    <Route path="/scheduling-debug" element={<SchedulingDebug />} />
                     <Route path="/billing" element={<Billing />} />
                     <Route path="/billing/overview" element={<BillingOverview />} />
                     <Route path="/settings" element={<Settings />} />
