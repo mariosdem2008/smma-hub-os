@@ -106,19 +106,39 @@ async function publishProject(supabaseAdmin: any, project: any) {
     throw new Error('No platforms specified for project');
   }
 
+  // Filter to only supported platforms (Instagram, Facebook)
+  const supportedPlatforms = project.platforms.filter(
+    (p: string) => p === 'instagram' || p === 'facebook'
+  );
+
+  if (supportedPlatforms.length === 0) {
+    console.log(`[AUTOPUBLISH] No supported platforms selected for project ${project.id}, marking as failed`);
+    await supabaseAdmin
+      .from('projects')
+      .update({
+        error_message: 'No supported platforms selected (only Instagram and Facebook are supported)',
+        pipeline_stage: 'failed',
+        retry_count: 0,
+      })
+      .eq('id', project.id);
+    
+    throw new Error('No supported platforms selected');
+  }
+
   const asset = project.assets;
   const mediaUrl = asset.file_url;
   const mediaType = asset.file_type?.startsWith('video') ? 'video' : 'image';
 
   console.log(`[AUTOPUBLISH] Media type: ${mediaType}, URL: ${mediaUrl}`);
+  console.log(`[AUTOPUBLISH] Supported platforms: ${supportedPlatforms.join(', ')}`);
 
-  // Fetch social connections for client
+  // Fetch social connections for client (only for supported platforms)
   const { data: connections, error: connectionsError } = await supabaseAdmin
     .from('social_connections')
     .select('*')
     .eq('client_id', project.client_id)
     .eq('status', 'connected')
-    .in('platform', project.platforms);
+    .in('platform', supportedPlatforms);
 
   if (connectionsError) {
     throw new Error(`Failed to fetch connections: ${connectionsError.message}`);

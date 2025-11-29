@@ -38,10 +38,10 @@ interface Asset {
 }
 
 const PLATFORMS = [
-  { id: "instagram", label: "Instagram" },
-  { id: "facebook", label: "Facebook" },
-  { id: "tiktok", label: "TikTok" },
-  { id: "linkedin", label: "LinkedIn" },
+  { id: "instagram", label: "Instagram", enabled: true },
+  { id: "facebook", label: "Facebook", enabled: true },
+  { id: "tiktok", label: "TikTok", enabled: false },
+  { id: "linkedin", label: "LinkedIn", enabled: false },
 ];
 
 interface ProjectFinalContentTabProps {
@@ -261,11 +261,14 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
       // Convert local time to UTC before saving
       const utcDateTime = convertToUTC(scheduleDateTime, userTimezone);
 
+      // Filter platforms to only supported ones (Instagram, Facebook)
+      const supportedPlatforms = selectedPlatforms.filter(p => p === 'instagram' || p === 'facebook');
+
       const { error } = await supabase
         .from("projects")
         .update({
           scheduled_time: utcDateTime,
-          platforms: selectedPlatforms,
+          platforms: supportedPlatforms,
           platform_captions: captions,
           hashtags: hashtags || null,
           pipeline_stage: "scheduled",
@@ -292,8 +295,11 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
 
   const handleSaveSettings = async () => {
     try {
+      // Filter platforms to only supported ones (Instagram, Facebook)
+      const supportedPlatforms = selectedPlatforms.filter(p => p === 'instagram' || p === 'facebook');
+      
       const updateData: any = {
-        platforms: selectedPlatforms,
+        platforms: supportedPlatforms,
         platform_captions: captions,
         hashtags: hashtags || null,
       };
@@ -423,17 +429,21 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
         <Label className="text-base font-semibold mb-3 block">Publishing Platforms</Label>
         <div className="grid grid-cols-2 gap-3">
           {PLATFORMS.map((platform) => (
-            <div key={platform.id} className="flex items-center space-x-2">
+            <div key={platform.id} className="flex items-center space-x-2 opacity-100">
               <Checkbox
                 id={platform.id}
                 checked={selectedPlatforms.includes(platform.id)}
                 onCheckedChange={() => handlePlatformToggle(platform.id)}
+                disabled={!platform.enabled}
               />
               <label
                 htmlFor={platform.id}
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex items-center gap-2"
               >
                 {platform.label}
+                {!platform.enabled && (
+                  <Badge variant="secondary" className="text-xs">Coming Soon</Badge>
+                )}
               </label>
             </div>
           ))}
