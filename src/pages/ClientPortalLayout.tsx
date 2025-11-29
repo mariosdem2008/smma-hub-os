@@ -5,6 +5,8 @@ import { useClientAuth } from "@/lib/client-auth";
 import { useClientFonts } from "@/hooks/useClientFonts";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { ClientPortalMobileBottomNav } from "@/components/ClientPortalMobileBottomNav";
 import {
   FolderOpen,
   LogOut,
@@ -44,6 +46,7 @@ function ClientPortalLayoutContent() {
   const navigate = useNavigate();
   const { clientUser, logout, loading, isAuthenticated } = useClientAuth();
   const [client, setClient] = useState<Client | null>(null);
+  const isMobile = useIsMobile();
 
   // Load fonts dynamically
   useClientFonts({
@@ -103,7 +106,7 @@ function ClientPortalLayoutContent() {
     <div className="min-h-screen bg-background">
       {/* Top Nav */}
       <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-16 items-center justify-between px-6">
+        <div className="container flex h-16 items-center justify-between px-4 md:px-6">
           <div className="flex items-center gap-4">
             {client.logo_url && (
               <img
@@ -113,56 +116,63 @@ function ClientPortalLayoutContent() {
               />
             )}
             <div>
-              <h1 className="text-xl font-semibold">{client.name}</h1>
-              <p className="text-xs text-muted-foreground">Client Portal</p>
+              <h1 className="text-lg md:text-xl font-semibold">{client.name}</h1>
+              <p className="text-xs text-muted-foreground hidden md:block">Client Portal</p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground">
-              {clientUser.full_name || clientUser.email}
-            </span>
+          <div className="flex items-center gap-2 md:gap-4">
+            {!isMobile && (
+              <span className="text-sm text-muted-foreground">
+                {clientUser.full_name || clientUser.email}
+              </span>
+            )}
             <Button variant="ghost" size="sm" onClick={handleSignOut}>
-              <LogOut className="h-4 w-4 mr-2" />
-              Sign Out
+              <LogOut className="h-4 w-4 md:mr-2" />
+              <span className="hidden md:inline">Sign Out</span>
             </Button>
           </div>
         </div>
       </header>
 
-      <div className="container flex px-6 py-6">
-        {/* Sidebar */}
-        <aside className="w-64 shrink-0 pr-6">
-          <nav className="space-y-1">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive =
-                window.location.pathname ===
-                `/client/portal/${portalSlug}${item.path ? `/${item.path}` : ""}`;
+      <div className={cn("container flex", isMobile ? "px-4 py-4 pb-20" : "px-6 py-6")}>
+        {/* Sidebar - Hidden on mobile */}
+        {!isMobile && (
+          <aside className="w-64 shrink-0 pr-6">
+            <nav className="space-y-1">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                const isActive =
+                  window.location.pathname ===
+                  `/client/portal/${portalSlug}${item.path ? `/${item.path}` : ""}`;
 
-              return (
-                <Link
-                  key={item.path}
-                  to={`/client/portal/${portalSlug}${item.path ? `/${item.path}` : ""}`}
-                  className={cn(
-                    "flex items-center gap-3 px-4 py-2 text-sm font-medium rounded-md transition-colors",
-                    isActive
-                      ? "bg-accent text-accent-foreground"
-                      : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-                  )}
-                >
-                  <Icon className="h-4 w-4" />
-                  <span>{item.label}</span>
-                </Link>
-              );
-            })}
-          </nav>
-        </aside>
+                return (
+                  <Link
+                    key={item.path}
+                    to={`/client/portal/${portalSlug}${item.path ? `/${item.path}` : ""}`}
+                    className={cn(
+                      "flex items-center gap-3 px-4 py-2 text-sm font-medium rounded-md transition-colors",
+                      isActive
+                        ? "bg-accent text-accent-foreground"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                    )}
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </nav>
+          </aside>
+        )}
 
         {/* Main Content */}
         <main className="flex-1 min-w-0">
           <Outlet context={{ client, clientId: clientUser.client_id, clientUser }} />
         </main>
       </div>
+
+      {/* Mobile Bottom Navigation */}
+      {isMobile && <ClientPortalMobileBottomNav />}
     </div>
   );
 }

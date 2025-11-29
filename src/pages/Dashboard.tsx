@@ -3,6 +3,9 @@ import { useAuth } from "@/lib/auth";
 import { useRole } from "@/hooks/useRole";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { hapticButton } from "@/lib/haptics";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -51,8 +54,16 @@ export default function Dashboard() {
   const { canManageClients, canCreateContent } = useRole();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Pull-to-refresh for mobile
+  const { isRefreshing, pullDistance } = usePullToRefresh({
+    onRefresh: async () => {
+      await fetchDashboardData();
+    },
+  });
   const [showNewClientDialog, setShowNewClientDialog] = useState(false);
   const [clientFormData, setClientFormData] = useState({
     name: "",
@@ -466,16 +477,35 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div 
+      className="space-y-4 md:space-y-6"
+      style={{
+        transform: isMobile ? `translateY(${pullDistance}px)` : undefined,
+        transition: isRefreshing ? "transform 0.3s ease-out" : "none",
+      }}
+    >
+      {/* Pull-to-refresh indicator */}
+      {isMobile && pullDistance > 0 && (
+        <div className="flex justify-center">
+          <div className={`text-sm text-muted-foreground transition-opacity ${pullDistance > 60 ? "opacity-100" : "opacity-50"}`}>
+            {isRefreshing ? "Refreshing..." : pullDistance > 60 ? "Release to refresh" : "Pull to refresh"}
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Welcome, {user?.user_metadata?.full_name || "User"}</h1>
-          <p className="text-muted-foreground">Manage your clients and their projects</p>
+          <h1 className="text-2xl md:text-3xl font-bold">Welcome, {user?.user_metadata?.full_name || "User"}</h1>
+          <p className="text-sm md:text-base text-muted-foreground">Manage your clients and their projects</p>
         </div>
         {canManageClients && (
           <Dialog open={showNewClientDialog} onOpenChange={setShowNewClientDialog}>
             <DialogTrigger asChild>
-              <Button>
+              <Button 
+                className="w-full md:w-auto"
+                style={{ minHeight: isMobile ? "44px" : undefined }}
+                onClick={() => hapticButton()}
+              >
                 <Plus className="mr-2 h-4 w-4" />
                 New Client
               </Button>
