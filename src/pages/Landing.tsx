@@ -213,7 +213,7 @@ export default function Landing() {
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.6, delay: 0.7 }}
               >
-                For SMMA owners, editors, content creators & account managers.
+                For SMMA owners,freelancers, editors, content creators & account managers.
               </motion.p>
 
               {/* Trust Badges */}
