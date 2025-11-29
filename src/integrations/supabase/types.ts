@@ -1920,6 +1920,10 @@ export type Database = {
         Args: { p_client_id: string }
         Returns: undefined
       }
+      delete_project_cascade: {
+        Args: { p_project_id: string }
+        Returns: undefined
+      }
       generate_portal_invite_token: { Args: never; Returns: string }
       generate_portal_slug: { Args: never; Returns: string }
       generate_portal_token: { Args: never; Returns: string }

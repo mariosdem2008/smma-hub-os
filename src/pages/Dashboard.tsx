@@ -154,40 +154,42 @@ export default function Dashboard() {
       // Get client IDs for filtering
       const clientIds = clientsData?.map((c) => c.id) || [];
 
-      // Assets scheduled this week (in scheduled or published stage)
-      const { data: assetsData } = await supabase
-        .from("assets")
+      // Projects scheduled this week
+      const { data: projectsData } = await supabase
+        .from("projects")
         .select("id")
         .in("client_id", clientIds)
-        .in("pipeline_stage", ["scheduled", "published"])
+        .eq("pipeline_stage", "scheduled")
+        .not("scheduled_time", "is", null)
         .gte("scheduled_time", weekStart.toISOString())
         .lte("scheduled_time", weekEnd.toISOString());
 
       setMetrics({
         totalClients: clientsData?.length || 0,
-        postsThisWeek: assetsData?.length || 0,
+        postsThisWeek: projectsData?.length || 0,
         tasksThisWeek: 0,
       });
 
-      // Fetch upcoming assets (next 10 scheduled/published)
-      const { data: upcomingAssetsData } = await supabase
-        .from("assets")
+      // Fetch upcoming scheduled projects (next 10)
+      const { data: upcomingProjectsData } = await supabase
+        .from("projects")
         .select(`
           id,
-          filename,
+          title,
           platforms,
           scheduled_time,
           pipeline_stage,
-          final_caption,
+          thumbnail_url,
           client:clients(id, name)
         `)
         .in("client_id", clientIds)
-        .in("pipeline_stage", ["scheduled", "published"])
+        .eq("pipeline_stage", "scheduled")
+        .not("scheduled_time", "is", null)
         .gte("scheduled_time", now.toISOString())
         .order("scheduled_time", { ascending: true })
         .limit(10);
 
-      setUpcomingPosts(upcomingAssetsData || []);
+      setUpcomingPosts(upcomingProjectsData || []);
       setOverdueTasks([]);
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
@@ -501,8 +503,8 @@ export default function Dashboard() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead>Project</TableHead>
                       <TableHead>Client</TableHead>
-                      <TableHead>Filename</TableHead>
                       <TableHead>Platforms</TableHead>
                       <TableHead>Scheduled</TableHead>
                       <TableHead>Stage</TableHead>
@@ -516,8 +518,13 @@ export default function Dashboard() {
                         className="cursor-pointer hover:bg-muted/50"
                         onClick={() => navigate(`/clients/${post.client.id}`)}
                       >
-                         <TableCell className="font-medium">{post.client.name}</TableCell>
-                        <TableCell>{post.filename}</TableCell>
+                        <TableCell className="font-medium flex items-center gap-2">
+                          {post.thumbnail_url && (
+                            <img src={post.thumbnail_url} alt="" className="w-8 h-8 rounded object-cover" />
+                          )}
+                          {post.title || "Untitled Project"}
+                        </TableCell>
+                        <TableCell>{post.client.name}</TableCell>
                         <TableCell>
                           <div className="flex gap-1 flex-wrap">
                             {post.platforms?.map((platform: string) => (
