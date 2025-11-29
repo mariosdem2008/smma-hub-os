@@ -150,7 +150,12 @@ export default function Auth() {
               <Button type="submit" className="w-full">
                 Login
               </Button>
-              <Button type="button" variant="link" className="w-full">
+              <Button 
+                type="button" 
+                variant="link" 
+                className="w-full"
+                onClick={() => navigate("/forgot-password")}
+              >
                 Forgot password?
               </Button>
               <Separator />
