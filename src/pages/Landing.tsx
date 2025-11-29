@@ -156,7 +156,7 @@ export default function Landing() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.2 }}
               >
-                All Your Client Files, Brand Assets & Content <span className="text-primary">In One Place</span>
+                Handle More Clients <span className="text-primary">With Less Work.</span>
               </motion.h1>
 
               <motion.p
