@@ -32,6 +32,11 @@ const navItems = [
   { path: "content-calendar", label: "Calendar", key: "content_calendar", icon: CalendarDays },
   { path: "assets", label: "Assets", key: "assets", icon: FolderOpen },
   { path: "uploads", label: "Upload", key: "uploads", icon: Upload },
+  { path: "social-profiles", label: "Social Profiles", key: "social_profiles", icon: () => (
+    <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
+      <path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z"/>
+    </svg>
+  )},
 ];
 
 function ClientPortalLayoutContent() {

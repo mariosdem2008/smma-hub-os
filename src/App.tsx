@@ -37,6 +37,7 @@ import SchedulingDebug from "./pages/SchedulingDebug";
 import { PortalOverview } from "./pages/client-portal/PortalOverview";
 import { PortalBranding } from "./pages/client-portal/PortalBranding";
 import { PortalSocial } from "./pages/client-portal/PortalSocial";
+import PortalSocialProfiles from "./pages/client-portal/PortalSocialProfiles";
 import { PortalIdeas } from "./pages/client-portal/PortalIdeas";
 import { PortalAssets } from "./pages/client-portal/PortalAssets";
 import { PortalContentCalendar } from "./pages/client-portal/PortalContentCalendar";
@@ -83,6 +84,7 @@ const App = () => {
                     <Route path="assets" element={<PortalAssets />} />
                     <Route path="branding" element={<PortalBranding />} />
                     <Route path="social" element={<PortalSocial />} />
+                    <Route path="social-profiles" element={<PortalSocialProfiles />} />
                     <Route path="uploads" element={<PortalUploads />} />
                   </Route>
                   

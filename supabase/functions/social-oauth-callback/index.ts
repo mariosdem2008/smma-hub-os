@@ -36,7 +36,7 @@ serve(async (req) => {
 
     // Decode state
     const decodedState = JSON.parse(atob(state));
-    const { platform, clientId, userId } = decodedState;
+    const { platform, clientId, userId, source = 'agency' } = decodedState;
     console.log('[OAUTH-CALLBACK] STATE:', decodedState);
 
     // Validate environment variables
@@ -131,19 +131,41 @@ serve(async (req) => {
 
     console.log('[OAUTH-CALLBACK] All connections saved successfully');
 
-    // Return HTML that closes the popup
-    return new Response(
-      `<html>
-        <body>
-          <script>
-            console.log('OAuth callback successful');
-            window.close();
-          </script>
-          <p>Connection successful! This window will close automatically.</p>
-        </body>
-      </html>`,
-      { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
-    );
+    // Handle redirect based on source
+    if (source === 'client') {
+      // Client portal redirect - show success screen
+      return new Response(
+        `<html>
+          <body style="font-family: system-ui; padding: 40px; text-align: center; background: #f9fafb;">
+            <div style="max-width: 400px; margin: 0 auto; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+              <div style="width: 60px; height: 60px; background: #10b981; border-radius: 50%; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center;">
+                <svg width="30" height="30" fill="white" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+              </div>
+              <h1 style="color: #111827; margin: 0 0 8px;">Connection Successful!</h1>
+              <p style="color: #6b7280; margin: 0 0 24px;">Your social media account has been connected successfully.</p>
+              <button onclick="window.close()" style="background: #3b82f6; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;">
+                Close Window
+              </button>
+            </div>
+          </body>
+        </html>`,
+        { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
+      );
+    } else {
+      // Agency side - just close popup
+      return new Response(
+        `<html>
+          <body>
+            <script>
+              console.log('OAuth callback successful');
+              window.close();
+            </script>
+            <p>Connection successful! This window will close automatically.</p>
+          </body>
+        </html>`,
+        { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
+      );
+    }
 
   } catch (error) {
     console.error('[OAUTH-CALLBACK] Error:', error);

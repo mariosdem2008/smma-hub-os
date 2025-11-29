@@ -4,6 +4,7 @@ import { corsHeaders } from "../_shared/cors.ts";
 interface OAuthRequest {
   platform: string;
   clientId: string;
+  source?: string; // 'agency' or 'client'
 }
 
 serve(async (req) => {
@@ -13,7 +14,7 @@ serve(async (req) => {
 
   try {
     // Read JSON body
-    const { platform, clientId } = await req.json() as OAuthRequest;
+    const { platform, clientId, source = 'agency' } = await req.json() as OAuthRequest;
     
     console.log('[OAUTH] social-oauth called with:', { platform, clientId });
 
@@ -48,7 +49,7 @@ serve(async (req) => {
     }
 
     // Build state payload
-    const statePayload = { clientId, platform };
+    const statePayload = { clientId, platform, source };
     const state = btoa(JSON.stringify(statePayload));
     console.log('[OAUTH] STATE:', state);
 
