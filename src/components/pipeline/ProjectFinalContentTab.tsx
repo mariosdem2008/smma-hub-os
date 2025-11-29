@@ -14,6 +14,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns";
 import { getAllPlatformSuggestions } from "@/lib/platform-posting-times";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { convertToUTC, convertToLocal } from "@/lib/utils";
+import { useAuth } from "@/lib/auth";
 
 interface Project {
   id: string;
@@ -49,12 +51,14 @@ interface ProjectFinalContentTabProps {
 
 export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFinalContentTabProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [finalAssets, setFinalAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(project.platforms || []);
   const [captions, setCaptions] = useState<Record<string, string>>(project.platform_captions || {});
   const [hashtags, setHashtags] = useState(project.hashtags || "");
+  const [userTimezone, setUserTimezone] = useState<string>("UTC");
   const [scheduledDate, setScheduledDate] = useState<Date | undefined>(
     project.scheduled_time ? new Date(project.scheduled_time) : undefined
   );
@@ -64,7 +68,36 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
 
   useEffect(() => {
     fetchFinalAssets();
+    fetchUserTimezone();
   }, [project.id]);
+
+  useEffect(() => {
+    // Convert UTC scheduled time to user's local timezone for display
+    if (project.scheduled_time && userTimezone !== "UTC") {
+      const localDate = convertToLocal(project.scheduled_time, userTimezone);
+      setScheduledDate(localDate);
+      setScheduledTime(format(localDate, "HH:mm"));
+    }
+  }, [project.scheduled_time, userTimezone]);
+
+  const fetchUserTimezone = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("timezone")
+        .eq("id", user.id)
+        .single();
+      
+      if (error) throw error;
+      if (data?.timezone) {
+        setUserTimezone(data.timezone);
+      }
+    } catch (error) {
+      console.error("Error fetching timezone:", error);
+    }
+  };
 
   const fetchFinalAssets = async () => {
     try {
@@ -223,12 +256,15 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
     try {
       const [hours, minutes] = scheduledTime.split(':');
       const scheduleDateTime = new Date(scheduledDate);
-      scheduleDateTime.setHours(parseInt(hours), parseInt(minutes));
+      scheduleDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+
+      // Convert local time to UTC before saving
+      const utcDateTime = convertToUTC(scheduleDateTime, userTimezone);
 
       const { error } = await supabase
         .from("projects")
         .update({
-          scheduled_time: scheduleDateTime.toISOString(),
+          scheduled_time: utcDateTime,
           platforms: selectedPlatforms,
           platform_captions: captions,
           hashtags: hashtags || null,
@@ -240,7 +276,7 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
 
       toast({
         title: "Scheduled",
-        description: "Post scheduled successfully for " + format(scheduleDateTime, "PPP 'at' p"),
+        description: `Post scheduled successfully for ${format(scheduleDateTime, "PPP 'at' p")} (${userTimezone})`,
       });
 
       onUpdate();
@@ -265,8 +301,9 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
       if (scheduledDate && scheduledTime) {
         const [hours, minutes] = scheduledTime.split(':');
         const scheduleDateTime = new Date(scheduledDate);
-        scheduleDateTime.setHours(parseInt(hours), parseInt(minutes));
-        updateData.scheduled_time = scheduleDateTime.toISOString();
+        scheduleDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+        // Convert local time to UTC before saving
+        updateData.scheduled_time = convertToUTC(scheduleDateTime, userTimezone);
       }
 
       const { error } = await supabase

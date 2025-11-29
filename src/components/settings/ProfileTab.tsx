@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import { getTimezoneList } from "@/lib/utils";
 
 const NICHES = [
   "Real Estate",
@@ -18,6 +19,8 @@ const NICHES = [
   "General",
   "Other"
 ];
+
+const TIMEZONES = getTimezoneList();
 
 export default function ProfileTab() {
   const { user } = useAuth();
@@ -31,6 +34,7 @@ export default function ProfileTab() {
   const [website, setWebsite] = useState("");
   const [niche, setNiche] = useState("");
   const [brandColor, setBrandColor] = useState("#000000");
+  const [timezone, setTimezone] = useState("UTC");
 
   useEffect(() => {
     fetchProfileData();
@@ -54,7 +58,7 @@ export default function ProfileTab() {
       // Get profile data
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("full_name, email")
+        .select("full_name, email, timezone")
         .eq("id", user.id)
         .single();
 
@@ -69,6 +73,7 @@ export default function ProfileTab() {
       if (profile) {
         setOwnerName(profile.full_name || "");
         setEmail(profile.email || "");
+        setTimezone(profile.timezone || "UTC");
       }
     } catch (error: any) {
       console.error("Error fetching profile:", error);
@@ -105,6 +110,7 @@ export default function ProfileTab() {
         .from("profiles")
         .update({
           full_name: ownerName,
+          timezone: timezone,
         })
         .eq("id", user.id);
 
@@ -202,6 +208,38 @@ export default function ProfileTab() {
               ))}
             </SelectContent>
           </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="timezone">Timezone</Label>
+          <Select value={timezone} onValueChange={setTimezone}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select timezone" />
+            </SelectTrigger>
+            <SelectContent className="max-h-[300px]">
+              {Object.entries(
+                TIMEZONES.reduce((acc, tz) => {
+                  if (!acc[tz.group]) acc[tz.group] = [];
+                  acc[tz.group].push(tz);
+                  return acc;
+                }, {} as Record<string, typeof TIMEZONES>)
+              ).map(([group, timezones]) => (
+                <div key={group}>
+                  <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+                    {group}
+                  </div>
+                  {timezones.map((tz) => (
+                    <SelectItem key={tz.value} value={tz.value}>
+                      {tz.label}
+                    </SelectItem>
+                  ))}
+                </div>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Your timezone is used for scheduling posts and displaying dates
+          </p>
         </div>
 
         <Button onClick={handleSave} disabled={saving}>

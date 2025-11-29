@@ -13,6 +13,8 @@ import { CalendarDays, Clock, Edit, Copy, X, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { convertToLocal, convertToUTC } from "@/lib/utils";
+import { useAuth } from "@/lib/auth";
 
 interface CalendarTabProps {
   clientId: string;
@@ -33,6 +35,7 @@ const stageColors: Record<string, string> = {
 };
 
 export default function CalendarTab({ clientId }: CalendarTabProps) {
+  const { user } = useAuth();
   const [items, setItems] = useState<ScheduledItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<"week" | "month" | "queue">("week");
@@ -42,11 +45,32 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
   const [newScheduledDate, setNewScheduledDate] = useState("");
   const [newScheduledTime, setNewScheduledTime] = useState("");
   const [draggedItem, setDraggedItem] = useState<ScheduledItem | null>(null);
+  const [userTimezone, setUserTimezone] = useState<string>("UTC");
   const { toast } = useToast();
 
   useEffect(() => {
+    fetchUserTimezone();
     fetchScheduledItems();
   }, [clientId]);
+
+  const fetchUserTimezone = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("timezone")
+        .eq("id", user.id)
+        .single();
+      
+      if (error) throw error;
+      if (data?.timezone) {
+        setUserTimezone(data.timezone);
+      }
+    } catch (error) {
+      console.error("Error fetching timezone:", error);
+    }
+  };
 
   const fetchScheduledItems = async () => {
     try {
@@ -95,16 +119,29 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
   const getItemsForDay = (day: Date) => {
     return items.filter((item) => {
       if (!item.scheduled_time) return false;
-      return isSameDay(parseISO(item.scheduled_time), day);
+      // Convert UTC time to local time for comparison
+      const localDate = convertToLocal(item.scheduled_time, userTimezone);
+      return isSameDay(localDate, day);
     });
+  };
+
+  const formatLocalTime = (utcString: string) => {
+    const localDate = convertToLocal(utcString, userTimezone);
+    return format(localDate, "HH:mm");
+  };
+
+  const formatLocalDateTime = (utcString: string) => {
+    const localDate = convertToLocal(utcString, userTimezone);
+    return format(localDate, "MMM d, yyyy 'at' h:mm a");
   };
 
   const handleOpenRescheduleDialog = (item: ScheduledItem) => {
     setSelectedItem(item);
     if (item.scheduled_time) {
-      const scheduledDate = parseISO(item.scheduled_time);
-      setNewScheduledDate(format(scheduledDate, "yyyy-MM-dd"));
-      setNewScheduledTime(format(scheduledDate, "HH:mm"));
+      // Convert UTC to local time for editing
+      const localDate = convertToLocal(item.scheduled_time, userTimezone);
+      setNewScheduledDate(format(localDate, "yyyy-MM-dd"));
+      setNewScheduledTime(format(localDate, "HH:mm"));
     }
     setRescheduleDialogOpen(true);
   };
@@ -115,16 +152,19 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
     try {
       const scheduledDateTime = new Date(`${newScheduledDate}T${newScheduledTime}`);
       
+      // Convert local time to UTC before saving
+      const utcDateTime = convertToUTC(scheduledDateTime, userTimezone);
+      
       const { error } = await supabase
         .from("projects")
-        .update({ scheduled_time: scheduledDateTime.toISOString() })
+        .update({ scheduled_time: utcDateTime })
         .eq("id", selectedItem.id);
 
       if (error) throw error;
 
       toast({
         title: "Post rescheduled",
-        description: `Successfully rescheduled to ${format(scheduledDateTime, "MMM d, yyyy 'at' h:mm a")}`,
+        description: `Successfully rescheduled to ${format(scheduledDateTime, "MMM d, yyyy 'at' h:mm a")} (${userTimezone})`,
       });
 
       setRescheduleDialogOpen(false);
@@ -150,21 +190,24 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
     if (!draggedItem) return;
 
     try {
-      // Keep the same time, just change the day
-      const originalDate = parseISO(draggedItem.scheduled_time!);
+      // Keep the same time, just change the day (in local timezone)
+      const localDate = convertToLocal(draggedItem.scheduled_time!, userTimezone);
       const newDate = new Date(day);
-      newDate.setHours(originalDate.getHours(), originalDate.getMinutes(), 0, 0);
+      newDate.setHours(localDate.getHours(), localDate.getMinutes(), 0, 0);
+
+      // Convert to UTC before saving
+      const utcDateTime = convertToUTC(newDate, userTimezone);
 
       const { error } = await supabase
         .from("projects")
-        .update({ scheduled_time: newDate.toISOString() })
+        .update({ scheduled_time: utcDateTime })
         .eq("id", draggedItem.id);
 
       if (error) throw error;
 
       toast({
         title: "Post moved",
-        description: `Moved to ${format(newDate, "MMM d, yyyy 'at' h:mm a")}`,
+        description: `Moved to ${format(newDate, "MMM d, yyyy 'at' h:mm a")} (${userTimezone})`,
       });
 
       setDraggedItem(null);
@@ -319,7 +362,7 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
                           <Clock className="h-3 w-3" />
                           <span className="text-xs">
                             {item.scheduled_time
-                              ? format(parseISO(item.scheduled_time), "HH:mm")
+                              ? formatLocalTime(item.scheduled_time)
                               : "Unscheduled"}
                           </span>
                         </div>
@@ -420,8 +463,7 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
                             <div className="flex items-center gap-1 text-sm text-muted-foreground">
                               <Clock className="h-3 w-3" />
                               <span>
-                                {format(parseISO(item.scheduled_time), "MMM d, yyyy")} at{" "}
-                                {format(parseISO(item.scheduled_time), "h:mm a")}
+                                {formatLocalDateTime(item.scheduled_time)}
                               </span>
                             </div>
                           )}
@@ -484,7 +526,7 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
                 <p className="text-sm text-muted-foreground">
                   Current schedule:{" "}
                   {selectedItem.scheduled_time &&
-                    format(parseISO(selectedItem.scheduled_time), "MMM d, yyyy 'at' h:mm a")}
+                    formatLocalDateTime(selectedItem.scheduled_time)} ({userTimezone})
                 </p>
               </div>
               <Separator />
