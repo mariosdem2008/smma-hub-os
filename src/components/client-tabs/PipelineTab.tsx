@@ -309,6 +309,7 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
                                       project={project}
                                       onClick={() => {}}
                                       isDragging={snapshot.isDragging}
+                                      onDelete={() => fetchProjects()}
                                     />
                                   </div>
                                 )}
@@ -357,7 +358,12 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
       {/* Stage Detail Modal */}
       <StageDetailModal
         open={!!selectedStage}
-        onOpenChange={(open) => !open && setSelectedStage(null)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedStage(null);
+            fetchProjects(); // Refresh projects after modal closes
+          }
+        }}
         stage={selectedStage}
         projects={selectedStage ? getProjectsByStage(selectedStage.key) : []}
         onProjectClick={(projectId) => {

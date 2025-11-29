@@ -59,7 +59,15 @@ export default function StageDetailModal({
           ) : (
             projects.map((project, index) => (
               <div key={project.id} onClick={() => onProjectClick(project.id)}>
-                <ProjectCard project={project} onClick={() => {}} isDragging={false} />
+                <ProjectCard 
+                  project={project} 
+                  onClick={() => {}} 
+                  isDragging={false}
+                  onDelete={() => {
+                    // Close modal and let parent handle refresh
+                    onOpenChange(false);
+                  }}
+                />
               </div>
             ))
           )}
