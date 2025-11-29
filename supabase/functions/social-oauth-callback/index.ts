@@ -66,40 +66,70 @@ serve(async (req) => {
       throw new Error('Failed to exchange code for token');
     }
 
-    // Fetch account info
+    // Fetch account info (returns both Facebook page and Instagram account if available)
     const accountInfo = await fetchAccountInfo(tokens.access_token, GRAPH_API_VERSION);
-    console.log('[OAUTH-CALLBACK] IG ACCOUNT:', accountInfo);
+    console.log('[OAUTH-CALLBACK] ACCOUNT INFO:', accountInfo);
 
-    if (!accountInfo) {
+    if (!accountInfo || !accountInfo.facebook) {
       throw new Error('Failed to fetch account information');
     }
 
-    // Upsert connection to database using admin client
-    const { data: upsertResult, error: upsertError } = await admin
-      .from('social_connections')
-      .upsert({
+    const connectionsToSave = [];
+
+    // SAVE FACEBOOK CONNECTION
+    const fbConnection = {
+      client_id: clientId,
+      platform: 'facebook',
+      account_name: accountInfo.facebook.name,
+      account_handle: accountInfo.facebook.name,
+      account_id: accountInfo.facebook.id, // Facebook Page ID
+      access_token: accountInfo.facebook.access_token,
+      refresh_token: tokens.refresh_token || null,
+      status: 'connected',
+      token_expires_at: tokens.expires_at,
+      last_synced_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    connectionsToSave.push(fbConnection);
+    console.log('[OAUTH-CALLBACK] FB CONNECTION TO SAVE:', fbConnection);
+
+    // SAVE INSTAGRAM CONNECTION (only if IG account exists)
+    if (accountInfo.instagram) {
+      const igConnection = {
         client_id: clientId,
-        platform: platform.toLowerCase(),
-        account_name: accountInfo.name,
-        account_handle: accountInfo.handle,
-        account_id: accountInfo.id,
-        access_token: tokens.access_token,
+        platform: 'instagram',
+        account_name: accountInfo.instagram.name,
+        account_handle: accountInfo.instagram.handle,
+        account_id: accountInfo.instagram.id, // Instagram Business Account ID
+        access_token: tokens.access_token, // Use long-lived token from OAuth
         refresh_token: tokens.refresh_token || null,
         status: 'connected',
         token_expires_at: tokens.expires_at,
         last_synced_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
-      })
-      .select();
-
-    console.log('[OAUTH-CALLBACK] UPSERT RESULT:', upsertResult);
-    console.log('[OAUTH-CALLBACK] UPSERT ERROR:', upsertError);
-
-    if (upsertError) {
-      throw new Error(`Database upsert failed: ${upsertError.message}`);
+      };
+      connectionsToSave.push(igConnection);
+      console.log('[OAUTH-CALLBACK] IG CONNECTION TO SAVE:', igConnection);
+    } else {
+      console.log('[OAUTH-CALLBACK] No Instagram Business Account found, skipping IG connection');
     }
 
-    console.log('[OAUTH-CALLBACK] Connection saved successfully');
+    // Upsert all connections to database using admin client
+    for (const connection of connectionsToSave) {
+      const { data: upsertResult, error: upsertError } = await admin
+        .from('social_connections')
+        .upsert(connection)
+        .select();
+
+      console.log(`[OAUTH-CALLBACK] UPSERT ${connection.platform.toUpperCase()} RESULT:`, upsertResult);
+      console.log(`[OAUTH-CALLBACK] UPSERT ${connection.platform.toUpperCase()} ERROR:`, upsertError);
+
+      if (upsertError) {
+        throw new Error(`Database upsert failed for ${connection.platform}: ${upsertError.message}`);
+      }
+    }
+
+    console.log('[OAUTH-CALLBACK] All connections saved successfully');
 
     // Return HTML that closes the popup
     return new Response(
@@ -178,7 +208,10 @@ async function exchangeCodeForToken(
 async function fetchAccountInfo(
   accessToken: string,
   graphApiVersion: string
-): Promise<{ id: string; name: string; handle: string; page_access_token?: string } | null> {
+): Promise<{
+  facebook: { id: string; name: string; access_token: string } | null;
+  instagram: { id: string; name: string; handle: string } | null;
+} | null> {
   try {
     console.log('[FETCH-ACCOUNT] Fetching Facebook pages');
     
@@ -196,60 +229,66 @@ async function fetchAccountInfo(
       throw new Error('No Facebook Pages found. Please ensure you have granted all required permissions.');
     }
 
+    // Use the first page for Facebook connection
+    const firstPage = pagesData.data[0];
+    console.log(`[FETCH-ACCOUNT] Using Facebook Page: "${firstPage.name}" (ID: ${firstPage.id})`);
+
+    const facebookInfo = {
+      id: firstPage.id, // Facebook Page ID
+      name: firstPage.name,
+      access_token: firstPage.access_token
+    };
+
     // Loop through all pages and check for Instagram Business Account
-    let igBusinessId: string | null = null;
-    let pageId: string | null = null;
-    let pageName: string | null = null;
-    let pageAccessToken: string | null = null;
+    let instagramInfo: { id: string; name: string; handle: string } | null = null;
 
     for (const page of pagesData.data) {
-      console.log(`[FETCH-ACCOUNT] Checking page: "${page.name}" (ID: ${page.id})`);
+      console.log(`[FETCH-ACCOUNT] Checking page "${page.name}" for Instagram connection`);
       
-      const igAccountUrl = `https://graph.facebook.com/${graphApiVersion}/${page.id}?fields=instagram_business_account&access_token=${page.access_token}`;
+      // Check if this page has a connected Instagram account
+      const igAccountUrl = `https://graph.facebook.com/${graphApiVersion}/${page.id}?fields=connected_instagram_account&access_token=${page.access_token}`;
       const igAccountResponse = await fetch(igAccountUrl);
       const igAccountData = await igAccountResponse.json();
       
-      // Debug: Log whether this page has instagram_business_account
-      const hasIgAccount = !!igAccountData.instagram_business_account;
-      console.log(`[FETCH-ACCOUNT] Page "${page.name}" has Instagram Business Account: ${hasIgAccount}`);
+      // Debug: Log whether this page has connected_instagram_account
+      const hasIgAccount = !!igAccountData.connected_instagram_account;
+      console.log(`[FETCH-ACCOUNT] Page "${page.name}" has connected Instagram Account: ${hasIgAccount}`);
       
       if (hasIgAccount) {
-        console.log(`[FETCH-ACCOUNT] Instagram Business Account data:`, JSON.stringify(igAccountData, null, 2));
+        console.log(`[FETCH-ACCOUNT] Connected Instagram Account data:`, JSON.stringify(igAccountData, null, 2));
       }
 
-      if (igAccountData.instagram_business_account) {
-        igBusinessId = igAccountData.instagram_business_account.id;
-        pageId = page.id;
-        pageName = page.name;
-        pageAccessToken = page.access_token;
+      if (igAccountData.connected_instagram_account?.id) {
+        const igBusinessId = igAccountData.connected_instagram_account.id;
         
-        console.log(`[FETCH-ACCOUNT] ✓ Found Instagram Business Account!`);
-        console.log(`[FETCH-ACCOUNT] - IG Business ID: ${igBusinessId}`);
-        console.log(`[FETCH-ACCOUNT] - Page ID: ${pageId}`);
-        console.log(`[FETCH-ACCOUNT] - Page Name: ${pageName}`);
+        // Fetch Instagram Business Account details
+        const igDetailsUrl = `https://graph.facebook.com/${graphApiVersion}/${igBusinessId}?fields=name,username&access_token=${page.access_token}`;
+        const igDetailsResponse = await fetch(igDetailsUrl);
+        const igDetails = await igDetailsResponse.json();
+        
+        console.log('[FETCH-ACCOUNT] ✓ Found Instagram Business Account!');
+        console.log('[FETCH-ACCOUNT] - IG Business ID:', igBusinessId);
+        console.log('[FETCH-ACCOUNT] - IG Name:', igDetails.name);
+        console.log('[FETCH-ACCOUNT] - IG Username:', igDetails.username);
+
+        instagramInfo = {
+          id: igBusinessId, // Instagram Business Account ID
+          name: igDetails.name || page.name,
+          handle: igDetails.username || ''
+        };
+        
         break; // Found it, stop searching
       }
     }
 
-    // If no Instagram Business Account found, throw error
-    if (!igBusinessId) {
-      console.error('[FETCH-ACCOUNT] ❌ No Instagram Business Account found on any Facebook Page');
-      console.error('[FETCH-ACCOUNT] Checked pages:', pagesData.data.map((p: any) => p.name).join(', '));
-      throw new Error('No Instagram Business Account connected to the Facebook Page. Please connect an Instagram Business Account to your Facebook Page first.');
+    if (!instagramInfo) {
+      console.log('[FETCH-ACCOUNT] ⚠️ No Instagram Business Account found on any Facebook Page');
+      console.log('[FETCH-ACCOUNT] Facebook connection will be saved, but Instagram will be skipped');
     }
 
-    // Fetch Instagram Business Account details
-    const igDetailsUrl = `https://graph.facebook.com/${graphApiVersion}/${igBusinessId}?fields=name,username&access_token=${pageAccessToken}`;
-    const igDetailsResponse = await fetch(igDetailsUrl);
-    const igDetails = await igDetailsResponse.json();
-    
-    console.log('[FETCH-ACCOUNT] Instagram account details:', JSON.stringify(igDetails, null, 2));
-
     return {
-      id: igBusinessId,
-      name: igDetails.name || pageName || '',
-      handle: igDetails.username || '',
-      page_access_token: pageAccessToken || undefined
+      facebook: facebookInfo,
+      instagram: instagramInfo
     };
 
   } catch (error) {
