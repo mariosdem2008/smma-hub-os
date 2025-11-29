@@ -1318,6 +1318,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "projects_final_asset_id_fkey"
+            columns: ["final_asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "projects_idea_id_fkey"
             columns: ["idea_id"]
             isOneToOne: false

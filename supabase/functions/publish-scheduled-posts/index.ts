@@ -29,7 +29,7 @@ serve(async (req) => {
         hashtags,
         scheduled_time,
         final_asset_id,
-        assets:final_asset_id (
+        final_asset:assets (
           id,
           file_url,
           file_type,
@@ -98,8 +98,22 @@ serve(async (req) => {
 async function publishProject(supabaseAdmin: any, project: any) {
   console.log(`[AUTOPUBLISH] Publishing project ${project.id}: ${project.title} (attempt ${(project.retry_count || 0) + 1})`);
 
-  if (!project.assets) {
-    throw new Error('No final asset found for project');
+  // Null-safe check for final asset
+  if (!project.final_asset_id || !project.final_asset) {
+    const errorMsg = 'No final asset found for project';
+    console.error(`[AUTOPUBLISH] ${errorMsg} - project ${project.id}`);
+    
+    // Mark as failed immediately - this is a configuration error
+    await supabaseAdmin
+      .from('projects')
+      .update({
+        error_message: errorMsg,
+        pipeline_stage: 'failed',
+        retry_count: 0,
+      })
+      .eq('id', project.id);
+    
+    throw new Error(errorMsg);
   }
 
   if (!project.platforms || project.platforms.length === 0) {
@@ -125,7 +139,7 @@ async function publishProject(supabaseAdmin: any, project: any) {
     throw new Error('No supported platforms selected');
   }
 
-  const asset = project.assets;
+  const asset = project.final_asset;
   const mediaUrl = asset.file_url;
   const mediaType = asset.file_type?.startsWith('video') ? 'video' : 'image';
 
