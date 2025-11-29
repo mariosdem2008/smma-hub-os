@@ -99,7 +99,7 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
     description: "",
     priority: "medium",
     status: "todo",
-    assigned_to: "",
+    assigned_to: "unassigned",
   });
   const [taskDueDate, setTaskDueDate] = useState<Date | undefined>();
 
@@ -187,7 +187,7 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
         priority: taskFormData.priority,
         status: taskFormData.status,
         due_date: taskDueDate ? taskDueDate.toISOString() : null,
-        assigned_to: taskFormData.assigned_to || null,
+        assigned_to: taskFormData.assigned_to === "unassigned" ? null : taskFormData.assigned_to,
         ...(editingTask ? {} : { created_by: user?.id }),
       };
 
@@ -221,7 +221,7 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
         description: "",
         priority: "medium",
         status: "todo",
-        assigned_to: "",
+        assigned_to: "unassigned",
       });
       setTaskDueDate(undefined);
       setEditingTask(null);
@@ -245,7 +245,7 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
       description: task.description || "",
       priority: task.priority,
       status: task.status,
-      assigned_to: task.assigned_to || "",
+      assigned_to: task.assigned_to || "unassigned",
     });
     setTaskDueDate(task.due_date ? new Date(task.due_date) : undefined);
     setShowTaskDialog(true);
@@ -284,7 +284,7 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
         description: "",
         priority: "medium",
         status: "todo",
-        assigned_to: "",
+        assigned_to: "unassigned",
       });
       setTaskDueDate(undefined);
     }
@@ -557,7 +557,7 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
                           <SelectValue placeholder="Unassigned" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">Unassigned</SelectItem>
+                          <SelectItem value="unassigned">Unassigned</SelectItem>
                           {teamMembers.map((member) => (
                             <SelectItem key={member.user_id} value={member.user_id}>
                               {member.profiles?.full_name || member.profiles?.email || "Unknown"}
