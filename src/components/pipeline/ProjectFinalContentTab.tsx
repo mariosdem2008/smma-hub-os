@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Video, Image as ImageIcon, AlertCircle, Upload, X, Calendar as CalendarIcon, Lightbulb, Send, Loader2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
@@ -339,6 +339,21 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
 
   return (
     <div className="space-y-6 p-6">
+      {/* Error Message Display */}
+      {project.error_message && (
+        <Card className="border-destructive bg-destructive/10">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <h4 className="font-semibold text-destructive mb-1">Publishing Failed</h4>
+                <p className="text-sm text-destructive/90">{project.error_message}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Upload Final Content */}
       <div>
         <div className="flex items-center justify-between mb-4">

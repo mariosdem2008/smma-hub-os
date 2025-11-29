@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, startOfMonth, endOfMonth, isSameDay, parseISO } from "date-fns";
-import { CalendarDays, Clock, Edit, Copy, X, ArrowRight } from "lucide-react";
+import { CalendarDays, Clock, Edit, Copy, X, ArrowRight, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -26,12 +26,14 @@ interface ScheduledItem {
   scheduled_time: string | null;
   pipeline_stage: string;
   type: 'project' | 'asset';
+  error_message: string | null;
 }
 
 const stageColors: Record<string, string> = {
   approved: "bg-yellow-500",
   scheduled: "bg-blue-500",
   published: "bg-green-500",
+  failed: "bg-red-500",
 };
 
 export default function CalendarTab({ clientId }: CalendarTabProps) {
@@ -76,9 +78,9 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
     try {
       const { data: projects, error: projectsError } = await supabase
         .from("projects")
-        .select("id, title, scheduled_time, pipeline_stage")
+        .select("id, title, scheduled_time, pipeline_stage, error_message")
         .eq("client_id", clientId)
-        .in("pipeline_stage", ["scheduled", "published"])
+        .in("pipeline_stage", ["scheduled", "published", "failed"])
         .not("scheduled_time", "is", null);
 
       if (projectsError) throw projectsError;
@@ -89,6 +91,7 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
         scheduled_time: p.scheduled_time,
         pipeline_stage: p.pipeline_stage,
         type: 'project' as const,
+        error_message: p.error_message,
       }));
 
       setItems(scheduledItems);
@@ -469,6 +472,12 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
                           )}
                         </div>
                         <h4 className="font-medium mb-1">{item.title}</h4>
+                        {item.error_message && (
+                          <div className="flex items-center gap-2 text-xs text-destructive mt-2 p-2 bg-destructive/10 rounded">
+                            <AlertCircle className="h-3 w-3 flex-shrink-0" />
+                            <span>{item.error_message}</span>
+                          </div>
+                        )}
                         {index < items.length - 1 && item.scheduled_time && items[index + 1].scheduled_time && (
                           <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">
                             <ArrowRight className="h-3 w-3" />

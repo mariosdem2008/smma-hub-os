@@ -223,6 +223,26 @@ async function publishProject(supabaseAdmin: any, project: any) {
     }
   }
 
+  // Collect error messages from failed platforms
+  const errorMessages: string[] = [];
+  for (const connection of connections) {
+    const platform = connection.platform;
+    if (!publishResults[platform]) {
+      // This platform failed - fetch the error from post_logs
+      const { data: logEntry } = await supabaseAdmin
+        .from('post_logs')
+        .select('error_message')
+        .eq('project_id', project.id)
+        .eq('platform', platform)
+        .eq('attempt_number', (project.retry_count || 0) + 1)
+        .single();
+      
+      if (logEntry?.error_message) {
+        errorMessages.push(`${platform}: ${logEntry.error_message}`);
+      }
+    }
+  }
+
   // Update project based on results
   const updateData: any = {};
   const currentRetryCount = project.retry_count || 0;
@@ -238,24 +258,26 @@ async function publishProject(supabaseAdmin: any, project: any) {
     // Partial success
     updateData.pipeline_stage = 'published';
     updateData.published_urls = publishResults;
-    updateData.error_message = 'Some platforms failed to publish';
+    updateData.error_message = `Partial success. Failed platforms: ${errorMessages.join('; ')}`;
     updateData.retry_count = 0; // Reset retry count on partial success
     console.log(`[AUTOPUBLISH] Project ${project.id} partially published`);
   } else {
     // All failed - implement retry logic
-    if (currentRetryCount < 3) {
+    const combinedErrors = errorMessages.join('; ') || 'Unknown error';
+    if (currentRetryCount < 2) {
       // Retry: increment count and reschedule for 10 minutes later
       updateData.retry_count = currentRetryCount + 1;
       const retryTime = new Date();
       retryTime.setMinutes(retryTime.getMinutes() + 10);
       updateData.scheduled_time = retryTime.toISOString();
-      updateData.error_message = `Publish failed, retry ${currentRetryCount + 1}/3 scheduled`;
+      updateData.error_message = `Retry ${currentRetryCount + 1}/3: ${combinedErrors}`;
       console.log(`[AUTOPUBLISH] Project ${project.id} scheduled for retry ${currentRetryCount + 1}/3 at ${retryTime.toISOString()}`);
     } else {
       // Max retries reached - mark as failed
       updateData.pipeline_stage = 'failed';
-      updateData.error_message = 'All platforms failed to publish after 3 attempts';
-      console.error(`[AUTOPUBLISH] Project ${project.id} failed after ${currentRetryCount} retries`);
+      updateData.retry_count = 3;
+      updateData.error_message = `Failed after 3 attempts: ${combinedErrors}`;
+      console.error(`[AUTOPUBLISH] Project ${project.id} failed after 3 retries: ${combinedErrors}`);
     }
   }
 

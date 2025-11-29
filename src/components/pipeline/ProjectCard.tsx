@@ -1,6 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Folder, Lightbulb, FileText, Image as ImageIcon } from "lucide-react";
+import { Folder, Lightbulb, FileText, Image as ImageIcon, AlertCircle } from "lucide-react";
 
 interface Project {
   id: string;
@@ -11,6 +11,7 @@ interface Project {
   script_id: string | null;
   created_at: string;
   asset_count?: number;
+  error_message?: string | null;
 }
 
 interface ProjectCardProps {
@@ -46,6 +47,14 @@ export default function ProjectCard({ project, onClick, isDragging }: ProjectCar
           <div>
             <h4 className="font-medium text-sm line-clamp-2">{project.title}</h4>
           </div>
+
+          {/* Error Message */}
+          {project.pipeline_stage === 'failed' && project.error_message && (
+            <div className="flex items-start gap-2 p-2 bg-destructive/10 rounded text-destructive">
+              <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+              <p className="text-xs line-clamp-2">{project.error_message}</p>
+            </div>
+          )}
 
           {/* Badges */}
           <div className="flex flex-wrap gap-2">
