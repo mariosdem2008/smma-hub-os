@@ -44,7 +44,7 @@ import { cn } from "@/lib/utils";
 import { StatCard } from "@/components/ui/stat-card";
 
 const PRIORITIES = ["low", "medium", "high", "urgent"];
-const TASK_STATUSES = ["pending", "in_progress", "completed"];
+const TASK_STATUSES = ["todo", "in_progress", "completed"];
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -190,7 +190,42 @@ export default function Dashboard() {
         .limit(10);
 
       setUpcomingPosts(upcomingProjectsData || []);
-      setOverdueTasks([]);
+
+      // Fetch overdue tasks
+      const { data: overdueTasksData } = await supabase
+        .from("tasks")
+        .select(`
+          id,
+          title,
+          due_date,
+          priority,
+          status,
+          client:clients(id, name)
+        `)
+        .in("client_id", clientIds)
+        .not("due_date", "is", null)
+        .lt("due_date", now.toISOString())
+        .neq("status", "completed")
+        .order("due_date", { ascending: true })
+        .limit(10);
+
+      setOverdueTasks(overdueTasksData || []);
+
+      // Count tasks due this week
+      const { count: tasksThisWeekCount } = await supabase
+        .from("tasks")
+        .select("*", { count: "exact", head: true })
+        .in("client_id", clientIds)
+        .not("due_date", "is", null)
+        .gte("due_date", weekStart.toISOString())
+        .lte("due_date", weekEnd.toISOString())
+        .neq("status", "completed");
+
+      setMetrics({
+        totalClients: clientsData?.length || 0,
+        postsThisWeek: projectsData?.length || 0,
+        tasksThisWeek: tasksThisWeekCount || 0,
+      });
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
     } finally {
@@ -263,15 +298,36 @@ export default function Dashboard() {
     }
 
     setSubmitting(true);
-    const error = null; // Tasks feature removed
 
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to create task",
-        variant: "destructive",
+    try {
+      // Get agency ID
+      const { data: agencyOwner } = await supabase
+        .from("agencies")
+        .select("id")
+        .eq("user_id", user!.id)
+        .maybeSingle();
+
+      const { data: agencyMember } = await supabase
+        .from("agency_members")
+        .select("agency_id")
+        .eq("user_id", user!.id)
+        .maybeSingle();
+
+      const agencyId = agencyOwner?.id || agencyMember?.agency_id;
+
+      const { error } = await supabase.from("tasks").insert({
+        client_id: taskFormData.client_id,
+        agency_id: agencyId,
+        title: taskFormData.title,
+        description: taskFormData.description || null,
+        priority: taskFormData.priority,
+        status: taskFormData.status,
+        due_date: taskDueDate ? taskDueDate.toISOString() : null,
+        created_by: user?.id,
       });
-    } else {
+
+      if (error) throw error;
+
       toast({
         title: "Success",
         description: "Task created successfully",
@@ -286,8 +342,15 @@ export default function Dashboard() {
       setTaskDueDate(undefined);
       setShowTaskDialog(false);
       fetchDashboardData();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setSubmitting(false);
     }
-    setSubmitting(false);
   };
 
 

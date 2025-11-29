@@ -19,6 +19,7 @@ import ClientUploadsTab from "@/components/client-tabs/ClientUploadsTab";
 import WorkspaceTab from "@/components/client-tabs/WorkspaceTab";
 import { ClientPortalTab } from "@/components/client-tabs/ClientPortalTab";
 import LibraryTab from "@/components/client-tabs/LibraryTab";
+import TasksTab from "@/components/client-tabs/TasksTab";
 import { useEffect } from "react";
 
 interface Client {
@@ -162,13 +163,14 @@ export default function ClientDetail() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="overflow-x-auto">
-          <TabsList className="inline-flex w-auto min-w-full md:grid md:grid-cols-9">
+          <TabsList className="inline-flex w-auto min-w-full md:grid md:grid-cols-10">
             <TabsTrigger value="overview" className="flex-shrink-0">Overview</TabsTrigger>
             <TabsTrigger value="brand" className="flex-shrink-0">Brand Identity</TabsTrigger>
             <TabsTrigger value="pipeline" className="flex-shrink-0">Pipeline</TabsTrigger>
             <TabsTrigger value="planning" className="flex-shrink-0">Content Planning</TabsTrigger>
             <TabsTrigger value="library" className="flex-shrink-0">Library</TabsTrigger>
             <TabsTrigger value="calendar" className="flex-shrink-0">Calendar</TabsTrigger>
+            <TabsTrigger value="tasks" className="flex-shrink-0">Tasks</TabsTrigger>
             <TabsTrigger value="social" className="flex-shrink-0">Social Profiles</TabsTrigger>
             <TabsTrigger value="uploads" className="flex-shrink-0">Client Uploads</TabsTrigger>
             <TabsTrigger value="portal" className="flex-shrink-0">Client Portal</TabsTrigger>
@@ -209,6 +211,10 @@ export default function ClientDetail() {
 
         <TabsContent value="uploads" className="space-y-4">
           <ClientUploadsTab clientId={clientId!} agencyId={agencyId} />
+        </TabsContent>
+
+        <TabsContent value="tasks" className="space-y-4">
+          <TasksTab clientId={clientId!} agencyId={agencyId} />
         </TabsContent>
 
         <TabsContent value="portal" className="space-y-4">
