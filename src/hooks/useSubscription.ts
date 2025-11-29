@@ -27,17 +27,26 @@ export function useSubscription() {
 
     setRefreshing(true);
     try {
-      console.log('[useSubscription] Calling check-subscription edge function');
-      const { data, error } = await supabase.functions.invoke('check-subscription', {
-        headers: {
-          Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
-        },
-      });
+      // Get current session
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
 
-      if (error) {
-        console.error('[useSubscription] Error checking subscription:', error);
+      // Only call edge function if we have a valid token
+      if (accessToken) {
+        console.log('[useSubscription] Calling check-subscription edge function');
+        const { data, error } = await supabase.functions.invoke('check-subscription', {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
+
+        if (error) {
+          console.error('[useSubscription] Error checking subscription:', error);
+        } else {
+          console.log('[useSubscription] Subscription check result:', data);
+        }
       } else {
-        console.log('[useSubscription] Subscription check result:', data);
+        console.warn('[useSubscription] No valid session token, skipping edge function call');
       }
 
       // Fetch updated subscription from database
