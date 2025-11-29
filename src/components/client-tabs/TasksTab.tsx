@@ -275,17 +275,19 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
     setDeletingTaskId(null);
   };
 
-  const handleDialogClose = () => {
-    setShowTaskDialog(false);
-    setEditingTask(null);
-    setTaskFormData({
-      title: "",
-      description: "",
-      priority: "medium",
-      status: "todo",
-      assigned_to: "",
-    });
-    setTaskDueDate(undefined);
+  const handleDialogChange = (open: boolean) => {
+    setShowTaskDialog(open);
+    if (!open) {
+      setEditingTask(null);
+      setTaskFormData({
+        title: "",
+        description: "",
+        priority: "medium",
+        status: "todo",
+        assigned_to: "",
+      });
+      setTaskDueDate(undefined);
+    }
   };
 
   const getPriorityBadgeVariant = (priority: string) => {
@@ -427,7 +429,7 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
                   </div>
                 </DialogContent>
               </Dialog>
-              <Dialog open={showTaskDialog} onOpenChange={handleDialogClose}>
+              <Dialog open={showTaskDialog} onOpenChange={handleDialogChange}>
                 <DialogTrigger asChild>
                   <Button size="sm">
                     <Plus className="mr-2 h-4 w-4" />
@@ -568,7 +570,7 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
                   <DialogFooter>
                     <Button
                       variant="outline"
-                      onClick={handleDialogClose}
+                      onClick={() => handleDialogChange(false)}
                       disabled={submitting}
                     >
                       Cancel
