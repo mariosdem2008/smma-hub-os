@@ -487,10 +487,9 @@ export default function Dashboard() {
         transition: isRefreshing ? "transform 0.3s ease-out" : "none",
       }}
     >
-      {/* Animated background elements */}
-      <div className="absolute top-0 left-0 w-full h-72 bg-gradient-to-br from-primary/5 via-accent-purple/5 to-accent-teal/5 -z-10 rounded-b-3xl" />
-      <div className="absolute top-20 right-10 w-32 h-32 bg-accent-purple/10 rounded-full blur-xl animate-pulse" />
-      <div className="absolute bottom-40 left-8 w-24 h-24 bg-accent-teal/10 rounded-full blur-lg animate-pulse delay-1000" />
+      {/* Subtle animated background elements */}
+      <div className="absolute top-10 right-8 w-20 h-20 bg-accent-purple/5 rounded-full blur-xl animate-pulse" />
+      <div className="absolute bottom-20 left-6 w-16 h-16 bg-accent-teal/5 rounded-full blur-lg animate-pulse delay-1000" />
 
       {/* Pull-to-refresh indicator */}
       {isMobile && pullDistance > 0 && (
@@ -504,9 +503,8 @@ export default function Dashboard() {
       )}
 
       {/* Welcome Header */}
-      <div className="bg-gradient-to-r from-primary/10 to-muted/20 rounded-3xl p-6 border border-primary/10 shadow-sm relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-l from-primary/10 to-transparent rounded-full -translate-y-16 translate-x-16" />
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 relative z-10">
+      <div className="bg-gradient-to-r from-primary/5 to-muted/10 rounded-3xl p-6 border border-primary/5 shadow-sm">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-primary" />
@@ -770,7 +768,7 @@ export default function Dashboard() {
                                 className="w-10 h-10 rounded-lg object-cover shadow-sm group-hover:shadow-md transition-shadow"
                               />
                             ) : (
-                              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-accent-purple/20 to-accent-pink/20 flex items-center justify-center">
+                              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-accent-purple/10 to-accent-pink/10 flex items-center justify-center">
                                 <FileText className="h-4 w-4 text-accent-purple" />
                               </div>
                             )}
@@ -820,7 +818,7 @@ export default function Dashboard() {
                   </Table>
                 ) : (
                   <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <div className="w-16 h-16 bg-gradient-to-br from-accent-purple/10 to-accent-pink/10 rounded-full flex items-center justify-center mb-4">
+                    <div className="w-16 h-16 bg-gradient-to-br from-accent-purple/5 to-accent-pink/5 rounded-full flex items-center justify-center mb-4 border border-accent-purple/10">
                       <FileText className="h-6 w-6 text-accent-purple" />
                     </div>
                     <p className="text-muted-foreground mb-2 font-medium">No upcoming posts scheduled</p>
@@ -909,7 +907,7 @@ export default function Dashboard() {
                   </Table>
                 ) : (
                   <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <div className="w-16 h-16 bg-gradient-to-br from-green-100 to-green-50 rounded-full flex items-center justify-center mb-4 border border-green-200">
+                    <div className="w-16 h-16 bg-gradient-to-br from-green-50 to-green-50 rounded-full flex items-center justify-center mb-4 border border-green-100">
                       <CheckSquare className="h-6 w-6 text-green-600" />
                     </div>
                     <p className="text-muted-foreground mb-2 font-medium">No overdue tasks</p>
@@ -924,7 +922,7 @@ export default function Dashboard() {
           {clients.length === 0 ? (
             <Card className="text-center py-12 border-dashed">
               <CardContent>
-                <div className="w-20 h-20 bg-gradient-to-br from-primary/10 to-accent-purple/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <div className="w-20 h-20 bg-gradient-to-br from-primary/5 to-accent-purple/5 rounded-full flex items-center justify-center mx-auto mb-4 border border-primary/10">
                   <Users className="h-8 w-8 text-primary" />
                 </div>
                 <p className="mb-4 text-muted-foreground font-medium">No clients yet</p>
@@ -961,7 +959,7 @@ export default function Dashboard() {
                             className="h-12 w-12 rounded-xl object-cover shadow-sm group-hover:shadow-md transition-shadow"
                           />
                         ) : (
-                          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary/10 to-accent-purple/10 text-lg font-bold text-primary group-hover:scale-105 transition-transform">
+                          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary/5 to-accent-purple/5 text-lg font-bold text-primary group-hover:scale-105 transition-transform">
                             {client.name.charAt(0)}
                           </div>
                         )}
