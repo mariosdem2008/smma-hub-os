@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Video, Image as ImageIcon, AlertCircle, Upload, X, Calendar as CalendarIcon, Lightbulb, Send, Loader2, Clock, Info } from "lucide-react";
+import { Video, Image as ImageIcon, AlertCircle, Upload, X, Calendar as CalendarIcon, Lightbulb, Send, Loader2, Clock, Info, Globe, ExternalLink } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
@@ -492,24 +492,37 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
 
       {/* Schedule Post Section */}
       <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <h3 className="text-lg font-semibold">Schedule Post</h3>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                </TooltipTrigger>
-                <TooltipContent className="max-w-xs">
-                  <p className="text-sm">All times are stored in UTC but displayed in your local timezone ({userTimezone}). Posts will publish at the exact time you select.</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-semibold">Schedule Post</h3>
+              <Badge variant="secondary" className="gap-1">
+                <Globe className="h-3 w-3" />
+                {userTimezone}
+              </Badge>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => window.open('/scheduling-debug', '_blank')}
+            >
+              <ExternalLink className="h-3 w-3 mr-1" />
+              Debug
+            </Button>
           </div>
-          <Badge variant="outline" className="text-xs">
-            <Clock className="h-3 w-3 mr-1" />
-            {userTimezone}
-          </Badge>
+          <div className="p-3 bg-primary/10 rounded-lg text-sm space-y-1">
+            <div className="flex items-start gap-2">
+              <Info className="h-4 w-4 mt-0.5 flex-shrink-0 text-primary" />
+              <div className="space-y-1">
+                <p className="font-medium">How scheduling works:</p>
+                <ul className="text-xs space-y-0.5 text-muted-foreground">
+                  <li>• Pick a time in <span className="font-medium text-foreground">{userTimezone}</span></li>
+                  <li>• System stores it in UTC for autoposting</li>
+                  <li>• Displays always show your local timezone</li>
+                </ul>
+              </div>
+            </div>
+          </div>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -635,10 +648,26 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
         )}
         
         {project.pipeline_stage === 'scheduled' && project.scheduled_time && (
-          <p className="text-sm text-muted-foreground mt-4">
-            ⏱ Scheduled for auto-publishing at {format(convertToLocal(project.scheduled_time, userTimezone), 'PPp')}
-            <Badge variant="secondary" className="ml-2 text-xs">{userTimezone}</Badge>
-          </p>
+          <div className="mt-4 p-3 bg-muted/50 rounded-lg space-y-2">
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-primary" />
+              <span className="font-medium text-sm">Scheduled for:</span>
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <p className="text-base font-semibold">
+                  {format(convertToLocal(project.scheduled_time, userTimezone), 'MMMM d, yyyy')} at {format(convertToLocal(project.scheduled_time, userTimezone), 'h:mm a')}
+                </p>
+                <Badge variant="secondary" className="gap-1">
+                  <Globe className="h-3 w-3" />
+                  {userTimezone}
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                UTC: {new Date(project.scheduled_time).toISOString().replace('T', ' ').slice(0, 19)} (server time)
+              </p>
+            </div>
+          </div>
         )}
         
         {project.pipeline_stage === 'failed' && project.error_message && (
