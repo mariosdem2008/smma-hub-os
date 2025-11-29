@@ -12,6 +12,7 @@ import { UpgradeAssistantBubble } from "@/components/UpgradeAssistantBubble";
 import { UpgradeAssistantCard } from "@/components/UpgradeAssistantCard";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/AppLayout";
+import { useTimezoneDetection } from "@/hooks/useTimezoneDetection";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
@@ -31,6 +32,7 @@ import ClientLogin from "./pages/client/ClientLogin";
 import ClientAcceptInvite from "./pages/client/ClientAcceptInvite";
 import ClientForgotPassword from "./pages/client/ClientForgotPassword";
 import ClientResetPassword from "./pages/client/ClientResetPassword";
+import SchedulingDebug from "./pages/SchedulingDebug";
 
 import { PortalOverview } from "./pages/client-portal/PortalOverview";
 import { PortalBranding } from "./pages/client-portal/PortalBranding";
@@ -43,7 +45,11 @@ import PortalApprovals from "./pages/client-portal/PortalApprovals";
 
 const queryClient = new QueryClient();
 
-const App = () => (
+const App = () => {
+  // Initialize timezone detection
+  useTimezoneDetection();
+  
+  return (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
@@ -103,6 +109,7 @@ const App = () => (
                     <Route path="/clients/:clientId" element={<ClientDetail />} />
                     <Route path="/team" element={<Team />} />
                     <Route path="/team/audit-debug" element={<TeamAuditDebug />} />
+                    <Route path="/scheduling-debug" element={<SchedulingDebug />} />
                     <Route path="/billing" element={<Billing />} />
                     <Route path="/billing/overview" element={<BillingOverview />} />
                     <Route path="/settings" element={<Settings />} />
@@ -118,6 +125,7 @@ const App = () => (
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
-);
+  );
+};
 
 export default App;
