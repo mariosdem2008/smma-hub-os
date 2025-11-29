@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Video, Image as ImageIcon, AlertCircle, Upload, X, Calendar as CalendarIcon, Lightbulb, Send, Loader2, Clock } from "lucide-react";
+import { Video, Image as ImageIcon, AlertCircle, Upload, X, Calendar as CalendarIcon, Lightbulb, Send, Loader2, Clock, Info } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
@@ -14,6 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns";
 import { getAllPlatformSuggestions } from "@/lib/platform-posting-times";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { convertToUTC, convertToLocal } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 
@@ -492,7 +493,19 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
       {/* Schedule Post Section */}
       <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold">Schedule Post</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="text-lg font-semibold">Schedule Post</h3>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <p className="text-sm">All times are stored in UTC but displayed in your local timezone ({userTimezone}). Posts will publish at the exact time you select.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
           <Badge variant="outline" className="text-xs">
             <Clock className="h-3 w-3 mr-1" />
             {userTimezone}
