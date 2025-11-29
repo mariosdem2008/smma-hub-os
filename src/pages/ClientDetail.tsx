@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useParams, Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -7,6 +7,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useClientFonts } from "@/hooks/useClientFonts";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { hapticSelection } from "@/lib/haptics";
 import ClientHeader from "@/components/ClientHeader";
 import OverviewTab from "@/components/client-tabs/OverviewTab";
 import BrandIdentityTab from "@/components/client-tabs/BrandIdentityTab";
@@ -48,11 +51,59 @@ export default function ClientDetail() {
   const { clientId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   const [client, setClient] = useState<Client | null>(null);
   const [branding, setBranding] = useState<ClientBranding | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
   const [agencyId, setAgencyId] = useState<string>("");
+  const tabsRef = useRef<HTMLDivElement>(null);
+
+  // Pull-to-refresh for mobile
+  const { isRefreshing, pullDistance } = usePullToRefresh({
+    onRefresh: async () => {
+      await fetchClient();
+    },
+  });
+
+  const fetchClient = async () => {
+    if (!clientId) return;
+
+    const { data, error } = await supabase
+      .from("clients")
+      .select("*")
+      .eq("id", clientId)
+      .single();
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch client details",
+        variant: "destructive",
+      });
+    } else {
+      setClient({
+        ...data,
+        brand_colors: Array.isArray(data.brand_colors) 
+          ? (data.brand_colors as string[]) 
+          : null,
+      });
+      setAgencyId(data.agency_id);
+    }
+
+    // Fetch branding data
+    const { data: brandingData } = await supabase
+      .from("client_branding")
+      .select("primary_color")
+      .eq("client_id", clientId)
+      .maybeSingle();
+
+    if (brandingData) {
+      setBranding(brandingData);
+    }
+
+    setLoading(false);
+  };
 
   // Load client fonts dynamically
   useClientFonts({
@@ -69,47 +120,8 @@ export default function ClientDetail() {
   }, [searchParams]);
 
   useEffect(() => {
-    const fetchClient = async () => {
-      if (!clientId) return;
-
-      const { data, error } = await supabase
-        .from("clients")
-        .select("*")
-        .eq("id", clientId)
-        .single();
-
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to fetch client details",
-          variant: "destructive",
-        });
-      } else {
-        setClient({
-          ...data,
-          brand_colors: Array.isArray(data.brand_colors) 
-            ? (data.brand_colors as string[]) 
-            : null,
-        });
-        setAgencyId(data.agency_id);
-      }
-
-      // Fetch branding data
-      const { data: brandingData } = await supabase
-        .from("client_branding")
-        .select("primary_color")
-        .eq("client_id", clientId)
-        .maybeSingle();
-
-      if (brandingData) {
-        setBranding(brandingData);
-      }
-
-      setLoading(false);
-    };
-
     fetchClient();
-  }, [clientId, toast]);
+  }, [clientId]);
 
   const handleNotesUpdate = (notes: string) => {
     if (client) {
@@ -144,9 +156,28 @@ export default function ClientDetail() {
   }
 
   return (
-    <div className="space-y-6 client-workspace">
+    <div 
+      className="space-y-4 md:space-y-6 client-workspace"
+      style={{
+        transform: isMobile ? `translateY(${pullDistance}px)` : undefined,
+        transition: isRefreshing ? "transform 0.3s ease-out" : "none",
+      }}
+    >
+      {/* Pull-to-refresh indicator */}
+      {isMobile && pullDistance > 0 && (
+        <div className="flex justify-center">
+          <div className={`text-sm text-muted-foreground transition-opacity ${pullDistance > 60 ? "opacity-100" : "opacity-50"}`}>
+            {isRefreshing ? "Refreshing..." : pullDistance > 60 ? "Release to refresh" : "Pull to refresh"}
+          </div>
+        </div>
+      )}
+
       <Link to="/clients">
-        <Button variant="ghost">
+        <Button 
+          variant="ghost" 
+          style={{ minHeight: isMobile ? "44px" : undefined }}
+          className="touch-manipulation"
+        >
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Clients
         </Button>
@@ -161,19 +192,26 @@ export default function ClientDetail() {
         primaryColor={branding?.primary_color}
       />
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <div className="overflow-x-auto">
-          <TabsList className="inline-flex w-auto min-w-full md:grid md:grid-cols-10">
-            <TabsTrigger value="overview" className="flex-shrink-0">Overview</TabsTrigger>
-            <TabsTrigger value="brand" className="flex-shrink-0">Brand Identity</TabsTrigger>
-            <TabsTrigger value="pipeline" className="flex-shrink-0">Pipeline</TabsTrigger>
-            <TabsTrigger value="planning" className="flex-shrink-0">Content Planning</TabsTrigger>
-            <TabsTrigger value="library" className="flex-shrink-0">Library</TabsTrigger>
-            <TabsTrigger value="calendar" className="flex-shrink-0">Calendar</TabsTrigger>
-            <TabsTrigger value="tasks" className="flex-shrink-0">Tasks</TabsTrigger>
-            <TabsTrigger value="social" className="flex-shrink-0">Social Profiles</TabsTrigger>
-            <TabsTrigger value="uploads" className="flex-shrink-0">Client Uploads</TabsTrigger>
-            <TabsTrigger value="portal" className="flex-shrink-0">Client Portal</TabsTrigger>
+      <Tabs 
+        value={activeTab} 
+        onValueChange={(value) => {
+          setActiveTab(value);
+          hapticSelection();
+        }} 
+        className="w-full"
+      >
+        <div className="overflow-x-auto scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
+          <TabsList className="inline-flex w-auto min-w-full md:grid md:grid-cols-10 h-auto">
+            <TabsTrigger value="overview" className="flex-shrink-0 min-h-[44px] px-3 md:px-4">Overview</TabsTrigger>
+            <TabsTrigger value="brand" className="flex-shrink-0 min-h-[44px] px-3 md:px-4 whitespace-nowrap">Brand Identity</TabsTrigger>
+            <TabsTrigger value="pipeline" className="flex-shrink-0 min-h-[44px] px-3 md:px-4">Pipeline</TabsTrigger>
+            <TabsTrigger value="planning" className="flex-shrink-0 min-h-[44px] px-3 md:px-4 whitespace-nowrap">Content Planning</TabsTrigger>
+            <TabsTrigger value="library" className="flex-shrink-0 min-h-[44px] px-3 md:px-4">Library</TabsTrigger>
+            <TabsTrigger value="calendar" className="flex-shrink-0 min-h-[44px] px-3 md:px-4">Calendar</TabsTrigger>
+            <TabsTrigger value="tasks" className="flex-shrink-0 min-h-[44px] px-3 md:px-4">Tasks</TabsTrigger>
+            <TabsTrigger value="social" className="flex-shrink-0 min-h-[44px] px-3 md:px-4 whitespace-nowrap">Social Profiles</TabsTrigger>
+            <TabsTrigger value="uploads" className="flex-shrink-0 min-h-[44px] px-3 md:px-4 whitespace-nowrap">Client Uploads</TabsTrigger>
+            <TabsTrigger value="portal" className="flex-shrink-0 min-h-[44px] px-3 md:px-4 whitespace-nowrap">Client Portal</TabsTrigger>
           </TabsList>
         </div>
 

@@ -12,6 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { UserPlus, Sparkles } from "lucide-react";
 import { InviteTeamMemberDialog } from "./InviteTeamMemberDialog";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export function AppLayout() {
   const { user } = useAuth();
@@ -19,6 +21,7 @@ export function AppLayout() {
   const { subscription } = useSubscription();
   const { openUpgradeModal } = useUpgradeModal();
   const [showInviteDialog, setShowInviteDialog] = useState(false);
+  const isMobile = useIsMobile();
   
   // Initialize upgrade assistant triggers
   useUpgradeAssistantTriggers();
@@ -35,16 +38,16 @@ export function AppLayout() {
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full">
-        <AppSidebar />
+        {!isMobile && <AppSidebar />}
         <div className="flex flex-1 flex-col">
           <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b glass-header px-4 shadow-lg">
-            <SidebarTrigger className="icon-hover" />
+            {!isMobile && <SidebarTrigger className="icon-hover" />}
             <div className="flex-1">
               <h2 className="text-lg font-bold bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] bg-clip-text text-transparent">SMMAHUB</h2>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 md:gap-3">
               <ThemeToggle />
-              {upgradeBadgeText && (
+              {upgradeBadgeText && !isMobile && (
                 <Badge
                   variant="secondary"
                   className="cursor-pointer bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] text-white hover:opacity-90 transition-all duration-200 border-0"
@@ -54,7 +57,7 @@ export function AppLayout() {
                   {upgradeBadgeText}
                 </Badge>
               )}
-              {canManageTeam && (
+              {canManageTeam && !isMobile && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -64,14 +67,16 @@ export function AppLayout() {
                   Invite Team Member
                 </Button>
               )}
-              <span className="text-sm text-muted-foreground">{user?.email}</span>
+              {!isMobile && <span className="text-sm text-muted-foreground hidden md:inline">{user?.email}</span>}
             </div>
           </header>
-          <main className="flex-1 p-6">
+          <main className={isMobile ? "flex-1 p-4 pb-20" : "flex-1 p-6"}>
             <Outlet />
           </main>
         </div>
       </div>
+
+      {isMobile && <MobileBottomNav />}
 
       <InviteTeamMemberDialog
         open={showInviteDialog}
