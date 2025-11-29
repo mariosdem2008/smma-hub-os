@@ -13,24 +13,19 @@ export function cn(...inputs: ClassValue[]) {
  */
 export function convertToUTC(localDate: Date, timezone: string): string {
   try {
-    // Create a formatter for the target timezone
-    const dateString = localDate.toLocaleString('en-US', { timeZone: timezone });
-    const parsedDate = new Date(dateString);
-    
-    // Get the offset between local and target timezone
-    const targetTime = new Date(localDate.toLocaleString('en-US', { timeZone: timezone }));
-    const localTime = new Date(localDate.toLocaleString('en-US', { timeZone: 'UTC' }));
-    
-    // Calculate offset and adjust
-    const offset = targetTime.getTime() - localTime.getTime();
-    const utcDate = new Date(localDate.getTime() - offset);
-    
-    return utcDate.toISOString();
+    // The Date instance already represents the exact moment picked in the UI
+    // in the browser's local timezone. To store it in the DB we only need
+    // the UTC instant, which is given by toISOString().
+    //
+    // We intentionally ignore the `timezone` argument here to avoid
+    // double‑applying offsets, which was causing times to shift (e.g. 08:50 → 06:50).
+    return localDate.toISOString();
   } catch (error) {
     console.error('Error converting to UTC:', error);
     return localDate.toISOString();
   }
 }
+
 
 /**
  * Convert a UTC ISO string to a Date in user's local timezone
