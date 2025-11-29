@@ -53,8 +53,11 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
   const [view, setView] = useState<"week" | "month" | "queue">("week");
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<ScheduledItem | null>(null);
   const [draggedItem, setDraggedItem] = useState<ScheduledItem | null>(null);
+  const [newScheduledDate, setNewScheduledDate] = useState<Date | undefined>(undefined);
+  const [newScheduledTime, setNewScheduledTime] = useState<string>("");
   const [userTimezone, setUserTimezone] = useState<string>("UTC");
   const { toast } = useToast();
 
@@ -149,6 +152,52 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
   const handleOpenDeleteDialog = (item: ScheduledItem) => {
     setSelectedItem(item);
     setDeleteDialogOpen(true);
+  };
+
+  const handleOpenRescheduleDialog = (item: ScheduledItem) => {
+    setSelectedItem(item);
+    if (item.scheduled_time) {
+      const localDate = convertToLocal(item.scheduled_time, userTimezone);
+      setNewScheduledDate(localDate);
+      setNewScheduledTime(format(localDate, "HH:mm"));
+    }
+    setRescheduleDialogOpen(true);
+  };
+
+  const handleReschedule = async () => {
+    if (!selectedItem || !newScheduledDate || !newScheduledTime) return;
+
+    try {
+      const [hours, minutes] = newScheduledTime.split(':').map(Number);
+      const localDateTime = new Date(newScheduledDate);
+      localDateTime.setHours(hours, minutes, 0, 0);
+
+      const utcDateTime = convertToUTC(localDateTime, userTimezone);
+
+      const { error } = await supabase
+        .from("projects")
+        .update({ scheduled_time: utcDateTime })
+        .eq("id", selectedItem.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Post rescheduled",
+        description: `Rescheduled to ${format(localDateTime, "MMM d, yyyy 'at' h:mm a")} (${userTimezone})`,
+      });
+
+      setRescheduleDialogOpen(false);
+      setSelectedItem(null);
+      setNewScheduledDate(undefined);
+      setNewScheduledTime("");
+      fetchScheduledItems();
+    } catch (error: any) {
+      toast({
+        title: "Error rescheduling",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
   const handleDeleteSchedule = async () => {
@@ -338,9 +387,32 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
                         key={item.id}
                         draggable
                         onDragStart={() => handleDragStart(item)}
-                        onClick={() => handleOpenDeleteDialog(item)}
-                        className="p-2 rounded border bg-card cursor-pointer hover:bg-accent/50 transition-colors"
+                        className="p-2 rounded border bg-card group relative"
                       >
+                        <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 w-6 p-0"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenRescheduleDialog(item);
+                            }}
+                          >
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 w-6 p-0"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenDeleteDialog(item);
+                            }}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
                         <div className="flex items-center gap-2 mb-1">
                           <Clock className="h-3 w-3" />
                           <span className="text-xs">
@@ -403,11 +475,30 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
                         key={item.id}
                         draggable
                         onDragStart={() => handleDragStart(item)}
-                        onClick={() => handleOpenDeleteDialog(item)}
                         className={`${
                           stageColors[item.pipeline_stage]
-                        } text-white text-xs p-1 rounded cursor-pointer hover:opacity-80 transition-opacity`}
+                        } text-white text-xs p-1 rounded group relative`}
                       >
+                        <div className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 p-0.5">
+                          <button
+                            className="h-4 w-4 bg-background/80 rounded hover:bg-background flex items-center justify-center"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenRescheduleDialog(item);
+                            }}
+                          >
+                            <Edit className="h-2.5 w-2.5 text-foreground" />
+                          </button>
+                          <button
+                            className="h-4 w-4 bg-background/80 rounded hover:bg-background flex items-center justify-center"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenDeleteDialog(item);
+                            }}
+                          >
+                            <Trash2 className="h-2.5 w-2.5 text-foreground" />
+                          </button>
+                        </div>
                         <p className="line-clamp-1">{item.title}</p>
                       </div>
                     ))}
@@ -475,6 +566,13 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
                         <Button
                           size="sm"
                           variant="ghost"
+                          onClick={() => handleOpenRescheduleDialog(item)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
                           onClick={() => handleOpenDeleteDialog(item)}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -530,6 +628,55 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Reschedule Dialog */}
+      <Dialog open={rescheduleDialogOpen} onOpenChange={setRescheduleDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reschedule Post</DialogTitle>
+            <DialogDescription>
+              {selectedItem && (
+                <div className="mt-2 p-3 bg-muted rounded-lg space-y-1">
+                  <p className="font-medium text-foreground">{selectedItem.title}</p>
+                  {selectedItem.scheduled_time && (
+                    <p className="text-sm flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      Currently: {formatLocalDateTime(selectedItem.scheduled_time)}
+                    </p>
+                  )}
+                </div>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>New Date</Label>
+              <Calendar
+                mode="single"
+                selected={newScheduledDate}
+                onSelect={setNewScheduledDate}
+                className="rounded-md border"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>New Time ({userTimezone})</Label>
+              <Input
+                type="time"
+                value={newScheduledTime}
+                onChange={(e) => setNewScheduledTime(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRescheduleDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleReschedule} disabled={!newScheduledDate || !newScheduledTime}>
+              Reschedule
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
