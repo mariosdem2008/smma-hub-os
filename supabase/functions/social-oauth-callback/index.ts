@@ -114,11 +114,11 @@ serve(async (req) => {
       console.log('[OAUTH-CALLBACK] No Instagram Business Account found, skipping IG connection');
     }
 
-    // Upsert all connections to database using admin client
+    // Upsert all connections to database using admin client with explicit onConflict
     for (const connection of connectionsToSave) {
       const { data: upsertResult, error: upsertError } = await admin
         .from('social_connections')
-        .upsert(connection)
+        .upsert(connection, { onConflict: 'client_id,platform' })
         .select();
 
       console.log(`[OAUTH-CALLBACK] UPSERT ${connection.platform.toUpperCase()} RESULT:`, upsertResult);
