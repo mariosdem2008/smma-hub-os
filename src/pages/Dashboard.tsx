@@ -33,6 +33,10 @@ import {
   CheckSquare,
   X,
   Video,
+  Sparkles,
+  TrendingUp,
+  Clock,
+  AlertTriangle,
 } from "lucide-react";
 import {
   Dialog,
@@ -316,17 +320,17 @@ export default function Dashboard() {
   const getPlatformColor = (platform: string | null) => {
     switch (platform?.toLowerCase()) {
       case "instagram":
-        return "bg-gradient-to-r from-accent-purple to-accent-pink text-white";
+        return "bg-gradient-to-r from-accent-purple to-accent-pink text-white shadow-sm";
       case "facebook":
-        return "bg-accent-teal text-white";
+        return "bg-accent-teal text-white shadow-sm";
       case "tiktok":
-        return "bg-gradient-to-r from-gray-900 to-accent-teal text-white";
+        return "bg-gradient-to-r from-gray-900 to-accent-teal text-white shadow-sm";
       case "linkedin":
-        return "bg-accent-teal text-white";
+        return "bg-accent-teal text-white shadow-sm";
       case "youtube":
-        return "bg-destructive text-white";
+        return "bg-destructive text-white shadow-sm";
       default:
-        return "bg-muted text-muted-foreground";
+        return "bg-muted text-muted-foreground shadow-sm";
     }
   };
 
@@ -477,12 +481,17 @@ export default function Dashboard() {
 
   return (
     <div
-      className="space-y-6 md:space-y-8"
+      className="space-y-6 md:space-y-8 relative"
       style={{
         transform: isMobile ? `translateY(${pullDistance}px)` : undefined,
         transition: isRefreshing ? "transform 0.3s ease-out" : "none",
       }}
     >
+      {/* Animated background elements */}
+      <div className="absolute top-0 left-0 w-full h-72 bg-gradient-to-br from-primary/5 via-accent-purple/5 to-accent-teal/5 -z-10 rounded-b-3xl" />
+      <div className="absolute top-20 right-10 w-32 h-32 bg-accent-purple/10 rounded-full blur-xl animate-pulse" />
+      <div className="absolute bottom-40 left-8 w-24 h-24 bg-accent-teal/10 rounded-full blur-lg animate-pulse delay-1000" />
+
       {/* Pull-to-refresh indicator */}
       {isMobile && pullDistance > 0 && (
         <div className="flex justify-center">
@@ -495,13 +504,17 @@ export default function Dashboard() {
       )}
 
       {/* Welcome Header */}
-      <div className="bg-gradient-to-r from-primary/5 to-muted/30 rounded-2xl p-6 border">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-              Welcome, {user?.user_metadata?.full_name || "User"}
-            </h1>
-            <p className="text-sm md:text-base text-muted-foreground mt-2">
+      <div className="bg-gradient-to-r from-primary/10 to-muted/20 rounded-3xl p-6 border border-primary/10 shadow-sm relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-l from-primary/10 to-transparent rounded-full -translate-y-16 translate-x-16" />
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 relative z-10">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                Welcome back, {user?.user_metadata?.full_name || "User"}!
+              </h1>
+            </div>
+            <p className="text-sm md:text-base text-muted-foreground">
               Here's what's happening with your clients today
             </p>
           </div>
@@ -509,10 +522,11 @@ export default function Dashboard() {
             <Dialog open={showNewClientDialog} onOpenChange={setShowNewClientDialog}>
               <DialogTrigger asChild>
                 <Button
-                  className="w-full md:w-auto bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary shadow-lg hover:shadow-xl transition-all duration-200"
+                  className="w-full md:w-auto bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary shadow-lg hover:shadow-xl transition-all duration-200 group relative overflow-hidden"
                   style={{ minHeight: isMobile ? "44px" : undefined }}
                   onClick={() => hapticButton()}
                 >
+                  <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
                   <Plus className="mr-2 h-4 w-4" />
                   New Client
                 </Button>
@@ -592,7 +606,12 @@ export default function Dashboard() {
       </div>
 
       {loading ? (
-        <div className="text-center text-muted-foreground">Loading dashboard...</div>
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center space-y-3">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" />
+            <p className="text-muted-foreground">Loading your dashboard...</p>
+          </div>
+        </div>
       ) : (
         <>
           {/* Metrics Cards */}
@@ -603,6 +622,7 @@ export default function Dashboard() {
               icon={Users}
               description="Active client accounts"
               variant="purple"
+              trend="up"
             />
             <StatCard
               title="Posts This Week"
@@ -610,6 +630,7 @@ export default function Dashboard() {
               icon={Calendar}
               description="Scheduled for this week"
               variant="teal"
+              trend="neutral"
             />
             <StatCard
               title="Tasks Due This Week"
@@ -617,17 +638,21 @@ export default function Dashboard() {
               icon={CheckCircle2}
               description="Tasks to complete"
               variant="orange"
+              trend="down"
             />
           </div>
 
           {/* My Tasks */}
           {myTasks.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>My Assigned Tasks</CardTitle>
+            <Card className="border-l-4 border-l-accent-teal shadow-sm hover:shadow-md transition-shadow">
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2">
+                  <CheckSquare className="h-5 w-5 text-accent-teal" />
+                  <CardTitle>My Assigned Tasks</CardTitle>
+                </div>
                 <CardDescription>Tasks assigned to you across all clients</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-0">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -642,21 +667,24 @@ export default function Dashboard() {
                     {myTasks.map((task) => (
                       <TableRow
                         key={task.id}
-                        className="cursor-pointer hover:bg-muted/50"
+                        className="cursor-pointer hover:bg-muted/30 transition-colors group"
                         onClick={() => navigate(`/clients/${task.client?.id}?tab=tasks`)}
                       >
                         <TableCell>
-                          <p className="font-medium">{task.title}</p>
+                          <p className="font-medium group-hover:text-primary transition-colors">{task.title}</p>
                         </TableCell>
                         <TableCell>
-                          <span className="text-sm">{task.client?.name || "Unknown"}</span>
+                          <span className="text-sm text-muted-foreground">{task.client?.name || "Unknown"}</span>
                         </TableCell>
                         <TableCell>
                           {task.due_date ? (
                             <div className="flex items-center gap-2">
+                              <Clock className="h-3 w-3 text-muted-foreground" />
                               <span
                                 className={cn(
-                                  isPast(new Date(task.due_date)) && task.status !== "completed" && "text-destructive",
+                                  isPast(new Date(task.due_date)) &&
+                                    task.status !== "completed" &&
+                                    "text-destructive font-medium",
                                 )}
                               >
                                 {format(new Date(task.due_date), "MMM d, yyyy")}
@@ -672,10 +700,15 @@ export default function Dashboard() {
                           )}
                         </TableCell>
                         <TableCell>
-                          <Badge variant={getPriorityBadgeVariant(task.priority)}>{task.priority}</Badge>
+                          <Badge variant={getPriorityBadgeVariant(task.priority)} className="shadow-sm">
+                            {task.priority}
+                          </Badge>
                         </TableCell>
                         <TableCell>
-                          <Badge variant={task.status === "in_progress" ? "secondary" : "outline"}>
+                          <Badge
+                            variant={task.status === "in_progress" ? "secondary" : "outline"}
+                            className="shadow-sm"
+                          >
                             {task.status.replace("_", " ")}
                           </Badge>
                         </TableCell>
@@ -689,24 +722,27 @@ export default function Dashboard() {
 
           {/* Upcoming Posts */}
           {!dismissedPostsSection && (
-            <Card>
-              <CardHeader>
+            <Card className="border-l-4 border-l-accent-purple shadow-sm hover:shadow-md transition-shadow">
+              <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>Upcoming Posts</CardTitle>
-                    <CardDescription>Next 10 scheduled posts across all clients</CardDescription>
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5 text-accent-purple" />
+                    <div>
+                      <CardTitle>Upcoming Posts</CardTitle>
+                      <CardDescription>Next 10 scheduled posts across all clients</CardDescription>
+                    </div>
                   </div>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-6 w-6 hover:bg-muted"
+                    className="h-8 w-8 hover:bg-muted rounded-full"
                     onClick={() => setDismissedPostsSection(true)}
                   >
                     <X className="h-3 w-3" />
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-0">
                 {visibleUpcomingPosts.length > 0 ? (
                   <Table>
                     <TableHeader>
@@ -723,30 +759,48 @@ export default function Dashboard() {
                       {visibleUpcomingPosts.map((post) => (
                         <TableRow
                           key={post.id}
-                          className="cursor-pointer hover:bg-muted/50"
+                          className="cursor-pointer hover:bg-muted/30 transition-colors group"
                           onClick={() => navigate(`/clients/${post.client.id}`)}
                         >
-                          <TableCell className="font-medium flex items-center gap-2">
-                            {post.thumbnail_url && (
-                              <img src={post.thumbnail_url} alt="" className="w-8 h-8 rounded object-cover" />
+                          <TableCell className="font-medium flex items-center gap-3">
+                            {post.thumbnail_url ? (
+                              <img
+                                src={post.thumbnail_url}
+                                alt=""
+                                className="w-10 h-10 rounded-lg object-cover shadow-sm group-hover:shadow-md transition-shadow"
+                              />
+                            ) : (
+                              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-accent-purple/20 to-accent-pink/20 flex items-center justify-center">
+                                <FileText className="h-4 w-4 text-accent-purple" />
+                              </div>
                             )}
-                            {post.title || "Untitled Project"}
+                            <span className="group-hover:text-primary transition-colors">
+                              {post.title || "Untitled Project"}
+                            </span>
                           </TableCell>
-                          <TableCell>{post.client.name}</TableCell>
+                          <TableCell>
+                            <span className="text-sm text-muted-foreground">{post.client.name}</span>
+                          </TableCell>
                           <TableCell>
                             <div className="flex gap-1 flex-wrap">
                               {post.platforms?.map((platform: string) => (
-                                <Badge key={platform} className={cn("font-medium text-xs", getPlatformColor(platform))}>
+                                <Badge
+                                  key={platform}
+                                  className={cn("font-medium text-xs shadow-sm", getPlatformColor(platform))}
+                                >
                                   {platform}
                                 </Badge>
                               ))}
                             </div>
                           </TableCell>
                           <TableCell>
-                            {post.scheduled_time ? format(new Date(post.scheduled_time), "MMM d, yyyy") : "-"}
+                            <div className="flex items-center gap-2">
+                              <CalendarIcon className="h-3 w-3 text-muted-foreground" />
+                              {post.scheduled_time ? format(new Date(post.scheduled_time), "MMM d, yyyy") : "-"}
+                            </div>
                           </TableCell>
                           <TableCell>
-                            <Badge variant={getStatusBadgeVariant(post.pipeline_stage)}>
+                            <Badge variant={getStatusBadgeVariant(post.pipeline_stage)} className="shadow-sm">
                               {post.pipeline_stage || "scheduled"}
                             </Badge>
                           </TableCell>
@@ -754,7 +808,7 @@ export default function Dashboard() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-6 w-6 hover:bg-muted"
+                              className="h-7 w-7 hover:bg-muted rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                               onClick={(e) => handleDismissPost(post.id, e)}
                             >
                               <X className="h-3 w-3" />
@@ -765,9 +819,11 @@ export default function Dashboard() {
                     </TableBody>
                   </Table>
                 ) : (
-                  <div className="flex flex-col items-center justify-center py-8 text-center">
-                    <FileText className="h-12 w-12 text-muted-foreground mb-4" />
-                    <p className="text-muted-foreground mb-2">No upcoming posts scheduled</p>
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <div className="w-16 h-16 bg-gradient-to-br from-accent-purple/10 to-accent-pink/10 rounded-full flex items-center justify-center mb-4">
+                      <FileText className="h-6 w-6 text-accent-purple" />
+                    </div>
+                    <p className="text-muted-foreground mb-2 font-medium">No upcoming posts scheduled</p>
                     <p className="text-sm text-muted-foreground">Schedule posts in your client workspaces</p>
                   </div>
                 )}
@@ -777,24 +833,27 @@ export default function Dashboard() {
 
           {/* Overdue Tasks */}
           {!dismissedTasksSection && (
-            <Card>
-              <CardHeader>
+            <Card className="border-l-4 border-l-destructive/80 shadow-sm hover:shadow-md transition-shadow">
+              <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>Overdue Tasks</CardTitle>
-                    <CardDescription>Tasks that need immediate attention</CardDescription>
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5 text-destructive" />
+                    <div>
+                      <CardTitle>Overdue Tasks</CardTitle>
+                      <CardDescription>Tasks that need immediate attention</CardDescription>
+                    </div>
                   </div>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-6 w-6 hover:bg-muted"
+                    className="h-8 w-8 hover:bg-muted rounded-full"
                     onClick={() => setDismissedTasksSection(true)}
                   >
                     <X className="h-3 w-3" />
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-0">
                 {visibleOverdueTasks.length > 0 ? (
                   <Table>
                     <TableHeader>
@@ -811,25 +870,34 @@ export default function Dashboard() {
                       {visibleOverdueTasks.map((task) => (
                         <TableRow
                           key={task.id}
-                          className="cursor-pointer hover:bg-muted/50"
+                          className="cursor-pointer hover:bg-muted/30 transition-colors group"
                           onClick={() => navigate(`/clients/${task.client.id}`)}
                         >
-                          <TableCell className="font-medium">{task.client.name}</TableCell>
+                          <TableCell className="font-medium group-hover:text-primary transition-colors">
+                            {task.client.name}
+                          </TableCell>
                           <TableCell>{task.title}</TableCell>
-                          <TableCell className="text-destructive">
-                            {task.due_date ? format(new Date(task.due_date), "MMM d, yyyy") : "-"}
+                          <TableCell className="text-destructive font-medium">
+                            <div className="flex items-center gap-2">
+                              <Clock className="h-3 w-3" />
+                              {task.due_date ? format(new Date(task.due_date), "MMM d, yyyy") : "-"}
+                            </div>
                           </TableCell>
                           <TableCell>
-                            <Badge variant={getPriorityBadgeVariant(task.priority)}>{task.priority || "medium"}</Badge>
+                            <Badge variant={getPriorityBadgeVariant(task.priority)} className="shadow-sm">
+                              {task.priority || "medium"}
+                            </Badge>
                           </TableCell>
                           <TableCell>
-                            <Badge variant="outline">{task.status?.replace("_", " ") || "pending"}</Badge>
+                            <Badge variant="outline" className="shadow-sm">
+                              {task.status?.replace("_", " ") || "pending"}
+                            </Badge>
                           </TableCell>
                           <TableCell>
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-6 w-6 hover:bg-muted"
+                              className="h-7 w-7 hover:bg-muted rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                               onClick={(e) => handleDismissTask(task.id, e)}
                             >
                               <X className="h-3 w-3" />
@@ -840,9 +908,11 @@ export default function Dashboard() {
                     </TableBody>
                   </Table>
                 ) : (
-                  <div className="flex flex-col items-center justify-center py-8 text-center">
-                    <CheckSquare className="h-12 w-12 text-muted-foreground mb-4" />
-                    <p className="text-muted-foreground mb-2">No overdue tasks</p>
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <div className="w-16 h-16 bg-gradient-to-br from-green-100 to-green-50 rounded-full flex items-center justify-center mb-4 border border-green-200">
+                      <CheckSquare className="h-6 w-6 text-green-600" />
+                    </div>
+                    <p className="text-muted-foreground mb-2 font-medium">No overdue tasks</p>
                     <p className="text-sm text-muted-foreground">Great job staying on top of everything!</p>
                   </div>
                 )}
@@ -852,10 +922,16 @@ export default function Dashboard() {
 
           {/* Clients Grid */}
           {clients.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <p className="mb-4 text-muted-foreground">No clients yet</p>
-                <Button onClick={() => setShowNewClientDialog(true)}>
+            <Card className="text-center py-12 border-dashed">
+              <CardContent>
+                <div className="w-20 h-20 bg-gradient-to-br from-primary/10 to-accent-purple/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Users className="h-8 w-8 text-primary" />
+                </div>
+                <p className="mb-4 text-muted-foreground font-medium">No clients yet</p>
+                <Button
+                  onClick={() => setShowNewClientDialog(true)}
+                  className="bg-gradient-to-r from-primary to-primary/90"
+                >
                   <Plus className="mr-2 h-4 w-4" />
                   Create Your First Client
                 </Button>
@@ -863,37 +939,48 @@ export default function Dashboard() {
             </Card>
           ) : (
             <div>
-              <h2 className="text-2xl font-bold mb-4">Your Clients</h2>
+              <div className="flex items-center gap-2 mb-4">
+                <Users className="h-5 w-5 text-primary" />
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                  Your Clients
+                </h2>
+              </div>
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {clients.map((client) => (
                   <Card
                     key={client.id}
-                    className="overflow-hidden hover:border-primary/50 transition-colors cursor-pointer"
+                    className="overflow-hidden hover:border-primary/50 transition-all duration-300 cursor-pointer group hover:shadow-lg border"
                     onClick={() => navigate(`/clients/${client.id}`)}
                   >
-                    <CardHeader>
+                    <CardHeader className="pb-3">
                       <div className="flex items-center gap-3">
                         {client.logo_url ? (
-                          <img src={client.logo_url} alt={client.name} className="h-12 w-12 rounded-lg object-cover" />
+                          <img
+                            src={client.logo_url}
+                            alt={client.name}
+                            className="h-12 w-12 rounded-xl object-cover shadow-sm group-hover:shadow-md transition-shadow"
+                          />
                         ) : (
-                          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-lg font-bold text-primary">
+                          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary/10 to-accent-purple/10 text-lg font-bold text-primary group-hover:scale-105 transition-transform">
                             {client.name.charAt(0)}
                           </div>
                         )}
                         <div className="flex-1 min-w-0">
-                          <CardTitle className="truncate">{client.name}</CardTitle>
+                          <CardTitle className="truncate group-hover:text-primary transition-colors">
+                            {client.name}
+                          </CardTitle>
                           {client.company && <CardDescription className="truncate">{client.company}</CardDescription>}
                         </div>
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <FileText className="h-4 w-4" />
+                      <div className="flex items-center justify-between text-sm text-muted-foreground">
+                        <div className="flex items-center gap-1 bg-muted/50 px-2 py-1 rounded-lg">
+                          <FileText className="h-3 w-3" />
                           <span>{client.assetCount} assets</span>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Video className="h-4 w-4" />
+                        <div className="flex items-center gap-1 bg-muted/50 px-2 py-1 rounded-lg">
+                          <Video className="h-3 w-3" />
                           <span>{client.publishedVideoCount} published</span>
                         </div>
                       </div>
@@ -910,20 +997,29 @@ export default function Dashboard() {
       {(canManageClients || canCreateContent) && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button size="lg" className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg z-40">
-              <Plus className="h-6 w-6" />
+            <Button
+              size="lg"
+              className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-xl hover:shadow-2xl transition-all duration-300 z-40 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary group"
+            >
+              <Plus className="h-6 w-6 group-hover:rotate-90 transition-transform duration-300" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuContent align="end" className="w-48 shadow-xl">
             {canManageClients && (
-              <DropdownMenuItem onClick={() => setShowNewClientDialog(true)}>
-                <Users className="mr-2 h-4 w-4" />
+              <DropdownMenuItem
+                onClick={() => setShowNewClientDialog(true)}
+                className="cursor-pointer flex items-center gap-2"
+              >
+                <Users className="h-4 w-4 text-accent-purple" />
                 New Client
               </DropdownMenuItem>
             )}
             {canCreateContent && (
-              <DropdownMenuItem onClick={() => setShowTaskDialog(true)}>
-                <CheckSquare className="mr-2 h-4 w-4" />
+              <DropdownMenuItem
+                onClick={() => setShowTaskDialog(true)}
+                className="cursor-pointer flex items-center gap-2"
+              >
+                <CheckSquare className="h-4 w-4 text-accent-teal" />
                 New Task
               </DropdownMenuItem>
             )}
@@ -933,9 +1029,12 @@ export default function Dashboard() {
 
       {/* New Task Dialog */}
       <Dialog open={showTaskDialog} onOpenChange={setShowTaskDialog}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md shadow-xl">
           <DialogHeader>
-            <DialogTitle>Create New Task</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckSquare className="h-5 w-5 text-accent-teal" />
+              Create New Task
+            </DialogTitle>
             <DialogDescription>Add a new task for a client</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -947,7 +1046,7 @@ export default function Dashboard() {
                 value={taskFormData.client_id}
                 onValueChange={(value) => setTaskFormData({ ...taskFormData, client_id: value })}
               >
-                <SelectTrigger id="task-client">
+                <SelectTrigger id="task-client" className="shadow-sm">
                   <SelectValue placeholder="Select client" />
                 </SelectTrigger>
                 <SelectContent>
@@ -969,6 +1068,7 @@ export default function Dashboard() {
                 value={taskFormData.title}
                 onChange={(e) => setTaskFormData({ ...taskFormData, title: e.target.value })}
                 placeholder="Enter task title"
+                className="shadow-sm"
               />
             </div>
 
@@ -980,6 +1080,7 @@ export default function Dashboard() {
                 onChange={(e) => setTaskFormData({ ...taskFormData, description: e.target.value })}
                 placeholder="Enter task description"
                 rows={3}
+                className="shadow-sm resize-none"
               />
             </div>
 
@@ -990,7 +1091,7 @@ export default function Dashboard() {
                   <Button
                     variant="outline"
                     className={cn(
-                      "w-full justify-start text-left font-normal",
+                      "w-full justify-start text-left font-normal shadow-sm",
                       !taskDueDate && "text-muted-foreground",
                     )}
                   >
@@ -998,7 +1099,7 @@ export default function Dashboard() {
                     {taskDueDate ? format(taskDueDate, "PPP") : <span>Pick a date</span>}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
+                <PopoverContent className="w-auto p-0 shadow-xl" align="start">
                   <CalendarComponent
                     mode="single"
                     selected={taskDueDate}
@@ -1017,7 +1118,7 @@ export default function Dashboard() {
                   value={taskFormData.priority}
                   onValueChange={(value) => setTaskFormData({ ...taskFormData, priority: value })}
                 >
-                  <SelectTrigger id="task-priority">
+                  <SelectTrigger id="task-priority" className="shadow-sm">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1036,7 +1137,7 @@ export default function Dashboard() {
                   value={taskFormData.status}
                   onValueChange={(value) => setTaskFormData({ ...taskFormData, status: value })}
                 >
-                  <SelectTrigger id="task-status">
+                  <SelectTrigger id="task-status" className="shadow-sm">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1056,7 +1157,7 @@ export default function Dashboard() {
                 value={taskFormData.assigned_to}
                 onValueChange={(value) => setTaskFormData({ ...taskFormData, assigned_to: value })}
               >
-                <SelectTrigger id="task-assigned">
+                <SelectTrigger id="task-assigned" className="shadow-sm">
                   <SelectValue placeholder="Unassigned" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1074,7 +1175,11 @@ export default function Dashboard() {
             <Button variant="outline" onClick={() => setShowTaskDialog(false)} disabled={submitting}>
               Cancel
             </Button>
-            <Button onClick={handleCreateTask} disabled={submitting}>
+            <Button
+              onClick={handleCreateTask}
+              disabled={submitting}
+              className="bg-gradient-to-r from-accent-teal to-accent-teal/90 hover:from-accent-teal/90 hover:to-accent-teal"
+            >
               {submitting ? "Creating..." : "Create Task"}
             </Button>
           </DialogFooter>
