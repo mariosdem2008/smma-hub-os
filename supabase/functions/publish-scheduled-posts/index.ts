@@ -9,6 +9,7 @@ serve(async (req) => {
   }
 
   try {
+    const startTime = Date.now();
     console.log('[AUTOPUBLISH] Starting scheduled posts check');
 
     const supabaseAdmin = createClient(
@@ -28,6 +29,7 @@ serve(async (req) => {
         platform_captions,
         hashtags,
         scheduled_time,
+        retry_count,
         final_asset_id,
         final_asset:assets!projects_final_asset_id_fkey (
           id,
@@ -96,6 +98,7 @@ serve(async (req) => {
 });
 
 async function publishProject(supabaseAdmin: any, project: any) {
+  const projectStartTime = Date.now();
   console.log(`[AUTOPUBLISH] Publishing project ${project.id}: ${project.title} (attempt ${(project.retry_count || 0) + 1})`);
 
   // Null-safe check for final asset
@@ -164,19 +167,26 @@ async function publishProject(supabaseAdmin: any, project: any) {
 
   console.log(`[AUTOPUBLISH] Found ${connections.length} active connections`);
 
-  const publishResults: Record<string, any> = {};
+  const publishedUrls: Record<string, string> = {};
   let hasSuccess = false;
   let hasFailure = false;
 
   // Publish to each platform
   for (const connection of connections) {
+    const platformStartTime = Date.now();
     const platform = connection.platform;
     console.log(`[AUTOPUBLISH] Publishing to ${platform}`);
+
+    let requestPayload = null;
+    let responseData = null;
+    let publishedPermalink = null;
 
     try {
       // Validate Instagram Business Account before publishing
       if (platform === 'instagram' && !connection.account_id) {
         console.error(`[AUTOPUBLISH] No Instagram Business Account for connection ${connection.id}`);
+        
+        const duration = Date.now() - platformStartTime;
         
         // Log the skip
         await supabaseAdmin.from('post_logs').insert({
@@ -184,6 +194,7 @@ async function publishProject(supabaseAdmin: any, project: any) {
           platform: 'instagram',
           attempt_number: (project.retry_count || 0) + 1,
           success: false,
+          duration_ms: duration,
           error_message: 'No Instagram Business Account connected',
           response: { error: 'no_instagram_business_account' }
         });
@@ -193,8 +204,20 @@ async function publishProject(supabaseAdmin: any, project: any) {
       }
 
       // Get platform-specific caption
-      const captions = project.platform_captions || {};
-      const caption = captions[platform] || project.title;
+      const platformCaptions = project.platform_captions || {};
+      const caption = platformCaptions[platform] || project.title || '';
+      const hashtags = project.hashtags || '';
+      const fullCaption = `${caption}\n\n${hashtags}`.trim();
+
+      // Store request payload (without sensitive tokens)
+      requestPayload = {
+        platform,
+        mediaUrl: asset.file_url,
+        mediaType,
+        caption: fullCaption,
+        accountId: connection.account_id,
+        accountName: connection.account_name
+      };
 
       let result;
 
@@ -205,7 +228,7 @@ async function publishProject(supabaseAdmin: any, project: any) {
           mediaUrl,
           mediaType,
           caption,
-          project.hashtags
+          hashtags
         );
       } else if (platform === 'facebook') {
         result = await publishToFacebook(
@@ -214,54 +237,112 @@ async function publishProject(supabaseAdmin: any, project: any) {
           mediaUrl,
           mediaType,
           caption,
-          project.hashtags
+          hashtags
         );
       } else {
         console.log(`[AUTOPUBLISH] Platform ${platform} not yet implemented`);
         continue;
       }
 
-      // Log the publish attempt
-      await supabaseAdmin.from('post_logs').insert({
-        project_id: project.id,
-        platform: platform,
-        attempt_number: (project.retry_count || 0) + 1,
-        success: result.success,
-        error_message: result.success ? null : result.error,
-        response: result
-      });
+      const duration = Date.now() - platformStartTime;
 
-      if (result.success) {
-        console.log(`[AUTOPUBLISH] Successfully published to ${platform}:`, result.mediaUrl);
-        publishResults[platform] = result.mediaUrl;
+      if (result.success && result.mediaUrl) {
+        publishedPermalink = result.mediaUrl;
+        publishedUrls[platform] = publishedPermalink;
+        responseData = { mediaId: result.mediaId, permalink: publishedPermalink };
         hasSuccess = true;
+        console.log(`[AUTOPUBLISH] Successfully published to ${platform}: ${publishedPermalink}`);
+
+        // Log success
+        await supabaseAdmin.from('post_logs').insert({
+          project_id: project.id,
+          platform,
+          success: true,
+          duration_ms: duration,
+          published_permalink: publishedPermalink,
+          request: requestPayload,
+          response: responseData,
+          attempt_number: (project.retry_count || 0) + 1
+        });
       } else {
-        console.error(`[AUTOPUBLISH] Failed to publish to ${platform}:`, result.error);
         hasFailure = true;
+        console.error(`[AUTOPUBLISH] Failed to publish to ${platform}:`, result.error);
+
+        // Log failure
+        await supabaseAdmin.from('post_logs').insert({
+          project_id: project.id,
+          platform,
+          success: false,
+          duration_ms: duration,
+          request: requestPayload,
+          error_message: result.error || 'Unknown error',
+          response: result,
+          attempt_number: (project.retry_count || 0) + 1
+        });
       }
 
     } catch (error) {
+      const duration = Date.now() - platformStartTime;
       console.error(`[AUTOPUBLISH] Error publishing to ${platform}:`, error);
       
       // Log the error
       await supabaseAdmin.from('post_logs').insert({
         project_id: project.id,
         platform: platform,
-        attempt_number: (project.retry_count || 0) + 1,
         success: false,
+        duration_ms: duration,
+        request: requestPayload,
         error_message: error instanceof Error ? error.message : 'Unknown error',
-        response: { error: String(error) }
+        response: { error: String(error) },
+        attempt_number: (project.retry_count || 0) + 1
       });
       
       hasFailure = true;
     }
   }
 
+  // Track failure/success for alerting
+  const allSuccessful = Object.keys(publishedUrls).length === supportedPlatforms.length;
+  
+  if (allSuccessful) {
+    // Reset failure tracking on success
+    await supabaseAdmin.from('project_failure_tracking')
+      .upsert({
+        project_id: project.id,
+        consecutive_failures: 0,
+        alert_sent: false,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'project_id' });
+  } else if (hasFailure) {
+    // Increment failure counter
+    const { data: trackingData } = await supabaseAdmin
+      .from('project_failure_tracking')
+      .select('*')
+      .eq('project_id', project.id)
+      .single();
+    
+    const consecutiveFailures = (trackingData?.consecutive_failures || 0) + 1;
+    const shouldAlert = consecutiveFailures >= 3 && !trackingData?.alert_sent;
+    
+    await supabaseAdmin.from('project_failure_tracking')
+      .upsert({
+        project_id: project.id,
+        consecutive_failures: consecutiveFailures,
+        last_failure_at: new Date().toISOString(),
+        alert_sent: shouldAlert,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'project_id' });
+    
+    if (shouldAlert) {
+      console.warn(`[AUTOPUBLISH] 🚨 ALERT: Project ${project.id} has failed ${consecutiveFailures} times consecutively`);
+      // TODO: Send email/notification to agency owner
+    }
+  }
+
   // Collect error messages from failed platforms
   const errorMessages: string[] = [];
-  for (const connection of connections) {
-    const platform = connection.platform;
-    if (!publishResults[platform]) {
+  for (const platform of supportedPlatforms) {
+    if (!publishedUrls[platform]) {
       // This platform failed - fetch the error from post_logs
       const { data: logEntry } = await supabaseAdmin
         .from('post_logs')
@@ -281,17 +362,17 @@ async function publishProject(supabaseAdmin: any, project: any) {
   const updateData: any = {};
   const currentRetryCount = project.retry_count || 0;
 
-  if (hasSuccess && !hasFailure) {
+  if (allSuccessful) {
     // All platforms succeeded
     updateData.pipeline_stage = 'published';
-    updateData.published_urls = publishResults;
+    updateData.published_urls = publishedUrls;
     updateData.error_message = null;
     updateData.retry_count = 0; // Reset retry count on success
     console.log(`[AUTOPUBLISH] Project ${project.id} fully published`);
   } else if (hasSuccess && hasFailure) {
     // Partial success
     updateData.pipeline_stage = 'published';
-    updateData.published_urls = publishResults;
+    updateData.published_urls = publishedUrls;
     updateData.error_message = `Partial success. Failed platforms: ${errorMessages.join('; ')}`;
     updateData.retry_count = 0; // Reset retry count on partial success
     console.log(`[AUTOPUBLISH] Project ${project.id} partially published`);
@@ -324,10 +405,13 @@ async function publishProject(supabaseAdmin: any, project: any) {
     console.error(`[AUTOPUBLISH] Failed to update project ${project.id}:`, updateError);
   }
 
+  const totalDuration = Date.now() - projectStartTime;
+  console.log(`[AUTOPUBLISH] Project ${project.id} completed in ${totalDuration}ms`);
+
   return {
     projectId: project.id,
     success: hasSuccess,
-    publishedUrls: publishResults,
+    publishedUrls: publishedUrls,
     stage: updateData.pipeline_stage
   };
 }

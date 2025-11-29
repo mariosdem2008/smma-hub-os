@@ -1119,30 +1119,39 @@ export type Database = {
         Row: {
           attempt_number: number | null
           created_at: string | null
+          duration_ms: number | null
           error_message: string | null
           id: string
           platform: string
           project_id: string | null
+          published_permalink: string | null
+          request: Json | null
           response: Json | null
           success: boolean
         }
         Insert: {
           attempt_number?: number | null
           created_at?: string | null
+          duration_ms?: number | null
           error_message?: string | null
           id?: string
           platform: string
           project_id?: string | null
+          published_permalink?: string | null
+          request?: Json | null
           response?: Json | null
           success: boolean
         }
         Update: {
           attempt_number?: number | null
           created_at?: string | null
+          duration_ms?: number | null
           error_message?: string | null
           id?: string
           platform?: string
           project_id?: string | null
+          published_permalink?: string | null
+          request?: Json | null
           response?: Json | null
           success?: boolean
         }
@@ -1218,6 +1227,44 @@ export type Database = {
           },
           {
             foreignKeyName: "project_assets_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_failure_tracking: {
+        Row: {
+          alert_sent: boolean | null
+          consecutive_failures: number
+          created_at: string | null
+          id: string
+          last_failure_at: string | null
+          project_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          alert_sent?: boolean | null
+          consecutive_failures?: number
+          created_at?: string | null
+          id?: string
+          last_failure_at?: string | null
+          project_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          alert_sent?: boolean | null
+          consecutive_failures?: number
+          created_at?: string | null
+          id?: string
+          last_failure_at?: string | null
+          project_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_failure_tracking_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
@@ -1610,6 +1657,7 @@ export type Database = {
       token_refresh_logs: {
         Row: {
           created_at: string | null
+          error_code: string | null
           id: string
           new_token_preview: string | null
           old_token_preview: string | null
@@ -1619,6 +1667,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          error_code?: string | null
           id?: string
           new_token_preview?: string | null
           old_token_preview?: string | null
@@ -1628,6 +1677,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          error_code?: string | null
           id?: string
           new_token_preview?: string | null
           old_token_preview?: string | null

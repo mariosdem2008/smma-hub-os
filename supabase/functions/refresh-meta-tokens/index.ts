@@ -54,6 +54,8 @@ serve(async (req) => {
       try {
         console.log(`[TOKEN-REFRESH] Refreshing token for ${connection.platform} - ${connection.account_name}`);
 
+        const oldTokenPreview = connection.access_token?.substring(0, 10) || 'unknown';
+
         // Call Meta token exchange endpoint
         const tokenUrl = new URL('https://graph.facebook.com/v21.0/oauth/access_token');
         tokenUrl.searchParams.set('grant_type', 'fb_exchange_token');
@@ -65,14 +67,22 @@ serve(async (req) => {
         const data = await response.json();
 
         if (!response.ok || data.error) {
+          const errorCode = data.error?.code || data.error?.type || 'REFRESH_FAILED';
           console.error(`[TOKEN-REFRESH] Failed to refresh token for ${connection.id}:`, data);
           
-          // Log failure
+          // Update connection status to error
+          await supabaseAdmin
+            .from('social_connections')
+            .update({ status: 'error' })
+            .eq('id', connection.id);
+          
+          // Log failure with error code
           await supabaseAdmin.from('token_refresh_logs').insert({
             social_connection_id: connection.id,
-            old_token_preview: connection.access_token?.substring(0, 10),
+            old_token_preview: oldTokenPreview,
             new_token_preview: null,
             success: false,
+            error_code: errorCode,
             response: data
           });
 
@@ -80,11 +90,14 @@ serve(async (req) => {
             connectionId: connection.id,
             platform: connection.platform,
             success: false,
-            error: data.error?.message || 'Unknown error'
+            error: data.error?.message || 'Unknown error',
+            errorCode
           });
 
           continue;
         }
+
+        const newTokenPreview = data.access_token?.substring(0, 10) || 'unknown';
 
         // Calculate new expiration (60 days from now for long-lived tokens)
         const newExpiresAt = new Date();
@@ -97,6 +110,7 @@ serve(async (req) => {
             access_token: data.access_token,
             token_expires_at: newExpiresAt.toISOString(),
             last_synced_at: new Date().toISOString(),
+            status: 'connected', // Reset status to connected on successful refresh
             updated_at: new Date().toISOString()
           })
           .eq('id', connection.id);
@@ -109,8 +123,8 @@ serve(async (req) => {
         // Log success
         await supabaseAdmin.from('token_refresh_logs').insert({
           social_connection_id: connection.id,
-          old_token_preview: connection.access_token?.substring(0, 10),
-          new_token_preview: data.access_token?.substring(0, 10),
+          old_token_preview: oldTokenPreview,
+          new_token_preview: newTokenPreview,
           success: true,
           response: { expires_in: data.expires_in || 5184000 } // 60 days in seconds
         });
@@ -126,13 +140,31 @@ serve(async (req) => {
         });
 
       } catch (error) {
+        const errorCode = 'EXCEPTION_ERROR';
         console.error(`[TOKEN-REFRESH] Error refreshing token for ${connection.id}:`, error);
+        
+        // Update connection status to error
+        await supabaseAdmin
+          .from('social_connections')
+          .update({ status: 'error' })
+          .eq('id', connection.id);
+        
+        // Log failure
+        await supabaseAdmin.from('token_refresh_logs').insert({
+          social_connection_id: connection.id,
+          old_token_preview: connection.access_token?.substring(0, 10) || 'unknown',
+          new_token_preview: null,
+          success: false,
+          error_code: errorCode,
+          response: { error: error instanceof Error ? error.message : 'Unknown error' }
+        });
         
         results.push({
           connectionId: connection.id,
           platform: connection.platform,
           success: false,
-          error: error instanceof Error ? error.message : 'Unknown error'
+          error: error instanceof Error ? error.message : 'Unknown error',
+          errorCode
         });
       }
     }
