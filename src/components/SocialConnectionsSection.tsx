@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useRole } from "@/hooks/useRole";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -47,6 +48,7 @@ interface SocialConnection {
 
 interface SocialConnectionsSectionProps {
   clientId: string;
+  isClientPortal?: boolean;
 }
 
 const PLATFORMS = [
@@ -86,8 +88,9 @@ const PLATFORMS = [
   },
 ];
 
-export default function SocialConnectionsSection({ clientId }: SocialConnectionsSectionProps) {
+export default function SocialConnectionsSection({ clientId, isClientPortal = false }: SocialConnectionsSectionProps) {
   const { toast } = useToast();
+  const { role, isOwner, isAdmin, isManager } = useRole();
   const [connections, setConnections] = useState<SocialConnection[]>([]);
   const [loading, setLoading] = useState(true);
   const [connectingPlatform, setConnectingPlatform] = useState<string | null>(null);
@@ -103,6 +106,11 @@ export default function SocialConnectionsSection({ clientId }: SocialConnections
     open: false,
     showError: false,
   });
+
+  // Determine if user can manage connections
+  // In client portal: all users can manage
+  // In main app: only owners and managers
+  const canManageConnections = isClientPortal || isOwner || isAdmin || isManager;
 
   useEffect(() => {
     fetchConnections();
@@ -182,6 +190,7 @@ export default function SocialConnectionsSection({ clientId }: SocialConnections
           action: "connect",
           platform: platformId,
           clientId: clientId,
+          source: isClientPortal ? "client" : "agency",
         },
         headers: {
           Authorization: `Bearer ${token}`,
@@ -278,6 +287,7 @@ export default function SocialConnectionsSection({ clientId }: SocialConnections
           platform: platform,
           clientId: clientId,
           connectionId: connectionId,
+          source: isClientPortal ? "client" : "agency",
         },
         headers: {
           Authorization: `Bearer ${session.access_token}`,
@@ -395,13 +405,14 @@ export default function SocialConnectionsSection({ clientId }: SocialConnections
                 {connection && connection.status === "connected" && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm">
+                      <Button variant="ghost" size="sm" disabled={!canManageConnections}>
                         <MoreVertical className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem
                         onClick={() => handleReauthenticate(connection.id, platform.id)}
+                        disabled={!canManageConnections}
                       >
                         <RefreshCw className="mr-2 h-4 w-4" />
                         Re-authenticate
@@ -411,6 +422,7 @@ export default function SocialConnectionsSection({ clientId }: SocialConnections
                         onClick={() =>
                           setDisconnectDialog({ open: true, connectionId: connection.id })
                         }
+                        disabled={!canManageConnections}
                       >
                         <Unplug className="mr-2 h-4 w-4" />
                         Disconnect
@@ -448,23 +460,31 @@ export default function SocialConnectionsSection({ clientId }: SocialConnections
                 )}
 
                 {(!connection || connection.status !== "connected") && (
-                  <Button
-                    className="w-full"
-                    onClick={() => handleConnect(platform.id)}
-                    disabled={isConnecting}
-                  >
-                    {isConnecting ? (
-                      <>
-                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                        Connecting...
-                      </>
+                  <>
+                    {canManageConnections ? (
+                      <Button
+                        className="w-full"
+                        onClick={() => handleConnect(platform.id)}
+                        disabled={isConnecting}
+                      >
+                        {isConnecting ? (
+                          <>
+                            <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                            Connecting...
+                          </>
+                        ) : (
+                          <>Connect {platform.name}</>
+                        )}
+                      </Button>
                     ) : (
-                      <>Connect {platform.name}</>
+                      <div className="text-sm text-muted-foreground text-center py-2">
+                        Only owners and managers can connect accounts
+                      </div>
                     )}
-                  </Button>
+                  </>
                 )}
 
-                {connection && connection.status === "error" && (
+                {connection && connection.status === "error" && canManageConnections && (
                   <Button
                     className="w-full"
                     variant="outline"
