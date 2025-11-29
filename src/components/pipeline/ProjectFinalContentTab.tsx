@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Video, Image as ImageIcon, AlertCircle, Upload, X, Calendar as CalendarIcon, Lightbulb, Send, Loader2 } from "lucide-react";
+import { Video, Image as ImageIcon, AlertCircle, Upload, X, Calendar as CalendarIcon, Lightbulb, Send, Loader2, Clock } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
@@ -491,7 +491,13 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
 
       {/* Schedule Post Section */}
       <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
-        <h3 className="text-lg font-semibold">Schedule Post</h3>
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold">Schedule Post</h3>
+          <Badge variant="outline" className="text-xs">
+            <Clock className="h-3 w-3 mr-1" />
+            {userTimezone}
+          </Badge>
+        </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
@@ -532,6 +538,7 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
           <div className="p-3 rounded bg-primary/10 border border-primary/20">
             <p className="text-sm font-medium">
               Scheduled for: {format(scheduledDate, "PPP")} at {scheduledTime}
+              <Badge variant="secondary" className="ml-2 text-xs">{userTimezone}</Badge>
             </p>
           </div>
         )}
@@ -616,7 +623,8 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
         
         {project.pipeline_stage === 'scheduled' && project.scheduled_time && (
           <p className="text-sm text-muted-foreground mt-4">
-            ⏱ Scheduled for auto-publishing at {format(new Date(project.scheduled_time), 'PPp')}
+            ⏱ Scheduled for auto-publishing at {format(convertToLocal(project.scheduled_time, userTimezone), 'PPp')}
+            <Badge variant="secondary" className="ml-2 text-xs">{userTimezone}</Badge>
           </p>
         )}
         

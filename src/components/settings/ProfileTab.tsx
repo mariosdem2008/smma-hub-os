@@ -3,11 +3,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, Clock } from "lucide-react";
 import { getTimezoneList } from "@/lib/utils";
 
 const NICHES = [
@@ -211,7 +212,13 @@ export default function ProfileTab() {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="timezone">Timezone</Label>
+          <div className="flex items-center gap-2">
+            <Label htmlFor="timezone">Timezone</Label>
+            <Badge variant="secondary" className="text-xs">
+              <Clock className="h-3 w-3 mr-1" />
+              Current time: {new Date().toLocaleTimeString('en-US', { timeZone: timezone, hour: '2-digit', minute: '2-digit' })}
+            </Badge>
+          </div>
           <Select value={timezone} onValueChange={setTimezone}>
             <SelectTrigger>
               <SelectValue placeholder="Select timezone" />
@@ -238,7 +245,7 @@ export default function ProfileTab() {
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground">
-            Your timezone is used for scheduling posts and displaying dates
+            ⏰ Your timezone affects all scheduling and calendar displays. Posts are stored in UTC and shown in your local time.
           </p>
         </div>
 
