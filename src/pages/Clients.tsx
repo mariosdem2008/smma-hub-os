@@ -13,6 +13,9 @@ import { useAuth } from "@/lib/auth";
 import { useRole } from "@/hooks/useRole";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useUpgradeModal } from "@/contexts/UpgradeModalContext";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { hapticButton } from "@/lib/haptics";
 import { Plus, Users, AlertCircle, ArrowRight, FileText, Video } from "lucide-react";
 import { PlanGuard } from "@/components/PlanGuard";
 import { useToast } from "@/hooks/use-toast";
@@ -37,6 +40,7 @@ export default function Clients() {
   const { openUpgradeModal } = useUpgradeModal();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
@@ -51,88 +55,95 @@ export default function Clients() {
 
   const isAtLimit = limits?.clients !== null && clients.length >= limits.clients;
 
-  useEffect(() => {
-    const fetchClients = async () => {
-      if (!user) return;
+  const fetchClients = async () => {
+    if (!user) return;
 
-      // Get agency
-      const { data: agency } = await supabase
+    // Get agency
+    const { data: agency } = await supabase
+      .from("agencies")
+      .select("id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (!agency) {
+      // Create agency if it doesn't exist
+      const { data: newAgency, error } = await supabase
         .from("agencies")
-        .select("id")
-        .eq("user_id", user.id)
+        .insert({ 
+          user_id: user.id, 
+          name: "My Agency" 
+        } as any)
+        .select()
         .single();
-
-      if (!agency) {
-        // Create agency if it doesn't exist
-        const { data: newAgency, error } = await supabase
-          .from("agencies")
-          .insert({ 
-            user_id: user.id, 
-            name: "My Agency" 
-          } as any)
-          .select()
-          .single();
-
-        if (error) {
-          toast({
-            title: "Error",
-            description: "Failed to create agency",
-            variant: "destructive",
-          });
-          setLoading(false);
-          return;
-        }
-        
-        setLoading(false);
-        return;
-      }
-
-      // Get clients with counts
-      const { data, error } = await supabase
-        .from("clients")
-        .select("id, name, email, phone, company, status, created_at, logo_url")
-        .eq("agency_id", agency.id)
-        .order("created_at", { ascending: false });
 
       if (error) {
         toast({
           title: "Error",
-          description: "Failed to fetch clients",
+          description: "Failed to create agency",
           variant: "destructive",
         });
-      } else {
-        // Get asset counts for each client
-        const clientsWithCounts = await Promise.all(
-          (data || []).map(async (client) => {
-            // Total assets count
-            const { count: assetCount } = await supabase
-              .from("assets")
-              .select("*", { count: "exact", head: true })
-              .eq("client_id", client.id);
-
-            // Published videos count
-            const { count: publishedVideoCount } = await supabase
-              .from("assets")
-              .select("*", { count: "exact", head: true })
-              .eq("client_id", client.id)
-              .eq("status", "published")
-              .like("file_type", "video%");
-
-            return {
-              ...client,
-              assetCount: assetCount || 0,
-              publishedVideoCount: publishedVideoCount || 0,
-            };
-          })
-        );
-        setClients(clientsWithCounts);
+        setLoading(false);
+        return;
       }
-
+      
       setLoading(false);
-    };
+      return;
+    }
 
+    // Get clients with counts
+    const { data, error } = await supabase
+      .from("clients")
+      .select("id, name, email, phone, company, status, created_at, logo_url")
+      .eq("agency_id", agency.id)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch clients",
+        variant: "destructive",
+      });
+    } else {
+      // Get asset counts for each client
+      const clientsWithCounts = await Promise.all(
+        (data || []).map(async (client) => {
+          // Total assets count
+          const { count: assetCount } = await supabase
+            .from("assets")
+            .select("*", { count: "exact", head: true })
+            .eq("client_id", client.id);
+
+          // Published videos count
+          const { count: publishedVideoCount } = await supabase
+            .from("assets")
+            .select("*", { count: "exact", head: true })
+            .eq("client_id", client.id)
+            .eq("status", "published")
+            .like("file_type", "video%");
+
+          return {
+            ...client,
+            assetCount: assetCount || 0,
+            publishedVideoCount: publishedVideoCount || 0,
+          };
+        })
+      );
+      setClients(clientsWithCounts);
+    }
+
+    setLoading(false);
+  };
+
+  // Pull-to-refresh
+  const { isRefreshing, pullDistance } = usePullToRefresh({
+    onRefresh: async () => {
+      await fetchClients();
+    },
+  });
+
+  useEffect(() => {
     fetchClients();
-  }, [user, toast]);
+  }, [user]);
 
   const handleCreateClient = async () => {
     if (!formData.name.trim()) {
@@ -223,15 +234,37 @@ export default function Clients() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div 
+      className="space-y-4 md:space-y-6"
+      style={{
+        transform: isMobile ? `translateY(${pullDistance}px)` : undefined,
+        transition: isRefreshing ? "transform 0.3s ease-out" : "none",
+      }}
+    >
+      {/* Pull-to-refresh indicator */}
+      {isMobile && pullDistance > 0 && (
+        <div className="flex justify-center">
+          <div className={`text-sm text-muted-foreground transition-opacity ${pullDistance > 60 ? "opacity-100" : "opacity-50"}`}>
+            {isRefreshing ? "Refreshing..." : pullDistance > 60 ? "Release to refresh" : "Pull to refresh"}
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Clients</h1>
-          <p className="text-muted-foreground">Manage your client accounts</p>
+          <h1 className="text-2xl md:text-3xl font-bold">Clients</h1>
+          <p className="text-sm md:text-base text-muted-foreground">Manage your client accounts</p>
         </div>
         {canManageClients && (
           <PlanGuard feature="clients" requiredPlan="starter">
-            <Button onClick={() => isAtLimit ? openUpgradeModal({ feature: 'More clients' }) : setShowDialog(true)}>
+            <Button 
+              onClick={() => {
+                hapticButton();
+                isAtLimit ? openUpgradeModal({ feature: 'More clients' }) : setShowDialog(true);
+              }}
+              className="w-full md:w-auto"
+              style={{ minHeight: isMobile ? "44px" : undefined }}
+            >
               <Plus className="mr-2 h-4 w-4" />
               Add Client
             </Button>
@@ -279,37 +312,37 @@ export default function Clients() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {clients.map((client) => (
             <Link key={client.id} to={`/clients/${client.id}`}>
-              <Card className="hover:bg-card/80 cursor-pointer">
+              <Card className="hover:bg-card/80 cursor-pointer touch-manipulation">
                 <CardHeader>
                   <div className="flex items-center gap-3">
-                    <Avatar className="h-12 w-12">
+                    <Avatar className="h-10 w-10 md:h-12 md:w-12">
                       <AvatarImage src={client.logo_url || undefined} alt={client.name} />
                       <AvatarFallback>
                         {client.name.substring(0, 2).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
-                      <CardTitle className="truncate">{client.name}</CardTitle>
+                      <CardTitle className="truncate text-base md:text-lg">{client.name}</CardTitle>
                       {client.company && (
-                        <CardDescription className="truncate">{client.company}</CardDescription>
+                        <CardDescription className="truncate text-xs md:text-sm">{client.company}</CardDescription>
                       )}
                     </div>
-                    <Badge className={getStatusColor(client.status)}>
+                    <Badge className={getStatusColor(client.status)} style={{ fontSize: isMobile ? "10px" : undefined }}>
                       {client.status}
                     </Badge>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-3 md:gap-4 text-xs md:text-sm text-muted-foreground">
                     <div className="flex items-center gap-1">
-                      <FileText className="h-4 w-4" />
+                      <FileText className="h-3.5 w-3.5 md:h-4 md:w-4" />
                       <span>{client.assetCount || 0} assets</span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <Video className="h-4 w-4" />
+                      <Video className="h-3.5 w-3.5 md:h-4 md:w-4" />
                       <span>{client.publishedVideoCount || 0} published</span>
                     </div>
                   </div>
@@ -322,55 +355,63 @@ export default function Clients() {
 
       {/* Add Client Dialog */}
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
-        <DialogContent>
+        <DialogContent className={isMobile ? "max-h-[85vh] overflow-y-auto" : ""}>
           <DialogHeader>
             <DialogTitle>Add New Client</DialogTitle>
             <DialogDescription>
               Create a new client workspace for your agency
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-3 md:space-y-4">
             <div>
-              <Label htmlFor="name">Client Name *</Label>
+              <Label htmlFor="name" className="text-sm">Client Name *</Label>
               <Input
                 id="name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="Enter client name"
+                style={{ minHeight: isMobile ? "44px" : undefined }}
+                className="touch-manipulation"
               />
             </div>
             <div>
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" className="text-sm">Email</Label>
               <Input
                 id="email"
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 placeholder="client@example.com"
+                style={{ minHeight: isMobile ? "44px" : undefined }}
+                className="touch-manipulation"
               />
             </div>
             <div>
-              <Label htmlFor="phone">Phone</Label>
+              <Label htmlFor="phone" className="text-sm">Phone</Label>
               <Input
                 id="phone"
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 placeholder="+1 234 567 8900"
+                style={{ minHeight: isMobile ? "44px" : undefined }}
+                className="touch-manipulation"
               />
             </div>
             <div>
-              <Label htmlFor="company">Company</Label>
+              <Label htmlFor="company" className="text-sm">Company</Label>
               <Input
                 id="company"
                 value={formData.company}
                 onChange={(e) => setFormData({ ...formData, company: e.target.value })}
                 placeholder="Company name"
+                style={{ minHeight: isMobile ? "44px" : undefined }}
+                className="touch-manipulation"
               />
             </div>
             <div>
-              <Label htmlFor="status">Status</Label>
+              <Label htmlFor="status" className="text-sm">Status</Label>
               <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
-                <SelectTrigger>
+                <SelectTrigger style={{ minHeight: isMobile ? "44px" : undefined }} className="touch-manipulation">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -382,10 +423,27 @@ export default function Clients() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDialog(false)} disabled={submitting}>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                hapticButton();
+                setShowDialog(false);
+              }} 
+              disabled={submitting}
+              style={{ minHeight: isMobile ? "44px" : undefined }}
+              className="touch-manipulation"
+            >
               Cancel
             </Button>
-            <Button onClick={handleCreateClient} disabled={submitting}>
+            <Button 
+              onClick={() => {
+                hapticButton();
+                handleCreateClient();
+              }} 
+              disabled={submitting}
+              style={{ minHeight: isMobile ? "44px" : undefined }}
+              className="touch-manipulation"
+            >
               {submitting ? "Creating..." : "Create Client"}
             </Button>
           </DialogFooter>

@@ -1,6 +1,7 @@
 import { LucideIcon } from "lucide-react";
 import { Card } from "./card";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface StatCardProps {
   title: string;
@@ -27,21 +28,23 @@ export function StatCard({
   variant = "default",
   className 
 }: StatCardProps) {
+  const isMobile = useIsMobile();
+
   return (
-    <Card className={cn("p-6 hover:shadow-lg transition-all duration-200", className)}>
+    <Card className={cn("hover:shadow-lg transition-all duration-200", className)}>
       <div className="flex items-start justify-between">
-        <div className="space-y-2 flex-1">
-          <p className="text-sm text-muted-foreground font-medium">{title}</p>
-          <p className="text-3xl font-bold">{value}</p>
+        <div className="space-y-1 md:space-y-2 flex-1">
+          <p className="text-xs md:text-sm text-muted-foreground font-medium">{title}</p>
+          <p className="text-2xl md:text-3xl font-bold">{value}</p>
           {description && (
             <p className="text-xs text-muted-foreground">{description}</p>
           )}
         </div>
         <div className={cn(
-          "rounded-xl p-3 bg-gradient-to-br shadow-lg",
+          "rounded-lg md:rounded-xl p-2 md:p-3 bg-gradient-to-br shadow-lg",
           variantStyles[variant]
         )}>
-          <Icon className="h-6 w-6 text-white" />
+          <Icon className={isMobile ? "h-5 w-5 text-white" : "h-6 w-6 text-white"} />
         </div>
       </div>
     </Card>
