@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, startOfMonth, endOfMonth, isSameDay, parseISO } from "date-fns";
-import { CalendarDays, Clock, Edit, Copy, X, ArrowRight, AlertCircle } from "lucide-react";
+import { CalendarDays, Clock, Edit, Copy, X, ArrowRight, AlertCircle, Globe } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -309,7 +309,13 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Content Calendar</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-2xl font-bold">Content Calendar</h2>
+            <Badge variant="outline" className="text-xs">
+              <Globe className="h-3 w-3 mr-1" />
+              {userTimezone}
+            </Badge>
+          </div>
           <p className="text-muted-foreground">
             Manage your scheduled and published content
           </p>

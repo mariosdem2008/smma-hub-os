@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2, Globe } from "lucide-react";
 import PipelineStageColumn from "@/components/pipeline/PipelineStageColumn";
 import ProjectCard from "@/components/pipeline/ProjectCard";
 import ProjectEditor from "@/components/pipeline/ProjectEditor";
@@ -48,6 +48,7 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
   const [selectedStage, setSelectedStage] = useState<{ key: string; label: string; color: string } | null>(null);
   const [hoveredStage, setHoveredStage] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [userTimezone, setUserTimezone] = useState<string>("UTC");
   const { toast } = useToast();
 
   const fetchProjects = async () => {
@@ -98,8 +99,29 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
     }
   };
 
+  const fetchUserTimezone = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("timezone")
+        .eq("id", user.id)
+        .single();
+      
+      if (error) throw error;
+      if (data?.timezone) {
+        setUserTimezone(data.timezone);
+      }
+    } catch (error) {
+      console.error("Error fetching timezone:", error);
+    }
+  };
+
   useEffect(() => {
     fetchProjects();
+    fetchUserTimezone();
 
     // Subscribe to real-time changes
     const channel = supabase
@@ -200,7 +222,13 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
       {/* Header with Create Project Button */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Content Pipeline</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-2xl font-bold">Content Pipeline</h2>
+            <Badge variant="outline" className="text-xs">
+              <Globe className="h-3 w-3 mr-1" />
+              {userTimezone}
+            </Badge>
+          </div>
           <p className="text-sm text-muted-foreground">Manage projects through the production workflow</p>
         </div>
         <Button onClick={() => setShowBulkUpload(true)} size="lg">
