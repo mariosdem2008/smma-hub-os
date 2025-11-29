@@ -96,7 +96,7 @@ serve(async (req) => {
 });
 
 async function publishProject(supabaseAdmin: any, project: any) {
-  console.log(`[AUTOPUBLISH] Publishing project ${project.id}: ${project.title}`);
+  console.log(`[AUTOPUBLISH] Publishing project ${project.id}: ${project.title} (attempt ${(project.retry_count || 0) + 1})`);
 
   if (!project.assets) {
     throw new Error('No final asset found for project');
@@ -140,6 +140,24 @@ async function publishProject(supabaseAdmin: any, project: any) {
     console.log(`[AUTOPUBLISH] Publishing to ${platform}`);
 
     try {
+      // Validate Instagram Business Account before publishing
+      if (platform === 'instagram' && !connection.account_id) {
+        console.error(`[AUTOPUBLISH] No Instagram Business Account for connection ${connection.id}`);
+        
+        // Log the skip
+        await supabaseAdmin.from('post_logs').insert({
+          project_id: project.id,
+          platform: 'instagram',
+          attempt_number: (project.retry_count || 0) + 1,
+          success: false,
+          error_message: 'No Instagram Business Account connected',
+          response: { error: 'no_instagram_business_account' }
+        });
+        
+        hasFailure = true;
+        continue;
+      }
+
       // Get platform-specific caption
       const captions = project.platform_captions || {};
       const caption = captions[platform] || project.title;
@@ -169,6 +187,16 @@ async function publishProject(supabaseAdmin: any, project: any) {
         continue;
       }
 
+      // Log the publish attempt
+      await supabaseAdmin.from('post_logs').insert({
+        project_id: project.id,
+        platform: platform,
+        attempt_number: (project.retry_count || 0) + 1,
+        success: result.success,
+        error_message: result.success ? null : result.error,
+        response: result
+      });
+
       if (result.success) {
         console.log(`[AUTOPUBLISH] Successfully published to ${platform}:`, result.mediaUrl);
         publishResults[platform] = result.mediaUrl;
@@ -180,30 +208,55 @@ async function publishProject(supabaseAdmin: any, project: any) {
 
     } catch (error) {
       console.error(`[AUTOPUBLISH] Error publishing to ${platform}:`, error);
+      
+      // Log the error
+      await supabaseAdmin.from('post_logs').insert({
+        project_id: project.id,
+        platform: platform,
+        attempt_number: (project.retry_count || 0) + 1,
+        success: false,
+        error_message: error instanceof Error ? error.message : 'Unknown error',
+        response: { error: String(error) }
+      });
+      
       hasFailure = true;
     }
   }
 
   // Update project based on results
   const updateData: any = {};
+  const currentRetryCount = project.retry_count || 0;
 
   if (hasSuccess && !hasFailure) {
     // All platforms succeeded
     updateData.pipeline_stage = 'published';
     updateData.published_urls = publishResults;
     updateData.error_message = null;
+    updateData.retry_count = 0; // Reset retry count on success
     console.log(`[AUTOPUBLISH] Project ${project.id} fully published`);
   } else if (hasSuccess && hasFailure) {
     // Partial success
     updateData.pipeline_stage = 'published';
     updateData.published_urls = publishResults;
     updateData.error_message = 'Some platforms failed to publish';
+    updateData.retry_count = 0; // Reset retry count on partial success
     console.log(`[AUTOPUBLISH] Project ${project.id} partially published`);
   } else {
-    // All failed
-    updateData.pipeline_stage = 'failed';
-    updateData.error_message = 'All platforms failed to publish';
-    console.error(`[AUTOPUBLISH] Project ${project.id} failed to publish`);
+    // All failed - implement retry logic
+    if (currentRetryCount < 3) {
+      // Retry: increment count and reschedule for 10 minutes later
+      updateData.retry_count = currentRetryCount + 1;
+      const retryTime = new Date();
+      retryTime.setMinutes(retryTime.getMinutes() + 10);
+      updateData.scheduled_time = retryTime.toISOString();
+      updateData.error_message = `Publish failed, retry ${currentRetryCount + 1}/3 scheduled`;
+      console.log(`[AUTOPUBLISH] Project ${project.id} scheduled for retry ${currentRetryCount + 1}/3 at ${retryTime.toISOString()}`);
+    } else {
+      // Max retries reached - mark as failed
+      updateData.pipeline_stage = 'failed';
+      updateData.error_message = 'All platforms failed to publish after 3 attempts';
+      console.error(`[AUTOPUBLISH] Project ${project.id} failed after ${currentRetryCount} retries`);
+    }
   }
 
   const { error: updateError } = await supabaseAdmin
