@@ -1231,6 +1231,7 @@ export type Database = {
           client_id: string
           created_at: string | null
           editor_comments: string | null
+          error_message: string | null
           final_asset_id: string | null
           hashtags: string | null
           id: string
@@ -1253,6 +1254,7 @@ export type Database = {
           client_id: string
           created_at?: string | null
           editor_comments?: string | null
+          error_message?: string | null
           final_asset_id?: string | null
           hashtags?: string | null
           id?: string
@@ -1275,6 +1277,7 @@ export type Database = {
           client_id?: string
           created_at?: string | null
           editor_comments?: string | null
+          error_message?: string | null
           final_asset_id?: string | null
           hashtags?: string | null
           id?: string
