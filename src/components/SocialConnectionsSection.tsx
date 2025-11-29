@@ -222,14 +222,20 @@ export default function SocialConnectionsSection({ clientId }: SocialConnections
             clearInterval(pollInterval);
             await fetchConnections();
             
-            // Check if Instagram connection failed
+            // Check if Instagram connection explicitly failed (not just missing)
             if (platformId === "instagram") {
               const connection = getConnectionForPlatform("instagram");
-              if (connection?.status === "error" || !connection) {
+              // Only show error if status is explicitly "error", not if connection is missing
+              if (connection?.status === "error") {
                 setInstagramRequirementsModal({
                   open: true,
                   showError: true,
                   errorMessage: "We could not find any Facebook Pages linked to this Instagram account. Please make sure your Instagram is linked to a Facebook Page, not a personal profile.",
+                });
+              } else if (connection?.status === "connected") {
+                toast({
+                  title: "Success",
+                  description: "Instagram connected successfully",
                 });
               }
             }
