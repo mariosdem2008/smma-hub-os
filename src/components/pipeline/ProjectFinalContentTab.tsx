@@ -542,6 +542,14 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
           <div className="space-y-2">
             <Label htmlFor="time">Time</Label>
             <Input id="time" type="time" value={scheduledTime} onChange={(e) => setScheduledTime(e.target.value)} />
+            {scheduledDate && scheduledTime && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Will be saved as: {format(convertToUTC(
+                  new Date(scheduledDate.getFullYear(), scheduledDate.getMonth(), scheduledDate.getDate(), parseInt(scheduledTime.split(':')[0]), parseInt(scheduledTime.split(':')[1])),
+                  userTimezone
+                ), "HH:mm")} UTC (server time)
+              </p>
+            )}
           </div>
         </div>
 

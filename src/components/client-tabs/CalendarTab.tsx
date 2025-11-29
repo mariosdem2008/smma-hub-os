@@ -139,13 +139,13 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
     });
   };
 
-  const formatLocalTime = (utcString: string) => {
-    const localDate = convertToLocal(utcString, userTimezone);
+  const formatLocalTime = (utcString: string, timezone: string) => {
+    const localDate = convertToLocal(utcString, timezone);
     return format(localDate, "HH:mm");
   };
 
-  const formatLocalDateTime = (utcString: string) => {
-    const localDate = convertToLocal(utcString, userTimezone);
+  const formatLocalDateTime = (utcString: string, timezone: string) => {
+    const localDate = convertToLocal(utcString, timezone);
     return format(localDate, "MMM d, yyyy 'at' h:mm a");
   };
 
@@ -413,13 +413,25 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
                             <Trash2 className="h-3 w-3" />
                           </Button>
                         </div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <Clock className="h-3 w-3" />
-                          <span className="text-xs">
-                            {item.scheduled_time
-                              ? formatLocalTime(item.scheduled_time)
-                              : "Unscheduled"}
-                          </span>
+                        <div className="flex flex-col gap-0.5 mb-1">
+                          <div className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            <span className="text-xs font-medium">
+                              {item.scheduled_time
+                                ? formatLocalTime(item.scheduled_time, userTimezone)
+                                : "Unscheduled"}
+                            </span>
+                            {item.scheduled_time && (
+                              <Badge variant="secondary" className="text-[10px] px-1 py-0 h-3.5">
+                                {userTimezone}
+                              </Badge>
+                            )}
+                          </div>
+                          {item.scheduled_time && (
+                            <span className="text-[10px] text-muted-foreground ml-4">
+                              UTC: {new Date(item.scheduled_time).toISOString().slice(11, 16)}
+                            </span>
+                          )}
                         </div>
                         <p className="text-xs font-medium line-clamp-2">
                           {item.title}
@@ -534,10 +546,18 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
                             {item.pipeline_stage}
                           </Badge>
                           {item.scheduled_time && (
-                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                              <Clock className="h-3 w-3" />
-                              <span>
-                                {formatLocalDateTime(item.scheduled_time)}
+                            <div className="flex flex-col gap-0.5">
+                              <div className="flex items-center gap-1 text-sm">
+                                <Clock className="h-3 w-3" />
+                                <span className="font-medium">
+                                  {formatLocalDateTime(item.scheduled_time, userTimezone)}
+                                </span>
+                                <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4">
+                                  {userTimezone}
+                                </Badge>
+                              </div>
+                              <span className="text-xs text-muted-foreground ml-4">
+                                UTC: {new Date(item.scheduled_time).toISOString().replace("T", " ").slice(0, 16)}
                               </span>
                             </div>
                           )}
@@ -606,10 +626,20 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
                   <div className="mt-4 p-3 bg-muted rounded-lg space-y-1">
                     <p className="font-medium text-foreground">{selectedItem.title}</p>
                     {selectedItem.scheduled_time && (
-                      <p className="text-sm flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {formatLocalDateTime(selectedItem.scheduled_time)}
-                      </p>
+                      <div className="text-sm space-y-1">
+                        <div className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          <span className="font-medium">
+                            {formatLocalDateTime(selectedItem.scheduled_time, userTimezone)}
+                          </span>
+                          <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4">
+                            {userTimezone}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground ml-4">
+                          UTC: {new Date(selectedItem.scheduled_time).toISOString().replace("T", " ").slice(0, 16)}
+                        </p>
+                      </div>
                     )}
                   </div>
                   <p className="text-sm mt-3">
@@ -639,10 +669,18 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
                 <div className="mt-2 p-3 bg-muted rounded-lg space-y-1">
                   <p className="font-medium text-foreground">{selectedItem.title}</p>
                   {selectedItem.scheduled_time && (
-                    <p className="text-sm flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      Currently: {formatLocalDateTime(selectedItem.scheduled_time)}
-                    </p>
+                    <div className="text-sm space-y-1">
+                      <div className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        <span>Currently: <span className="font-medium">{formatLocalDateTime(selectedItem.scheduled_time, userTimezone)}</span></span>
+                        <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4">
+                          {userTimezone}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground ml-4">
+                        UTC: {new Date(selectedItem.scheduled_time).toISOString().replace("T", " ").slice(0, 16)}
+                      </p>
+                    </div>
                   )}
                 </div>
               )}
@@ -665,6 +703,14 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
                 value={newScheduledTime}
                 onChange={(e) => setNewScheduledTime(e.target.value)}
               />
+              {newScheduledDate && newScheduledTime && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Will be saved as: {format(convertToUTC(
+                    new Date(newScheduledDate.getFullYear(), newScheduledDate.getMonth(), newScheduledDate.getDate(), parseInt(newScheduledTime.split(':')[0]), parseInt(newScheduledTime.split(':')[1])),
+                    userTimezone
+                  ), "HH:mm")} UTC (server time)
+                </p>
+              )}
             </div>
           </div>
           <DialogFooter>
