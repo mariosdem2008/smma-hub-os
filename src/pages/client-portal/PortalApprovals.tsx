@@ -5,6 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { hapticSelection } from "@/lib/haptics";
 import { Clock, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import ClientApprovalInterface from "@/components/approval/ClientApprovalInterface";
 
@@ -32,34 +35,10 @@ interface Project {
 export default function PortalApprovals() {
   const { clientId } = useOutletContext<OutletContext>();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-
-  useEffect(() => {
-    fetchProjectsForApproval();
-
-    // Subscribe to real-time changes
-    const channel = supabase
-      .channel('portal-approvals')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'projects',
-          filter: `client_id=eq.${clientId}`
-        },
-        () => {
-          fetchProjectsForApproval();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [clientId]);
 
   const fetchProjectsForApproval = async () => {
     try {
@@ -99,34 +78,65 @@ export default function PortalApprovals() {
             .eq('project_id', project.id)
             .eq('is_final_content', true);
 
-          if (assetsError) {
-            console.error("Error fetching final assets:", assetsError);
-          }
+          if (assetsError) throw assetsError;
 
-          // Get the first final asset if any exist
-          const finalAsset = finalAssetsData && finalAssetsData.length > 0 
-            ? finalAssetsData[0].assets 
-            : null;
-
+          const finalAsset = finalAssetsData?.[0]?.assets;
           return {
             ...project,
-            final_asset: finalAsset
+            final_asset: finalAsset ? {
+              id: finalAsset.id,
+              file_url: finalAsset.file_url,
+              file_type: finalAsset.file_type,
+              filename: finalAsset.filename,
+              content_type: finalAsset.content_type,
+            } : undefined,
           };
         })
       );
 
-      setProjects(projectsWithFinalAssets);
+      setProjects(projectsWithFinalAssets as Project[]);
     } catch (error: any) {
-      console.error("Error fetching projects:", error);
       toast({
-        title: "Error",
-        description: "Failed to load projects for approval",
-        variant: "destructive"
+        title: "Error loading projects",
+        description: error.message,
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
   };
+
+  // Pull-to-refresh
+  const { isRefreshing, pullDistance } = usePullToRefresh({
+    onRefresh: async () => {
+      await fetchProjectsForApproval();
+    },
+  });
+
+  useEffect(() => {
+    fetchProjectsForApproval();
+
+    // Subscribe to real-time changes
+    const channel = supabase
+      .channel('portal-approvals')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'projects',
+          filter: `client_id=eq.${clientId}`
+        },
+        () => {
+          fetchProjectsForApproval();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [clientId]);
 
   if (loading) {
     return (
@@ -159,7 +169,22 @@ export default function PortalApprovals() {
   }
 
   return (
-    <div className="space-y-4 md:space-y-6 px-2 md:px-4">
+    <div 
+      className="space-y-4 md:space-y-6 px-2 md:px-4"
+      style={{
+        transform: isMobile ? `translateY(${pullDistance}px)` : undefined,
+        transition: isRefreshing ? "transform 0.3s ease-out" : "none",
+      }}
+    >
+      {/* Pull-to-refresh indicator */}
+      {isMobile && pullDistance > 0 && (
+        <div className="flex justify-center">
+          <div className={`text-sm text-muted-foreground transition-opacity ${pullDistance > 60 ? "opacity-100" : "opacity-50"}`}>
+            {isRefreshing ? "Refreshing..." : pullDistance > 60 ? "Release to refresh" : "Pull to refresh"}
+          </div>
+        </div>
+      )}
+      
       <div>
         <h1 className="text-2xl md:text-3xl font-bold">Content Approvals</h1>
         <p className="text-sm md:text-base text-muted-foreground mt-2">

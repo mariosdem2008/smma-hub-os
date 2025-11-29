@@ -5,6 +5,9 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar } from "@/components/ui/calendar";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { hapticSelection } from "@/lib/haptics";
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, startOfMonth, endOfMonth, isSameDay, parseISO } from "date-fns";
 import { CalendarDays, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -34,6 +37,36 @@ export function PortalContentCalendar() {
   const [view, setView] = useState<"week" | "month">("week");
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const { toast } = useToast();
+  const isMobile = useIsMobile();
+
+  const fetchProjects = async () => {
+    const { data, error } = await supabase
+      .from("projects")
+      .select("id, title, platforms, scheduled_time, pipeline_stage")
+      .eq("client_id", clientId)
+      .in("pipeline_stage", ["scheduled", "published"])
+      .not("scheduled_time", "is", null)
+      .order("scheduled_time", { ascending: true });
+
+    if (error) {
+      toast({
+        title: "Error loading calendar",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      setProjects(data || []);
+    }
+
+    setLoading(false);
+  };
+
+  // Pull-to-refresh
+  const { isRefreshing, pullDistance } = usePullToRefresh({
+    onRefresh: async () => {
+      await fetchProjects();
+    },
+  });
 
   useEffect(() => {
     fetchProjects();
@@ -59,27 +92,6 @@ export function PortalContentCalendar() {
       supabase.removeChannel(channel);
     };
   }, [clientId]);
-
-  const fetchProjects = async () => {
-    const { data, error } = await supabase
-      .from("projects")
-      .select("id, title, platforms, scheduled_time, pipeline_stage")
-      .eq("client_id", clientId)
-      .in("pipeline_stage", ["scheduled", "published"])
-      .not("scheduled_time", "is", null)
-      .order("scheduled_time", { ascending: true });
-
-    if (error) {
-      toast({
-        title: "Error loading calendar",
-        description: error.message,
-        variant: "destructive",
-      });
-    } else {
-      setProjects(data || []);
-    }
-    setLoading(false);
-  };
 
   const getWeekDays = () => {
     const start = startOfWeek(selectedDate, { weekStartsOn: 1 });
@@ -109,7 +121,22 @@ export function PortalContentCalendar() {
   }
 
   return (
-    <div className="space-y-4 md:space-y-6 p-4 md:p-0">
+    <div 
+      className="space-y-4 md:space-y-6 p-4 md:p-0"
+      style={{
+        transform: isMobile ? `translateY(${pullDistance}px)` : undefined,
+        transition: isRefreshing ? "transform 0.3s ease-out" : "none",
+      }}
+    >
+      {/* Pull-to-refresh indicator */}
+      {isMobile && pullDistance > 0 && (
+        <div className="flex justify-center">
+          <div className={`text-sm text-muted-foreground transition-opacity ${pullDistance > 60 ? "opacity-100" : "opacity-50"}`}>
+            {isRefreshing ? "Refreshing..." : pullDistance > 60 ? "Release to refresh" : "Pull to refresh"}
+          </div>
+        </div>
+      )}
+      
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl md:text-2xl font-bold">Content Calendar</h2>
@@ -119,7 +146,7 @@ export function PortalContentCalendar() {
         </div>
       </div>
 
-      <Tabs value={view} onValueChange={(v) => setView(v as "week" | "month")}>
+      <Tabs value={view} onValueChange={(v) => { setView(v as "week" | "month"); hapticSelection(); }}>
         <TabsList className="w-full md:w-auto">
           <TabsTrigger value="week" className="flex-1 md:flex-none">Week View</TabsTrigger>
           <TabsTrigger value="month" className="flex-1 md:flex-none">Month View</TabsTrigger>
