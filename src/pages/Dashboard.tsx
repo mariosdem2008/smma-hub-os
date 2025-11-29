@@ -68,6 +68,7 @@ export default function Dashboard() {
   });
   const [upcomingPosts, setUpcomingPosts] = useState<any[]>([]);
   const [overdueTasks, setOverdueTasks] = useState<any[]>([]);
+  const [myTasks, setMyTasks] = useState<any[]>([]);
   const [showTaskDialog, setShowTaskDialog] = useState(false);
   
   const [taskFormData, setTaskFormData] = useState({
@@ -75,7 +76,8 @@ export default function Dashboard() {
     description: "",
     client_id: "",
     priority: "medium",
-    status: "pending",
+    status: "todo",
+    assigned_to: "",
   });
   const [taskDueDate, setTaskDueDate] = useState<Date | undefined>();
   const [submitting, setSubmitting] = useState(false);
@@ -83,6 +85,7 @@ export default function Dashboard() {
   const [dismissedTasks, setDismissedTasks] = useState<Set<string>>(new Set());
   const [dismissedPostsSection, setDismissedPostsSection] = useState(false);
   const [dismissedTasksSection, setDismissedTasksSection] = useState(false);
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -211,6 +214,25 @@ export default function Dashboard() {
 
       setOverdueTasks(overdueTasksData || []);
 
+      // Fetch tasks assigned to current user
+      const { data: myTasksData } = await supabase
+        .from("tasks")
+        .select(`
+          id,
+          title,
+          due_date,
+          priority,
+          status,
+          client:clients(id, name)
+        `)
+        .in("client_id", clientIds)
+        .eq("assigned_to", user.id)
+        .neq("status", "completed")
+        .order("due_date", { ascending: true })
+        .limit(10);
+
+      setMyTasks(myTasksData || []);
+
       // Count tasks due this week
       const { count: tasksThisWeekCount } = await supabase
         .from("tasks")
@@ -226,6 +248,21 @@ export default function Dashboard() {
         postsThisWeek: projectsData?.length || 0,
         tasksThisWeek: tasksThisWeekCount || 0,
       });
+
+      // Fetch team members for task assignment
+      const { data: teamMembersData } = await supabase
+        .from("agency_members")
+        .select(`
+          user_id,
+          role,
+          profiles:user_id (
+            full_name,
+            email
+          )
+        `)
+        .eq("agency_id", agencyId);
+
+      setTeamMembers(teamMembersData || []);
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
     } finally {
@@ -323,6 +360,7 @@ export default function Dashboard() {
         priority: taskFormData.priority,
         status: taskFormData.status,
         due_date: taskDueDate ? taskDueDate.toISOString() : null,
+        assigned_to: taskFormData.assigned_to || null,
         created_by: user?.id,
       });
 
@@ -337,7 +375,8 @@ export default function Dashboard() {
         description: "",
         client_id: "",
         priority: "medium",
-        status: "pending",
+        status: "todo",
+        assigned_to: "",
       });
       setTaskDueDate(undefined);
       setShowTaskDialog(false);
@@ -541,6 +580,69 @@ export default function Dashboard() {
               variant="orange"
             />
           </div>
+
+          {/* My Tasks */}
+          {myTasks.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>My Assigned Tasks</CardTitle>
+                <CardDescription>Tasks assigned to you across all clients</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Task</TableHead>
+                      <TableHead>Client</TableHead>
+                      <TableHead>Due Date</TableHead>
+                      <TableHead>Priority</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {myTasks.map((task) => (
+                      <TableRow
+                        key={task.id}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => navigate(`/clients/${task.client?.id}?tab=tasks`)}
+                      >
+                        <TableCell>
+                          <p className="font-medium">{task.title}</p>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-sm">{task.client?.name || "Unknown"}</span>
+                        </TableCell>
+                        <TableCell>
+                          {task.due_date ? (
+                            <div className="flex items-center gap-2">
+                              <span className={cn(isPast(new Date(task.due_date)) && task.status !== "completed" && "text-destructive")}>
+                                {format(new Date(task.due_date), "MMM d, yyyy")}
+                              </span>
+                              {isPast(new Date(task.due_date)) && task.status !== "completed" && (
+                                <Badge variant="destructive" className="text-xs">Overdue</Badge>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={getPriorityBadgeVariant(task.priority)}>
+                            {task.priority}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={task.status === "in_progress" ? "secondary" : "outline"}>
+                            {task.status.replace("_", " ")}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Upcoming Posts */}
           {!dismissedPostsSection && (
@@ -929,6 +1031,28 @@ export default function Dashboard() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="task-assigned">Assign To</Label>
+              <Select
+                value={taskFormData.assigned_to}
+                onValueChange={(value) =>
+                  setTaskFormData({ ...taskFormData, assigned_to: value })
+                }
+              >
+                <SelectTrigger id="task-assigned">
+                  <SelectValue placeholder="Unassigned" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Unassigned</SelectItem>
+                  {teamMembers.map((member) => (
+                    <SelectItem key={member.user_id} value={member.user_id}>
+                      {member.profiles?.full_name || member.profiles?.email || "Unknown"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>
