@@ -1893,6 +1893,7 @@ export type Database = {
           token_expires_at: string
         }[]
       }
+      get_user_client_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1904,10 +1905,12 @@ export type Database = {
         Args: { _agency_id: string; _user_id: string }
         Returns: boolean
       }
+      is_agency_member: { Args: { _user_id: string }; Returns: boolean }
       is_agency_owner: {
         Args: { _agency_id: string; _user_id: string }
         Returns: boolean
       }
+      is_client_user: { Args: { _user_id: string }; Returns: boolean }
       transition_pipeline_stage: {
         Args: {
           _asset_id: string
