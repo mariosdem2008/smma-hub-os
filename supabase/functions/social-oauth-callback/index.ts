@@ -89,8 +89,6 @@ serve(async (req) => {
         token_expires_at: tokens.expires_at,
         last_synced_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'client_id,platform'
       })
       .select();
 
