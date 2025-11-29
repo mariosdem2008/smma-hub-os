@@ -66,7 +66,10 @@ export default function Clients() {
         // Create agency if it doesn't exist
         const { data: newAgency, error } = await supabase
           .from("agencies")
-          .insert({ user_id: user.id, name: "My Agency" })
+          .insert({ 
+            user_id: user.id, 
+            name: "My Agency" 
+          } as any)
           .select()
           .single();
 
@@ -170,7 +173,7 @@ export default function Clients() {
           phone: formData.phone || null,
           company: formData.company || null,
           status: formData.status,
-        })
+        } as any)
         .select()
         .single();
 

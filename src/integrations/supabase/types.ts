@@ -26,7 +26,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          id?: string
+          id: string
           name: string
           niche?: string | null
           updated_at?: string
@@ -859,7 +859,7 @@ export type Database = {
           company?: string | null
           created_at?: string
           email?: string | null
-          id?: string
+          id: string
           logo_url?: string | null
           name: string
           niche?: string | null

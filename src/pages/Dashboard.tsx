@@ -335,7 +335,7 @@ export default function Dashboard() {
           phone: clientFormData.phone || null,
           company: clientFormData.company || null,
           status: clientFormData.status,
-        })
+        } as any)
         .select()
         .single();
 
