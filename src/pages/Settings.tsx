@@ -4,12 +4,15 @@ import ProfileTab from "@/components/settings/ProfileTab";
 import TeamTab from "@/components/settings/TeamTab";
 import NotificationsTab from "@/components/settings/NotificationsTab";
 import BillingTab from "@/components/settings/BillingTab";
+import SocialConnectionsTab from "@/components/settings/SocialConnectionsTab";
+import LogsTab from "@/pages/settings/LogsTab";
 
 export default function Settings() {
-  const { isOwner, isAdmin } = useRole();
+  const { isOwner, isAdmin, isManager } = useRole();
 
   const canAccessBilling = isOwner;
   const canAccessTeam = isOwner || isAdmin;
+  const canAccessSocial = isOwner || isAdmin || isManager;
 
   return (
     <div className="space-y-6">
@@ -24,8 +27,10 @@ export default function Settings() {
         <TabsList>
           <TabsTrigger value="profile">Profile</TabsTrigger>
           {canAccessTeam && <TabsTrigger value="team">Team</TabsTrigger>}
+          {canAccessSocial && <TabsTrigger value="social">Social Connections</TabsTrigger>}
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           {canAccessBilling && <TabsTrigger value="billing">Billing</TabsTrigger>}
+          <TabsTrigger value="logs">System Logs</TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile">
@@ -38,6 +43,12 @@ export default function Settings() {
           </TabsContent>
         )}
 
+        {canAccessSocial && (
+          <TabsContent value="social">
+            <SocialConnectionsTab />
+          </TabsContent>
+        )}
+
         <TabsContent value="notifications">
           <NotificationsTab />
         </TabsContent>
@@ -47,6 +58,10 @@ export default function Settings() {
             <BillingTab />
           </TabsContent>
         )}
+
+        <TabsContent value="logs">
+          <LogsTab />
+        </TabsContent>
       </Tabs>
     </div>
   );
