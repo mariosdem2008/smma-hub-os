@@ -1115,6 +1115,47 @@ export type Database = {
         }
         Relationships: []
       }
+      post_logs: {
+        Row: {
+          attempt_number: number | null
+          created_at: string | null
+          error_message: string | null
+          id: string
+          platform: string
+          project_id: string | null
+          response: Json | null
+          success: boolean
+        }
+        Insert: {
+          attempt_number?: number | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          platform: string
+          project_id?: string | null
+          response?: Json | null
+          success: boolean
+        }
+        Update: {
+          attempt_number?: number | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          platform?: string
+          project_id?: string | null
+          response?: Json | null
+          success?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -1196,6 +1237,7 @@ export type Database = {
           platform_captions: Json | null
           platforms: string[] | null
           published_urls: Json | null
+          retry_count: number | null
           scheduled_time: string | null
           script_id: string | null
           status: string | null
@@ -1217,6 +1259,7 @@ export type Database = {
           platform_captions?: Json | null
           platforms?: string[] | null
           published_urls?: Json | null
+          retry_count?: number | null
           scheduled_time?: string | null
           script_id?: string | null
           status?: string | null
@@ -1238,6 +1281,7 @@ export type Database = {
           platform_captions?: Json | null
           platforms?: string[] | null
           published_urls?: Json | null
+          retry_count?: number | null
           scheduled_time?: string | null
           script_id?: string | null
           status?: string | null
@@ -1546,6 +1590,51 @@ export type Database = {
             columns: ["agency_id"]
             isOneToOne: false
             referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      token_refresh_logs: {
+        Row: {
+          created_at: string | null
+          id: string
+          new_token_preview: string | null
+          old_token_preview: string | null
+          response: Json | null
+          social_connection_id: string | null
+          success: boolean
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          new_token_preview?: string | null
+          old_token_preview?: string | null
+          response?: Json | null
+          social_connection_id?: string | null
+          success: boolean
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          new_token_preview?: string | null
+          old_token_preview?: string | null
+          response?: Json | null
+          social_connection_id?: string | null
+          success?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "token_refresh_logs_social_connection_id_fkey"
+            columns: ["social_connection_id"]
+            isOneToOne: false
+            referencedRelation: "social_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "token_refresh_logs_social_connection_id_fkey"
+            columns: ["social_connection_id"]
+            isOneToOne: false
+            referencedRelation: "social_connections_safe"
             referencedColumns: ["id"]
           },
         ]
