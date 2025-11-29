@@ -110,8 +110,7 @@ export default function Onboarding() {
           name: agencyName,
           website: agencyWebsite || null,
           niche: agencyNiche || null,
-          brand_color: agencyBrandColor,
-        })
+        } as any)
         .select()
         .single();
 
@@ -192,7 +191,7 @@ export default function Onboarding() {
           website: clientWebsite || null,
           notes: clientNotes || null,
           status: "active",
-        })
+        } as any)
         .select()
         .single();
 
