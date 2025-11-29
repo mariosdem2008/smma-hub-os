@@ -6,7 +6,21 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Video, Image as ImageIcon, AlertCircle, Upload, X, Calendar as CalendarIcon, Lightbulb, Send, Loader2, Clock, Info, Globe, ExternalLink } from "lucide-react";
+import {
+  Video,
+  Image as ImageIcon,
+  AlertCircle,
+  Upload,
+  X,
+  Calendar as CalendarIcon,
+  Lightbulb,
+  Send,
+  Loader2,
+  Clock,
+  Info,
+  Globe,
+  ExternalLink,
+} from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
@@ -61,10 +75,10 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
   const [hashtags, setHashtags] = useState(project.hashtags || "");
   const [userTimezone, setUserTimezone] = useState<string>("UTC");
   const [scheduledDate, setScheduledDate] = useState<Date | undefined>(
-    project.scheduled_time ? new Date(project.scheduled_time) : undefined
+    project.scheduled_time ? new Date(project.scheduled_time) : undefined,
   );
   const [scheduledTime, setScheduledTime] = useState<string>(
-    project.scheduled_time ? format(new Date(project.scheduled_time), "HH:mm") : "12:00"
+    project.scheduled_time ? format(new Date(project.scheduled_time), "HH:mm") : "12:00",
   );
 
   useEffect(() => {
@@ -83,14 +97,10 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
 
   const fetchUserTimezone = async () => {
     if (!user) return;
-    
+
     try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("timezone")
-        .eq("id", user.id)
-        .single();
-      
+      const { data, error } = await supabase.from("profiles").select("timezone").eq("id", user.id).single();
+
       if (error) throw error;
       if (data?.timezone) {
         setUserTimezone(data.timezone);
@@ -109,11 +119,9 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
         .eq("is_final_content", true);
 
       if (error) throw error;
-      
-      const assets = data
-        ?.map((pa: any) => pa.assets)
-        .filter(Boolean) as Asset[];
-      
+
+      const assets = data?.map((pa: any) => pa.assets).filter(Boolean) as Asset[];
+
       setFinalAssets(assets || []);
     } catch (error) {
       console.error("Error fetching final assets:", error);
@@ -134,18 +142,19 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
         const fileName = `${Math.random()}.${fileExt}`;
         const filePath = `${project.client_id}/${fileName}`;
 
-        const { error: uploadError } = await supabase.storage
-          .from("client-assets")
-          .upload(filePath, file);
+        const { error: uploadError } = await supabase.storage.from("client-assets").upload(filePath, file);
 
         if (uploadError) throw uploadError;
 
-        const { data: { publicUrl } } = supabase.storage
-          .from("client-assets")
-          .getPublicUrl(filePath);
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from("client-assets").getPublicUrl(filePath);
 
-        const fileType = file.type.startsWith("image/") ? "image" : 
-                         file.type.startsWith("video/") ? "video" : "document";
+        const fileType = file.type.startsWith("image/")
+          ? "image"
+          : file.type.startsWith("video/")
+            ? "video"
+            : "document";
 
         const { data: asset, error: assetError } = await supabase
           .from("assets")
@@ -161,13 +170,11 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
 
         if (assetError) throw assetError;
 
-        const { error: linkError } = await supabase
-          .from("project_assets")
-          .insert({
-            project_id: project.id,
-            asset_id: asset.id,
-            is_final_content: true,
-          });
+        const { error: linkError } = await supabase.from("project_assets").insert({
+          project_id: project.id,
+          asset_id: asset.id,
+          is_final_content: true,
+        });
 
         if (linkError) throw linkError;
       }
@@ -220,9 +227,7 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
 
   const handlePlatformToggle = (platformId: string) => {
     setSelectedPlatforms((prev) =>
-      prev.includes(platformId)
-        ? prev.filter((p) => p !== platformId)
-        : [...prev, platformId]
+      prev.includes(platformId) ? prev.filter((p) => p !== platformId) : [...prev, platformId],
     );
   };
 
@@ -255,7 +260,7 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
     }
 
     try {
-      const [hours, minutes] = scheduledTime.split(':');
+      const [hours, minutes] = scheduledTime.split(":");
       const scheduleDateTime = new Date(scheduledDate);
       scheduleDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
 
@@ -263,7 +268,7 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
       const utcDateTime = convertToUTC(scheduleDateTime, userTimezone);
 
       // Filter platforms to only supported ones (Instagram, Facebook)
-      const supportedPlatforms = selectedPlatforms.filter(p => p === 'instagram' || p === 'facebook');
+      const supportedPlatforms = selectedPlatforms.filter((p) => p === "instagram" || p === "facebook");
 
       const { error } = await supabase
         .from("projects")
@@ -297,8 +302,8 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
   const handleSaveSettings = async () => {
     try {
       // Filter platforms to only supported ones (Instagram, Facebook)
-      const supportedPlatforms = selectedPlatforms.filter(p => p === 'instagram' || p === 'facebook');
-      
+      const supportedPlatforms = selectedPlatforms.filter((p) => p === "instagram" || p === "facebook");
+
       const updateData: any = {
         platforms: supportedPlatforms,
         platform_captions: captions,
@@ -306,17 +311,14 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
       };
 
       if (scheduledDate && scheduledTime) {
-        const [hours, minutes] = scheduledTime.split(':');
+        const [hours, minutes] = scheduledTime.split(":");
         const scheduleDateTime = new Date(scheduledDate);
         scheduleDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
         // Convert local time to UTC before saving
         updateData.scheduled_time = convertToUTC(scheduleDateTime, userTimezone);
       }
 
-      const { error } = await supabase
-        .from("projects")
-        .update(updateData)
-        .eq("id", project.id);
+      const { error } = await supabase.from("projects").update(updateData).eq("id", project.id);
 
       if (error) throw error;
 
@@ -397,11 +399,7 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
               <Card key={asset.id} className="relative group overflow-hidden">
                 <div className="aspect-square bg-muted flex items-center justify-center">
                   {asset.file_type === "image" ? (
-                    <img
-                      src={asset.file_url}
-                      alt={asset.filename}
-                      className="w-full h-full object-cover"
-                    />
+                    <img src={asset.file_url} alt={asset.filename} className="w-full h-full object-cover" />
                   ) : asset.file_type === "video" ? (
                     <video src={asset.file_url} className="w-full h-full object-cover" />
                   ) : (
@@ -443,7 +441,9 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
               >
                 {platform.label}
                 {!platform.enabled && (
-                  <Badge variant="secondary" className="text-xs">Coming Soon</Badge>
+                  <Badge variant="secondary" className="text-xs">
+                    Coming Soon
+                  </Badge>
                 )}
               </label>
             </div>
@@ -501,11 +501,7 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
                 {userTimezone}
               </Badge>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => window.open('/scheduling-debug', '_blank')}
-            >
+            <Button variant="ghost" size="sm" onClick={() => window.open("/scheduling-debug", "_blank")}>
               <ExternalLink className="h-3 w-3 mr-1" />
               Debug
             </Button>
@@ -516,7 +512,9 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
               <div className="space-y-1">
                 <p className="font-medium">How scheduling works:</p>
                 <ul className="text-xs space-y-0.5 text-muted-foreground">
-                  <li>• Pick a time in <span className="font-medium text-foreground">{userTimezone}</span></li>
+                  <li>
+                    • Pick a time in <span className="font-medium text-foreground">{userTimezone}</span>
+                  </li>
                   <li>• System stores it in UTC for autoposting</li>
                   <li>• Displays always show your local timezone</li>
                 </ul>
@@ -524,50 +522,28 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
             </div>
           </div>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label>Date</Label>
             <Popover>
               <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start text-left font-normal"
-                >
+                <Button variant="outline" className="w-full justify-start text-left font-normal">
                   <CalendarIcon className="mr-2 h-4 w-4" />
                   {scheduledDate ? format(scheduledDate, "PPP") : "Pick a date"}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={scheduledDate}
-                  onSelect={setScheduledDate}
-                  initialFocus
-                />
+                <Calendar mode="single" selected={scheduledDate} onSelect={setScheduledDate} initialFocus />
               </PopoverContent>
             </Popover>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="time">Time</Label>
-            <Input
-              id="time"
-              type="time"
-              value={scheduledTime}
-              onChange={(e) => setScheduledTime(e.target.value)}
-            />
+            <Input id="time" type="time" value={scheduledTime} onChange={(e) => setScheduledTime(e.target.value)} />
           </div>
         </div>
-
-        {scheduledDate && (
-          <div className="p-3 rounded bg-primary/10 border border-primary/20">
-            <p className="text-sm font-medium">
-              Scheduled for: {format(scheduledDate, "PPP")} at {scheduledTime}
-              <Badge variant="secondary" className="ml-2 text-xs">{userTimezone}</Badge>
-            </p>
-          </div>
-        )}
 
         {/* Optimal Posting Times */}
         {selectedPlatforms.length > 0 && scheduledDate && (
@@ -578,31 +554,35 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
                 <h4 className="font-semibold text-sm mb-2">Optimal Posting Times</h4>
                 <ScrollArea className="max-h-[200px]">
                   <div className="space-y-3">
-                    {getAllPlatformSuggestions(selectedPlatforms, scheduledDate).map(({ platform, suggestedTime, rules }) => (
-                      <div key={platform} className="space-y-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Badge variant="outline" className="capitalize">{platform}</Badge>
-                          <span className="text-xs text-muted-foreground">
-                            Best time: {format(suggestedTime, "h:mm a")}
-                          </span>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-6 text-xs"
-                            onClick={() => setScheduledTime(format(suggestedTime, "HH:mm"))}
-                          >
-                            Use this time
-                          </Button>
+                    {getAllPlatformSuggestions(selectedPlatforms, scheduledDate).map(
+                      ({ platform, suggestedTime, rules }) => (
+                        <div key={platform} className="space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge variant="outline" className="capitalize">
+                              {platform}
+                            </Badge>
+                            <span className="text-xs text-muted-foreground">
+                              Best time: {format(suggestedTime, "h:mm a")}
+                            </span>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 text-xs"
+                              onClick={() => setScheduledTime(format(suggestedTime, "HH:mm"))}
+                            >
+                              Use this time
+                            </Button>
+                          </div>
+                          {rules && rules.bestPractices.length > 0 && (
+                            <ul className="text-xs text-muted-foreground ml-2 space-y-0.5">
+                              {rules.bestPractices.slice(0, 2).map((practice, idx) => (
+                                <li key={idx}>• {practice}</li>
+                              ))}
+                            </ul>
+                          )}
                         </div>
-                        {rules && rules.bestPractices.length > 0 && (
-                          <ul className="text-xs text-muted-foreground ml-2 space-y-0.5">
-                            {rules.bestPractices.slice(0, 2).map((practice, idx) => (
-                              <li key={idx}>• {practice}</li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
-                    ))}
+                      ),
+                    )}
                   </div>
                 </ScrollArea>
               </div>
@@ -610,8 +590,8 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
           </Card>
         )}
 
-        <Button 
-          onClick={handleSchedulePost} 
+        <Button
+          onClick={handleSchedulePost}
           className="w-full"
           disabled={!scheduledDate || selectedPlatforms.length === 0 || finalAssets.length === 0 || uploading}
         >
@@ -628,7 +608,7 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
           )}
         </Button>
 
-        {project.pipeline_stage === 'published' && project.published_urls && (
+        {project.pipeline_stage === "published" && project.published_urls && (
           <div className="space-y-2 mt-4 p-3 rounded bg-green-500/10 border border-green-500/20">
             <p className="text-sm font-medium text-green-600">✓ Published successfully</p>
             <div className="space-y-1">
@@ -646,8 +626,8 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
             </div>
           </div>
         )}
-        
-        {project.pipeline_stage === 'scheduled' && project.scheduled_time && (
+
+        {project.pipeline_stage === "scheduled" && project.scheduled_time && (
           <div className="mt-4 p-3 bg-muted/50 rounded-lg space-y-2">
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-primary" />
@@ -656,7 +636,8 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <p className="text-base font-semibold">
-                  {format(convertToLocal(project.scheduled_time, userTimezone), 'MMMM d, yyyy')} at {format(convertToLocal(project.scheduled_time, userTimezone), 'h:mm a')}
+                  {format(convertToLocal(project.scheduled_time, userTimezone), "MMMM d, yyyy")} at{" "}
+                  {format(convertToLocal(project.scheduled_time, userTimezone), "h:mm a")}
                 </p>
                 <Badge variant="secondary" className="gap-1">
                   <Globe className="h-3 w-3" />
@@ -664,16 +645,14 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
                 </Badge>
               </div>
               <p className="text-xs text-muted-foreground">
-                UTC: {new Date(project.scheduled_time).toISOString().replace('T', ' ').slice(0, 19)} (server time)
+                UTC: {new Date(project.scheduled_time).toISOString().replace("T", " ").slice(0, 19)} (server time)
               </p>
             </div>
           </div>
         )}
-        
-        {project.pipeline_stage === 'failed' && project.error_message && (
-          <p className="text-sm text-red-600 mt-4">
-            ✕ Publishing failed: {project.error_message}
-          </p>
+
+        {project.pipeline_stage === "failed" && project.error_message && (
+          <p className="text-sm text-red-600 mt-4">✕ Publishing failed: {project.error_message}</p>
         )}
       </div>
 
