@@ -620,7 +620,6 @@ export default function Dashboard() {
               icon={Users}
               description="Active client accounts"
               variant="purple"
-              trend="up"
             />
             <StatCard
               title="Posts This Week"
@@ -628,7 +627,6 @@ export default function Dashboard() {
               icon={Calendar}
               description="Scheduled for this week"
               variant="teal"
-              trend="neutral"
             />
             <StatCard
               title="Tasks Due This Week"
@@ -636,7 +634,6 @@ export default function Dashboard() {
               icon={CheckCircle2}
               description="Tasks to complete"
               variant="orange"
-              trend="down"
             />
           </div>
 

@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.client-auth-validate-invite]
 verify_jwt = false
+
+[functions.send-waitlist-email]
+verify_jwt = false
