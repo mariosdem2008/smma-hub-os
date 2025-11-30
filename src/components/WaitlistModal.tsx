@@ -64,6 +64,26 @@ export function WaitlistModal({ open, onOpenChange }: WaitlistModalProps) {
         return;
       }
 
+      // Send confirmation email via Brevo
+      try {
+        const { error: emailError } = await supabase.functions.invoke('send-waitlist-email', {
+          body: {
+            email,
+            name,
+            agencySize: agencySize || undefined,
+            painPoint: painPoint || undefined,
+          }
+        });
+
+        if (emailError) {
+          console.error("Error sending confirmation email:", emailError);
+          // Don't fail the whole process if email fails
+        }
+      } catch (emailErr) {
+        console.error("Error sending confirmation email:", emailErr);
+        // Don't fail the whole process if email fails
+      }
+
       setIsSubmitting(false);
       setIsSubmitted(true);
       toast.success("Successfully joined the waitlist!");
