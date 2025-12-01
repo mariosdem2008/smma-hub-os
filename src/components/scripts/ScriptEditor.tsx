@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import { AIAssistant } from "@/components/pipeline/AIAssistant";
 
 interface Script {
   id: string;
@@ -129,7 +130,37 @@ export default function ScriptEditor({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{script ? "Edit Script" : "Create New Script"}</DialogTitle>
+          <div className="flex items-center justify-between gap-3">
+            <DialogTitle>{script ? "Edit Script" : "Create New Script"}</DialogTitle>
+            <AIAssistant
+              projectId=""
+              clientId={clientId}
+              onGenerateIdea={() => {}}
+              onGenerateHook={(hook) => {
+                setFormData({ ...formData, hook });
+                toast({
+                  title: "Hook Generated",
+                  description: "AI hook added to your script",
+                });
+              }}
+              onGenerateScript={(generatedScript) => {
+                setFormData({ ...formData, script_body: generatedScript });
+                toast({
+                  title: "Script Generated",
+                  description: "AI script added to script body",
+                });
+              }}
+              onImproveScript={(improvedScript) => {
+                setFormData({ ...formData, script_body: improvedScript });
+                toast({
+                  title: "Script Improved",
+                  description: "AI improvements applied to script body",
+                });
+              }}
+              onGenerateCaption={() => {}}
+              onImproveCaption={() => {}}
+            />
+          </div>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
