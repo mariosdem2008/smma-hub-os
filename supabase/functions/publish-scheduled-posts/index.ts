@@ -3,6 +3,32 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 import { publishToInstagram, publishToFacebook } from "../_utils/instagram-publish.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
+/**
+ * AUTOPUBLISH ENGINE - publish-scheduled-posts
+ * 
+ * This function automatically publishes scheduled content to social media platforms.
+ * 
+ * REQUIRED CRON CONFIGURATION:
+ * Run this function every 5 minutes via Supabase pg_cron.
+ * Execute the following SQL in your Supabase SQL Editor:
+ * 
+ * SELECT cron.schedule(
+ *   'publish-scheduled-posts-every-5-min',
+ *   'CRON_EXPRESSION_EVERY_5_MINUTES',
+ *   'SELECT net.http_post(...)'
+ * );
+ * 
+ * Replace CRON_EXPRESSION with: asterisk-slash-5 space asterisk space asterisk space asterisk space asterisk
+ * 
+ * FEATURES:
+ * - Publishes to Instagram, Facebook (LinkedIn coming soon)
+ * - 3-attempt retry policy with 10-minute delays
+ * - Comprehensive logging in post_logs table
+ * - Project status management based on completion
+ * - Uses service role key to bypass RLS
+ * - 1-minute scheduling buffer to catch posts slightly in the past
+ */
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -17,8 +43,9 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Query scheduled posts ready to publish
-    const now = new Date().toISOString();
+    // Query scheduled posts ready to publish (with 1 minute buffer and retry limit)
+    const now = new Date();
+    const bufferTime = new Date(now.getTime() + 60000).toISOString(); // +1 minute buffer
     const { data: scheduledPosts, error: queryError } = await supabaseAdmin
       .from('scheduled_posts')
       .select(`
@@ -31,10 +58,12 @@ serve(async (req) => {
         scheduled_for,
         caption,
         hashtags,
-        status
+        status,
+        retry_count
       `)
       .eq('status', 'pending')
-      .lte('scheduled_for', now)
+      .lte('scheduled_for', bufferTime)
+      .lt('retry_count', 3)
       .order('scheduled_for', { ascending: true })
       .limit(50);
 
@@ -179,6 +208,8 @@ async function publishScheduledPost(supabaseAdmin: any, scheduledPost: any) {
         caption,
         hashtags
       );
+    } else if (scheduledPost.platform === 'linkedin') {
+      throw new Error('LinkedIn publishing not yet supported - coming soon');
     } else {
       throw new Error(`Platform ${scheduledPost.platform} not supported`);
     }
@@ -200,6 +231,7 @@ async function publishScheduledPost(supabaseAdmin: any, scheduledPost: any) {
 
       // Log success
       await supabaseAdmin.from('post_logs').insert({
+        scheduled_post_id: scheduledPost.id,
         project_id: scheduledPost.project_id,
         platform: scheduledPost.platform,
         success: true,
@@ -207,7 +239,7 @@ async function publishScheduledPost(supabaseAdmin: any, scheduledPost: any) {
         published_permalink: result.mediaUrl,
         request: { mediaUrl, mediaType, caption: fullCaption },
         response: { mediaId: result.mediaId, permalink: result.mediaUrl },
-        attempt_number: 1
+        attempt_number: (scheduledPost.retry_count || 0) + 1
       });
 
       console.log(`[AUTOPUBLISH] Successfully published scheduled post ${scheduledPost.id}: ${result.mediaUrl}`);
@@ -227,31 +259,56 @@ async function publishScheduledPost(supabaseAdmin: any, scheduledPost: any) {
   } catch (error) {
     const duration = Date.now() - startTime;
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const currentRetryCount = scheduledPost.retry_count || 0;
+    const nextRetryCount = currentRetryCount + 1;
     
-    console.error(`[AUTOPUBLISH] Error publishing scheduled post ${scheduledPost.id}:`, errorMessage);
+    console.error(`[AUTOPUBLISH] Error publishing scheduled post ${scheduledPost.id} (attempt ${nextRetryCount}/3):`, errorMessage);
 
-    // Update scheduled post as failed
-    await supabaseAdmin
-      .from('scheduled_posts')
-      .update({
-        status: 'failed',
-        error_message: errorMessage,
-      })
-      .eq('id', scheduledPost.id);
+    // Determine if we should retry
+    const shouldRetry = nextRetryCount < 3;
+
+    if (shouldRetry) {
+      // Reschedule for retry in 10 minutes
+      const retryTime = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+      console.log(`[AUTOPUBLISH] Scheduling retry ${nextRetryCount + 1} for ${scheduledPost.id} at ${retryTime}`);
+      
+      await supabaseAdmin
+        .from('scheduled_posts')
+        .update({
+          status: 'pending',
+          retry_count: nextRetryCount,
+          scheduled_for: retryTime,
+          error_message: errorMessage,
+        })
+        .eq('id', scheduledPost.id);
+    } else {
+      // Max retries reached - mark as failed
+      console.error(`[AUTOPUBLISH] Max retries reached for ${scheduledPost.id}, marking as failed`);
+      
+      await supabaseAdmin
+        .from('scheduled_posts')
+        .update({
+          status: 'failed',
+          retry_count: nextRetryCount,
+          error_message: errorMessage,
+        })
+        .eq('id', scheduledPost.id);
+
+      // Check if all scheduled posts for this project are complete
+      await updateProjectStatus(supabaseAdmin, scheduledPost.project_id);
+    }
 
     // Log failure
     await supabaseAdmin.from('post_logs').insert({
+      scheduled_post_id: scheduledPost.id,
       project_id: scheduledPost.project_id,
       platform: scheduledPost.platform,
       success: false,
       duration_ms: duration,
       error_message: errorMessage,
-      response: { error: errorMessage },
-      attempt_number: 1
+      response: { error: errorMessage, willRetry: shouldRetry },
+      attempt_number: nextRetryCount
     });
-
-    // Check if all scheduled posts for this project are complete
-    await updateProjectStatus(supabaseAdmin, scheduledPost.project_id);
 
     throw error;
   }
