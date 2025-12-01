@@ -23,13 +23,28 @@ serve(async (req) => {
   try {
     console.log('[AI-CONTENT] Function invoked');
     
+    // Get Authorization header
+    const authHeader = req.headers.get('Authorization');
+    console.log('[AI-CONTENT] Auth header present:', !!authHeader);
+    
+    if (!authHeader) {
+      console.error('[AI-CONTENT] Missing Authorization header');
+      return new Response(JSON.stringify({ 
+        success: false,
+        error: 'Authentication required - please log in again' 
+      }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    
     // Create Supabase client with auth
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       {
         global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
+          headers: { Authorization: authHeader },
         },
       }
     );
@@ -44,7 +59,7 @@ serve(async (req) => {
       console.error('[AI-CONTENT] Auth failed:', userError);
       return new Response(JSON.stringify({ 
         success: false,
-        error: 'Authentication failed' 
+        error: 'Authentication failed - session may be expired' 
       }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
