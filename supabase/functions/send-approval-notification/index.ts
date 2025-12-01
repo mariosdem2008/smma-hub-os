@@ -25,6 +25,8 @@ interface NotificationRequest {
   // New pipeline-specific fields
   asset_id?: string;
   approver_id?: string;
+  // Project approval fields
+  project_id?: string;
 }
 
 function generateWhiteLabelEmail(
@@ -149,9 +151,118 @@ serve(async (req: Request) => {
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const request: NotificationRequest = await req.json();
-    const { contentType, contentId, contentTitle, clientId, action, comment, asset_id, approver_id } = request;
+    const { contentType, contentId, contentTitle, clientId, action, comment, asset_id, approver_id, project_id } = request;
 
-    console.log("Processing approval notification:", { contentType, contentId, action, asset_id });
+    console.log("Processing approval notification:", { contentType, contentId, action, asset_id, project_id });
+
+    // Handle project approval notifications
+    if (project_id) {
+      const { data: project, error: projectError } = await supabase
+        .from('projects')
+        .select('title, client_id, agency_id, clients(name, email)')
+        .eq('id', project_id)
+        .single();
+
+      if (projectError) throw projectError;
+
+      const client = (project.clients as any);
+      const agencyId = project.agency_id;
+
+      // Get agency branding
+      const { data: branding } = await supabase
+        .from('agency_branding')
+        .select('email_sender_name, email_footer')
+        .eq('agency_id', agencyId)
+        .single();
+
+      // Get agency owner/team for notification
+      const { data: agency } = await supabase
+        .from('agencies')
+        .select('user_id')
+        .eq('id', agencyId)
+        .single();
+
+      if (!agency) throw new Error('Agency not found');
+
+      const { data: ownerProfile } = await supabase
+        .from('profiles')
+        .select('email, full_name')
+        .eq('id', agency.user_id)
+        .single();
+
+      if (!ownerProfile?.email) throw new Error('Agency owner email not found');
+
+      const senderName = branding?.email_sender_name || 'SMMAHUB';
+
+      let subject: string;
+      let heading: string;
+      let bodyText: string;
+
+      if (action === 'approved') {
+        subject = `Client approved: ${project.title}`;
+        heading = "Content Approved by Client! 🎉";
+        bodyText = `
+          <p>Hi ${ownerProfile.full_name || 'there'},</p>
+          <p>Great news! Your client <strong>${client.name}</strong> has approved the project:</p>
+          <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 5px 0;"><strong>Project:</strong> ${project.title}</p>
+            <p style="margin: 5px 0;"><strong>Client:</strong> ${client.name}</p>
+            ${comment ? `<p style="margin: 5px 0;"><strong>Comment:</strong> ${comment}</p>` : ''}
+          </div>
+          <p>The project is now ready for scheduling and publishing.</p>
+        `;
+      } else if (action === 'changes_requested') {
+        subject = `Changes requested: ${project.title}`;
+        heading = "Client Requested Changes";
+        bodyText = `
+          <p>Hi ${ownerProfile.full_name || 'there'},</p>
+          <p>Your client <strong>${client.name}</strong> has requested changes to the project:</p>
+          <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 5px 0;"><strong>Project:</strong> ${project.title}</p>
+            <p style="margin: 5px 0;"><strong>Client:</strong> ${client.name}</p>
+            <p style="margin: 5px 0;"><strong>Feedback:</strong> ${comment || 'No specific feedback provided'}</p>
+          </div>
+          <p>The project has been moved back to production. Please review the feedback and make the necessary adjustments.</p>
+        `;
+      } else {
+        throw new Error('Invalid action type for project approval');
+      }
+
+      const htmlContent = generateWhiteLabelEmail(
+        branding,
+        subject,
+        heading,
+        bodyText
+      );
+
+      // Send email
+      const emailResponse = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${RESEND_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: `${senderName} <notifications@smmahub.net>`,
+          to: [ownerProfile.email],
+          subject: subject,
+          html: htmlContent,
+        }),
+      });
+
+      if (!emailResponse.ok) {
+        const errorText = await emailResponse.text();
+        console.error('Failed to send email:', errorText);
+        throw new Error('Failed to send email notification');
+      }
+
+      console.log('Project approval email sent successfully');
+
+      return new Response(
+        JSON.stringify({ success: true }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
 
     // Handle new pipeline approval notifications
     if (asset_id) {

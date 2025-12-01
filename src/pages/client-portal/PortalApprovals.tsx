@@ -9,27 +9,35 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { hapticSelection } from "@/lib/haptics";
 import { Clock, CheckCircle, XCircle, Loader2 } from "lucide-react";
-import ClientApprovalInterface from "@/components/approval/ClientApprovalInterface";
+import ProjectApprovalInterface from "@/components/approval/ProjectApprovalInterface";
 
 interface OutletContext {
   clientId: string;
 }
 
+interface FinalAsset {
+  id: string;
+  file_url: string;
+  file_type: string;
+  filename: string;
+  final_caption: string | null;
+}
+
 interface Project {
   id: string;
   title: string;
-  pipeline_stage: string;
+  description: string | null;
+  status: string;
   created_at: string;
   thumbnail_url: string | null;
   platforms: string[] | null;
-  scheduled_time: string | null;
-  final_asset?: {
-    id: string;
-    file_url: string;
-    file_type: string;
-    filename: string;
-    content_type: string | null;
-  };
+  scheduled_for: string | null;
+  platform_captions: Record<string, string> | null;
+  hashtags: string | null;
+  notes: string | null;
+  client_id: string;
+  agency_id: string;
+  final_assets?: FinalAsset[];
 }
 
 export default function PortalApprovals() {
@@ -42,17 +50,23 @@ export default function PortalApprovals() {
 
   const fetchProjectsForApproval = async () => {
     try {
-      // Get projects in Client Review stage (stage key is 'review')
+      // Get projects in Client Review stage
       const { data: projectsData, error: projectsError } = await supabase
         .from('projects')
         .select(`
           id,
           title,
-          pipeline_stage,
+          description,
+          status,
           created_at,
           thumbnail_url,
           platforms,
-          scheduled_time
+          scheduled_for,
+          platform_captions,
+          hashtags,
+          notes,
+          client_id,
+          agency_id
         `)
         .eq('client_id', clientId)
         .eq('status', 'client_review')
@@ -60,7 +74,7 @@ export default function PortalApprovals() {
 
       if (projectsError) throw projectsError;
 
-      // For each project, get the final asset
+      // For each project, get the final assets
       const projectsWithFinalAssets = await Promise.all(
         (projectsData || []).map(async (project) => {
           const { data: finalAssetsData, error: assetsError } = await supabase
@@ -72,7 +86,7 @@ export default function PortalApprovals() {
                 file_url,
                 file_type,
                 filename,
-                content_type
+                final_caption
               )
             `)
             .eq('project_id', project.id)
@@ -80,16 +94,21 @@ export default function PortalApprovals() {
 
           if (assetsError) throw assetsError;
 
-          const finalAsset = finalAssetsData?.[0]?.assets;
+          const finalAssets = (finalAssetsData || [])
+            .map((pa: any) => pa.assets)
+            .filter(Boolean)
+            .map((asset: any) => ({
+              id: asset.id,
+              file_url: asset.file_url,
+              file_type: asset.file_type,
+              filename: asset.filename,
+              final_caption: asset.final_caption,
+            }));
+
           return {
             ...project,
-            final_asset: finalAsset ? {
-              id: finalAsset.id,
-              file_url: finalAsset.file_url,
-              file_type: finalAsset.file_type,
-              filename: finalAsset.filename,
-              content_type: finalAsset.content_type,
-            } : undefined,
+            platform_captions: project.platform_captions || {},
+            final_assets: finalAssets,
           };
         })
       );
@@ -146,7 +165,7 @@ export default function PortalApprovals() {
     );
   }
 
-  if (selectedProject && selectedProject.final_asset) {
+  if (selectedProject) {
     return (
       <div className="space-y-4">
         <button
@@ -156,9 +175,9 @@ export default function PortalApprovals() {
           ← Back to Approvals
         </button>
         
-        <ClientApprovalInterface
-          asset={selectedProject.final_asset as any}
-          clientId={clientId}
+        <ProjectApprovalInterface
+          project={selectedProject}
+          finalAssets={selectedProject.final_assets || []}
           onApprovalComplete={() => {
             setSelectedProject(null);
             fetchProjectsForApproval();
@@ -210,23 +229,23 @@ export default function PortalApprovals() {
               onClick={() => setSelectedProject(project)}
             >
               <CardContent className="p-3 md:p-4 space-y-3">
-                {project.final_asset ? (
-                  project.final_asset.file_type?.startsWith("video") ? (
+                {project.final_assets && project.final_assets.length > 0 ? (
+                  project.final_assets[0].file_type?.startsWith("video") ? (
                     <video
-                      src={project.final_asset.file_url}
+                      src={project.final_assets[0].file_url}
                       className="w-full h-40 md:h-48 object-cover rounded"
                       controls
                     />
-                  ) : project.final_asset.file_type?.startsWith("image") ? (
+                  ) : project.final_assets[0].file_type?.startsWith("image") ? (
                     <img
-                      src={project.final_asset.file_url}
-                      alt={project.final_asset.filename}
+                      src={project.final_assets[0].file_url}
+                      alt={project.final_assets[0].filename}
                       className="w-full h-40 md:h-48 object-cover rounded"
                     />
                   ) : (
                     <img
-                      src={project.final_asset.file_url}
-                      alt={project.final_asset.filename}
+                      src={project.final_assets[0].file_url}
+                      alt={project.final_assets[0].filename}
                       className="w-full h-40 md:h-48 object-cover rounded"
                     />
                   )
@@ -245,14 +264,19 @@ export default function PortalApprovals() {
                 <div className="space-y-2">
                   <h3 className="text-sm md:text-base font-semibold line-clamp-2">{project.title}</h3>
                   
-                  {project.final_asset?.content_type && (
-                    <Badge variant="secondary" className="text-xs">
-                      {project.final_asset.content_type.replace('_', ' ')}
-                    </Badge>
+                  {project.description && (
+                    <p className="text-xs text-muted-foreground line-clamp-2">
+                      {project.description}
+                    </p>
                   )}
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <Badge className="text-xs">Client Review</Badge>
+                    {project.platforms && project.platforms.length > 0 && (
+                      <Badge variant="outline" className="text-xs">
+                        {project.platforms.length} platform{project.platforms.length > 1 ? 's' : ''}
+                      </Badge>
+                    )}
                   </div>
                 </div>
               </CardContent>
