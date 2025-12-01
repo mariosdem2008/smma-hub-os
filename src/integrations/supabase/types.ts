@@ -1127,6 +1127,7 @@ export type Database = {
           published_permalink: string | null
           request: Json | null
           response: Json | null
+          scheduled_post_id: string | null
           success: boolean
         }
         Insert: {
@@ -1140,6 +1141,7 @@ export type Database = {
           published_permalink?: string | null
           request?: Json | null
           response?: Json | null
+          scheduled_post_id?: string | null
           success: boolean
         }
         Update: {
@@ -1153,6 +1155,7 @@ export type Database = {
           published_permalink?: string | null
           request?: Json | null
           response?: Json | null
+          scheduled_post_id?: string | null
           success?: boolean
         }
         Relationships: [
@@ -1161,6 +1164,13 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_logs_scheduled_post_id_fkey"
+            columns: ["scheduled_post_id"]
+            isOneToOne: false
+            referencedRelation: "scheduled_posts"
             referencedColumns: ["id"]
           },
         ]
@@ -1485,6 +1495,7 @@ export type Database = {
           platform_post_id: string | null
           project_id: string
           published_at: string | null
+          retry_count: number | null
           scheduled_for: string
           social_connection_id: string | null
           status: string
@@ -1503,6 +1514,7 @@ export type Database = {
           platform_post_id?: string | null
           project_id: string
           published_at?: string | null
+          retry_count?: number | null
           scheduled_for: string
           social_connection_id?: string | null
           status?: string
@@ -1521,6 +1533,7 @@ export type Database = {
           platform_post_id?: string | null
           project_id?: string
           published_at?: string | null
+          retry_count?: number | null
           scheduled_for?: string
           social_connection_id?: string | null
           status?: string
