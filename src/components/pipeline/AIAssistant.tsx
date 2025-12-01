@@ -118,6 +118,7 @@ export function AIAssistant({
         onOpenChange={(open) => !open && setActiveModal(null)}
         type="ideas"
         clientId={clientId}
+        projectId={projectId}
         onUse={onGenerateIdea}
       />
       <AIGenerateModal
@@ -125,6 +126,7 @@ export function AIAssistant({
         onOpenChange={(open) => !open && setActiveModal(null)}
         type="hooks"
         clientId={clientId}
+        projectId={projectId}
         onUse={onGenerateHook}
       />
       <AIGenerateModal
@@ -132,6 +134,7 @@ export function AIAssistant({
         onOpenChange={(open) => !open && setActiveModal(null)}
         type="script"
         clientId={clientId}
+        projectId={projectId}
         onUse={onGenerateScript}
       />
       <AIGenerateModal
@@ -139,6 +142,7 @@ export function AIAssistant({
         onOpenChange={(open) => !open && setActiveModal(null)}
         type="improve-script"
         clientId={clientId}
+        projectId={projectId}
         onUse={onImproveScript}
       />
       <AIGenerateModal
@@ -146,6 +150,7 @@ export function AIAssistant({
         onOpenChange={(open) => !open && setActiveModal(null)}
         type="captions"
         clientId={clientId}
+        projectId={projectId}
         onUse={onGenerateCaption}
       />
       <AIGenerateModal
@@ -153,6 +158,7 @@ export function AIAssistant({
         onOpenChange={(open) => !open && setActiveModal(null)}
         type="improve-caption"
         clientId={clientId}
+        projectId={projectId}
         onUse={onImproveCaption}
       />
     </>

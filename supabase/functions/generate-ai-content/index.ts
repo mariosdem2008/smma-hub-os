@@ -21,9 +21,9 @@ serve(async (req) => {
   }
 
   try {
-    console.log('[AI-CONTENT] Step 1: Function invoked');
+    console.log('[AI-CONTENT] Function invoked');
     
-    // Supabase automatically validates JWT and provides auth context
+    // Create Supabase client with auth
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -34,7 +34,7 @@ serve(async (req) => {
       }
     );
 
-    console.log('[AI-CONTENT] Step 2: Authenticating user...');
+    // Authenticate user
     const {
       data: { user },
       error: userError,
@@ -42,26 +42,50 @@ serve(async (req) => {
 
     if (userError || !user) {
       console.error('[AI-CONTENT] Auth failed:', userError);
-      return new Response(JSON.stringify({ error: 'Authentication failed' }), {
+      return new Response(JSON.stringify({ 
+        success: false,
+        error: 'Authentication failed' 
+      }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    console.log('[AI-CONTENT] Step 3: User authenticated:', user.id);
+    console.log('[AI-CONTENT] User authenticated:', user.id);
 
-    console.log('[AI-CONTENT] Step 4: Parsing request body...');
-    const { type, platform, tone, keywords, niche, contentPillars, trends, brandVoice, platforms, clientId } = await req.json();
+    // Parse request body
+    const { 
+      mode, 
+      project_id, 
+      client_id, 
+      platform, 
+      brand_context, 
+      input_text 
+    } = await req.json();
 
-    if (!type || !['caption', 'idea', 'caption_variants'].includes(type)) {
-      console.error('[AI-CONTENT] Invalid type:', type);
-      return new Response(JSON.stringify({ error: 'Invalid generation type. Must be "caption", "idea", or "caption_variants"' }), {
+    // Validate mode
+    const validModes = ['ideas', 'hook', 'caption', 'script', 'rewrite'];
+    if (!mode || !validModes.includes(mode)) {
+      return new Response(JSON.stringify({ 
+        success: false,
+        error: `Invalid mode. Must be one of: ${validModes.join(', ')}` 
+      }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    console.log('[AI-CONTENT] Step 5: Looking up agency...');
+    if (!client_id) {
+      return new Response(JSON.stringify({ 
+        success: false,
+        error: 'client_id is required' 
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Look up agency
     const { data: agencyMember, error: agencyError } = await supabaseClient
       .from('agency_members')
       .select('agency_id')
@@ -70,19 +94,23 @@ serve(async (req) => {
 
     if (agencyError || !agencyMember) {
       console.error('[AI-CONTENT] Agency lookup failed:', agencyError);
-      return new Response(JSON.stringify({ error: 'No agency found for this user' }), {
+      return new Response(JSON.stringify({ 
+        success: false,
+        error: 'No agency found for this user' 
+      }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    console.log('[AI-CONTENT] Step 6: Agency found:', agencyMember.agency_id);
+    const agency_id = agencyMember.agency_id;
+    console.log('[AI-CONTENT] Agency found:', agency_id);
 
-    console.log('[AI-CONTENT] Step 7: Checking subscription and quota...');
+    // Check subscription and quota
     const { data: agency } = await supabaseClient
       .from('agencies')
       .select('user_id')
-      .eq('id', agencyMember.agency_id)
+      .eq('id', agency_id)
       .single();
 
     const { data: subscription } = await supabaseClient
@@ -93,18 +121,15 @@ serve(async (req) => {
 
     const planType = subscription?.plan_type || 'free';
     const monthlyQuota = PLAN_QUOTAS[planType] || PLAN_QUOTAS.free;
-    console.log('[AI-CONTENT] Plan type:', planType, 'Quota:', monthlyQuota);
 
     // Check current month's usage
     const { data: usageCount } = await supabaseClient
-      .rpc('get_monthly_ai_usage', { p_agency_id: agencyMember.agency_id });
-
-    console.log('[AI-CONTENT] Current usage:', usageCount, '/', monthlyQuota);
+      .rpc('get_monthly_ai_usage', { p_agency_id: agency_id });
 
     if (usageCount && usageCount >= monthlyQuota) {
-      console.warn('[AI-CONTENT] Quota exceeded');
       return new Response(
         JSON.stringify({ 
+          success: false,
           error: `Monthly quota exceeded. You've used ${usageCount} of ${monthlyQuota} generations.`, 
           quota: monthlyQuota,
           used: usageCount 
@@ -116,12 +141,15 @@ serve(async (req) => {
       );
     }
 
-    console.log('[AI-CONTENT] Step 8: Preparing OpenAI request...');
+    // Get OpenAI API Key
     const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
     if (!OPENAI_API_KEY) {
       console.error('[AI-CONTENT] OpenAI API key not configured');
       return new Response(
-        JSON.stringify({ error: 'AI service not configured. Please contact support.' }),
+        JSON.stringify({ 
+          success: false,
+          error: 'AI service not configured. Please contact support.' 
+        }),
         {
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -129,49 +157,56 @@ serve(async (req) => {
       );
     }
 
+    // Build prompts based on mode
     let systemPrompt = '';
     let userPrompt = '';
+    const brandInfo = brand_context || '';
 
-    if (type === 'caption_variants') {
-      systemPrompt = 'You are an expert social media content creator. Generate engaging caption variations optimized for each platform.';
-      const platformNames = platforms.join(', ');
-      userPrompt = `Generate 3 caption variations (short, medium, long) for posting on: ${platformNames}.
+    switch (mode) {
+      case 'ideas':
+        systemPrompt = 'You are a creative content strategist. Generate innovative, actionable content ideas.';
+        userPrompt = `Generate 5 content ideas for ${platform || 'social media'}. ${brandInfo}
+        
+Return as JSON array: [{"title": "...", "description": "..."}]`;
+        break;
 
-For each variation, provide:
-1. The caption text appropriate for the platform(s)
-2. Length indicator (short/medium/long)
+      case 'hook':
+        systemPrompt = 'You are an expert copywriter. Generate attention-grabbing hooks for social media content.';
+        userPrompt = `Generate 5 powerful hooks for ${platform || 'social media'} content. ${brandInfo}
+        
+Return as JSON array: [{"text": "..."}]`;
+        break;
 
-Short: 50-100 characters, punchy and direct
-Medium: 100-300 characters, engaging with context
-Long: 300-500 characters, detailed storytelling
+      case 'caption':
+        systemPrompt = 'You are an expert social media content creator. Generate engaging captions optimized for the platform.';
+        userPrompt = `Generate 3 captions for ${platform || 'social media'}. ${brandInfo}
+        
+Return as JSON array: [{"text": "..."}]`;
+        break;
 
-Return as JSON array: [{"caption": "...", "length": "short/medium/long"}]`;
-    } else if (type === 'caption') {
-      const brandVoiceContext = brandVoice 
-        ? `\n\nIMPORTANT: Apply this brand voice:\n- Tone: ${brandVoice.tone.join(', ')}\n- Key vocabulary: ${brandVoice.vocabulary.slice(0, 10).join(', ')}\n- Writing rules: ${brandVoice.rules.do.slice(0, 3).join('; ')}`
-        : '';
-      
-      systemPrompt = `You are an expert social media content creator. Generate engaging, platform-specific captions with hashtags.${brandVoiceContext}`;
-      userPrompt = `Generate 3 caption variations for ${platform} with a ${tone} tone. Keywords: ${keywords}. 
-      
-For each caption, provide:
-1. The caption text (keep it concise and engaging)
-2. 5-8 relevant hashtags
+      case 'script':
+        systemPrompt = 'You are a video script writer. Generate engaging video scripts with clear structure.';
+        userPrompt = `Generate 3 video script variations for ${platform || 'social media'}. ${brandInfo}
+        
+Each script should have:
+- Hook (first 3 seconds)
+- Body (main content)
+- CTA (call to action)
 
-Return as JSON array: [{"caption": "...", "hashtags": ["tag1", "tag2", ...]}]`;
-    } else {
-      systemPrompt = `You are a creative content strategist. Generate innovative content ideas based on niche, pillars, and trends.`;
-      userPrompt = `Generate 5 content ideas for a ${niche} business. Content pillars: ${contentPillars}. ${trends ? `Current trends: ${trends}` : ''}
-      
-For each idea, provide:
-1. A catchy title
-2. A brief description (1-2 sentences)
-3. Suggested tags (2-4 tags)
+Return as JSON array: [{"text": "..."}]`;
+        break;
 
-Return as JSON array: [{"title": "...", "description": "...", "tags": ["tag1", "tag2", ...]}]`;
+      case 'rewrite':
+        systemPrompt = 'You are an expert editor. Improve the given text while maintaining its core message.';
+        userPrompt = `Improve this text for ${platform || 'social media'}: "${input_text}"
+        
+${brandInfo}
+
+Return as JSON array with 3 variations: [{"text": "..."}]`;
+        break;
     }
 
-    console.log('[AI-CONTENT] Step 9: Calling OpenAI API...');
+    console.log('[AI-CONTENT] Calling OpenAI API...');
     const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -192,41 +227,32 @@ Return as JSON array: [{"title": "...", "description": "...", "tags": ["tag1", "
       const errorText = await aiResponse.text();
       console.error('[AI-CONTENT] OpenAI API error:', aiResponse.status, errorText);
       
-      if (aiResponse.status === 429) {
-        return new Response(
-          JSON.stringify({ error: 'AI service is currently rate limited. Please try again in a few moments.' }),
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      if (aiResponse.status === 401) {
-        return new Response(
-          JSON.stringify({ error: 'AI service authentication failed. Please contact support.' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      
       return new Response(
-        JSON.stringify({ error: 'AI generation failed. Please try again.' }),
+        JSON.stringify({ 
+          success: false,
+          error: 'AI generation failed. Please try again.' 
+        }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('[AI-CONTENT] Step 10: Parsing AI response...');
+    console.log('[AI-CONTENT] Parsing AI response...');
     const aiData = await aiResponse.json();
     const content = aiData.choices[0].message.content;
 
     // Parse the JSON response
-    let parsedContent;
+    let suggestions;
     try {
-      // Extract JSON from markdown code blocks if present
       const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || content.match(/```\n([\s\S]*?)\n```/);
       const jsonStr = jsonMatch ? jsonMatch[1] : content;
-      parsedContent = JSON.parse(jsonStr);
-      console.log('[AI-CONTENT] Step 11: Content parsed successfully');
+      suggestions = JSON.parse(jsonStr);
     } catch (e) {
       console.error('[AI-CONTENT] Failed to parse AI response:', content);
       return new Response(
-        JSON.stringify({ error: 'Failed to parse AI response. Please try again.' }),
+        JSON.stringify({ 
+          success: false,
+          error: 'Failed to parse AI response. Please try again.' 
+        }),
         {
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -234,13 +260,42 @@ Return as JSON array: [{"title": "...", "description": "...", "tags": ["tag1", "
       );
     }
 
+    // Store in ai_history for audit
+    const inputPayload = {
+      mode,
+      project_id,
+      client_id,
+      platform,
+      brand_context,
+      input_text,
+    };
+
+    const outputPayload = {
+      suggestions,
+      generated_at: new Date().toISOString(),
+    };
+
+    const { error: historyError } = await supabaseClient
+      .from('ai_history')
+      .insert({
+        agency_id,
+        client_id,
+        project_id: project_id || null,
+        mode,
+        input: inputPayload,
+        output: outputPayload,
+      });
+
+    if (historyError) {
+      console.error('[AI-CONTENT] Failed to store history:', historyError);
+    }
+
     // Track usage
-    console.log('[AI-CONTENT] Step 12: Recording usage...');
-    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+    const currentMonth = new Date().toISOString().slice(0, 7);
     const { error: usageError } = await supabaseClient.from('ai_generation_usage').insert({
       user_id: user.id,
-      agency_id: agencyMember.agency_id,
-      generation_type: type,
+      agency_id,
+      generation_type: mode,
       month_year: currentMonth,
     });
 
@@ -248,10 +303,88 @@ Return as JSON array: [{"title": "...", "description": "...", "tags": ["tag1", "
       console.error('[AI-CONTENT] Failed to record usage:', usageError);
     }
 
-    console.log('[AI-CONTENT] Step 13: Success! Returning content');
+    // Update project fields based on mode (if project_id provided)
+    if (project_id) {
+      const serviceRoleClient = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      );
+
+      // Fetch current project data
+      const { data: project } = await serviceRoleClient
+        .from('projects')
+        .select('*')
+        .eq('id', project_id)
+        .single();
+
+      if (project) {
+        let updateData: any = {};
+
+        switch (mode) {
+          case 'ideas': {
+            // Append to ideas array (store as JSONB array)
+            const currentIdeas = project.ideas || [];
+            const newIdeas = suggestions.map((s: any) => ({
+              title: s.title,
+              description: s.description,
+              generated_at: new Date().toISOString(),
+            }));
+            updateData.ideas = [...currentIdeas, ...newIdeas];
+            break;
+          }
+
+          case 'hook': {
+            // Append to hooks array
+            const currentHooks = project.hooks || [];
+            const newHooks = suggestions.map((s: any) => s.text);
+            updateData.hooks = [...currentHooks, ...newHooks];
+            break;
+          }
+
+          case 'caption': {
+            // Update platform_captions JSON
+            const currentCaptions = project.platform_captions || {};
+            if (platform) {
+              currentCaptions[platform] = suggestions[0]?.text || '';
+            }
+            updateData.platform_captions = currentCaptions;
+            break;
+          }
+
+          case 'script': {
+            // Update script field
+            updateData.script = suggestions[0]?.text || '';
+            break;
+          }
+
+          case 'rewrite': {
+            // For rewrite, we return suggestions but don't auto-update
+            // User manually selects which version to use
+            break;
+          }
+        }
+
+        if (Object.keys(updateData).length > 0) {
+          const { error: updateError } = await serviceRoleClient
+            .from('projects')
+            .update(updateData)
+            .eq('id', project_id);
+
+          if (updateError) {
+            console.error('[AI-CONTENT] Failed to update project:', updateError);
+          } else {
+            console.log('[AI-CONTENT] Project updated successfully');
+          }
+        }
+      }
+    }
+
+    console.log('[AI-CONTENT] Success!');
     return new Response(
       JSON.stringify({
-        content: parsedContent,
+        success: true,
+        mode,
+        suggestions,
         usage: {
           used: (usageCount || 0) + 1,
           quota: monthlyQuota,
@@ -265,7 +398,10 @@ Return as JSON array: [{"title": "...", "description": "...", "tags": ["tag1", "
   } catch (error) {
     console.error('[AI-CONTENT] Unexpected error:', error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'An unexpected error occurred. Please try again.' }),
+      JSON.stringify({ 
+        success: false,
+        error: error instanceof Error ? error.message : 'An unexpected error occurred' 
+      }),
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

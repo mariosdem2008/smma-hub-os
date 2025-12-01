@@ -16,10 +16,11 @@ interface AIGenerateModalProps {
   onOpenChange: (open: boolean) => void;
   type: "ideas" | "hooks" | "script" | "improve-script" | "captions" | "improve-caption";
   clientId: string;
+  projectId?: string;
   onUse: (data: any) => void;
 }
 
-export function AIGenerateModal({ open, onOpenChange, type, clientId, onUse }: AIGenerateModalProps) {
+export function AIGenerateModal({ open, onOpenChange, type, clientId, projectId, onUse }: AIGenerateModalProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<any[]>([]);
@@ -38,33 +39,50 @@ export function AIGenerateModal({ open, onOpenChange, type, clientId, onUse }: A
     setSuggestions([]);
 
     try {
-      let requestBody: any = { clientId };
+      // Map UI type to backend mode
+      let mode: string;
+      let input_text: string | undefined;
+      let brand_context = "";
 
-      // Build request based on type
-      if (type === "ideas") {
-        requestBody = {
-          ...requestBody,
-          type: "idea",
-          niche: niche || "general",
-          contentPillars: pillars || "education, entertainment, inspiration",
-          trends: trends || "",
-        };
-      } else if (type === "hooks" || type === "script" || type === "improve-script") {
-        requestBody = {
-          ...requestBody,
-          type: "caption",
-          platform,
-          tone,
-          keywords: keywords || (type === "improve-script" ? currentText : "video script"),
-        };
-      } else if (type === "captions" || type === "improve-caption") {
-        requestBody = {
-          ...requestBody,
-          type: "caption_variants",
-          platforms: ["instagram", "facebook", "linkedin"],
-          keywords: type === "improve-caption" ? currentText : keywords,
-        };
+      switch (type) {
+        case "ideas":
+          mode = "ideas";
+          brand_context = `Niche: ${niche || "general"}. Content Pillars: ${pillars || "education, entertainment, inspiration"}. ${trends ? `Trends: ${trends}` : ""}`;
+          break;
+        case "hooks":
+          mode = "hook";
+          brand_context = `Tone: ${tone}. Topic: ${keywords || "engaging content"}`;
+          break;
+        case "script":
+          mode = "script";
+          brand_context = `Tone: ${tone}. Topic: ${keywords || "video content"}`;
+          break;
+        case "improve-script":
+          mode = "rewrite";
+          input_text = currentText;
+          brand_context = `Tone: ${tone}. Improve this script for ${platform}`;
+          break;
+        case "captions":
+          mode = "caption";
+          brand_context = `Keywords: ${keywords || "engaging post"}`;
+          break;
+        case "improve-caption":
+          mode = "rewrite";
+          input_text = currentText;
+          brand_context = `Improve this caption for social media`;
+          break;
+        default:
+          mode = "caption";
       }
+
+      const requestBody = {
+        mode,
+        client_id: clientId,
+        project_id: projectId || null,
+        platform: platform || null,
+        brand_context,
+        input_text,
+      };
 
       const { data, error } = await supabase.functions.invoke("generate-ai-content", {
         body: requestBody,
@@ -72,20 +90,20 @@ export function AIGenerateModal({ open, onOpenChange, type, clientId, onUse }: A
 
       if (error) throw error;
 
-      if (data.error) {
+      if (!data.success) {
         toast({
           title: "Generation Failed",
-          description: data.error,
+          description: data.error || "Unknown error occurred",
           variant: "destructive",
         });
         return;
       }
 
-      setSuggestions(data.content || []);
+      setSuggestions(data.suggestions || []);
 
       toast({
         title: "Generated!",
-        description: `${data.content?.length || 0} suggestions created`,
+        description: `${data.suggestions?.length || 0} suggestions created`,
       });
     } catch (error: any) {
       console.error("AI generation error:", error);
@@ -281,42 +299,18 @@ export function AIGenerateModal({ open, onOpenChange, type, clientId, onUse }: A
               {suggestions.map((suggestion, idx) => (
                 <Card key={idx} className="hover:shadow-md transition-shadow">
                   <CardContent className="p-4">
-                    {type === "ideas" && (
+                    {type === "ideas" && suggestion.title && (
                       <>
                         <div className="font-medium mb-2">{suggestion.title}</div>
                         <p className="text-sm text-muted-foreground mb-3">
                           {suggestion.description}
                         </p>
-                        <div className="flex flex-wrap gap-2 mb-3">
-                          {suggestion.tags?.map((tag: string, i: number) => (
-                            <Badge key={i} variant="secondary" className="text-xs">
-                              {tag}
-                            </Badge>
-                          ))}
-                        </div>
                       </>
                     )}
 
-                    {(type === "hooks" || type === "script" || type === "improve-script") && (
-                      <>
-                        <p className="text-sm mb-3 whitespace-pre-wrap">{suggestion.caption}</p>
-                        {suggestion.hashtags && (
-                          <div className="flex flex-wrap gap-1">
-                            {suggestion.hashtags.map((tag: string, i: number) => (
-                              <span key={i} className="text-xs text-primary">
-                                #{tag}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </>
-                    )}
-
-                    {(type === "captions" || type === "improve-caption") && (
-                      <>
-                        <Badge className="mb-2 capitalize">{suggestion.length}</Badge>
-                        <p className="text-sm whitespace-pre-wrap">{suggestion.caption}</p>
-                      </>
+                    {/* All other types use text field */}
+                    {(!suggestion.title || type !== "ideas") && (
+                      <p className="text-sm mb-3 whitespace-pre-wrap">{suggestion.text}</p>
                     )}
 
                     <Button
