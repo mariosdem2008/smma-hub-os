@@ -37,23 +37,20 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-    
-    // Create Supabase client with auth
+
+    // Create Supabase client using service role for reliable auth in edge functions
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: { Authorization: authHeader },
-        },
-      }
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      { auth: { persistSession: false } }
     );
 
+    // Extract JWT token from Authorization header
+    const token = authHeader.replace('Bearer ', '');
+
     // Authenticate user
-    const {
-      data: { user },
-      error: userError,
-    } = await supabaseClient.auth.getUser();
+    const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
+    const user = userData?.user;
 
     if (userError || !user) {
       console.error('[AI-CONTENT] Auth failed:', userError);
