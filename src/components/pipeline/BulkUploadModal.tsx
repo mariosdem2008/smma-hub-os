@@ -172,7 +172,7 @@ export default function BulkUploadModal({
           script_id: formData.scriptId || null,
           notes: formData.notes || null,
           thumbnail_url: thumbnailUrl,
-          pipeline_stage: "idea",
+          status: "idea",
         })
         .select()
         .single();
@@ -204,7 +204,6 @@ export default function BulkUploadModal({
             file_url: publicUrl,
             file_type: fileType,
             file_size: file.size,
-            pipeline_stage: "idea",
           })
           .select()
           .single();
@@ -232,11 +231,10 @@ export default function BulkUploadModal({
           display_order: 0,
         });
 
-        // Update asset to have project_id and pipeline_stage
+        // Update asset to have project_id
         await supabase.from("assets")
           .update({
             project_id: project.id,
-            pipeline_stage: "idea",
           })
           .eq("id", assetId);
       });
