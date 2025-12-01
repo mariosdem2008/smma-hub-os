@@ -1192,6 +1192,78 @@ export type Database = {
         }
         Relationships: []
       }
+      project_activities: {
+        Row: {
+          action: string
+          actor_id: string
+          actor_type: string
+          agency_id: string
+          client_id: string
+          created_at: string
+          id: string
+          payload: Json | null
+          project_id: string
+        }
+        Insert: {
+          action: string
+          actor_id: string
+          actor_type: string
+          agency_id: string
+          client_id: string
+          created_at?: string
+          id?: string
+          payload?: Json | null
+          project_id: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string
+          actor_type?: string
+          agency_id?: string
+          client_id?: string
+          created_at?: string
+          id?: string
+          payload?: Json | null
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_activities_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_activities_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_contacts_secure"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_activities_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_portal_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_activities_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_activities_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_assets: {
         Row: {
           asset_id: string

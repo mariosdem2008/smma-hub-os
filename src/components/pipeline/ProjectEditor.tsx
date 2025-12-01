@@ -9,6 +9,7 @@ import { Loader2, Folder } from "lucide-react";
 import ProjectAssetsTab from "./ProjectAssetsTab";
 import ProjectScriptIdeaTab from "./ProjectScriptIdeaTab";
 import ProjectFinalContentTab from "./ProjectFinalContentTab";
+import ProjectActivityHistory from "./ProjectActivityHistory";
 
 interface Project {
   id: string;
@@ -146,10 +147,11 @@ export default function ProjectEditor({
         </DialogHeader>
 
         <Tabs defaultValue="assets" className="flex-1 flex flex-col overflow-hidden">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="assets">Assets</TabsTrigger>
             <TabsTrigger value="script-idea">Script & Idea</TabsTrigger>
             <TabsTrigger value="final">Final Content</TabsTrigger>
+            <TabsTrigger value="activity">Activity</TabsTrigger>
           </TabsList>
 
           <div className="flex-1 overflow-y-auto">
@@ -163,6 +165,10 @@ export default function ProjectEditor({
 
             <TabsContent value="final" className="mt-0 h-full">
               <ProjectFinalContentTab project={project} onUpdate={fetchProject} />
+            </TabsContent>
+
+            <TabsContent value="activity" className="mt-0 h-full p-4">
+              <ProjectActivityHistory projectId={project.id} />
             </TabsContent>
           </div>
         </Tabs>
