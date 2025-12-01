@@ -177,7 +177,7 @@ export default function Dashboard() {
         .from("projects")
         .select("id")
         .in("client_id", clientIds)
-        .eq("pipeline_stage", "scheduled")
+        .eq("status", "scheduled")
         .not("scheduled_time", "is", null)
         .gte("scheduled_time", weekStart.toISOString())
         .lte("scheduled_time", weekEnd.toISOString());
@@ -197,13 +197,13 @@ export default function Dashboard() {
           title,
           platforms,
           scheduled_time,
-          pipeline_stage,
+          status,
           thumbnail_url,
           client:clients(id, name)
         `,
         )
         .in("client_id", clientIds)
-        .eq("pipeline_stage", "scheduled")
+        .eq("status", "scheduled")
         .not("scheduled_time", "is", null)
         .gte("scheduled_time", now.toISOString())
         .order("scheduled_time", { ascending: true })

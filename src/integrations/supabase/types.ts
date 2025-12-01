@@ -1277,6 +1277,7 @@ export type Database = {
           agency_id: string
           client_id: string
           created_at: string | null
+          description: string | null
           editor_comments: string | null
           error_message: string | null
           final_asset_id: string | null
@@ -1287,12 +1288,15 @@ export type Database = {
           pipeline_stage: string | null
           platform_captions: Json | null
           platforms: string[] | null
+          published_at: string | null
           published_urls: Json | null
           retry_count: number | null
+          scheduled_for: string | null
           scheduled_time: string | null
           script_id: string | null
           status: string | null
           thumbnail_url: string | null
+          time_zone: string | null
           title: string
           updated_at: string | null
         }
@@ -1300,6 +1304,7 @@ export type Database = {
           agency_id: string
           client_id: string
           created_at?: string | null
+          description?: string | null
           editor_comments?: string | null
           error_message?: string | null
           final_asset_id?: string | null
@@ -1310,12 +1315,15 @@ export type Database = {
           pipeline_stage?: string | null
           platform_captions?: Json | null
           platforms?: string[] | null
+          published_at?: string | null
           published_urls?: Json | null
           retry_count?: number | null
+          scheduled_for?: string | null
           scheduled_time?: string | null
           script_id?: string | null
           status?: string | null
           thumbnail_url?: string | null
+          time_zone?: string | null
           title: string
           updated_at?: string | null
         }
@@ -1323,6 +1331,7 @@ export type Database = {
           agency_id?: string
           client_id?: string
           created_at?: string | null
+          description?: string | null
           editor_comments?: string | null
           error_message?: string | null
           final_asset_id?: string | null
@@ -1333,12 +1342,15 @@ export type Database = {
           pipeline_stage?: string | null
           platform_captions?: Json | null
           platforms?: string[] | null
+          published_at?: string | null
           published_urls?: Json | null
           retry_count?: number | null
+          scheduled_for?: string | null
           scheduled_time?: string | null
           script_id?: string | null
           status?: string | null
           thumbnail_url?: string | null
+          time_zone?: string | null
           title?: string
           updated_at?: string | null
         }
@@ -1383,6 +1395,113 @@ export type Database = {
             columns: ["script_id"]
             isOneToOne: false
             referencedRelation: "scripts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scheduled_posts: {
+        Row: {
+          agency_id: string
+          caption: string | null
+          client_id: string
+          created_at: string
+          error_message: string | null
+          hashtags: string | null
+          id: string
+          platform: string
+          platform_permalink: string | null
+          platform_post_id: string | null
+          project_id: string
+          published_at: string | null
+          scheduled_for: string
+          social_connection_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          agency_id: string
+          caption?: string | null
+          client_id: string
+          created_at?: string
+          error_message?: string | null
+          hashtags?: string | null
+          id?: string
+          platform: string
+          platform_permalink?: string | null
+          platform_post_id?: string | null
+          project_id: string
+          published_at?: string | null
+          scheduled_for: string
+          social_connection_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          agency_id?: string
+          caption?: string | null
+          client_id?: string
+          created_at?: string
+          error_message?: string | null
+          hashtags?: string | null
+          id?: string
+          platform?: string
+          platform_permalink?: string | null
+          platform_post_id?: string | null
+          project_id?: string
+          published_at?: string | null
+          scheduled_for?: string
+          social_connection_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scheduled_posts_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduled_posts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_contacts_secure"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduled_posts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_portal_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduled_posts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduled_posts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduled_posts_social_connection_id_fkey"
+            columns: ["social_connection_id"]
+            isOneToOne: false
+            referencedRelation: "social_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduled_posts_social_connection_id_fkey"
+            columns: ["social_connection_id"]
+            isOneToOne: false
+            referencedRelation: "social_connections_safe"
             referencedColumns: ["id"]
           },
         ]
@@ -2096,6 +2215,13 @@ export type Database = {
         }
         Returns: Json
       }
+      transition_project_status: {
+        Args: {
+          _new_status: Database["public"]["Enums"]["project_status"]
+          _project_id: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       app_role: "owner" | "manager" | "client"
@@ -2108,6 +2234,15 @@ export type Database = {
         | "scheduled"
         | "published"
         | "failed"
+      project_status:
+        | "idea"
+        | "scripting"
+        | "production"
+        | "internal_review"
+        | "client_review"
+        | "approved"
+        | "scheduled"
+        | "published"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2245,6 +2380,16 @@ export const Constants = {
         "scheduled",
         "published",
         "failed",
+      ],
+      project_status: [
+        "idea",
+        "scripting",
+        "production",
+        "internal_review",
+        "client_review",
+        "approved",
+        "scheduled",
+        "published",
       ],
     },
   },
