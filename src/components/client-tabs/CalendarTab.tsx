@@ -32,18 +32,24 @@ interface CalendarTabProps {
 
 interface ScheduledItem {
   id: string;
+  project_id: string;
   title: string;
-  scheduled_time: string | null;
-  pipeline_stage: string;
-  type: 'project' | 'asset';
+  platform: string;
+  scheduled_for: string;
+  status: string;
   error_message: string | null;
+  caption: string | null;
+  platform_post_id: string | null;
+  platform_permalink: string | null;
 }
 
 const stageColors: Record<string, string> = {
-  approved: "bg-yellow-500",
-  scheduled: "bg-blue-500",
+  pending: "bg-yellow-500",
+  queued: "bg-blue-400",
+  publishing: "bg-blue-600",
   published: "bg-green-500",
   failed: "bg-red-500",
+  cancelled: "bg-gray-500",
 };
 
 export default function CalendarTab({ clientId }: CalendarTabProps) {
@@ -87,22 +93,37 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
 
   const fetchScheduledItems = async () => {
     try {
-      const { data: projects, error: projectsError } = await supabase
-        .from("projects")
-        .select("id, title, scheduled_time, pipeline_stage, error_message")
+      // Fetch scheduled posts
+      const { data: scheduledPosts, error: postsError } = await supabase
+        .from("scheduled_posts")
+        .select(`
+          id,
+          project_id,
+          platform,
+          scheduled_for,
+          status,
+          error_message,
+          caption,
+          platform_post_id,
+          platform_permalink,
+          projects(title)
+        `)
         .eq("client_id", clientId)
-        .in("pipeline_stage", ["scheduled", "published", "failed"])
-        .not("scheduled_time", "is", null);
+        .order("scheduled_for", { ascending: true });
 
-      if (projectsError) throw projectsError;
+      if (postsError) throw postsError;
 
-      const scheduledItems: ScheduledItem[] = (projects || []).map(p => ({
+      const scheduledItems: ScheduledItem[] = (scheduledPosts || []).map(p => ({
         id: p.id,
-        title: p.title,
-        scheduled_time: p.scheduled_time,
-        pipeline_stage: p.pipeline_stage,
-        type: 'project' as const,
+        project_id: p.project_id,
+        title: (p.projects as any)?.title || "Untitled",
+        platform: p.platform,
+        scheduled_for: p.scheduled_for,
+        status: p.status,
         error_message: p.error_message,
+        caption: p.caption,
+        platform_post_id: p.platform_post_id,
+        platform_permalink: p.platform_permalink,
       }));
 
       setItems(scheduledItems);
@@ -132,9 +153,9 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
 
   const getItemsForDay = (day: Date) => {
     return items.filter((item) => {
-      if (!item.scheduled_time) return false;
+      if (!item.scheduled_for) return false;
       // Convert UTC time to local time for comparison
-      const localDate = convertToLocal(item.scheduled_time, userTimezone);
+      const localDate = convertToLocal(item.scheduled_for, userTimezone);
       return isSameDay(localDate, day);
     });
   };
@@ -149,6 +170,19 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
     return format(localDate, "MMM d, yyyy 'at' h:mm a");
   };
 
+  const getPlatformIcon = (platform: string) => {
+    switch (platform) {
+      case "instagram":
+        return "📷";
+      case "facebook":
+        return "📘";
+      case "linkedin":
+        return "💼";
+      default:
+        return "🌐";
+    }
+  };
+
   const handleOpenDeleteDialog = (item: ScheduledItem) => {
     setSelectedItem(item);
     setDeleteDialogOpen(true);
@@ -156,8 +190,8 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
 
   const handleOpenRescheduleDialog = (item: ScheduledItem) => {
     setSelectedItem(item);
-    if (item.scheduled_time) {
-      const localDate = convertToLocal(item.scheduled_time, userTimezone);
+    if (item.scheduled_for) {
+      const localDate = convertToLocal(item.scheduled_for, userTimezone);
       setNewScheduledDate(localDate);
       setNewScheduledTime(format(localDate, "HH:mm"));
     }
@@ -175,8 +209,8 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
       const utcDateTime = convertToUTC(localDateTime, userTimezone);
 
       const { error } = await supabase
-        .from("projects")
-        .update({ scheduled_time: utcDateTime })
+        .from("scheduled_posts")
+        .update({ scheduled_for: utcDateTime })
         .eq("id", selectedItem.id);
 
       if (error) throw error;
@@ -205,18 +239,15 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
 
     try {
       const { error } = await supabase
-        .from("projects")
-        .update({ 
-          scheduled_time: null,
-          pipeline_stage: "approved"
-        })
+        .from("scheduled_posts")
+        .update({ status: "cancelled" })
         .eq("id", selectedItem.id);
 
       if (error) throw error;
 
       toast({
-        title: "Schedule deleted",
-        description: "The post has been unscheduled and moved back to Approved stage",
+        title: "Schedule cancelled",
+        description: "The scheduled post has been cancelled",
       });
 
       setDeleteDialogOpen(false);
@@ -224,7 +255,7 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
       fetchScheduledItems();
     } catch (error: any) {
       toast({
-        title: "Error deleting schedule",
+        title: "Error cancelling schedule",
         description: error.message,
         variant: "destructive",
       });
@@ -244,7 +275,7 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
 
     try {
       // Keep the same time, just change the day (in local timezone)
-      const localDate = convertToLocal(draggedItem.scheduled_time!, userTimezone);
+      const localDate = convertToLocal(draggedItem.scheduled_for, userTimezone);
       const newDate = new Date(day);
       newDate.setHours(localDate.getHours(), localDate.getMinutes(), 0, 0);
 
@@ -252,8 +283,8 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
       const utcDateTime = convertToUTC(newDate, userTimezone);
 
       const { error } = await supabase
-        .from("projects")
-        .update({ scheduled_time: utcDateTime })
+        .from("scheduled_posts")
+        .update({ scheduled_for: utcDateTime })
         .eq("id", draggedItem.id);
 
       if (error) throw error;
@@ -275,50 +306,6 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
     }
   };
 
-  const handleDuplicate = async (item: ScheduledItem) => {
-    try {
-      // Fetch the full project details
-      const { data: project, error: fetchError } = await supabase
-        .from("projects")
-        .select("*")
-        .eq("id", item.id)
-        .single();
-
-      if (fetchError) throw fetchError;
-
-      // Create a duplicate project
-      const { data: newProject, error: insertError } = await supabase
-        .from("projects")
-        .insert({
-          client_id: project.client_id,
-          agency_id: project.agency_id,
-          title: `${project.title} (Copy)`,
-          pipeline_stage: "idea",
-          platforms: project.platforms,
-          platform_captions: project.platform_captions,
-          hashtags: project.hashtags,
-          notes: project.notes,
-          scheduled_time: null,
-        })
-        .select()
-        .single();
-
-      if (insertError) throw insertError;
-
-      toast({
-        title: "Post duplicated",
-        description: "The post has been duplicated and moved to Idea stage",
-      });
-
-      fetchScheduledItems();
-    } catch (error: any) {
-      toast({
-        title: "Error duplicating",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
 
   if (loading) {
     return (
@@ -415,21 +402,22 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
                         </div>
                         <div className="flex flex-col gap-0.5 mb-1">
                           <div className="flex items-center gap-1">
+                            <span className="text-xs mr-1">{getPlatformIcon(item.platform)}</span>
                             <Clock className="h-3 w-3" />
                             <span className="text-xs font-medium">
-                              {item.scheduled_time
-                                ? formatLocalTime(item.scheduled_time, userTimezone)
+                              {item.scheduled_for
+                                ? formatLocalTime(item.scheduled_for, userTimezone)
                                 : "Unscheduled"}
                             </span>
-                            {item.scheduled_time && (
+                            {item.scheduled_for && (
                               <Badge variant="secondary" className="text-[10px] px-1 py-0 h-3.5">
                                 {userTimezone}
                               </Badge>
                             )}
                           </div>
-                          {item.scheduled_time && (
+                          {item.scheduled_for && (
                             <span className="text-[10px] text-muted-foreground ml-4">
-                              UTC: {new Date(item.scheduled_time).toISOString().slice(11, 16)}
+                              UTC: {new Date(item.scheduled_for).toISOString().slice(11, 16)}
                             </span>
                           )}
                         </div>
@@ -437,9 +425,9 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
                           {item.title}
                         </p>
                         <Badge
-                          className={`${stageColors[item.pipeline_stage]} text-white text-xs mt-1`}
+                          className={`${stageColors[item.status]} text-white text-xs mt-1`}
                         >
-                          {item.pipeline_stage}
+                          {item.status}
                         </Badge>
                       </div>
                     ))}
@@ -488,7 +476,7 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
                         draggable
                         onDragStart={() => handleDragStart(item)}
                         className={`${
-                          stageColors[item.pipeline_stage]
+                          stageColors[item.status]
                         } text-white text-xs p-1 rounded group relative`}
                       >
                         <div className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 p-0.5">
@@ -542,22 +530,23 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
-                          <Badge className={`${stageColors[item.pipeline_stage]} text-white`}>
-                            {item.pipeline_stage}
+                          <span className="text-base mr-1">{getPlatformIcon(item.platform)}</span>
+                          <Badge className={`${stageColors[item.status]} text-white`}>
+                            {item.status}
                           </Badge>
-                          {item.scheduled_time && (
+                          {item.scheduled_for && (
                             <div className="flex flex-col gap-0.5">
                               <div className="flex items-center gap-1 text-sm">
                                 <Clock className="h-3 w-3" />
                                 <span className="font-medium">
-                                  {formatLocalDateTime(item.scheduled_time, userTimezone)}
+                                  {formatLocalDateTime(item.scheduled_for, userTimezone)}
                                 </span>
                                 <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4">
                                   {userTimezone}
                                 </Badge>
                               </div>
                               <span className="text-xs text-muted-foreground ml-4">
-                                UTC: {new Date(item.scheduled_time).toISOString().replace("T", " ").slice(0, 16)}
+                                UTC: {new Date(item.scheduled_for).toISOString().replace("T", " ").slice(0, 16)}
                               </span>
                             </div>
                           )}
@@ -569,13 +558,13 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
                             <span>{item.error_message}</span>
                           </div>
                         )}
-                        {index < items.length - 1 && item.scheduled_time && items[index + 1].scheduled_time && (
+                        {index < items.length - 1 && item.scheduled_for && items[index + 1].scheduled_for && (
                           <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">
                             <ArrowRight className="h-3 w-3" />
                             <span>
                               {Math.floor(
-                                (parseISO(items[index + 1].scheduled_time!).getTime() - 
-                                parseISO(item.scheduled_time).getTime()) / 
+                                (parseISO(items[index + 1].scheduled_for).getTime() - 
+                                parseISO(item.scheduled_for).getTime()) / 
                                 (1000 * 60 * 60)
                               )} hours until next post
                             </span>
@@ -596,13 +585,6 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
                           onClick={() => handleOpenDeleteDialog(item)}
                         >
                           <Trash2 className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleDuplicate(item)}
-                        >
-                          <Copy className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
@@ -625,25 +607,25 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
                   <p>Are you sure you want to unschedule this post?</p>
                   <div className="mt-4 p-3 bg-muted rounded-lg space-y-1">
                     <p className="font-medium text-foreground">{selectedItem.title}</p>
-                    {selectedItem.scheduled_time && (
+                    {selectedItem.scheduled_for && (
                       <div className="text-sm space-y-1">
                         <div className="flex items-center gap-1">
                           <Clock className="h-3 w-3" />
                           <span className="font-medium">
-                            {formatLocalDateTime(selectedItem.scheduled_time, userTimezone)}
+                            {formatLocalDateTime(selectedItem.scheduled_for, userTimezone)}
                           </span>
                           <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4">
                             {userTimezone}
                           </Badge>
                         </div>
                         <p className="text-xs text-muted-foreground ml-4">
-                          UTC: {new Date(selectedItem.scheduled_time).toISOString().replace("T", " ").slice(0, 16)}
+                          UTC: {new Date(selectedItem.scheduled_for).toISOString().replace("T", " ").slice(0, 16)}
                         </p>
                       </div>
                     )}
                   </div>
                   <p className="text-sm mt-3">
-                    The post will be moved back to "Approved" stage and can be rescheduled later.
+                    This scheduled post will be cancelled and removed from the queue.
                   </p>
                 </div>
               )}
@@ -653,7 +635,7 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteSchedule} className="bg-destructive hover:bg-destructive/90">
               <Trash2 className="h-4 w-4 mr-2" />
-              Delete Schedule
+              Cancel Schedule
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -668,17 +650,17 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
               {selectedItem && (
                 <div className="mt-2 p-3 bg-muted rounded-lg space-y-1">
                   <p className="font-medium text-foreground">{selectedItem.title}</p>
-                  {selectedItem.scheduled_time && (
+                  {selectedItem.scheduled_for && (
                     <div className="text-sm space-y-1">
                       <div className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
-                        <span>Currently: <span className="font-medium">{formatLocalDateTime(selectedItem.scheduled_time, userTimezone)}</span></span>
+                        <span>Currently: <span className="font-medium">{formatLocalDateTime(selectedItem.scheduled_for, userTimezone)}</span></span>
                         <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4">
                           {userTimezone}
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground ml-4">
-                        UTC: {new Date(selectedItem.scheduled_time).toISOString().replace("T", " ").slice(0, 16)}
+                        UTC: {new Date(selectedItem.scheduled_for).toISOString().replace("T", " ").slice(0, 16)}
                       </p>
                     </div>
                   )}

@@ -10,6 +10,7 @@ import ProjectCard from "@/components/pipeline/ProjectCard";
 import ProjectEditor from "@/components/pipeline/ProjectEditor";
 import BulkUploadModal from "@/components/pipeline/BulkUploadModal";
 import StageDetailModal from "@/components/pipeline/StageDetailModal";
+import SchedulingModal from "@/components/pipeline/SchedulingModal";
 
 interface PipelineTabProps {
   clientId: string;
@@ -49,6 +50,7 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
   const [hoveredStage, setHoveredStage] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [userTimezone, setUserTimezone] = useState<string>("UTC");
+  const [schedulingProjectId, setSchedulingProjectId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const fetchProjects = async () => {
@@ -310,6 +312,13 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
                                       onClick={() => {}}
                                       isDragging={snapshot.isDragging}
                                       onDelete={() => fetchProjects()}
+                                      onSchedule={
+                                        project.status === 'approved'
+                                          ? () => {
+                                              setSchedulingProjectId(project.id);
+                                            }
+                                          : undefined
+                                      }
                                     />
                                   </div>
                                 )}
@@ -370,6 +379,10 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
           setSelectedStage(null);
           setSelectedProjectId(projectId);
         }}
+        onScheduleClick={(projectId) => {
+          setSelectedStage(null);
+          setSchedulingProjectId(projectId);
+        }}
       />
 
       {/* Project Editor */}
@@ -379,6 +392,21 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
           onOpenChange={(open) => !open && setSelectedProjectId(null)}
           projectId={selectedProjectId}
           onUpdate={fetchProjects}
+        />
+      )}
+
+      {/* Scheduling Modal */}
+      {schedulingProjectId && (
+        <SchedulingModal
+          open={!!schedulingProjectId}
+          onOpenChange={(open) => !open && setSchedulingProjectId(null)}
+          projectId={schedulingProjectId}
+          clientId={clientId}
+          agencyId={agencyId}
+          onSuccess={() => {
+            setSchedulingProjectId(null);
+            fetchProjects();
+          }}
         />
       )}
     </div>

@@ -34,9 +34,10 @@ interface ProjectCardProps {
   onClick: () => void;
   isDragging?: boolean;
   onDelete?: () => void;
+  onSchedule?: () => void;
 }
 
-export default function ProjectCard({ project, onClick, isDragging, onDelete }: ProjectCardProps) {
+export default function ProjectCard({ project, onClick, isDragging, onDelete, onSchedule }: ProjectCardProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const { toast } = useToast();
@@ -143,6 +144,20 @@ export default function ProjectCard({ project, onClick, isDragging, onDelete }: 
                 </Badge>
               )}
             </div>
+
+            {/* Schedule Button for Approved Projects */}
+            {project.status === 'approved' && onSchedule && (
+              <Button
+                size="sm"
+                className="w-full"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSchedule();
+                }}
+              >
+                Schedule Post
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
