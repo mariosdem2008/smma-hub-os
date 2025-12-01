@@ -21,7 +21,7 @@ interface Project {
   title: string;
   client_id: string;
   agency_id: string;
-  pipeline_stage: string;
+  status: string;
   thumbnail_url: string | null;
   idea_id: string | null;
   script_id: string | null;
@@ -32,9 +32,9 @@ interface Project {
 const PIPELINE_STAGES = [
   { key: 'idea', label: 'Idea', color: '220 70% 50%' },
   { key: 'scripting', label: 'Scripting', color: '250 70% 50%' },
-  { key: 'in_production', label: 'In Production', color: '270 70% 50%' },
+  { key: 'production', label: 'Production', color: '270 70% 50%' },
   { key: 'internal_review', label: 'Internal Review', color: '30 70% 50%' },
-  { key: 'review', label: 'Client Review', color: '35 70% 50%' },
+  { key: 'client_review', label: 'Client Review', color: '35 70% 50%' },
   { key: 'approved', label: 'Approved', color: '150 70% 50%' },
   { key: 'scheduled', label: 'Scheduled', color: '200 70% 50%' },
   { key: 'published', label: 'Published', color: '120 70% 50%' }
@@ -60,7 +60,7 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
           title,
           client_id,
           agency_id,
-          pipeline_stage,
+          status,
           thumbnail_url,
           idea_id,
           script_id,
@@ -149,7 +149,7 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
     try {
       const { data, error } = await supabase
         .from('projects')
-        .update({ pipeline_stage: newStage })
+        .update({ status: newStage })
         .eq('id', projectId)
         .select()
         .single();
@@ -162,7 +162,7 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
       });
 
       // Optimistically update local state
-      setProjects(projects.map(p => p.id === projectId ? { ...p, pipeline_stage: newStage } : p));
+      setProjects(projects.map(p => p.id === projectId ? { ...p, status: newStage } : p));
     } catch (error: any) {
       console.error('Stage transition error:', error);
       toast({
@@ -198,7 +198,7 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
     // Optimistically update UI
     const project = projects.find(p => p.id === projectId);
     if (project) {
-      setProjects(projects.map(p => p.id === projectId ? { ...p, pipeline_stage: newStage } : p));
+      setProjects(projects.map(p => p.id === projectId ? { ...p, status: newStage } : p));
     }
 
     // Update in database
@@ -206,7 +206,7 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
   };
 
   const getProjectsByStage = (stage: string) => {
-    return projects.filter(p => p.pipeline_stage === stage);
+    return projects.filter(p => p.status === stage);
   };
 
   if (loading) {

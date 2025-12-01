@@ -55,7 +55,7 @@ export default function PortalApprovals() {
           scheduled_time
         `)
         .eq('client_id', clientId)
-        .eq('pipeline_stage', 'review')
+        .eq('status', 'client_review')
         .order('created_at', { ascending: false });
 
       if (projectsError) throw projectsError;

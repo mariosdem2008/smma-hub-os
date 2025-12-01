@@ -20,7 +20,7 @@ interface Project {
   thumbnail_url: string | null;
   notes: string | null;
   editor_comments: string | null;
-  pipeline_stage: string;
+  status: string;
   final_asset_id: string | null;
   platforms: string[];
   scheduled_time: string | null;

@@ -8,7 +8,7 @@ interface Project {
   title: string;
   client_id: string;
   agency_id: string;
-  pipeline_stage: string;
+  status: string;
   thumbnail_url: string | null;
   idea_id: string | null;
   script_id: string | null;

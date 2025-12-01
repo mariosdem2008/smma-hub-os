@@ -38,7 +38,7 @@ serve(async (req) => {
           thumbnail_url
         )
       `)
-      .eq('pipeline_stage', 'scheduled')
+      .eq('status', 'scheduled')
       .lte('scheduled_time', now)
       .order('scheduled_time', { ascending: true })
       .limit(10);
@@ -111,7 +111,7 @@ async function publishProject(supabaseAdmin: any, project: any) {
       .from('projects')
       .update({
         error_message: errorMsg,
-        pipeline_stage: 'failed',
+        status: 'failed',
         retry_count: 0,
       })
       .eq('id', project.id);
@@ -134,7 +134,7 @@ async function publishProject(supabaseAdmin: any, project: any) {
       .from('projects')
       .update({
         error_message: 'No supported platforms selected (only Instagram and Facebook are supported)',
-        pipeline_stage: 'failed',
+        status: 'failed',
         retry_count: 0,
       })
       .eq('id', project.id);
@@ -364,14 +364,14 @@ async function publishProject(supabaseAdmin: any, project: any) {
 
   if (allSuccessful) {
     // All platforms succeeded
-    updateData.pipeline_stage = 'published';
+    updateData.status = 'published';
     updateData.published_urls = publishedUrls;
     updateData.error_message = null;
     updateData.retry_count = 0; // Reset retry count on success
     console.log(`[AUTOPUBLISH] Project ${project.id} fully published`);
   } else if (hasSuccess && hasFailure) {
     // Partial success
-    updateData.pipeline_stage = 'published';
+    updateData.status = 'published';
     updateData.published_urls = publishedUrls;
     updateData.error_message = `Partial success. Failed platforms: ${errorMessages.join('; ')}`;
     updateData.retry_count = 0; // Reset retry count on partial success
@@ -389,7 +389,7 @@ async function publishProject(supabaseAdmin: any, project: any) {
       console.log(`[AUTOPUBLISH] Project ${project.id} scheduled for retry ${currentRetryCount + 1}/3 at ${retryTime.toISOString()}`);
     } else {
       // Max retries reached - mark as failed
-      updateData.pipeline_stage = 'failed';
+      updateData.status = 'failed';
       updateData.retry_count = 3;
       updateData.error_message = `Failed after 3 attempts: ${combinedErrors}`;
       console.error(`[AUTOPUBLISH] Project ${project.id} failed after 3 retries: ${combinedErrors}`);
@@ -412,6 +412,6 @@ async function publishProject(supabaseAdmin: any, project: any) {
     projectId: project.id,
     success: hasSuccess,
     publishedUrls: publishedUrls,
-    stage: updateData.pipeline_stage
+    stage: updateData.status
   };
 }

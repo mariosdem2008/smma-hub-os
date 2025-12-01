@@ -21,7 +21,7 @@ interface Project {
   id: string;
   title: string;
   thumbnail_url: string | null;
-  pipeline_stage: string;
+  status: string;
   idea_id: string | null;
   script_id: string | null;
   created_at: string;
@@ -115,7 +115,7 @@ export default function ProjectCard({ project, onClick, isDragging, onDelete }: 
             </div>
 
             {/* Error Message */}
-            {project.pipeline_stage === 'failed' && project.error_message && (
+            {project.status === 'failed' && project.error_message && (
               <div className="flex items-start gap-2 p-2 bg-destructive/10 rounded text-destructive">
                 <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
                 <p className="text-xs line-clamp-2">{project.error_message}</p>

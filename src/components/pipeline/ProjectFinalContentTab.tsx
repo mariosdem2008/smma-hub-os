@@ -40,7 +40,7 @@ interface Project {
   platform_captions: Record<string, string>;
   hashtags: string | null;
   scheduled_time: string | null;
-  pipeline_stage: string | null;
+  status: string | null;
   published_urls: Record<string, string> | null;
   error_message: string | null;
 }
@@ -616,7 +616,7 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
           )}
         </Button>
 
-        {project.pipeline_stage === "published" && project.published_urls && (
+        {project.status === "published" && project.published_urls && (
           <div className="space-y-2 mt-4 p-3 rounded bg-green-500/10 border border-green-500/20">
             <p className="text-sm font-medium text-green-600">✓ Published successfully</p>
             <div className="space-y-1">
@@ -635,7 +635,7 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
           </div>
         )}
 
-        {project.pipeline_stage === "scheduled" && project.scheduled_time && (
+        {project.status === "scheduled" && project.scheduled_time && (
           <div className="mt-4 p-3 bg-muted/50 rounded-lg space-y-2">
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-primary" />
@@ -659,7 +659,7 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
           </div>
         )}
 
-        {project.pipeline_stage === "failed" && project.error_message && (
+        {project.status === "failed" && project.error_message && (
           <p className="text-sm text-red-600 mt-4">✕ Publishing failed: {project.error_message}</p>
         )}
       </div>

@@ -106,14 +106,14 @@ export default function OverviewTab({ clientId, client, onNotesUpdate }: Overvie
       .from("assets")
       .select("*", { count: "exact", head: true })
       .eq("client_id", clientId)
-      .eq("pipeline_stage", "scheduled");
+      .eq("status", "scheduled");
 
     // Fetch published content
     const { count: publishedCount } = await supabase
       .from("assets")
       .select("*", { count: "exact", head: true })
       .eq("client_id", clientId)
-      .eq("pipeline_stage", "published");
+      .eq("status", "published");
 
     // Fetch upcoming content (scheduled in next 7 days)
     const sevenDaysFromNow = new Date();
@@ -123,7 +123,7 @@ export default function OverviewTab({ clientId, client, onNotesUpdate }: Overvie
       .from("assets")
       .select("*", { count: "exact", head: true })
       .eq("client_id", clientId)
-      .eq("pipeline_stage", "scheduled")
+      .eq("status", "scheduled")
       .gte("scheduled_time", new Date().toISOString())
       .lte("scheduled_time", sevenDaysFromNow.toISOString());
 
