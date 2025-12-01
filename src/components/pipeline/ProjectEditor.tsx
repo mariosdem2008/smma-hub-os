@@ -10,6 +10,7 @@ import ProjectAssetsTab from "./ProjectAssetsTab";
 import ProjectScriptIdeaTab from "./ProjectScriptIdeaTab";
 import ProjectFinalContentTab from "./ProjectFinalContentTab";
 import ProjectActivityHistory from "./ProjectActivityHistory";
+import { AIAssistant } from "./AIAssistant";
 
 interface Project {
   id: string;
@@ -131,18 +132,60 @@ export default function ProjectEditor({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <Folder className="h-5 w-5 text-primary" />
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 flex-1">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <Folder className="h-5 w-5 text-primary" />
+              </div>
+              <div className="flex-1 flex items-center gap-2">
+                <Input
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  onBlur={handleTitleUpdate}
+                  className="text-lg font-semibold border-none shadow-none px-0 focus-visible:ring-0"
+                />
+              </div>
             </div>
-            <div className="flex-1 flex items-center gap-2">
-              <Input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                onBlur={handleTitleUpdate}
-                className="text-lg font-semibold border-none shadow-none px-0 focus-visible:ring-0"
-              />
-            </div>
+            <AIAssistant
+              projectId={project.id}
+              clientId={project.client_id}
+              onGenerateIdea={(idea) => {
+                toast({
+                  title: "Idea Added",
+                  description: "Navigate to Script & Idea tab to view and edit",
+                });
+              }}
+              onGenerateHook={(hook) => {
+                toast({
+                  title: "Hook Generated",
+                  description: "Copy and paste into your script editor",
+                });
+              }}
+              onGenerateScript={(script) => {
+                toast({
+                  title: "Script Generated",
+                  description: "Navigate to Script & Idea tab to view and edit",
+                });
+              }}
+              onImproveScript={(script) => {
+                toast({
+                  title: "Script Improved",
+                  description: "Copy and paste into your script editor",
+                });
+              }}
+              onGenerateCaption={(captions) => {
+                toast({
+                  title: "Captions Generated",
+                  description: "Navigate to Final Content tab to apply captions",
+                });
+              }}
+              onImproveCaption={(captions) => {
+                toast({
+                  title: "Captions Improved",
+                  description: "Navigate to Final Content tab to apply captions",
+                });
+              }}
+            />
           </div>
         </DialogHeader>
 
