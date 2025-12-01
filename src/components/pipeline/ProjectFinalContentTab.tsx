@@ -270,6 +270,60 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
       // Filter platforms to only supported ones (Instagram, Facebook)
       const supportedPlatforms = selectedPlatforms.filter((p) => p === "instagram" || p === "facebook");
 
+      if (supportedPlatforms.length === 0) {
+        toast({
+          title: "No supported platforms",
+          description: "Currently only Instagram and Facebook are supported for scheduling",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Fetch agency id for scheduled_posts
+      const { data: projectRow, error: projectError } = await supabase
+        .from("projects")
+        .select("agency_id")
+        .eq("id", project.id)
+        .single();
+
+      if (projectError) throw projectError;
+
+      const agencyId = projectRow?.agency_id as string | undefined;
+
+      // Fetch social connections for this client to map platform -> connection id
+      const { data: connectionsData, error: connectionsError } = await supabase
+        .from("social_connections")
+        .select("id, platform, status")
+        .eq("client_id", project.client_id)
+        .eq("status", "connected");
+
+      if (connectionsError) throw connectionsError;
+
+      const connectionMap: Record<string, string | null> = {};
+      supportedPlatforms.forEach((platform) => {
+        const match = connectionsData?.find((c) => c.platform === platform && c.status === "connected");
+        connectionMap[platform] = match ? match.id : null;
+      });
+
+      // Create scheduled_posts rows per platform (normalized model for calendars + autoposting)
+      const insertPromises = supportedPlatforms.map((platform) =>
+        supabase.from("scheduled_posts").insert({
+          project_id: project.id,
+          agency_id: agencyId,
+          client_id: project.client_id,
+          platform,
+          social_connection_id: connectionMap[platform],
+          scheduled_for: utcDateTime,
+          status: "pending",
+          caption: captions[platform] || null,
+        })
+      );
+
+      const insertResults = await Promise.all(insertPromises);
+      const insertError = insertResults.find((r) => r.error)?.error;
+      if (insertError) throw insertError;
+
+      // Also update the project for backward compatibility / diagnostics
       const { error } = await supabase
         .from("projects")
         .update({
@@ -298,7 +352,6 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
       });
     }
   };
-
   const handleSaveSettings = async () => {
     try {
       // Filter platforms to only supported ones (Instagram, Facebook)
