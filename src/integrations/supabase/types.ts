@@ -158,6 +158,75 @@ export type Database = {
           },
         ]
       }
+      ai_history: {
+        Row: {
+          agency_id: string
+          client_id: string
+          created_at: string
+          id: string
+          input: Json
+          mode: string
+          output: Json
+          project_id: string | null
+        }
+        Insert: {
+          agency_id: string
+          client_id: string
+          created_at?: string
+          id?: string
+          input?: Json
+          mode: string
+          output?: Json
+          project_id?: string | null
+        }
+        Update: {
+          agency_id?: string
+          client_id?: string
+          created_at?: string
+          id?: string
+          input?: Json
+          mode?: string
+          output?: Json
+          project_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_history_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_history_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_contacts_secure"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_history_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_portal_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_history_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_history_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       approval_tasks: {
         Row: {
           approver_id: string
@@ -1364,8 +1433,10 @@ export type Database = {
           error_message: string | null
           final_asset_id: string | null
           hashtags: string | null
+          hooks: Json | null
           id: string
           idea_id: string | null
+          ideas: Json | null
           notes: string | null
           pipeline_stage: string | null
           platform_captions: Json | null
@@ -1375,6 +1446,7 @@ export type Database = {
           retry_count: number | null
           scheduled_for: string | null
           scheduled_time: string | null
+          script: string | null
           script_id: string | null
           status: string | null
           thumbnail_url: string | null
@@ -1391,8 +1463,10 @@ export type Database = {
           error_message?: string | null
           final_asset_id?: string | null
           hashtags?: string | null
+          hooks?: Json | null
           id?: string
           idea_id?: string | null
+          ideas?: Json | null
           notes?: string | null
           pipeline_stage?: string | null
           platform_captions?: Json | null
@@ -1402,6 +1476,7 @@ export type Database = {
           retry_count?: number | null
           scheduled_for?: string | null
           scheduled_time?: string | null
+          script?: string | null
           script_id?: string | null
           status?: string | null
           thumbnail_url?: string | null
@@ -1418,8 +1493,10 @@ export type Database = {
           error_message?: string | null
           final_asset_id?: string | null
           hashtags?: string | null
+          hooks?: Json | null
           id?: string
           idea_id?: string | null
+          ideas?: Json | null
           notes?: string | null
           pipeline_stage?: string | null
           platform_captions?: Json | null
@@ -1429,6 +1506,7 @@ export type Database = {
           retry_count?: number | null
           scheduled_for?: string | null
           scheduled_time?: string | null
+          script?: string | null
           script_id?: string | null
           status?: string | null
           thumbnail_url?: string | null
