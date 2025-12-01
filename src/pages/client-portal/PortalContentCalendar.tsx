@@ -8,45 +8,60 @@ import { Calendar } from "@/components/ui/calendar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { hapticSelection } from "@/lib/haptics";
-import { format, startOfWeek, endOfWeek, eachDayOfInterval, startOfMonth, endOfMonth, isSameDay, parseISO } from "date-fns";
-import { CalendarDays, Clock } from "lucide-react";
+import { format, startOfWeek, endOfWeek, eachDayOfInterval, startOfMonth, endOfMonth, isSameDay } from "date-fns";
+import { Clock, Globe } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { convertToLocal } from "@/lib/utils";
+import ScheduledPostDetailModal from "@/components/pipeline/ScheduledPostDetailModal";
 
-interface Project {
+interface ScheduledPost {
   id: string;
+  project_id: string;
   title: string;
-  platforms: string[] | null;
-  scheduled_time: string | null;
-  pipeline_stage: string;
+  platform: string;
+  scheduled_for: string;
+  status: string;
 }
 
 interface OutletContext {
   clientId: string;
+  userTimezone?: string;
 }
 
-const stageColors: Record<string, string> = {
-  approved: "bg-yellow-500",
-  scheduled: "bg-blue-500",
+const statusColors: Record<string, string> = {
+  pending: "bg-yellow-500",
+  queued: "bg-blue-400",
+  publishing: "bg-blue-600",
   published: "bg-green-500",
+  failed: "bg-red-500",
+  cancelled: "bg-gray-500",
 };
 
 export function PortalContentCalendar() {
-  const { clientId } = useOutletContext<OutletContext>();
-  const [projects, setProjects] = useState<Project[]>([]);
+  const { clientId, userTimezone = "UTC" } = useOutletContext<OutletContext>();
+  const [posts, setPosts] = useState<ScheduledPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<"week" | "month">("week");
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
   const { toast } = useToast();
   const isMobile = useIsMobile();
 
-  const fetchProjects = async () => {
+  const fetchPosts = async () => {
     const { data, error } = await supabase
-      .from("projects")
-      .select("id, title, platforms, scheduled_time, pipeline_stage")
+      .from("scheduled_posts")
+      .select(`
+        id,
+        project_id,
+        platform,
+        scheduled_for,
+        status,
+        projects(title)
+      `)
       .eq("client_id", clientId)
-      .in("pipeline_stage", ["scheduled", "published"])
-      .not("scheduled_time", "is", null)
-      .order("scheduled_time", { ascending: true });
+      .in("status", ["pending", "queued", "publishing", "published"])
+      .order("scheduled_for", { ascending: true });
 
     if (error) {
       toast({
@@ -55,7 +70,15 @@ export function PortalContentCalendar() {
         variant: "destructive",
       });
     } else {
-      setProjects(data || []);
+      const scheduledPosts: ScheduledPost[] = (data || []).map(p => ({
+        id: p.id,
+        project_id: p.project_id,
+        title: (p.projects as any)?.title || "Untitled",
+        platform: p.platform,
+        scheduled_for: p.scheduled_for,
+        status: p.status,
+      }));
+      setPosts(scheduledPosts);
     }
 
     setLoading(false);
@@ -64,12 +87,12 @@ export function PortalContentCalendar() {
   // Pull-to-refresh
   const { isRefreshing, pullDistance } = usePullToRefresh({
     onRefresh: async () => {
-      await fetchProjects();
+      await fetchPosts();
     },
   });
 
   useEffect(() => {
-    fetchProjects();
+    fetchPosts();
 
     // Subscribe to real-time changes
     const channel = supabase
@@ -79,11 +102,11 @@ export function PortalContentCalendar() {
         {
           event: '*',
           schema: 'public',
-          table: 'projects',
+          table: 'scheduled_posts',
           filter: `client_id=eq.${clientId}`
         },
         () => {
-          fetchProjects();
+          fetchPosts();
         }
       )
       .subscribe();
@@ -105,11 +128,26 @@ export function PortalContentCalendar() {
     return eachDayOfInterval({ start, end });
   };
 
-  const getProjectsForDay = (day: Date) => {
-    return projects.filter((project) => {
-      if (!project.scheduled_time) return false;
-      return isSameDay(parseISO(project.scheduled_time), day);
+  const getPostsForDay = (day: Date) => {
+    return posts.filter((post) => {
+      if (!post.scheduled_for) return false;
+      const localDate = convertToLocal(post.scheduled_for, userTimezone);
+      return isSameDay(localDate, day);
     });
+  };
+
+  const formatLocalTime = (utcString: string) => {
+    const localDate = convertToLocal(utcString, userTimezone);
+    return format(localDate, "HH:mm");
+  };
+
+  const getPlatformIcon = (platform: string) => {
+    switch (platform) {
+      case "instagram": return "📷";
+      case "facebook": return "📘";
+      case "linkedin": return "💼";
+      default: return "🌐";
+    }
   };
 
   if (loading) {
@@ -139,7 +177,13 @@ export function PortalContentCalendar() {
       
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl md:text-2xl font-bold">Content Calendar</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl md:text-2xl font-bold">Content Calendar</h2>
+            <Badge variant="outline" className="text-xs">
+              <Globe className="h-3 w-3 mr-1" />
+              {userTimezone}
+            </Badge>
+          </div>
           <p className="text-sm md:text-base text-muted-foreground">
             View your scheduled and published content
           </p>
@@ -168,7 +212,7 @@ export function PortalContentCalendar() {
 
           <div className="grid grid-cols-1 md:grid-cols-7 gap-2 md:gap-4">
             {getWeekDays().map((day) => {
-              const dayProjects = getProjectsForDay(day);
+              const dayPosts = getPostsForDay(day);
               return (
                 <Card key={day.toISOString()} className="p-3 md:p-4">
                   <div className="font-semibold mb-2 text-center md:text-left">
@@ -177,26 +221,29 @@ export function PortalContentCalendar() {
                     <span className="text-xl md:text-2xl">{format(day, "d")}</span>
                   </div>
                   <div className="space-y-2">
-                    {dayProjects.map((project) => (
+                    {dayPosts.map((post) => (
                       <div
-                        key={project.id}
-                        className="p-2 rounded border bg-card"
+                        key={post.id}
+                        onClick={() => {
+                          setSelectedPostId(post.id);
+                          setDetailModalOpen(true);
+                        }}
+                        className="p-2 rounded border bg-card hover:bg-accent cursor-pointer transition-colors"
                       >
                         <div className="flex items-center gap-2 mb-1">
+                          <span className="text-xs">{getPlatformIcon(post.platform)}</span>
                           <Clock className="h-3 w-3" />
-                          <span className="text-xs">
-                            {project.scheduled_time
-                              ? format(parseISO(project.scheduled_time), "HH:mm")
-                              : "Unscheduled"}
+                          <span className="text-xs font-medium">
+                            {formatLocalTime(post.scheduled_for)}
                           </span>
                         </div>
                         <p className="text-xs font-medium line-clamp-2">
-                          {project.title}
+                          {post.title}
                         </p>
                         <Badge
-                          className={`${stageColors[project.pipeline_stage]} text-white text-xs mt-1`}
+                          className={`${statusColors[post.status]} text-white text-xs mt-1`}
                         >
-                          {project.pipeline_stage}
+                          {post.status}
                         </Badge>
                       </div>
                     ))}
@@ -227,21 +274,25 @@ export function PortalContentCalendar() {
               </div>
             ))}
             {getMonthDays().map((day) => {
-              const dayProjects = getProjectsForDay(day);
+              const dayPosts = getPostsForDay(day);
               return (
                 <Card key={day.toISOString()} className="p-1 md:p-2 min-h-[80px] md:min-h-[100px]">
                   <div className="text-xs md:text-sm font-semibold mb-1">
                     {format(day, "d")}
                   </div>
                   <div className="space-y-1">
-                    {dayProjects.map((project) => (
+                    {dayPosts.map((post) => (
                       <div
-                        key={project.id}
+                        key={post.id}
+                        onClick={() => {
+                          setSelectedPostId(post.id);
+                          setDetailModalOpen(true);
+                        }}
                         className={`${
-                          stageColors[project.pipeline_stage]
-                        } text-white text-xs p-1 rounded`}
+                          statusColors[post.status]
+                        } text-white text-xs p-1 rounded hover:opacity-80 cursor-pointer transition-opacity`}
                       >
-                        <p className="line-clamp-1">{project.title}</p>
+                        <p className="line-clamp-1">{post.title}</p>
                       </div>
                     ))}
                   </div>
@@ -252,6 +303,15 @@ export function PortalContentCalendar() {
         </TabsContent>
       </Tabs>
 
+      {/* Detail Modal */}
+      <ScheduledPostDetailModal
+        open={detailModalOpen}
+        onOpenChange={setDetailModalOpen}
+        scheduledPostId={selectedPostId}
+        userTimezone={userTimezone}
+        onSuccess={fetchPosts}
+        readOnly={true}
+      />
     </div>
   );
 }

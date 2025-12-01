@@ -2,29 +2,14 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar } from "@/components/ui/calendar";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { format, startOfWeek, endOfWeek, eachDayOfInterval, startOfMonth, endOfMonth, isSameDay, parseISO } from "date-fns";
-import { CalendarDays, Clock, Edit, Copy, X, ArrowRight, AlertCircle, Globe, Trash2 } from "lucide-react";
+import { format, startOfWeek, endOfWeek, eachDayOfInterval, startOfMonth, endOfMonth, isSameDay } from "date-fns";
+import { Globe, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import { convertToLocal, convertToUTC } from "@/lib/utils";
+import { convertToLocal } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import ScheduledPostDetailModal from "@/components/pipeline/ScheduledPostDetailModal";
 
 interface CalendarTabProps {
   clientId: string;
@@ -58,12 +43,8 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<"week" | "month" | "queue">("week");
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<ScheduledItem | null>(null);
-  const [draggedItem, setDraggedItem] = useState<ScheduledItem | null>(null);
-  const [newScheduledDate, setNewScheduledDate] = useState<Date | undefined>(undefined);
-  const [newScheduledTime, setNewScheduledTime] = useState<string>("");
+  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [userTimezone, setUserTimezone] = useState<string>("UTC");
   const { toast } = useToast();
 
@@ -183,129 +164,10 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
     }
   };
 
-  const handleOpenDeleteDialog = (item: ScheduledItem) => {
-    setSelectedItem(item);
-    setDeleteDialogOpen(true);
+  const handleOpenDetail = (postId: string) => {
+    setSelectedPostId(postId);
+    setDetailModalOpen(true);
   };
-
-  const handleOpenRescheduleDialog = (item: ScheduledItem) => {
-    setSelectedItem(item);
-    if (item.scheduled_for) {
-      const localDate = convertToLocal(item.scheduled_for, userTimezone);
-      setNewScheduledDate(localDate);
-      setNewScheduledTime(format(localDate, "HH:mm"));
-    }
-    setRescheduleDialogOpen(true);
-  };
-
-  const handleReschedule = async () => {
-    if (!selectedItem || !newScheduledDate || !newScheduledTime) return;
-
-    try {
-      const [hours, minutes] = newScheduledTime.split(':').map(Number);
-      const localDateTime = new Date(newScheduledDate);
-      localDateTime.setHours(hours, minutes, 0, 0);
-
-      const utcDateTime = convertToUTC(localDateTime, userTimezone);
-
-      const { error } = await supabase
-        .from("scheduled_posts")
-        .update({ scheduled_for: utcDateTime })
-        .eq("id", selectedItem.id);
-
-      if (error) throw error;
-
-      toast({
-        title: "Post rescheduled",
-        description: `Rescheduled to ${format(localDateTime, "MMM d, yyyy 'at' h:mm a")} (${userTimezone})`,
-      });
-
-      setRescheduleDialogOpen(false);
-      setSelectedItem(null);
-      setNewScheduledDate(undefined);
-      setNewScheduledTime("");
-      fetchScheduledItems();
-    } catch (error: any) {
-      toast({
-        title: "Error rescheduling",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleDeleteSchedule = async () => {
-    if (!selectedItem) return;
-
-    try {
-      const { error } = await supabase
-        .from("scheduled_posts")
-        .update({ status: "cancelled" })
-        .eq("id", selectedItem.id);
-
-      if (error) throw error;
-
-      toast({
-        title: "Schedule cancelled",
-        description: "The scheduled post has been cancelled",
-      });
-
-      setDeleteDialogOpen(false);
-      setSelectedItem(null);
-      fetchScheduledItems();
-    } catch (error: any) {
-      toast({
-        title: "Error cancelling schedule",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleDragStart = (item: ScheduledItem) => {
-    setDraggedItem(item);
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-  };
-
-  const handleDrop = async (day: Date) => {
-    if (!draggedItem) return;
-
-    try {
-      // Keep the same time, just change the day (in local timezone)
-      const localDate = convertToLocal(draggedItem.scheduled_for, userTimezone);
-      const newDate = new Date(day);
-      newDate.setHours(localDate.getHours(), localDate.getMinutes(), 0, 0);
-
-      // Convert to UTC before saving
-      const utcDateTime = convertToUTC(newDate, userTimezone);
-
-      const { error } = await supabase
-        .from("scheduled_posts")
-        .update({ scheduled_for: utcDateTime })
-        .eq("id", draggedItem.id);
-
-      if (error) throw error;
-
-      toast({
-        title: "Post moved",
-        description: `Moved to ${format(newDate, "MMM d, yyyy 'at' h:mm a")} (${userTimezone})`,
-      });
-
-      setDraggedItem(null);
-      fetchScheduledItems();
-    } catch (error: any) {
-      toast({
-        title: "Error moving post",
-        description: error.message,
-        variant: "destructive",
-      });
-      setDraggedItem(null);
-    }
-  };
-
 
   if (loading) {
     return (
@@ -360,8 +222,6 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
                 <Card 
                   key={day.toISOString()} 
                   className="p-4"
-                  onDragOver={handleDragOver}
-                  onDrop={() => handleDrop(day)}
                 >
                   <div className="font-semibold mb-2">
                     {format(day, "EEE")}
@@ -372,34 +232,9 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
                     {dayItems.map((item) => (
                       <div
                         key={item.id}
-                        draggable
-                        onDragStart={() => handleDragStart(item)}
-                        className="p-2 rounded border bg-card group relative"
+                        onClick={() => handleOpenDetail(item.id)}
+                        className="p-2 rounded border bg-card hover:bg-accent cursor-pointer transition-colors"
                       >
-                        <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-6 w-6 p-0"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleOpenRescheduleDialog(item);
-                            }}
-                          >
-                            <Edit className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-6 w-6 p-0"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleOpenDeleteDialog(item);
-                            }}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
                         <div className="flex flex-col gap-0.5 mb-1">
                           <div className="flex items-center gap-1">
                             <span className="text-xs mr-1">{getPlatformIcon(item.platform)}</span>
@@ -415,11 +250,6 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
                               </Badge>
                             )}
                           </div>
-                          {item.scheduled_for && (
-                            <span className="text-[10px] text-muted-foreground ml-4">
-                              UTC: {new Date(item.scheduled_for).toISOString().slice(11, 16)}
-                            </span>
-                          )}
                         </div>
                         <p className="text-xs font-medium line-clamp-2">
                           {item.title}
@@ -463,8 +293,6 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
                 <Card 
                   key={day.toISOString()} 
                   className="p-2 min-h-[100px]"
-                  onDragOver={handleDragOver}
-                  onDrop={() => handleDrop(day)}
                 >
                   <div className="text-sm font-semibold mb-1">
                     {format(day, "d")}
@@ -473,32 +301,11 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
                     {dayItems.map((item) => (
                       <div
                         key={item.id}
-                        draggable
-                        onDragStart={() => handleDragStart(item)}
+                        onClick={() => handleOpenDetail(item.id)}
                         className={`${
                           stageColors[item.status]
-                        } text-white text-xs p-1 rounded group relative`}
+                        } text-white text-xs p-1 rounded hover:opacity-80 cursor-pointer transition-opacity`}
                       >
-                        <div className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 p-0.5">
-                          <button
-                            className="h-4 w-4 bg-background/80 rounded hover:bg-background flex items-center justify-center"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleOpenRescheduleDialog(item);
-                            }}
-                          >
-                            <Edit className="h-2.5 w-2.5 text-foreground" />
-                          </button>
-                          <button
-                            className="h-4 w-4 bg-background/80 rounded hover:bg-background flex items-center justify-center"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleOpenDeleteDialog(item);
-                            }}
-                          >
-                            <Trash2 className="h-2.5 w-2.5 text-foreground" />
-                          </button>
-                        </div>
                         <p className="line-clamp-1">{item.title}</p>
                       </div>
                     ))}
@@ -517,194 +324,77 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
             </p>
           </div>
 
-          <ScrollArea className="h-[600px]">
-            <div className="space-y-3">
-              {items.length === 0 ? (
-                <Card className="p-8 text-center">
-                  <CalendarDays className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
-                  <p className="text-muted-foreground">No scheduled posts yet</p>
-                </Card>
-              ) : (
-                items.map((item, index) => (
-                  <Card key={item.id} className="p-4 hover:bg-accent/50 transition-colors">
+          <div className="space-y-3">
+            {items.length === 0 ? (
+              <Card className="p-8 text-center">
+                <p className="text-muted-foreground">No scheduled posts yet</p>
+              </Card>
+            ) : (
+              items
+                .filter((item) => item.scheduled_for)
+                .map((item) => (
+                  <Card
+                    key={item.id}
+                    onClick={() => handleOpenDetail(item.id)}
+                    className="p-4 hover:bg-accent/50 transition-colors cursor-pointer"
+                  >
                     <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <span className="text-base mr-1">{getPlatformIcon(item.platform)}</span>
+                      <div className="flex-1 space-y-2">
+                        <div className="flex items-center gap-3">
+                          <span className="text-xl">{getPlatformIcon(item.platform)}</span>
+                          <div className="flex-1">
+                            <h4 className="font-semibold">{item.title}</h4>
+                            <p className="text-sm text-muted-foreground capitalize">
+                              {item.platform}
+                            </p>
+                          </div>
                           <Badge className={`${stageColors[item.status]} text-white`}>
                             {item.status}
                           </Badge>
-                          {item.scheduled_for && (
-                            <div className="flex flex-col gap-0.5">
-                              <div className="flex items-center gap-1 text-sm">
-                                <Clock className="h-3 w-3" />
-                                <span className="font-medium">
-                                  {formatLocalDateTime(item.scheduled_for, userTimezone)}
-                                </span>
-                                <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4">
-                                  {userTimezone}
-                                </Badge>
-                              </div>
-                              <span className="text-xs text-muted-foreground ml-4">
-                                UTC: {new Date(item.scheduled_for).toISOString().replace("T", " ").slice(0, 16)}
-                              </span>
-                            </div>
-                          )}
                         </div>
-                        <h4 className="font-medium mb-1">{item.title}</h4>
-                        {item.error_message && (
-                          <div className="flex items-center gap-2 text-xs text-destructive mt-2 p-2 bg-destructive/10 rounded">
-                            <AlertCircle className="h-3 w-3 flex-shrink-0" />
-                            <span>{item.error_message}</span>
-                          </div>
-                        )}
-                        {index < items.length - 1 && item.scheduled_for && items[index + 1].scheduled_for && (
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">
-                            <ArrowRight className="h-3 w-3" />
-                            <span>
-                              {Math.floor(
-                                (parseISO(items[index + 1].scheduled_for).getTime() - 
-                                parseISO(item.scheduled_for).getTime()) / 
-                                (1000 * 60 * 60)
-                              )} hours until next post
+
+                        <div className="flex items-center gap-4 text-sm">
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-4 w-4" />
+                            <span className="font-medium">
+                              {item.scheduled_for
+                                ? formatLocalDateTime(item.scheduled_for, userTimezone)
+                                : "Unscheduled"}
                             </span>
+                            {item.scheduled_for && (
+                              <Badge variant="outline" className="text-xs">
+                                <Globe className="h-3 w-3 mr-1" />
+                                {userTimezone}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+
+                        {item.error_message && (
+                          <div className="flex items-start gap-2 p-2 bg-red-50 dark:bg-red-950/20 rounded border border-red-200 dark:border-red-800 mt-2">
+                            <p className="text-xs text-red-900 dark:text-red-100">
+                              {item.error_message}
+                            </p>
                           </div>
                         )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleOpenRescheduleDialog(item)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleOpenDeleteDialog(item)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
                       </div>
                     </div>
                   </Card>
                 ))
-              )}
-            </div>
-          </ScrollArea>
+            )}
+          </div>
         </TabsContent>
       </Tabs>
 
-      {/* Delete Schedule Confirmation Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Schedule</AlertDialogTitle>
-            <AlertDialogDescription>
-              {selectedItem && (
-                <div className="space-y-2">
-                  <p>Are you sure you want to unschedule this post?</p>
-                  <div className="mt-4 p-3 bg-muted rounded-lg space-y-1">
-                    <p className="font-medium text-foreground">{selectedItem.title}</p>
-                    {selectedItem.scheduled_for && (
-                      <div className="text-sm space-y-1">
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          <span className="font-medium">
-                            {formatLocalDateTime(selectedItem.scheduled_for, userTimezone)}
-                          </span>
-                          <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4">
-                            {userTimezone}
-                          </Badge>
-                        </div>
-                        <p className="text-xs text-muted-foreground ml-4">
-                          UTC: {new Date(selectedItem.scheduled_for).toISOString().replace("T", " ").slice(0, 16)}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                  <p className="text-sm mt-3">
-                    This scheduled post will be cancelled and removed from the queue.
-                  </p>
-                </div>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteSchedule} className="bg-destructive hover:bg-destructive/90">
-              <Trash2 className="h-4 w-4 mr-2" />
-              Cancel Schedule
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Reschedule Dialog */}
-      <Dialog open={rescheduleDialogOpen} onOpenChange={setRescheduleDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Reschedule Post</DialogTitle>
-            <DialogDescription>
-              {selectedItem && (
-                <div className="mt-2 p-3 bg-muted rounded-lg space-y-1">
-                  <p className="font-medium text-foreground">{selectedItem.title}</p>
-                  {selectedItem.scheduled_for && (
-                    <div className="text-sm space-y-1">
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        <span>Currently: <span className="font-medium">{formatLocalDateTime(selectedItem.scheduled_for, userTimezone)}</span></span>
-                        <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4">
-                          {userTimezone}
-                        </Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground ml-4">
-                        UTC: {new Date(selectedItem.scheduled_for).toISOString().replace("T", " ").slice(0, 16)}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>New Date</Label>
-              <Calendar
-                mode="single"
-                selected={newScheduledDate}
-                onSelect={setNewScheduledDate}
-                className="rounded-md border"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>New Time ({userTimezone})</Label>
-              <Input
-                type="time"
-                value={newScheduledTime}
-                onChange={(e) => setNewScheduledTime(e.target.value)}
-              />
-              {newScheduledDate && newScheduledTime && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  Will be saved as: {format(convertToUTC(
-                    new Date(newScheduledDate.getFullYear(), newScheduledDate.getMonth(), newScheduledDate.getDate(), parseInt(newScheduledTime.split(':')[0]), parseInt(newScheduledTime.split(':')[1])),
-                    userTimezone
-                  ), "HH:mm")} UTC (server time)
-                </p>
-              )}
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRescheduleDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleReschedule} disabled={!newScheduledDate || !newScheduledTime}>
-              Reschedule
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Detail Modal */}
+      <ScheduledPostDetailModal
+        open={detailModalOpen}
+        onOpenChange={setDetailModalOpen}
+        scheduledPostId={selectedPostId}
+        userTimezone={userTimezone}
+        onSuccess={fetchScheduledItems}
+        readOnly={false}
+      />
     </div>
   );
 }
