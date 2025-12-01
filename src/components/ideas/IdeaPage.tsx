@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Lightbulb, FileText, Link as LinkIcon } from "lucide-react";
+import { AIAssistant } from "@/components/pipeline/AIAssistant";
 
 interface Idea {
   id: string;
@@ -175,19 +176,42 @@ export default function IdeaPage({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <Lightbulb className="h-5 w-5 text-primary" />
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 flex-1">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <Lightbulb className="h-5 w-5 text-primary" />
+              </div>
+              <div className="flex-1">
+                <DialogTitle>Idea Details</DialogTitle>
+                {idea && (
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Created {new Date(idea.created_at).toLocaleDateString()}
+                  </p>
+                )}
+              </div>
+              {idea && <Badge>{idea.status}</Badge>}
             </div>
-            <div className="flex-1">
-              <DialogTitle>Idea Details</DialogTitle>
-              {idea && (
-                <p className="text-sm text-muted-foreground mt-1">
-                  Created {new Date(idea.created_at).toLocaleDateString()}
-                </p>
-              )}
-            </div>
-            {idea && <Badge>{idea.status}</Badge>}
+            <AIAssistant
+              projectId=""
+              clientId={clientId}
+              onGenerateIdea={(generatedIdea) => {
+                setFormData({
+                  ...formData,
+                  title: generatedIdea.title || formData.title,
+                  description: generatedIdea.description || formData.description,
+                  tags: generatedIdea.tags?.join(", ") || formData.tags,
+                });
+                toast({
+                  title: "Idea Generated",
+                  description: "AI content added to your idea fields",
+                });
+              }}
+              onGenerateHook={() => {}}
+              onGenerateScript={() => {}}
+              onImproveScript={() => {}}
+              onGenerateCaption={() => {}}
+              onImproveCaption={() => {}}
+            />
           </div>
         </DialogHeader>
 

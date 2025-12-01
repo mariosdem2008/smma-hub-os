@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import ScriptEditor from "./ScriptEditor";
 import ScriptCard from "./ScriptCard";
+import { AIAssistant } from "@/components/pipeline/AIAssistant";
 
 interface Script {
   id: string;
@@ -136,10 +137,38 @@ export default function ScriptsTab({ clientId }: ScriptsTabProps) {
             Create and manage video scripts with hooks, CTAs, and editor notes
           </p>
         </div>
-        <Button onClick={handleCreate}>
-          <Plus className="h-4 w-4 mr-2" />
-          New Script
-        </Button>
+        <div className="flex items-center gap-2">
+          <AIAssistant
+            projectId=""
+            clientId={clientId}
+            onGenerateIdea={() => {}}
+            onGenerateHook={() => {
+              toast({
+                title: "Hook Generated",
+                description: "Open a script to paste the generated hook",
+              });
+            }}
+            onGenerateScript={(script) => {
+              toast({
+                title: "Script Generated",
+                description: "Create a new script to paste the generated content",
+              });
+              handleCreate();
+            }}
+            onImproveScript={() => {
+              toast({
+                title: "Script Improved",
+                description: "Open an existing script to apply improvements",
+              });
+            }}
+            onGenerateCaption={() => {}}
+            onImproveCaption={() => {}}
+          />
+          <Button onClick={handleCreate}>
+            <Plus className="h-4 w-4 mr-2" />
+            New Script
+          </Button>
+        </div>
       </div>
 
       {scripts.length === 0 ? (

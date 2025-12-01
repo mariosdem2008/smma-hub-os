@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { format } from "date-fns";
+import { AIAssistant } from "@/components/pipeline/AIAssistant";
 
 interface IdeasTabProps {
   clientId: string;
@@ -342,21 +343,44 @@ export default function IdeasBoard({ clientId }: IdeasTabProps) {
           <Lightbulb className="h-5 w-5 text-primary" />
           <h2 className="text-lg font-semibold">Content Ideas Board</h2>
         </div>
-        {canSubmit && (
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                New Idea
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add New Idea</DialogTitle>
-                <DialogDescription>
-                  Create a new content idea for this client
-                </DialogDescription>
-              </DialogHeader>
+        <div className="flex items-center gap-2">
+          {canSubmit && (
+            <>
+              <AIAssistant
+                projectId=""
+                clientId={clientId}
+                onGenerateIdea={(idea) => {
+                  setNewIdea({
+                    title: idea.title || "",
+                    description: idea.description || "",
+                    tags: idea.tags?.join(", ") || "",
+                  });
+                  setDialogOpen(true);
+                  toast({
+                    title: "Idea Generated",
+                    description: "Review and save your AI-generated idea",
+                  });
+                }}
+                onGenerateHook={() => {}}
+                onGenerateScript={() => {}}
+                onImproveScript={() => {}}
+                onGenerateCaption={() => {}}
+                onImproveCaption={() => {}}
+              />
+              <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="mr-2 h-4 w-4" />
+                    New Idea
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add New Idea</DialogTitle>
+                    <DialogDescription>
+                      Create a new content idea for this client
+                    </DialogDescription>
+                  </DialogHeader>
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="title">Title *</Label>
@@ -401,7 +425,9 @@ export default function IdeasBoard({ clientId }: IdeasTabProps) {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-        )}
+            </>
+          )}
+        </div>
       </div>
 
       {/* Kanban Board */}
