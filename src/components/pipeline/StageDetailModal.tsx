@@ -22,6 +22,7 @@ interface StageDetailModalProps {
   stage: { key: string; label: string; color: string } | null;
   projects: Project[];
   onProjectClick: (projectId: string) => void;
+  onScheduleClick?: (projectId: string) => void;
 }
 
 export default function StageDetailModal({
@@ -30,6 +31,7 @@ export default function StageDetailModal({
   stage,
   projects,
   onProjectClick,
+  onScheduleClick,
 }: StageDetailModalProps) {
   if (!stage) return null;
 
@@ -67,6 +69,13 @@ export default function StageDetailModal({
                     // Close modal and let parent handle refresh
                     onOpenChange(false);
                   }}
+                  onSchedule={
+                    project.status === 'approved' && onScheduleClick
+                      ? () => {
+                          onScheduleClick(project.id);
+                        }
+                      : undefined
+                  }
                 />
               </div>
             ))
