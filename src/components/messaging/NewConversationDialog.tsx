@@ -125,13 +125,14 @@ export function NewConversationDialog({ open, onOpenChange }: NewConversationDia
 
       if (!agencyMembers || agencyMembers.length !== 2) return;
 
-      await createConversation.mutateAsync({
+      const result = await createConversation.mutateAsync({
         type: "direct",
         member_ids: agencyMembers.map(m => m.id),
       });
 
       onOpenChange(false);
-      navigate("/messages");
+      // Navigate with conversation ID to auto-select it
+      navigate("/messages", { state: { selectedConversationId: result.conversation?.id } });
     } catch (error) {
       console.error("Error creating conversation:", error);
     }
@@ -157,14 +158,15 @@ export function NewConversationDialog({ open, onOpenChange }: NewConversationDia
 
       if (!currentMember) return;
 
-      await createConversation.mutateAsync({
+      const result = await createConversation.mutateAsync({
         type: "client_chat",
         client_id: clientId,
         member_ids: [currentMember.id],
       });
 
       onOpenChange(false);
-      navigate("/messages");
+      // Navigate with conversation ID to auto-select it
+      navigate("/messages", { state: { selectedConversationId: result.conversation?.id } });
     } catch (error) {
       console.error("Error creating client conversation:", error);
     }

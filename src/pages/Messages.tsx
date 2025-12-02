@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { MessageSquare, Users, UserCircle, Plus } from 'lucide-react';
@@ -9,9 +10,19 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { NewConversationDialog } from '@/components/messaging/NewConversationDialog';
 
 export default function Messages() {
+  const location = useLocation();
   const [selectedConversationId, setSelectedConversationId] = useState<string | undefined>();
   const [showNewConversationDialog, setShowNewConversationDialog] = useState(false);
   const { data: conversations, isLoading } = useConversations();
+
+  // Auto-select conversation from navigation state
+  useEffect(() => {
+    if (location.state?.selectedConversationId) {
+      setSelectedConversationId(location.state.selectedConversationId);
+      // Clear the state to prevent re-selecting on refresh
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   const directConversations = conversations?.filter((c: any) => c.type === 'direct') || [];
   const groupConversations = conversations?.filter((c: any) => c.type === 'group') || [];
