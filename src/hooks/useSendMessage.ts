@@ -16,45 +16,36 @@ export const useSendMessage = () => {
 
   return useMutation({
     mutationFn: async (payload: SendMessagePayload) => {
-      // Get auth token - check for client portal token first
-      const clientToken = localStorage.getItem('client_auth_token');
-      
-      let headers: Record<string, string> = {};
-      
-      if (clientToken && payload.sender_type === 'client_user') {
-        // Use client portal token
-        headers = {
-          'Authorization': `Bearer ${clientToken}`,
-          'Content-Type': 'application/json',
-        };
-        
+      if (payload.sender_type === 'client_user') {
+        // Client portal user: use direct fetch with HttpOnly cookies
         const response = await fetch(
           `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-message`,
           {
             method: 'POST',
             headers: {
-              ...headers,
-              'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+              apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+              'Content-Type': 'application/json',
             },
+            credentials: 'include',
             body: JSON.stringify(payload),
-          }
+          },
         );
 
         if (!response.ok) {
-          const error = await response.json();
+          const error = await response.json().catch(() => ({}));
           throw new Error(error.error || 'Failed to send message');
         }
 
         return response.json();
-      } else {
-        // Use Supabase auth for agency members
-        const { data, error } = await supabase.functions.invoke('send-message', {
-          body: payload,
-        });
-
-        if (error) throw error;
-        return data;
       }
+
+      // Agency members: use Supabase auth
+      const { data, error } = await supabase.functions.invoke('send-message', {
+        body: payload,
+      });
+
+      if (error) throw error;
+      return data;
     },
     onMutate: async (variables) => {
       // Cancel any outgoing refetches

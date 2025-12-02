@@ -2,10 +2,85 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 
 const JWT_SECRET = Deno.env.get("CLIENT_PORTAL_JWT_SECRET");
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+
+const ACCESS_TOKEN_TTL_SECONDS = 20 * 60; // 20 minutes
+const REFRESH_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60; // 30 days
 
 if (!JWT_SECRET) {
   console.error("CLIENT_PORTAL_JWT_SECRET is not configured");
   throw new Error("CLIENT_PORTAL_JWT_SECRET environment variable is required");
+}
+
+interface ClientUser {
+  id: string;
+  email: string;
+  full_name: string | null;
+  client_id: string;
+  agency_id: string;
+  role: string;
+}
+
+async function generateAccessToken(user: ClientUser): Promise<{ token: string; exp: number }> {
+  const header = { alg: "HS256", typ: "JWT" };
+  const now = Math.floor(Date.now() / 1000);
+  const exp = now + ACCESS_TOKEN_TTL_SECONDS;
+  const payload = {
+    sub: user.id,
+    email: user.email,
+    client_id: user.client_id,
+    agency_id: user.agency_id,
+    role: user.role,
+    exp,
+  };
+
+  const encodedHeader = btoa(JSON.stringify(header));
+  const encodedPayload = btoa(JSON.stringify(payload));
+
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(JWT_SECRET!),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+
+  const signature = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    new TextEncoder().encode(`${encodedHeader}.${encodedPayload}`),
+  );
+
+  const encodedSignature = btoa(String.fromCharCode(...new Uint8Array(signature)));
+  const token = `${encodedHeader}.${encodedPayload}.${encodedSignature}`;
+
+  return { token, exp };
+}
+
+async function generateRefreshToken(): Promise<{ token: string; hash: string; expiresAt: Date }> {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  const token = Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+
+  const encoder = new TextEncoder();
+  const data = encoder.encode(token);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hash = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+
+  const expiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_SECONDS * 1000);
+
+  return { token, hash, expiresAt };
+}
+
+function createAuthCookies(accessToken: string, refreshToken: string): string[] {
+  const accessCookie =
+    `cp_access_token=${accessToken}; Max-Age=${ACCESS_TOKEN_TTL_SECONDS}; Path=/; HttpOnly; Secure; SameSite=Lax`;
+  const refreshCookie =
+    `cp_refresh_token=${refreshToken}; Max-Age=${REFRESH_TOKEN_TTL_SECONDS}; Path=/; HttpOnly; Secure; SameSite=Lax`;
+
+  return [accessCookie, refreshCookie];
 }
 
 Deno.serve(async (req) => {
@@ -22,14 +97,11 @@ Deno.serve(async (req) => {
       console.error("Missing required fields");
       return new Response(
         JSON.stringify({ error: "Missing required fields" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
+    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     // Validate invite token
     console.log("Validating invite token");
@@ -45,7 +117,7 @@ Deno.serve(async (req) => {
       console.error("Invalid invite:", inviteError);
       return new Response(
         JSON.stringify({ error: "Invalid or expired invitation" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
     console.log("Invite validated for email:", invite.email);
@@ -63,7 +135,7 @@ Deno.serve(async (req) => {
       console.error("User already exists");
       return new Response(
         JSON.stringify({ error: "User already exists" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
     console.log("No existing user found");
@@ -73,7 +145,7 @@ Deno.serve(async (req) => {
     const data = encoder.encode(password);
     const hashBuffer = await crypto.subtle.digest("SHA-256", data);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const password_hash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    const password_hash = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 
     // Create client user
     console.log("Creating client user");
@@ -86,7 +158,7 @@ Deno.serve(async (req) => {
         full_name: full_name || invite.full_name || null,
         role: invite.role,
         password_hash,
-        invitation_status: 'accepted'
+        invitation_status: "accepted",
       })
       .select()
       .single();
@@ -95,7 +167,7 @@ Deno.serve(async (req) => {
       console.error("Error creating user:", createError);
       return new Response(
         JSON.stringify({ error: "Failed to create user", details: createError.message }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
     console.log("User created successfully:", newUser.id);
@@ -106,52 +178,43 @@ Deno.serve(async (req) => {
       .update({ accepted: true })
       .eq("id", invite.id);
 
-    // Generate JWT token
-    const header = { alg: "HS256", typ: "JWT" };
-    const payload = {
-      sub: newUser.id,
+    const clientUser: ClientUser = {
+      id: newUser.id,
       email: newUser.email,
+      full_name: newUser.full_name,
       client_id: newUser.client_id,
       agency_id: newUser.agency_id,
       role: newUser.role,
-      exp: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60) // 7 days
     };
 
-    const encodedHeader = btoa(JSON.stringify(header));
-    const encodedPayload = btoa(JSON.stringify(payload));
-    const signature = await crypto.subtle.sign(
-      "HMAC",
-      await crypto.subtle.importKey(
-        "raw",
-        new TextEncoder().encode(JWT_SECRET),
-        { name: "HMAC", hash: "SHA-256" },
-        false,
-        ["sign"]
-      ),
-      new TextEncoder().encode(`${encodedHeader}.${encodedPayload}`)
-    );
-    const encodedSignature = btoa(String.fromCharCode(...new Uint8Array(signature)));
-    const token = `${encodedHeader}.${encodedPayload}.${encodedSignature}`;
+    // Create refresh token entry
+    const { token: refreshToken, hash: refreshHash, expiresAt } = await generateRefreshToken();
+
+    await supabaseAdmin.from("client_refresh_tokens").insert({
+      client_user_id: clientUser.id,
+      token_hash: refreshHash,
+      expires_at: expiresAt.toISOString(),
+    });
+
+    // Generate access token
+    const { token: accessToken, exp } = await generateAccessToken(clientUser);
+
+    const cookies = createAuthCookies(accessToken, refreshToken);
+    const headers = new Headers({ ...corsHeaders, "Content-Type": "application/json" });
+    cookies.forEach((cookie) => headers.append("Set-Cookie", cookie));
 
     return new Response(
       JSON.stringify({
-        token,
-        user: {
-          id: newUser.id,
-          email: newUser.email,
-          full_name: newUser.full_name,
-          client_id: newUser.client_id,
-          agency_id: newUser.agency_id,
-          role: newUser.role
-        }
+        user: clientUser,
+        exp,
       }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 200, headers },
     );
   } catch (error) {
     console.error("Signup error:", error);
     return new Response(
       JSON.stringify({ error: "Internal server error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 });

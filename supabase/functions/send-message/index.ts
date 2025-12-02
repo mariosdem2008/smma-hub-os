@@ -73,7 +73,18 @@ async function verifyClientPortalToken(token: string): Promise<ClientPortalJwtPa
   } catch (error) {
     console.error('Error verifying client portal token:', error);
     return null;
+}
+
+function getCookie(header: string | null, name: string): string | null {
+  if (!header) return null;
+  const cookies = header.split(';').map((c) => c.trim());
+  for (const cookie of cookies) {
+    const [cookieName, ...rest] = cookie.split('=');
+    if (cookieName === name) {
+      return rest.join('=');
+    }
   }
+  return null;
 }
 
 Deno.serve(async (req) => {
@@ -83,15 +94,24 @@ Deno.serve(async (req) => {
 
   try {
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'Missing authorization header' }), {
+    const cookieHeader = req.headers.get('Cookie');
+
+    let token: string | null = null;
+
+    if (authHeader?.startsWith('Bearer ')) {
+      token = authHeader.replace('Bearer ', '');
+    } else {
+      token = getCookie(cookieHeader, 'cp_access_token');
+    }
+
+    if (!token) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
-    const token = authHeader.replace('Bearer ', '');
     
     let authUserId: string | null = null;
     let clientPortalUser: ClientPortalJwtPayload | null = null;
