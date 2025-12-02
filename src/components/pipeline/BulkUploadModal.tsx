@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/lib/auth";
 import { Upload, File, Loader2, Image as ImageIcon, X, Video } from "lucide-react";
 import { Card } from "@/components/ui/card";
 
@@ -52,12 +53,14 @@ export default function BulkUploadModal({
   onSuccess,
 }: BulkUploadModalProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
   const [libraryAssets, setLibraryAssets] = useState<LibraryAsset[]>([]);
   const [selectedLibraryAssets, setSelectedLibraryAssets] = useState<string[]>([]);
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [scripts, setScripts] = useState<Script[]>([]);
+  const [currentMemberId, setCurrentMemberId] = useState<string | null>(null);
   const [thumbnail, setThumbnail] = useState<File | null>(null);
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
 
@@ -72,8 +75,25 @@ export default function BulkUploadModal({
   useEffect(() => {
     if (open) {
       fetchIdeasAndScripts();
+      fetchCurrentMember();
     }
   }, [open]);
+
+  const fetchCurrentMember = async () => {
+    if (!user) return;
+    try {
+      const { data } = await supabase
+        .from("agency_members")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("agency_id", agencyId)
+        .single();
+      
+      if (data) setCurrentMemberId(data.id);
+    } catch (error) {
+      console.error("Error fetching current member:", error);
+    }
+  };
 
   const fetchIdeasAndScripts = async () => {
     try {
@@ -173,6 +193,7 @@ export default function BulkUploadModal({
           notes: formData.notes || null,
           thumbnail_url: thumbnailUrl,
           status: "idea",
+          assigned_to: currentMemberId,
         })
         .select()
         .single();

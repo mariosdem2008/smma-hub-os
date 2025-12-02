@@ -22,6 +22,11 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { 
   Folder, 
   Lightbulb, 
@@ -32,12 +37,24 @@ import {
   MoreVertical,
   ArrowRight,
   ArrowLeft,
-  User
+  User,
+  Check
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useRole } from "@/hooks/useRole";
+import { logActivity } from "@/hooks/useActivityLog";
+
+const REJECTION_CATEGORY_LABELS: Record<string, string> = {
+  wrong_tone: "Wrong Tone",
+  wrong_branding: "Wrong Branding",
+  incorrect_dimensions: "Incorrect Dimensions",
+  typo_or_mistake: "Typo or Mistake",
+  request_change: "Request Change",
+  want_different_style: "Want Different Style",
+  need_different_clip: "Need Different Clip",
+};
 
 interface AssignedUser {
   id: string;
@@ -59,6 +76,15 @@ interface Project {
   assigned_to?: string | null;
   assigned_user?: AssignedUser | null;
   rejection_reason?: string | null;
+  rejection_category?: string | null;
+  agency_id: string;
+}
+
+interface AgencyMember {
+  id: string;
+  user_id: string;
+  full_name: string | null;
+  email: string;
 }
 
 interface Stage {
@@ -74,6 +100,7 @@ interface ProjectCardProps {
   onDelete?: () => void;
   onSchedule?: () => void;
   onMoveStage?: (projectId: string, newStage: string, rejectionReason?: string) => void;
+  onAssignmentChange?: () => void;
   stages?: Stage[];
 }
 
@@ -84,12 +111,109 @@ export default function ProjectCard({
   onDelete, 
   onSchedule,
   onMoveStage,
+  onAssignmentChange,
   stages = []
 }: ProjectCardProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showAssignPopover, setShowAssignPopover] = useState(false);
+  const [agencyMembers, setAgencyMembers] = useState<AgencyMember[]>([]);
+  const [loadingMembers, setLoadingMembers] = useState(false);
+  const [assigning, setAssigning] = useState(false);
   const { toast } = useToast();
-  const { canDeleteContent, canApproveContent, isOwner, isAdmin, isManager, isCreator } = useRole();
+  const { canDeleteContent, isOwner, isAdmin, isManager, isCreator } = useRole();
+
+  // Fetch agency members when popover opens
+  useEffect(() => {
+    if (showAssignPopover && agencyMembers.length === 0) {
+      fetchAgencyMembers();
+    }
+  }, [showAssignPopover]);
+
+  const fetchAgencyMembers = async () => {
+    setLoadingMembers(true);
+    try {
+      const { data, error } = await supabase
+        .from("agency_members")
+        .select(`
+          id,
+          user_id,
+          profiles!inner(full_name, email)
+        `)
+        .eq("agency_id", project.agency_id);
+
+      if (error) throw error;
+
+      const members = (data || []).map((m: any) => ({
+        id: m.id,
+        user_id: m.user_id,
+        full_name: m.profiles?.full_name || null,
+        email: m.profiles?.email || "",
+      }));
+      setAgencyMembers(members);
+    } catch (error) {
+      console.error("Error fetching agency members:", error);
+    } finally {
+      setLoadingMembers(false);
+    }
+  };
+
+  const handleAssignMember = async (memberId: string) => {
+    setAssigning(true);
+    try {
+      const previousAssignee = project.assigned_to;
+      
+      const { error } = await supabase
+        .from("projects")
+        .update({ assigned_to: memberId })
+        .eq("id", project.id);
+
+      if (error) throw error;
+
+      // Log activity
+      await logActivity({
+        projectId: project.id,
+        actionType: "assigned_to_changed",
+        details: {
+          previous_assignee: previousAssignee,
+          new_assignee: memberId,
+        },
+      });
+
+      // Create notification for new assignee
+      const member = agencyMembers.find(m => m.id === memberId);
+      if (member) {
+        await supabase.from("notifications").insert({
+          agency_id: project.agency_id,
+          user_type: "agency_member",
+          user_id: member.user_id,
+          type: "assignment",
+          payload: {
+            project_id: project.id,
+            project_title: project.title,
+            message: `You've been assigned to "${project.title}"`,
+          },
+        });
+      }
+
+      toast({
+        title: "Assignment updated",
+        description: member ? `Assigned to ${member.full_name || member.email}` : "Assignment updated",
+      });
+
+      setShowAssignPopover(false);
+      if (onAssignmentChange) onAssignmentChange();
+    } catch (error: any) {
+      console.error("Error assigning member:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to assign member",
+        variant: "destructive",
+      });
+    } finally {
+      setAssigning(false);
+    }
+  };
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -282,16 +406,61 @@ export default function ProjectCard({
                 <Folder className="h-8 w-8 text-muted-foreground" />
               )}
               
-              {/* Assigned User Avatar */}
-              {project.assigned_user && (
-                <div className="absolute bottom-2 left-2">
-                  <Avatar className="h-6 w-6 border-2 border-background">
-                    <AvatarFallback className="text-xs bg-primary text-primary-foreground">
-                      {getInitials(project.assigned_user.full_name, project.assigned_user.email)}
-                    </AvatarFallback>
-                  </Avatar>
-                </div>
-              )}
+              {/* Assigned User Avatar - Clickable */}
+              <Popover open={showAssignPopover} onOpenChange={setShowAssignPopover}>
+                <PopoverTrigger asChild>
+                  <button
+                    className="absolute bottom-2 left-2 hover:scale-110 transition-transform"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowAssignPopover(true);
+                    }}
+                  >
+                    <Avatar className="h-6 w-6 border-2 border-background cursor-pointer">
+                      <AvatarFallback className="text-xs bg-primary text-primary-foreground">
+                        {project.assigned_user
+                          ? getInitials(project.assigned_user.full_name, project.assigned_user.email)
+                          : "?"}
+                      </AvatarFallback>
+                    </Avatar>
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent 
+                  className="w-56 p-2" 
+                  align="start"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="text-xs font-medium text-muted-foreground mb-2 px-2">
+                    Assign to
+                  </div>
+                  {loadingMembers ? (
+                    <div className="text-xs text-muted-foreground px-2 py-2">Loading...</div>
+                  ) : (
+                    <div className="space-y-1 max-h-48 overflow-y-auto">
+                      {agencyMembers.map((member) => (
+                        <button
+                          key={member.id}
+                          className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-accent text-left text-sm disabled:opacity-50"
+                          onClick={() => handleAssignMember(member.id)}
+                          disabled={assigning}
+                        >
+                          <Avatar className="h-5 w-5">
+                            <AvatarFallback className="text-xs">
+                              {getInitials(member.full_name, member.email)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="truncate flex-1">
+                            {member.full_name || member.email}
+                          </span>
+                          {project.assigned_to === member.id && (
+                            <Check className="h-3 w-3 text-primary" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </PopoverContent>
+              </Popover>
             </div>
 
             {/* Title & Assigned */}
@@ -306,10 +475,19 @@ export default function ProjectCard({
             </div>
 
             {/* Rejection Reason */}
-            {project.status === 'client_review' && project.rejection_reason && (
+            {(project.rejection_reason || project.rejection_category) && (
               <div className="flex items-start gap-2 p-2 bg-amber-500/10 rounded text-amber-600 dark:text-amber-400">
                 <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
-                <p className="text-xs line-clamp-2">{project.rejection_reason}</p>
+                <div className="text-xs">
+                  {project.rejection_category && (
+                    <Badge variant="outline" className="text-xs mb-1 border-amber-500/50">
+                      {REJECTION_CATEGORY_LABELS[project.rejection_category] || project.rejection_category}
+                    </Badge>
+                  )}
+                  {project.rejection_reason && (
+                    <p className="line-clamp-2">{project.rejection_reason}</p>
+                  )}
+                </div>
               </div>
             )}
 

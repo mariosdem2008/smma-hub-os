@@ -2120,6 +2120,7 @@ export type Database = {
           platforms: string[] | null
           published_at: string | null
           published_urls: Json | null
+          rejection_category: string | null
           rejection_reason: string | null
           retry_count: number | null
           scheduled_for: string | null
@@ -2155,6 +2156,7 @@ export type Database = {
           platforms?: string[] | null
           published_at?: string | null
           published_urls?: Json | null
+          rejection_category?: string | null
           rejection_reason?: string | null
           retry_count?: number | null
           scheduled_for?: string | null
@@ -2190,6 +2192,7 @@ export type Database = {
           platforms?: string[] | null
           published_at?: string | null
           published_urls?: Json | null
+          rejection_category?: string | null
           rejection_reason?: string | null
           retry_count?: number | null
           scheduled_for?: string | null
