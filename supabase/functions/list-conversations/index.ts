@@ -143,7 +143,7 @@ Deno.serve(async (req) => {
         console.log('Auth failed: neither Supabase auth nor client portal token valid');
         return new Response(JSON.stringify({ error: 'Unauthorized' }), {
           status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
         });
       }
     }
