@@ -19,6 +19,23 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+const REJECTION_CATEGORIES = [
+  { value: "wrong_tone", label: "Wrong Tone" },
+  { value: "wrong_branding", label: "Wrong Branding" },
+  { value: "incorrect_dimensions", label: "Incorrect Dimensions" },
+  { value: "typo_or_mistake", label: "Typo or Mistake" },
+  { value: "request_change", label: "Request Change" },
+  { value: "want_different_style", label: "Want Different Style" },
+  { value: "need_different_clip", label: "Need Different Clip" },
+];
 
 interface FinalAsset {
   id: string;
@@ -57,6 +74,7 @@ export default function ProjectApprovalInterface({
   const [comment, setComment] = useState("");
   const [showChangesDialog, setShowChangesDialog] = useState(false);
   const [clientNotes, setClientNotes] = useState<string>("");
+  const [rejectionCategory, setRejectionCategory] = useState<string>("");
 
   useEffect(() => {
     fetchClientNotes();
@@ -87,15 +105,19 @@ export default function ProjectApprovalInterface({
     setLoading(true);
 
     try {
-      // Update project status to approved
+      // Update project status to approved and clear rejection
       const { error: updateError } = await supabase
         .from("projects")
-        .update({ status: "approved" })
+        .update({ 
+          status: "approved",
+          rejection_category: null,
+          rejection_reason: null
+        })
         .eq("id", project.id);
 
       if (updateError) throw updateError;
 
-      // Log activity
+      // Log activity to project_activities
       const { error: activityError } = await supabase
         .from("project_activities")
         .insert({
@@ -112,6 +134,16 @@ export default function ProjectApprovalInterface({
         });
 
       if (activityError) throw activityError;
+
+      // Log to activity_logs table
+      await supabase.from("activity_logs").insert({
+        project_id: project.id,
+        actor_client_user: clientUser.id,
+        action_type: "client_approved",
+        details: {
+          comment: comment.trim() || null,
+        },
+      });
 
       // Send notification to agency
       await supabase.functions.invoke("send-approval-notification", {
@@ -150,10 +182,10 @@ export default function ProjectApprovalInterface({
       return;
     }
 
-    if (!comment.trim()) {
+    if (!rejectionCategory) {
       toast({
-        title: "Comment required",
-        description: "Please provide feedback for requested changes",
+        title: "Category required",
+        description: "Please select a reason for requesting changes",
         variant: "destructive",
       });
       return;
@@ -162,10 +194,14 @@ export default function ProjectApprovalInterface({
     setLoading(true);
 
     try {
-      // Move project back to production stage
+      // Move project back to production stage with rejection info
       const { error: updateError } = await supabase
         .from("projects")
-        .update({ status: "production" })
+        .update({ 
+          status: "production",
+          rejection_category: rejectionCategory,
+          rejection_reason: comment.trim() || null
+        })
         .eq("id", project.id);
 
       if (updateError) throw updateError;
@@ -181,19 +217,32 @@ export default function ProjectApprovalInterface({
           actor_id: clientUser.id,
           action: "changes_requested",
           payload: {
-            comment: comment.trim(),
+            comment: comment.trim() || null,
+            rejection_category: rejectionCategory,
             requested_at: new Date().toISOString(),
           },
         });
 
       if (activityError) throw activityError;
 
+      // Log to activity_logs table
+      await supabase.from("activity_logs").insert({
+        project_id: project.id,
+        actor_client_user: clientUser.id,
+        action_type: "client_rejected",
+        details: {
+          rejection_category: rejectionCategory,
+          rejection_reason: comment.trim() || null,
+        },
+      });
+
       // Send notification to agency
       await supabase.functions.invoke("send-approval-notification", {
         body: {
           project_id: project.id,
           action: "changes_requested",
-          comment: comment.trim(),
+          comment: comment.trim() || null,
+          rejection_category: rejectionCategory,
         },
       });
 
@@ -203,6 +252,8 @@ export default function ProjectApprovalInterface({
       });
 
       setShowChangesDialog(false);
+      setRejectionCategory("");
+      setComment("");
       onApprovalComplete();
     } catch (error: any) {
       console.error("Request changes error:", error);
@@ -412,33 +463,58 @@ export default function ProjectApprovalInterface({
       </Card>
 
       {/* Request Changes Dialog */}
-      <AlertDialog open={showChangesDialog} onOpenChange={setShowChangesDialog}>
+      <AlertDialog open={showChangesDialog} onOpenChange={(open) => {
+        setShowChangesDialog(open);
+        if (!open) {
+          setRejectionCategory("");
+          setComment("");
+        }
+      }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Request Changes</AlertDialogTitle>
             <AlertDialogDescription>
-              Please provide specific feedback on what needs to be changed. This
+              Select a reason and optionally provide additional details. This
               will move the project back to production for the team to address.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="py-4">
-            <Label htmlFor="changes-comment" className="text-sm font-semibold">
-              Required Feedback
-            </Label>
-            <Textarea
-              id="changes-comment"
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              placeholder="Describe what changes are needed..."
-              rows={4}
-              className="mt-1.5"
-            />
+          <div className="py-4 space-y-4">
+            <div>
+              <Label htmlFor="rejection-category" className="text-sm font-semibold">
+                Reason for Changes <span className="text-destructive">*</span>
+              </Label>
+              <Select value={rejectionCategory} onValueChange={setRejectionCategory}>
+                <SelectTrigger className="mt-1.5">
+                  <SelectValue placeholder="Select a reason..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {REJECTION_CATEGORIES.map((cat) => (
+                    <SelectItem key={cat.value} value={cat.value}>
+                      {cat.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="changes-comment" className="text-sm font-semibold">
+                Additional Details (Optional)
+              </Label>
+              <Textarea
+                id="changes-comment"
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                placeholder="Provide more specific feedback..."
+                rows={4}
+                className="mt-1.5"
+              />
+            </div>
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleRequestChanges}
-              disabled={loading || !comment.trim()}
+              disabled={loading || !rejectionCategory}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {loading ? (

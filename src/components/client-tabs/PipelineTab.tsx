@@ -39,6 +39,7 @@ interface Project {
   assigned_to: string | null;
   assigned_user?: AssignedUser | null;
   rejection_reason: string | null;
+  rejection_category: string | null;
   last_moved_at: string | null;
 }
 
@@ -83,6 +84,7 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
           created_at,
           assigned_to,
           rejection_reason,
+          rejection_category,
           last_moved_at
         `)
         .eq('client_id', clientId)
@@ -493,6 +495,7 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
                                       : undefined
                                   }
                                   onMoveStage={handleMoveStage}
+                                  onAssignmentChange={() => fetchProjects()}
                                   stages={PIPELINE_STAGES}
                                 />
                               </div>

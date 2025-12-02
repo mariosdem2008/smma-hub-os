@@ -36,6 +36,16 @@ interface ProjectActivityLogProps {
   projectId: string;
 }
 
+const REJECTION_CATEGORY_LABELS: Record<string, string> = {
+  wrong_tone: "Wrong Tone",
+  wrong_branding: "Wrong Branding",
+  incorrect_dimensions: "Incorrect Dimensions",
+  typo_or_mistake: "Typo or Mistake",
+  request_change: "Request Change",
+  want_different_style: "Want Different Style",
+  need_different_clip: "Need Different Clip",
+};
+
 const ACTION_CONFIG: Record<string, { icon: React.ComponentType<any>; label: string; color: string }> = {
   stage_changed: { icon: ArrowRight, label: 'Stage Changed', color: 'text-blue-500' },
   assigned_to_changed: { icon: UserCheck, label: 'Assignment Changed', color: 'text-purple-500' },
@@ -50,6 +60,8 @@ const ACTION_CONFIG: Record<string, { icon: React.ComponentType<any>; label: str
   client_rejected: { icon: ThumbsDown, label: 'Client Requested Changes', color: 'text-amber-500' },
   file_uploaded: { icon: File, label: 'File Uploaded', color: 'text-muted-foreground' },
   status_changed: { icon: ArrowRight, label: 'Status Changed', color: 'text-blue-500' },
+  changes_requested: { icon: ThumbsDown, label: 'Changes Requested', color: 'text-amber-500' },
+  approved: { icon: ThumbsUp, label: 'Approved', color: 'text-green-500' },
 };
 
 export default function ProjectActivityLog({ projectId }: ProjectActivityLogProps) {
@@ -213,6 +225,18 @@ export default function ProjectActivityLog({ projectId }: ProjectActivityLogProp
         return details.platform || 'Published successfully';
       case 'auto_published_failed':
         return details.error || 'Publishing failed';
+      case 'client_rejected':
+      case 'changes_requested':
+        const categoryLabel = details.rejection_category 
+          ? REJECTION_CATEGORY_LABELS[details.rejection_category] || details.rejection_category
+          : null;
+        const reason = details.rejection_reason || details.comment;
+        return categoryLabel 
+          ? reason ? `${categoryLabel}: ${reason}` : categoryLabel
+          : reason || 'Changes requested';
+      case 'client_approved':
+      case 'approved':
+        return details.comment || 'Approved';
       default:
         return null;
     }
