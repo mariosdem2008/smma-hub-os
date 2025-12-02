@@ -90,7 +90,10 @@ function getCookie(header: string | null, name: string): string | null {
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response('ok', {
+      status: 200,
+      headers: corsHeaders(req),
+    });
   }
 
   try {
@@ -108,35 +111,45 @@ Deno.serve(async (req) => {
     if (!token) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...corsHeaders(req),
+        },
       });
     }
 
     const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
-    
+
     let authUserId: string | null = null;
     let clientPortalUser: ClientPortalJwtPayload | null = null;
 
     // Try Supabase auth first (for agency members)
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
-    
+    const {
+      data: { user },
+      error: userError,
+    } = await supabaseClient.auth.getUser(token);
+
     if (user && !userError) {
       authUserId = user.id;
     } else {
       // Try client portal JWT
       clientPortalUser = await verifyClientPortalToken(token);
-      
+
       if (!clientPortalUser) {
         console.log('Auth failed: neither Supabase auth nor client portal token valid');
         return new Response(JSON.stringify({ error: 'Unauthorized' }), {
           status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...corsHeaders(req),
+          },
         });
       }
     }
 
     const payload: SendMessagePayload = await req.json();
-    const { conversation_id, sender_type, text, attachment_url, related_project_id } = payload;
+    const { conversation_id, sender_type, text, attachment_url, related_project_id } =
+      payload;
 
     // Get conversation details
     const { data: conversation } = await supabaseClient
@@ -148,7 +161,10 @@ Deno.serve(async (req) => {
     if (!conversation) {
       return new Response(JSON.stringify({ error: 'Conversation not found' }), {
         status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...corsHeaders(req),
+        },
       });
     }
 
@@ -159,10 +175,16 @@ Deno.serve(async (req) => {
 
     if (sender_type === 'agency_member') {
       if (!authUserId) {
-        return new Response(JSON.stringify({ error: 'Agency members must use Supabase auth' }), {
-          status: 403,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+        return new Response(
+          JSON.stringify({ error: 'Agency members must use Supabase auth' }),
+          {
+            status: 403,
+            headers: {
+              'Content-Type': 'application/json',
+              ...corsHeaders(req),
+            },
+          },
+        );
       }
 
       const { data: agencyMember } = await supabaseClient
@@ -173,10 +195,16 @@ Deno.serve(async (req) => {
         .single();
 
       if (!agencyMember) {
-        return new Response(JSON.stringify({ error: 'Not authorized to send in this conversation' }), {
-          status: 403,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+        return new Response(
+          JSON.stringify({ error: 'Not authorized to send in this conversation' }),
+          {
+            status: 403,
+            headers: {
+              'Content-Type': 'application/json',
+              ...corsHeaders(req),
+            },
+          },
+        );
       }
 
       senderAgencyMemberId = agencyMember.id;
@@ -187,7 +215,7 @@ Deno.serve(async (req) => {
         .select('full_name, email')
         .eq('id', authUserId)
         .single();
-      
+
       senderName = profile?.full_name || profile?.email || 'Agency member';
 
       // Get participant record
@@ -212,16 +240,25 @@ Deno.serve(async (req) => {
         if (!clientUser) {
           return new Response(JSON.stringify({ error: 'Client user not found' }), {
             status: 403,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              ...corsHeaders(req),
+            },
           });
         }
 
         // Verify client user belongs to this conversation's client
         if (clientUser.client_id !== conversation.client_id) {
-          return new Response(JSON.stringify({ error: 'Not authorized to send in this conversation' }), {
-            status: 403,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          });
+          return new Response(
+            JSON.stringify({ error: 'Not authorized to send in this conversation' }),
+            {
+              status: 403,
+              headers: {
+                'Content-Type': 'application/json',
+                ...corsHeaders(req),
+              },
+            },
+          );
         }
 
         senderClientUserId = clientUser.id;
@@ -237,10 +274,16 @@ Deno.serve(async (req) => {
 
         participantId = participant?.id;
       } else {
-        return new Response(JSON.stringify({ error: 'Client users must use client portal authentication' }), {
-          status: 403,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+        return new Response(
+          JSON.stringify({ error: 'Client users must use client portal authentication' }),
+          {
+            status: 403,
+            headers: {
+              'Content-Type': 'application/json',
+              ...corsHeaders(req),
+            },
+          },
+        );
       }
     }
 
@@ -265,18 +308,19 @@ Deno.serve(async (req) => {
       console.error('Error sending message:', messageError);
       return new Response(JSON.stringify({ error: messageError.message }), {
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...corsHeaders(req),
+        },
       });
     }
 
     // Create read receipt for sender
     if (participantId) {
-      await supabaseClient
-        .from('message_read_receipts')
-        .insert({
-          message_id: message.id,
-          participant_id: participantId,
-        });
+      await supabaseClient.from('message_read_receipts').insert({
+        message_id: message.id,
+        participant_id: participantId,
+      });
     }
 
     // Get all participants except sender to create notifications
@@ -287,12 +331,24 @@ Deno.serve(async (req) => {
 
     if (participants) {
       const notifications = [];
-      const snippet = text ? (text.length > 50 ? text.substring(0, 50) + '...' : text) : 'Sent an attachment';
+      const snippet = text
+        ? text.length > 50
+          ? text.substring(0, 50) + '...'
+          : text
+        : 'Sent an attachment';
 
       for (const participant of participants) {
         // Skip sender
-        if (sender_type === 'agency_member' && participant.agency_member_id === senderAgencyMemberId) continue;
-        if (sender_type === 'client_user' && participant.client_user_id === senderClientUserId) continue;
+        if (
+          sender_type === 'agency_member' &&
+          participant.agency_member_id === senderAgencyMemberId
+        )
+          continue;
+        if (
+          sender_type === 'client_user' &&
+          participant.client_user_id === senderClientUserId
+        )
+          continue;
 
         if (participant.agency_member_id) {
           notifications.push({
@@ -338,14 +394,20 @@ Deno.serve(async (req) => {
 
     return new Response(JSON.stringify({ message }), {
       status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...corsHeaders(req),
+      },
     });
   } catch (error) {
     console.error('Error in send-message:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
     return new Response(JSON.stringify({ error: message }), {
       status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...corsHeaders(req),
+      },
     });
   }
 });

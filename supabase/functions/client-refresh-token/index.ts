@@ -87,8 +87,11 @@ function createAuthCookies(accessToken: string, refreshToken: string): string[] 
   return [accessCookie, refreshCookie];
 }
 
-function clearAuthCookiesHeaders(): Headers {
-  const headers = new Headers({ ...corsHeaders, "Content-Type": "application/json" });
+function clearAuthCookiesHeaders(request: Request): Headers {
+  const headers = new Headers({
+    "Content-Type": "application/json",
+    ...corsHeaders(request),
+  });
   headers.append(
     "Set-Cookie",
     "cp_access_token=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Lax",
@@ -102,7 +105,10 @@ function clearAuthCookiesHeaders(): Headers {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response("ok", {
+      status: 200,
+      headers: corsHeaders(req),
+    });
   }
 
   try {
@@ -111,7 +117,7 @@ Deno.serve(async (req) => {
     const refreshToken = cookies["cp_refresh_token"];
 
     if (!refreshToken) {
-      const headers = clearAuthCookiesHeaders();
+      const headers = clearAuthCookiesHeaders(req);
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers,
@@ -131,7 +137,7 @@ Deno.serve(async (req) => {
       .single();
 
     if (tokenError || !storedToken) {
-      const headers = clearAuthCookiesHeaders();
+      const headers = clearAuthCookiesHeaders(req);
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers,
@@ -146,7 +152,7 @@ Deno.serve(async (req) => {
       .single();
 
     if (userError || !user) {
-      const headers = clearAuthCookiesHeaders();
+      const headers = clearAuthCookiesHeaders(req);
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers,
@@ -171,7 +177,8 @@ Deno.serve(async (req) => {
     // Create new refresh token
     const newBytes = new Uint8Array(32);
     crypto.getRandomValues(newBytes);
-    const newRefreshToken = Array.from(newBytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+    const newRefreshToken = Array.from(newBytes).map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
     const newRefreshHash = await hashToken(newRefreshToken);
     const newRefreshExpires = new Date(Date.now() + REFRESH_TOKEN_TTL_SECONDS * 1000);
 
@@ -185,7 +192,10 @@ Deno.serve(async (req) => {
     const { token: accessToken, exp } = await generateAccessToken(clientUser);
 
     const cookiesOut = createAuthCookies(accessToken, newRefreshToken);
-    const headers = new Headers({ ...corsHeaders, "Content-Type": "application/json" });
+    const headers = new Headers({
+      "Content-Type": "application/json",
+      ...corsHeaders(req),
+    });
     cookiesOut.forEach((cookie) => headers.append("Set-Cookie", cookie));
 
     return new Response(JSON.stringify({ user: clientUser, exp }), {
@@ -194,7 +204,7 @@ Deno.serve(async (req) => {
     });
   } catch (error) {
     console.error("Refresh token error:", error);
-    const headers = clearAuthCookiesHeaders();
+    const headers = clearAuthCookiesHeaders(req);
     return new Response(JSON.stringify({ error: "Internal server error" }), {
       status: 500,
       headers,
