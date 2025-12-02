@@ -972,6 +972,41 @@ export type Database = {
           },
         ]
       }
+      client_refresh_tokens: {
+        Row: {
+          client_user_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          revoked_at: string | null
+          token_hash: string
+        }
+        Insert: {
+          client_user_id: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          revoked_at?: string | null
+          token_hash: string
+        }
+        Update: {
+          client_user_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          revoked_at?: string | null
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_refresh_tokens_client_user_id_fkey"
+            columns: ["client_user_id"]
+            isOneToOne: false
+            referencedRelation: "client_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_reports: {
         Row: {
           agency_id: string
