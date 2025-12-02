@@ -11,6 +11,9 @@ import ProjectScriptIdeaTab from "./ProjectScriptIdeaTab";
 import ProjectFinalContentTab from "./ProjectFinalContentTab";
 import ProjectCommentsTab from "./ProjectCommentsTab";
 import ProjectActivityLog from "./ProjectActivityLog";
+import ProjectOverviewTab from "./ProjectOverviewTab";
+import ProjectSchedulingTab from "./ProjectSchedulingTab";
+import ProjectMessagesTab from "./ProjectMessagesTab";
 import { AIAssistant } from "./AIAssistant";
 
 interface Project {
@@ -31,6 +34,12 @@ interface Project {
   hashtags: string | null;
   published_urls: Record<string, string> | null;
   error_message: string | null;
+  rejection_reason: string | null;
+  rejection_category: string | null;
+  assigned_user?: {
+    full_name: string | null;
+    email: string;
+  } | null;
 }
 
 interface ProjectEditorProps {
@@ -64,18 +73,47 @@ export default function ProjectEditor({
     try {
       const { data, error } = await supabase
         .from("projects")
-        .select("*")
+        .select("*, assigned_to")
         .eq("id", projectId)
         .single();
 
       if (error) throw error;
 
       const projectData = data as any;
+      
+      // Fetch assigned user info if assigned
+      let assignedUser = null;
+      if (projectData.assigned_to) {
+        const { data: member } = await supabase
+          .from("agency_members")
+          .select("user_id")
+          .eq("id", projectData.assigned_to)
+          .single();
+        
+        if (member) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("full_name, email")
+            .eq("id", member.user_id)
+            .single();
+          
+          if (profile) {
+            assignedUser = {
+              full_name: profile.full_name,
+              email: profile.email
+            };
+          }
+        }
+      }
+
       setProject({
         ...projectData,
         platform_captions: (projectData.platform_captions as Record<string, string>) || {},
         published_urls: (projectData.published_urls as Record<string, string>) || null,
         error_message: projectData.error_message || null,
+        rejection_reason: projectData.rejection_reason || null,
+        rejection_category: projectData.rejection_category || null,
+        assigned_user: assignedUser
       });
       setTitle(data.title);
     } catch (error) {
@@ -190,16 +228,23 @@ export default function ProjectEditor({
           </div>
         </DialogHeader>
 
-        <Tabs defaultValue="assets" className="flex-1 flex flex-col overflow-hidden">
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="assets">Assets</TabsTrigger>
-            <TabsTrigger value="script-idea">Script & Idea</TabsTrigger>
-            <TabsTrigger value="final">Final Content</TabsTrigger>
-            <TabsTrigger value="comments">Comments</TabsTrigger>
-            <TabsTrigger value="activity">Activity</TabsTrigger>
+        <Tabs defaultValue="overview" className="flex-1 flex flex-col overflow-hidden">
+          <TabsList className="flex w-full overflow-x-auto">
+            <TabsTrigger value="overview" className="flex-shrink-0">Overview</TabsTrigger>
+            <TabsTrigger value="assets" className="flex-shrink-0">Assets</TabsTrigger>
+            <TabsTrigger value="script-idea" className="flex-shrink-0">Script & Idea</TabsTrigger>
+            <TabsTrigger value="final" className="flex-shrink-0">Final Content</TabsTrigger>
+            <TabsTrigger value="comments" className="flex-shrink-0">Comments</TabsTrigger>
+            <TabsTrigger value="scheduling" className="flex-shrink-0">Scheduling</TabsTrigger>
+            <TabsTrigger value="messages" className="flex-shrink-0">Messages</TabsTrigger>
+            <TabsTrigger value="activity" className="flex-shrink-0">Activity</TabsTrigger>
           </TabsList>
 
           <div className="flex-1 overflow-y-auto">
+            <TabsContent value="overview" className="mt-0 h-full">
+              <ProjectOverviewTab project={project} />
+            </TabsContent>
+
             <TabsContent value="assets" className="mt-0 h-full">
               <ProjectAssetsTab project={project} onUpdate={fetchProject} />
             </TabsContent>
@@ -214,6 +259,14 @@ export default function ProjectEditor({
 
             <TabsContent value="comments" className="mt-0 h-full">
               <ProjectCommentsTab projectId={project.id} clientId={project.client_id} />
+            </TabsContent>
+
+            <TabsContent value="scheduling" className="mt-0 h-full">
+              <ProjectSchedulingTab projectId={project.id} />
+            </TabsContent>
+
+            <TabsContent value="messages" className="mt-0 h-full">
+              <ProjectMessagesTab projectId={project.id} clientId={project.client_id} />
             </TabsContent>
 
             <TabsContent value="activity" className="mt-0 h-full p-4">
