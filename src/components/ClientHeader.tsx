@@ -27,6 +27,7 @@ interface ClientHeaderProps {
   niche: string | null;
   website: string | null;
   primaryColor: string | null | undefined;
+  compact?: boolean;
 }
 
 export default function ClientHeader({
@@ -36,6 +37,7 @@ export default function ClientHeader({
   niche,
   website,
   primaryColor,
+  compact = false,
 }: ClientHeaderProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -196,6 +198,26 @@ export default function ClientHeader({
   };
 
   const canManageLogo = role === "owner" || role === "admin" || role === "manager";
+
+  // Compact version for sidebar
+  if (compact) {
+    return (
+      <div className="flex items-center gap-3">
+        <Avatar className="h-10 w-10 ring-2 ring-primary/20">
+          <AvatarImage src={currentLogoUrl || undefined} alt={name} />
+          <AvatarFallback className="text-sm font-semibold bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] text-white">
+            {getInitials(name)}
+          </AvatarFallback>
+        </Avatar>
+        <div className="flex-1 min-w-0">
+          <h2 className="font-semibold text-sm truncate">{name}</h2>
+          {niche && (
+            <p className="text-xs text-muted-foreground truncate">{niche}</p>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>

@@ -12,6 +12,7 @@ import { UpgradeAssistantBubble } from "@/components/UpgradeAssistantBubble";
 import { UpgradeAssistantCard } from "@/components/UpgradeAssistantCard";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/AppLayout";
+import { ClientDetailLayout } from "@/components/ClientDetailLayout";
 import { useTimezoneDetection } from "@/hooks/useTimezoneDetection";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
@@ -114,13 +115,23 @@ const App = () => {
                   >
                     <Route path="/dashboard" element={<Dashboard />} />
                     <Route path="/clients" element={<Clients />} />
-                    <Route path="/clients/:clientId" element={<ClientDetail />} />
-                    <Route path="/clients/:clientId/reports/:reportId" element={<ReportDetail />} />
                     <Route path="/messages" element={<Messages />} />
                     <Route path="/team" element={<Team />} />
                     <Route path="/billing" element={<Billing />} />
                     <Route path="/billing/overview" element={<BillingOverview />} />
                     <Route path="/settings" element={<Settings />} />
+                  </Route>
+
+                  {/* Client Detail Routes - No Sidebar */}
+                  <Route
+                    element={
+                      <ProtectedRoute>
+                        <ClientDetailLayout />
+                      </ProtectedRoute>
+                    }
+                  >
+                    <Route path="/clients/:clientId" element={<ClientDetail />} />
+                    <Route path="/clients/:clientId/reports/:reportId" element={<ReportDetail />} />
                   </Route>
                   
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
