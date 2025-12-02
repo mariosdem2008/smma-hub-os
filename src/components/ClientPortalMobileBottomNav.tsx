@@ -1,6 +1,6 @@
 import { Link, useLocation, useParams } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { CheckCircle, CalendarDays, FolderOpen, Upload, MessageSquare } from "lucide-react";
+import { CheckCircle, CalendarDays, FolderOpen, Upload, MessageSquare, BarChart3 } from "lucide-react";
 import { hapticSelection } from "@/lib/haptics";
 
 export function ClientPortalMobileBottomNav() {
@@ -10,8 +10,8 @@ export function ClientPortalMobileBottomNav() {
   const navItems = [
     { path: "approvals", label: "Approve", icon: CheckCircle },
     { path: "content-calendar", label: "Calendar", icon: CalendarDays },
+    { path: "performance", label: "Stats", icon: BarChart3 },
     { path: "messages", label: "Messages", icon: MessageSquare },
-    { path: "assets", label: "Assets", icon: FolderOpen },
     { path: "uploads", label: "Upload", icon: Upload },
   ];
 
