@@ -1,7 +1,14 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { FileText, Video, Eye, Heart } from "lucide-react";
+import { FileText, Video, Eye, Heart, MessageSquare } from "lucide-react";
 import { useClientMetricsSummary } from "@/hooks/useClientMetricsSummary";
+import { useCreateConversation } from "@/hooks/useCreateConversation";
+import { useAuth } from "@/lib/auth";
+import { useRole } from "@/hooks/useRole";
+import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 
 interface ClientCardProps {
   client: {
@@ -17,6 +24,60 @@ interface ClientCardProps {
 
 export function ClientCard({ client, onClick }: ClientCardProps) {
   const { data: metrics, isLoading } = useClientMetricsSummary(client.id);
+  const { user } = useAuth();
+  const { isOwner, isAdmin, isManager } = useRole();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const createConversation = useCreateConversation();
+
+  const canMessageClient = isOwner || isAdmin || isManager;
+
+  const handleMessageClick = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    if (!canMessageClient) {
+      toast({
+        title: "Permission Denied",
+        description: "Only admins and managers can message clients",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { data: agency } = await supabase
+        .from("agencies")
+        .select("id")
+        .eq("user_id", user?.id)
+        .single();
+
+      if (!agency) return;
+
+      const { data: currentMember } = await supabase
+        .from("agency_members")
+        .select("id")
+        .eq("agency_id", agency.id)
+        .eq("user_id", user!.id)
+        .single();
+
+      if (!currentMember) return;
+
+      await createConversation.mutateAsync({
+        type: "client_chat",
+        client_id: client.id,
+        member_ids: [currentMember.id],
+      });
+
+      navigate("/messages");
+    } catch (error) {
+      console.error("Error creating client conversation:", error);
+      toast({
+        title: "Error",
+        description: "Failed to start conversation",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <Card
@@ -40,6 +101,17 @@ export function ClientCard({ client, onClick }: ClientCardProps) {
             <CardTitle className="truncate group-hover:text-primary transition-colors">{client.name}</CardTitle>
             {client.company && <CardDescription className="truncate">{client.company}</CardDescription>}
           </div>
+          {canMessageClient && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleMessageClick}
+              className="shrink-0"
+              title="Message client"
+            >
+              <MessageSquare className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </CardHeader>
       <CardContent className="space-y-3">

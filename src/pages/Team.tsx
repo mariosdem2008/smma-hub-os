@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import { useRole } from "@/hooks/useRole";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useUpgradeModal } from "@/contexts/UpgradeModalContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useCreateConversation } from "@/hooks/useCreateConversation";
 import { PlanGuard } from "@/components/PlanGuard";
 import { sendTeamInviteEmail } from "@/lib/invitations";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,7 +39,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Users, Copy, Trash2, AlertCircle, ArrowRight } from "lucide-react";
+import { Users, Copy, Trash2, AlertCircle, ArrowRight, MessageSquare } from "lucide-react";
 
 interface TeamMember {
   id: string;
@@ -68,6 +70,8 @@ export default function Team() {
   const { limits } = usePlanLimits();
   const { openUpgradeModal } = useUpgradeModal();
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const createConversation = useCreateConversation();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [agencyId, setAgencyId] = useState<string>("");
@@ -533,6 +537,43 @@ export default function Team() {
                     {isOwner && (
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={async () => {
+                              if (!agencyId || member.user_id === user?.id) return;
+                              
+                              try {
+                                const { data: agencyMembers } = await supabase
+                                  .from("agency_members")
+                                  .select("id")
+                                  .eq("agency_id", agencyId)
+                                  .in("user_id", [user!.id, member.user_id]);
+
+                                if (!agencyMembers || agencyMembers.length !== 2) {
+                                  toast({
+                                    title: "Error",
+                                    description: "Failed to find agency member records",
+                                    variant: "destructive",
+                                  });
+                                  return;
+                                }
+
+                                await createConversation.mutateAsync({
+                                  type: "direct",
+                                  member_ids: agencyMembers.map(m => m.id),
+                                });
+
+                                navigate("/messages");
+                              } catch (error) {
+                                console.error("Error creating conversation:", error);
+                              }
+                            }}
+                            disabled={member.user_id === user?.id}
+                            title={member.user_id === user?.id ? "Cannot message yourself" : "Send message"}
+                          >
+                            <MessageSquare className="h-4 w-4" />
+                          </Button>
                           {member.role !== "owner" && (
                             <>
                               <Select
