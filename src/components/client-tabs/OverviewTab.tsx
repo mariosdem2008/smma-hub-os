@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -37,8 +38,16 @@ import {
   FileText,
   Mail,
   Phone,
-  Building
+  Building,
+  TrendingUp,
+  TrendingDown,
+  Eye,
+  Users,
+  Heart
 } from "lucide-react";
+import { useClientAnalytics } from "@/hooks/useClientAnalytics";
+import { useTopPosts } from "@/hooks/useTopPosts";
+import { useWorstPosts } from "@/hooks/useWorstPosts";
 
 interface OverviewTabProps {
   clientId: string;
@@ -77,6 +86,11 @@ export default function OverviewTab({ clientId, client, onNotesUpdate }: Overvie
   const [notes, setNotes] = useState(client.notes || "");
   const [saving, setSaving] = useState(false);
   const [brandColors, setBrandColors] = useState<string[]>([]);
+
+  // Fetch real analytics
+  const { data: analytics, isLoading: analyticsLoading } = useClientAnalytics(clientId);
+  const { data: topPosts, isLoading: topPostsLoading } = useTopPosts(clientId, 3);
+  const { data: worstPosts, isLoading: worstPostsLoading } = useWorstPosts(clientId, 3);
 
   useEffect(() => {
     fetchStats();
@@ -351,10 +365,141 @@ export default function OverviewTab({ clientId, client, onNotesUpdate }: Overvie
 
       {/* Right Column */}
       <div className="space-y-6">
-        {/* Key Stats Card */}
+        {/* Analytics Overview Card */}
         <Card>
           <CardHeader>
-            <CardTitle>Key Stats</CardTitle>
+            <CardTitle>Analytics (Last 30 Days)</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {analyticsLoading ? (
+              <>
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-20 w-full" />
+              </>
+            ) : analytics ? (
+              <>
+                <div className="flex items-center justify-between rounded-lg border p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-full bg-accent-purple/10 p-2">
+                      <Eye className="h-5 w-5 text-accent-purple" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Total Impressions</p>
+                      <p className="text-2xl font-bold">{analytics.totalImpressions.toLocaleString()}</p>
+                      <div className="flex items-center gap-1 text-xs">
+                        {analytics.impressionsGrowth > 0 ? (
+                          <TrendingUp className="h-3 w-3 text-green-500" />
+                        ) : (
+                          <TrendingDown className="h-3 w-3 text-red-500" />
+                        )}
+                        <span className={analytics.impressionsGrowth > 0 ? "text-green-500" : "text-red-500"}>
+                          {Math.abs(analytics.impressionsGrowth)}% vs prev 30d
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between rounded-lg border p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-full bg-accent-teal/10 p-2">
+                      <Users className="h-5 w-5 text-accent-teal" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Total Reach</p>
+                      <p className="text-2xl font-bold">{analytics.totalReach.toLocaleString()}</p>
+                      <p className="text-xs text-muted-foreground">{analytics.postsThisMonth} posts</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between rounded-lg border p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-full bg-accent-pink/10 p-2">
+                      <Heart className="h-5 w-5 text-accent-pink" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Engagement Rate</p>
+                      <p className="text-2xl font-bold">{analytics.avgEngagementRate}%</p>
+                      <p className="text-xs text-muted-foreground">{analytics.totalEngagement.toLocaleString()} interactions</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between rounded-lg border p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-full bg-green-500/10 p-2">
+                      <Users className="h-5 w-5 text-green-500" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Followers</p>
+                      <p className="text-2xl font-bold">{analytics.totalFollowers.toLocaleString()}</p>
+                      <div className="flex items-center gap-1 text-xs">
+                        {analytics.followerGrowth > 0 ? (
+                          <TrendingUp className="h-3 w-3 text-green-500" />
+                        ) : (
+                          <TrendingDown className="h-3 w-3 text-red-500" />
+                        )}
+                        <span className={analytics.followerGrowth > 0 ? "text-green-500" : "text-red-500"}>
+                          {Math.abs(analytics.followerGrowth)}% vs prev 30d
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-8">
+                No analytics data available yet. Connect social profiles and publish content to see insights.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Top Posts Card */}
+        {topPosts && topPosts.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Top Performing Posts</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {topPostsLoading ? (
+                <>
+                  <Skeleton className="h-16 w-full" />
+                  <Skeleton className="h-16 w-full" />
+                  <Skeleton className="h-16 w-full" />
+                </>
+              ) : (
+                topPosts.map((post) => (
+                  <div key={post.id} className="flex items-center gap-3 rounded-lg border p-3">
+                    {post.project?.thumbnail_url && (
+                      <img
+                        src={post.project.thumbnail_url}
+                        alt={post.project.title}
+                        className="h-12 w-12 rounded object-cover"
+                      />
+                    )}
+                    <div className="flex-1">
+                      <p className="text-sm font-medium line-clamp-1">{post.project?.title || "Untitled"}</p>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Badge variant="outline" className="capitalize">{post.platform}</Badge>
+                        <span>{post.engagementRate}% engagement</span>
+                        <span>•</span>
+                        <span>{post.reach.toLocaleString()} reach</span>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Content Stats Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Content Stats</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between rounded-lg border p-4">
@@ -387,28 +532,11 @@ export default function OverviewTab({ clientId, client, onNotesUpdate }: Overvie
                   <Clock className="h-5 w-5 text-orange-500" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Upcoming Posts (7 days)</p>
+                  <p className="text-sm text-muted-foreground">Upcoming (7 days)</p>
                   <p className="text-2xl font-bold">{stats.upcomingPosts}</p>
                 </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Actions Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Button 
-              className="w-full justify-start" 
-              variant="outline"
-              onClick={() => setIsEditNotesOpen(true)}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Add Notes
-            </Button>
           </CardContent>
         </Card>
       </div>
