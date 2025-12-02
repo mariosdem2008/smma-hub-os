@@ -1,5 +1,21 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.84.0';
-import { corsHeaders } from '../_shared/cors.ts';
+
+const allowedOrigins = [
+  "https://73a2983b-0136-47d2-9a1f-01fe580ac593.lovableproject.com",
+  "https://smmahub.net",
+];
+
+function corsHeaders(request: Request) {
+  const origin = request.headers.get("Origin") ?? "";
+  const allowedOrigin = allowedOrigins.includes(origin) ? origin : "";
+
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Credentials": "true",
+    "Access-Control-Allow-Headers": "Content-Type, apikey, Authorization, X-Requested-With",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  };
+}
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
