@@ -85,19 +85,32 @@ function createAuthCookies(accessToken: string, refreshToken: string): string[] 
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response("ok", {
+      status: 200,
+      headers: corsHeaders(req),
+    });
   }
 
   try {
     console.log("Signup request received");
     const { invite_token, password, full_name } = await req.json();
-    console.log("Request data:", { invite_token: invite_token?.substring(0, 10), has_password: !!password, full_name });
+    console.log("Request data:", {
+      invite_token: invite_token?.substring(0, 10),
+      has_password: !!password,
+      full_name,
+    });
 
     if (!invite_token || !password) {
       console.error("Missing required fields");
       return new Response(
         JSON.stringify({ error: "Missing required fields" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        {
+          status: 400,
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders(req),
+          },
+        },
       );
     }
 
@@ -117,7 +130,13 @@ Deno.serve(async (req) => {
       console.error("Invalid invite:", inviteError);
       return new Response(
         JSON.stringify({ error: "Invalid or expired invitation" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        {
+          status: 400,
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders(req),
+          },
+        },
       );
     }
     console.log("Invite validated for email:", invite.email);
@@ -135,7 +154,13 @@ Deno.serve(async (req) => {
       console.error("User already exists");
       return new Response(
         JSON.stringify({ error: "User already exists" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        {
+          status: 400,
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders(req),
+          },
+        },
       );
     }
     console.log("No existing user found");
@@ -167,7 +192,13 @@ Deno.serve(async (req) => {
       console.error("Error creating user:", createError);
       return new Response(
         JSON.stringify({ error: "Failed to create user", details: createError.message }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders(req),
+          },
+        },
       );
     }
     console.log("User created successfully:", newUser.id);
@@ -188,7 +219,8 @@ Deno.serve(async (req) => {
     };
 
     // Create refresh token entry
-    const { token: refreshToken, hash: refreshHash, expiresAt } = await generateRefreshToken();
+    const { token: refreshToken, hash: refreshHash, expiresAt } =
+      await generateRefreshToken();
 
     await supabaseAdmin.from("client_refresh_tokens").insert({
       client_user_id: clientUser.id,
@@ -200,7 +232,10 @@ Deno.serve(async (req) => {
     const { token: accessToken, exp } = await generateAccessToken(clientUser);
 
     const cookies = createAuthCookies(accessToken, refreshToken);
-    const headers = new Headers({ ...corsHeaders, "Content-Type": "application/json" });
+    const headers = new Headers({
+      "Content-Type": "application/json",
+      ...corsHeaders(req),
+    });
     cookies.forEach((cookie) => headers.append("Set-Cookie", cookie));
 
     return new Response(
@@ -214,7 +249,13 @@ Deno.serve(async (req) => {
     console.error("Signup error:", error);
     return new Response(
       JSON.stringify({ error: "Internal server error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      {
+        status: 500,
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders(req),
+        },
+      },
     );
   }
 });

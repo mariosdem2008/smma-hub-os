@@ -85,7 +85,10 @@ function createAuthCookies(accessToken: string, refreshToken: string): string[] 
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response("ok", {
+      status: 200,
+      headers: corsHeaders(req),
+    });
   }
 
   try {
@@ -94,7 +97,13 @@ Deno.serve(async (req) => {
     if (!email || !password || !client_id) {
       return new Response(
         JSON.stringify({ error: "Missing required fields" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        {
+          status: 400,
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders(req),
+          },
+        },
       );
     }
 
@@ -111,7 +120,13 @@ Deno.serve(async (req) => {
     if (userError || !user) {
       return new Response(
         JSON.stringify({ error: "Invalid email or password" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        {
+          status: 401,
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders(req),
+          },
+        },
       );
     }
 
@@ -125,7 +140,13 @@ Deno.serve(async (req) => {
     if (password_hash !== user.password_hash) {
       return new Response(
         JSON.stringify({ error: "Invalid email or password" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        {
+          status: 401,
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders(req),
+          },
+        },
       );
     }
 
@@ -145,7 +166,8 @@ Deno.serve(async (req) => {
     };
 
     // Create refresh token entry
-    const { token: refreshToken, hash: refreshHash, expiresAt } = await generateRefreshToken();
+    const { token: refreshToken, hash: refreshHash, expiresAt } =
+      await generateRefreshToken();
 
     await supabaseAdmin.from("client_refresh_tokens").insert({
       client_user_id: clientUser.id,
@@ -157,7 +179,10 @@ Deno.serve(async (req) => {
     const { token: accessToken, exp } = await generateAccessToken(clientUser);
 
     const cookies = createAuthCookies(accessToken, refreshToken);
-    const headers = new Headers({ ...corsHeaders, "Content-Type": "application/json" });
+    const headers = new Headers({
+      "Content-Type": "application/json",
+      ...corsHeaders(req),
+    });
     cookies.forEach((cookie) => headers.append("Set-Cookie", cookie));
 
     return new Response(
@@ -171,7 +196,13 @@ Deno.serve(async (req) => {
     console.error("Login error:", error);
     return new Response(
       JSON.stringify({ error: "Internal server error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      {
+        status: 500,
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders(req),
+        },
+      },
     );
   }
 });
