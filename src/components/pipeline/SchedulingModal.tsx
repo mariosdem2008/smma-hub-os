@@ -14,6 +14,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { convertToUTC } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
+import { logActivity } from "@/hooks/useActivityLog";
 
 interface SchedulingModalProps {
   open: boolean;
@@ -226,6 +227,16 @@ export default function SchedulingModal({
         .eq("id", projectId);
 
       if (updateError) throw updateError;
+
+      // Log activity
+      await logActivity({
+        projectId,
+        actionType: 'scheduled_time_set',
+        details: {
+          platforms: enabledPlatforms.map(([p]) => p),
+          scheduled_time: convertToUTC(enabledPlatforms[0][1].scheduledFor!, userTimezone)
+        }
+      });
 
       toast({
         title: "Successfully scheduled",

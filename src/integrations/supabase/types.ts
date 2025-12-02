@@ -14,6 +14,58 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_logs: {
+        Row: {
+          action_type: string
+          actor_agency_member: string | null
+          actor_client_user: string | null
+          created_at: string
+          details: Json | null
+          id: string
+          project_id: string
+        }
+        Insert: {
+          action_type: string
+          actor_agency_member?: string | null
+          actor_client_user?: string | null
+          created_at?: string
+          details?: Json | null
+          id?: string
+          project_id: string
+        }
+        Update: {
+          action_type?: string
+          actor_agency_member?: string | null
+          actor_client_user?: string | null
+          created_at?: string
+          details?: Json | null
+          id?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_logs_actor_agency_member_fkey"
+            columns: ["actor_agency_member"]
+            isOneToOne: false
+            referencedRelation: "agency_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_logs_actor_client_user_fkey"
+            columns: ["actor_client_user"]
+            isOneToOne: false
+            referencedRelation: "client_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ad_accounts: {
         Row: {
           account_name: string | null
@@ -1743,6 +1795,61 @@ export type Database = {
           },
           {
             foreignKeyName: "notifications_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pipeline_comments: {
+        Row: {
+          attachments: Json | null
+          author_agency_member: string | null
+          author_client_user: string | null
+          body: string
+          created_at: string
+          id: string
+          is_internal: boolean
+          project_id: string
+        }
+        Insert: {
+          attachments?: Json | null
+          author_agency_member?: string | null
+          author_client_user?: string | null
+          body: string
+          created_at?: string
+          id?: string
+          is_internal?: boolean
+          project_id: string
+        }
+        Update: {
+          attachments?: Json | null
+          author_agency_member?: string | null
+          author_client_user?: string | null
+          body?: string
+          created_at?: string
+          id?: string
+          is_internal?: boolean
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pipeline_comments_author_agency_member_fkey"
+            columns: ["author_agency_member"]
+            isOneToOne: false
+            referencedRelation: "agency_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pipeline_comments_author_client_user_fkey"
+            columns: ["author_client_user"]
+            isOneToOne: false
+            referencedRelation: "client_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pipeline_comments_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"

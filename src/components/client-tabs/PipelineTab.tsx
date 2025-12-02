@@ -11,6 +11,7 @@ import BulkUploadModal from "@/components/pipeline/BulkUploadModal";
 import SchedulingModal from "@/components/pipeline/SchedulingModal";
 import { useRole } from "@/hooks/useRole";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { logActivity } from "@/hooks/useActivityLog";
 
 interface PipelineTabProps {
   clientId: string;
@@ -207,6 +208,10 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
   }, [clientId]);
 
   const handleMoveStage = async (projectId: string, newStage: string, rejectionReason?: string) => {
+    // Get old stage for logging
+    const project = projects.find(p => p.id === projectId);
+    const oldStage = project?.status;
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
@@ -227,6 +232,32 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
         .eq('id', projectId);
 
       if (error) throw error;
+
+      // Log activity
+      await logActivity({
+        projectId,
+        actionType: 'stage_changed',
+        details: {
+          old_stage: oldStage,
+          new_stage: newStage,
+          rejection_reason: rejectionReason || null
+        }
+      });
+
+      // Log rejection if added
+      if (rejectionReason) {
+        await logActivity({
+          projectId,
+          actionType: 'rejection_added',
+          details: { reason: rejectionReason }
+        });
+      } else if (oldStage === 'client_review' && !rejectionReason) {
+        await logActivity({
+          projectId,
+          actionType: 'rejection_cleared',
+          details: {}
+        });
+      }
 
       toast({
         title: "Stage updated",
