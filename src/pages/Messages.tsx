@@ -1,13 +1,16 @@
 import { useState } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { MessageSquare, Users, UserCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { MessageSquare, Users, UserCircle, Plus } from 'lucide-react';
 import { useConversations } from '@/hooks/useConversations';
 import { ConversationList } from '@/components/messaging/ConversationList';
 import { ConversationThread } from '@/components/messaging/ConversationThread';
 import { Skeleton } from '@/components/ui/skeleton';
+import { NewConversationDialog } from '@/components/messaging/NewConversationDialog';
 
 export default function Messages() {
   const [selectedConversationId, setSelectedConversationId] = useState<string | undefined>();
+  const [showNewConversationDialog, setShowNewConversationDialog] = useState(false);
   const { data: conversations, isLoading } = useConversations();
 
   const directConversations = conversations?.filter((c: any) => c.type === 'direct') || [];
@@ -35,7 +38,13 @@ export default function Messages() {
       <div className="w-80 border-r border-border bg-card">
         <Tabs defaultValue="direct" className="h-full flex flex-col">
           <div className="p-4 border-b border-border">
-            <h1 className="text-2xl font-bold mb-4">Messages</h1>
+            <div className="flex items-center justify-between mb-4">
+              <h1 className="text-2xl font-bold">Messages</h1>
+              <Button size="sm" onClick={() => setShowNewConversationDialog(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                New
+              </Button>
+            </div>
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="direct" className="gap-2">
                 <UserCircle className="h-4 w-4" />
@@ -90,6 +99,11 @@ export default function Messages() {
           </div>
         )}
       </div>
+
+      <NewConversationDialog 
+        open={showNewConversationDialog} 
+        onOpenChange={setShowNewConversationDialog}
+      />
     </div>
   );
 }
