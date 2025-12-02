@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
       .eq('user_id', user.id)
       .single();
 
-    let conversations = [];
+    let conversations: any[] = [];
 
     if (agencyMember) {
       // Agency user - get all conversations for their agency
@@ -50,7 +50,7 @@ Deno.serve(async (req) => {
             client_user_id,
             role
           ),
-          clients(name)
+          clients(id, name, logo_url)
         `)
         .eq('agency_id', agencyMember.agency_id)
         .order('updated_at', { ascending: false });
@@ -83,7 +83,7 @@ Deno.serve(async (req) => {
               client_user_id,
               role
             ),
-            clients(name)
+            clients(id, name, logo_url)
           `)
           .eq('type', 'client_chat')
           .eq('client_id', clientUser.client_id)
@@ -98,6 +98,37 @@ Deno.serve(async (req) => {
         }
 
         conversations = data || [];
+      }
+    }
+
+    // Get all agency member IDs from participants to fetch profiles
+    const memberIds = new Set<string>();
+    conversations.forEach((conv: any) => {
+      conv.conversation_participants?.forEach((p: any) => {
+        if (p.agency_member_id) memberIds.add(p.agency_member_id);
+      });
+    });
+
+    // Fetch agency member user_ids
+    let memberToUserMap = new Map<string, string>();
+    let profileMap = new Map<string, any>();
+
+    if (memberIds.size > 0) {
+      const { data: agencyMembers } = await supabaseClient
+        .from('agency_members')
+        .select('id, user_id')
+        .in('id', Array.from(memberIds));
+
+      const memberUserIds = agencyMembers?.map(m => m.user_id) || [];
+      memberToUserMap = new Map(agencyMembers?.map(m => [m.id, m.user_id]));
+      
+      if (memberUserIds.length > 0) {
+        const { data: profiles } = await supabaseClient
+          .from('profiles')
+          .select('id, email, full_name')
+          .in('id', memberUserIds);
+
+        profileMap = new Map(profiles?.map(p => [p.id, p]));
       }
     }
 
@@ -146,10 +177,42 @@ Deno.serve(async (req) => {
           }
         }
 
+        // Build other_participant info for direct chats
+        let otherParticipant = null;
+        if (conv.type === 'direct' && agencyMember) {
+          const otherP = conv.conversation_participants?.find(
+            (p: any) => p.agency_member_id && p.agency_member_id !== agencyMember.id
+          );
+          if (otherP?.agency_member_id) {
+            const userId = memberToUserMap.get(otherP.agency_member_id);
+            const profile = userId ? profileMap.get(userId) : null;
+            otherParticipant = {
+              name: profile?.full_name || profile?.email || 'Unknown',
+              email: profile?.email,
+            };
+          }
+        }
+
+        // Get client info for client_chat
+        let clientInfo = null;
+        if (conv.type === 'client_chat' && conv.clients) {
+          clientInfo = {
+            name: conv.clients.name,
+            logo_url: conv.clients.logo_url,
+          };
+        }
+
         return {
-          ...conv,
-          latest_message: latestMessage,
+          id: conv.id,
+          type: conv.type,
+          title: conv.title,
+          client_id: conv.client_id,
+          latest_message: latestMessage ? { body: latestMessage.body, created_at: latestMessage.created_at } : null,
           unread_count: unreadCount,
+          created_at: conv.created_at,
+          updated_at: conv.updated_at,
+          other_participant: otherParticipant,
+          client_info: clientInfo,
         };
       })
     );

@@ -7,8 +7,8 @@ export const useMessages = (conversationId: string | undefined) => {
     queryFn: async () => {
       if (!conversationId) return [];
       
-      const { data, error } = await supabase.functions.invoke('list-messages', {
-        body: { conversation_id: conversationId },
+      const { data, error } = await supabase.functions.invoke(`list-messages?conversation_id=${conversationId}`, {
+        method: 'GET',
       });
       
       if (error) throw error;
