@@ -3,6 +3,9 @@ project_id = "dzyhrzdwwuaorruscxcn"
 [functions.sync-social-metrics]
 verify_jwt = false
 
+[functions.generate-monthly-report]
+verify_jwt = true
+
 [functions.social-oauth]
 verify_jwt = false
 

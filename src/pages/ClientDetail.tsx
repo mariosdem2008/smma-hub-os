@@ -24,6 +24,7 @@ import WorkspaceTab from "@/components/client-tabs/WorkspaceTab";
 import { ClientPortalTab } from "@/components/client-tabs/ClientPortalTab";
 import LibraryTab from "@/components/client-tabs/LibraryTab";
 import TasksTab from "@/components/client-tabs/TasksTab";
+import ReportsTab from "@/components/client-tabs/ReportsTab";
 import { useEffect } from "react";
 
 interface Client {
@@ -202,9 +203,10 @@ export default function ClientDetail() {
         className="w-full"
       >
         <div className="overflow-x-auto scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
-          <TabsList className="inline-flex w-auto min-w-full md:grid md:grid-cols-11 h-auto">
+          <TabsList className="inline-flex w-auto min-w-full md:grid md:grid-cols-12 h-auto">
             <TabsTrigger value="overview" className="flex-shrink-0 min-h-[44px] px-3 md:px-4">Overview</TabsTrigger>
             <TabsTrigger value="analytics" className="flex-shrink-0 min-h-[44px] px-3 md:px-4">Analytics</TabsTrigger>
+            <TabsTrigger value="reports" className="flex-shrink-0 min-h-[44px] px-3 md:px-4">Reports</TabsTrigger>
             <TabsTrigger value="brand" className="flex-shrink-0 min-h-[44px] px-3 md:px-4 whitespace-nowrap">Brand Identity</TabsTrigger>
             <TabsTrigger value="pipeline" className="flex-shrink-0 min-h-[44px] px-3 md:px-4">Pipeline</TabsTrigger>
             <TabsTrigger value="planning" className="flex-shrink-0 min-h-[44px] px-3 md:px-4 whitespace-nowrap">Content Planning</TabsTrigger>
@@ -227,6 +229,10 @@ export default function ClientDetail() {
 
         <TabsContent value="analytics" className="space-y-4">
           <AnalyticsTab clientId={clientId!} />
+        </TabsContent>
+
+        <TabsContent value="reports" className="space-y-4">
+          <ReportsTab clientId={clientId!} agencyId={agencyId} />
         </TabsContent>
 
         <TabsContent value="brand" className="space-y-4">
