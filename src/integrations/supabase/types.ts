@@ -1745,6 +1745,10 @@ export type Database = {
       }
       notification_preferences: {
         Row: {
+          allow_approval_reminders: boolean
+          allow_email: boolean
+          allow_in_app: boolean
+          allow_mentions: boolean
           created_at: string
           email_on_approval: boolean
           email_on_changes_requested: boolean
@@ -1755,6 +1759,10 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          allow_approval_reminders?: boolean
+          allow_email?: boolean
+          allow_in_app?: boolean
+          allow_mentions?: boolean
           created_at?: string
           email_on_approval?: boolean
           email_on_changes_requested?: boolean
@@ -1765,6 +1773,10 @@ export type Database = {
           user_id: string
         }
         Update: {
+          allow_approval_reminders?: boolean
+          allow_email?: boolean
+          allow_in_app?: boolean
+          allow_mentions?: boolean
           created_at?: string
           email_on_approval?: boolean
           email_on_changes_requested?: boolean
