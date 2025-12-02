@@ -46,6 +46,25 @@ SELECT cron.schedule(
 );
 ```
 
+### 3. sync-social-metrics (Every 6 hours)
+
+Syncs social media analytics (post metrics and profile stats) from Instagram, Facebook, and LinkedIn.
+
+```sql
+-- Run in Supabase SQL Editor
+SELECT cron.schedule(
+  'sync-social-metrics-every-6-hours',
+  '0 */6 * * *',
+  $$
+  SELECT net.http_post(
+    url := 'https://YOUR_PROJECT_REF.supabase.co/functions/v1/sync-social-metrics',
+    headers := '{"Content-Type": "application/json", "Authorization": "Bearer YOUR_ANON_KEY"}'::jsonb,
+    body := '{}'::jsonb
+  ) as request_id;
+  $$
+);
+```
+
 ## How to Enable pg_cron and pg_net
 
 1. Go to your Supabase Dashboard → Database → Extensions
@@ -65,13 +84,14 @@ SELECT * FROM cron.job;
 -- Remove a cron job by name
 SELECT cron.unschedule('publish-scheduled-posts-every-5-min');
 SELECT cron.unschedule('refresh-meta-tokens-every-12-hours');
+SELECT cron.unschedule('sync-social-metrics-every-6-hours');
 ```
 
 ## Monitoring Cron Execution
 
 Check edge function logs in Supabase Dashboard → Edge Functions → Logs to see cron execution results.
 
-Check `post_logs` and `token_refresh_logs` tables for detailed publishing and token refresh history.
+Check `post_logs`, `token_refresh_logs`, and `metrics_sync_logs` tables for detailed execution history.
 
 ## Cron Schedule Format
 

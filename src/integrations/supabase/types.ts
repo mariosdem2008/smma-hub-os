@@ -1151,6 +1151,71 @@ export type Database = {
           },
         ]
       }
+      metrics_sync_logs: {
+        Row: {
+          agency_id: string | null
+          client_id: string | null
+          created_at: string | null
+          error_message: string | null
+          id: string
+          platform: string
+          records_synced: number | null
+          success: boolean
+          sync_type: string
+        }
+        Insert: {
+          agency_id?: string | null
+          client_id?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          platform: string
+          records_synced?: number | null
+          success: boolean
+          sync_type: string
+        }
+        Update: {
+          agency_id?: string | null
+          client_id?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          platform?: string
+          records_synced?: number | null
+          success?: boolean
+          sync_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "metrics_sync_logs_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "metrics_sync_logs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_contacts_secure"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "metrics_sync_logs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_portal_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "metrics_sync_logs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notification_preferences: {
         Row: {
           created_at: string
@@ -1806,6 +1871,180 @@ export type Database = {
           },
           {
             foreignKeyName: "social_connections_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      social_post_metrics: {
+        Row: {
+          agency_id: string
+          clicks: number | null
+          client_id: string
+          comments: number | null
+          created_at: string | null
+          date: string
+          id: string
+          impressions: number | null
+          likes: number | null
+          platform: string
+          platform_post_id: string
+          project_id: string | null
+          reach: number | null
+          saves: number | null
+          scheduled_post_id: string | null
+          shares: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          agency_id: string
+          clicks?: number | null
+          client_id: string
+          comments?: number | null
+          created_at?: string | null
+          date: string
+          id?: string
+          impressions?: number | null
+          likes?: number | null
+          platform: string
+          platform_post_id: string
+          project_id?: string | null
+          reach?: number | null
+          saves?: number | null
+          scheduled_post_id?: string | null
+          shares?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          agency_id?: string
+          clicks?: number | null
+          client_id?: string
+          comments?: number | null
+          created_at?: string | null
+          date?: string
+          id?: string
+          impressions?: number | null
+          likes?: number | null
+          platform?: string
+          platform_post_id?: string
+          project_id?: string | null
+          reach?: number | null
+          saves?: number | null
+          scheduled_post_id?: string | null
+          shares?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_post_metrics_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "social_post_metrics_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_contacts_secure"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "social_post_metrics_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_portal_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "social_post_metrics_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "social_post_metrics_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "social_post_metrics_scheduled_post_id_fkey"
+            columns: ["scheduled_post_id"]
+            isOneToOne: false
+            referencedRelation: "scheduled_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      social_profile_stats: {
+        Row: {
+          agency_id: string
+          client_id: string
+          created_at: string | null
+          date: string
+          followers: number | null
+          id: string
+          impressions: number | null
+          platform: string
+          profile_id: string
+          profile_visits: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          agency_id: string
+          client_id: string
+          created_at?: string | null
+          date: string
+          followers?: number | null
+          id?: string
+          impressions?: number | null
+          platform: string
+          profile_id: string
+          profile_visits?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          agency_id?: string
+          client_id?: string
+          created_at?: string | null
+          date?: string
+          followers?: number | null
+          id?: string
+          impressions?: number | null
+          platform?: string
+          profile_id?: string
+          profile_visits?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_profile_stats_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "social_profile_stats_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_contacts_secure"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "social_profile_stats_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_portal_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "social_profile_stats_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
