@@ -1088,6 +1088,124 @@ export type Database = {
           },
         ]
       }
+      conversation_participants: {
+        Row: {
+          agency_id: string
+          agency_member_id: string | null
+          client_user_id: string | null
+          conversation_id: string
+          created_at: string
+          id: string
+          role: string
+        }
+        Insert: {
+          agency_id: string
+          agency_member_id?: string | null
+          client_user_id?: string | null
+          conversation_id: string
+          created_at?: string
+          id?: string
+          role: string
+        }
+        Update: {
+          agency_id?: string
+          agency_member_id?: string | null
+          client_user_id?: string | null
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_participants_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_participants_agency_member_id_fkey"
+            columns: ["agency_member_id"]
+            isOneToOne: false
+            referencedRelation: "agency_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_participants_client_user_id_fkey"
+            columns: ["client_user_id"]
+            isOneToOne: false
+            referencedRelation: "client_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_participants_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversations: {
+        Row: {
+          agency_id: string
+          client_id: string | null
+          created_at: string
+          id: string
+          title: string | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          agency_id: string
+          client_id?: string | null
+          created_at?: string
+          id?: string
+          title?: string | null
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          agency_id?: string
+          client_id?: string | null
+          created_at?: string
+          id?: string
+          title?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversations_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_contacts_secure"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_portal_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ideas: {
         Row: {
           attachments: Json | null
@@ -1161,32 +1279,93 @@ export type Database = {
           },
         ]
       }
-      messages: {
+      message_read_receipts: {
         Row: {
-          attachment_url: string | null
-          client_id: string
-          content: string
-          created_at: string
           id: string
-          sender_id: string
+          message_id: string
+          participant_id: string
+          read_at: string
         }
         Insert: {
-          attachment_url?: string | null
-          client_id: string
-          content: string
-          created_at?: string
           id?: string
-          sender_id: string
+          message_id: string
+          participant_id: string
+          read_at?: string
         }
         Update: {
-          attachment_url?: string | null
-          client_id?: string
-          content?: string
-          created_at?: string
           id?: string
-          sender_id?: string
+          message_id?: string
+          participant_id?: string
+          read_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "message_read_receipts_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_read_receipts_participant_id_fkey"
+            columns: ["participant_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_participants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          agency_id: string
+          attachment_url: string | null
+          body: string | null
+          client_id: string | null
+          conversation_id: string
+          created_at: string
+          id: string
+          read_at: string | null
+          related_project_id: string | null
+          sender_agency_member_id: string | null
+          sender_client_user_id: string | null
+          sender_type: string
+        }
+        Insert: {
+          agency_id: string
+          attachment_url?: string | null
+          body?: string | null
+          client_id?: string | null
+          conversation_id: string
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          related_project_id?: string | null
+          sender_agency_member_id?: string | null
+          sender_client_user_id?: string | null
+          sender_type: string
+        }
+        Update: {
+          agency_id?: string
+          attachment_url?: string | null
+          body?: string | null
+          client_id?: string | null
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          related_project_id?: string | null
+          sender_agency_member_id?: string | null
+          sender_client_user_id?: string | null
+          sender_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "messages_client_id_fkey"
             columns: ["client_id"]
@@ -1206,6 +1385,34 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_related_project_id_fkey"
+            columns: ["related_project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_sender_agency_member_id_fkey"
+            columns: ["sender_agency_member_id"]
+            isOneToOne: false
+            referencedRelation: "agency_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_sender_client_user_id_fkey"
+            columns: ["sender_client_user_id"]
+            isOneToOne: false
+            referencedRelation: "client_users"
             referencedColumns: ["id"]
           },
         ]

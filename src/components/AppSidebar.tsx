@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, UsersRound, Settings, LogOut, CreditCard, ArrowUpCircle } from "lucide-react";
+import { LayoutDashboard, Users, UsersRound, Settings, LogOut, CreditCard, ArrowUpCircle, MessageSquare } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import {
@@ -45,6 +45,7 @@ export function AppSidebar() {
   const navigationItems = [
     { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
     { title: "Clients", url: "/clients", icon: Users },
+    { title: "Messages", url: "/messages", icon: MessageSquare },
     { title: "Team", url: "/team", icon: UsersRound },
     // Billing: Show different links based on role
     ...(isOwner

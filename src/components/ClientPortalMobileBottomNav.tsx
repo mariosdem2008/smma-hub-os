@@ -1,6 +1,6 @@
 import { Link, useLocation, useParams } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { CheckCircle, CalendarDays, FolderOpen, Upload } from "lucide-react";
+import { CheckCircle, CalendarDays, FolderOpen, Upload, MessageSquare } from "lucide-react";
 import { hapticSelection } from "@/lib/haptics";
 
 export function ClientPortalMobileBottomNav() {
@@ -10,6 +10,7 @@ export function ClientPortalMobileBottomNav() {
   const navItems = [
     { path: "approvals", label: "Approve", icon: CheckCircle },
     { path: "content-calendar", label: "Calendar", icon: CalendarDays },
+    { path: "messages", label: "Messages", icon: MessageSquare },
     { path: "assets", label: "Assets", icon: FolderOpen },
     { path: "uploads", label: "Upload", icon: Upload },
   ];
@@ -20,7 +21,7 @@ export function ClientPortalMobileBottomNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:hidden">
-      <div className="grid grid-cols-4 h-16">
+      <div className="grid grid-cols-5 h-16">
         {navItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.path);

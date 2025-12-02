@@ -27,6 +27,7 @@ import Pricing from "./pages/Pricing";
 import Billing from "./pages/Billing";
 import BillingOverview from "./pages/BillingOverview";
 import InviteAccept from "./pages/InviteAccept";
+import Messages from "./pages/Messages";
 import NotFound from "./pages/NotFound";
 import { ClientPortalLayout } from "./pages/ClientPortalLayout";
 import ClientLogin from "./pages/client/ClientLogin";
@@ -43,6 +44,7 @@ import { PortalAssets } from "./pages/client-portal/PortalAssets";
 import { PortalContentCalendar } from "./pages/client-portal/PortalContentCalendar";
 import PortalUploads from "./pages/client-portal/PortalUploads";
 import PortalApprovals from "./pages/client-portal/PortalApprovals";
+import PortalMessages from "./pages/client-portal/PortalMessages";
 import ReportDetail from "./components/client-tabs/ReportDetail";
 
 const queryClient = new QueryClient();
@@ -89,6 +91,7 @@ const App = () => {
                     <Route path="social" element={<PortalSocial />} />
                     <Route path="social-profiles" element={<PortalSocialProfiles />} />
                     <Route path="uploads" element={<PortalUploads />} />
+                    <Route path="messages" element={<PortalMessages />} />
                   </Route>
                   
                   {/* Onboarding */}
@@ -113,6 +116,7 @@ const App = () => {
                     <Route path="/clients" element={<Clients />} />
                     <Route path="/clients/:clientId" element={<ClientDetail />} />
                     <Route path="/clients/:clientId/reports/:reportId" element={<ReportDetail />} />
+                    <Route path="/messages" element={<Messages />} />
                     <Route path="/team" element={<Team />} />
                     <Route path="/billing" element={<Billing />} />
                     <Route path="/billing/overview" element={<BillingOverview />} />
