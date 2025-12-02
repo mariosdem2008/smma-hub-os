@@ -27,7 +27,13 @@ export default function AnalyticsTab({ clientId }: AnalyticsTabProps) {
   const handleSync = () => {
     syncMutation.mutate(undefined, {
       onSuccess: (data) => {
-        if (data.success) {
+        if (data.permissionError) {
+          toast({
+            title: "Permission Error",
+            description: data.permissionError,
+            variant: "destructive",
+          });
+        } else if (data.success) {
           toast({
             title: "Sync Complete",
             description: `Synced ${data.posts_synced || 0} posts and ${data.profiles_synced || 0} profiles.`,

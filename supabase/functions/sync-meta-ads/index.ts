@@ -104,8 +104,21 @@ serve(async (req) => {
         const campaignsData = await campaignsResponse.json();
 
         if (campaignsData.error) {
-          console.error(`[SYNC-ADS] Meta API error for account ${account.meta_ad_account_id}:`, campaignsData.error);
-          results.push({ accountId: account.meta_ad_account_id, success: false, error: campaignsData.error.message });
+          const errorCode = campaignsData.error.code;
+          const errorMsg = campaignsData.error.message;
+          console.error(`[SYNC-ADS] Meta API error for account ${account.meta_ad_account_id}:`, errorCode, errorMsg);
+          
+          // Check for permission errors
+          if (errorCode === 10 || errorCode === 200 || errorCode === 190 || 
+              errorMsg.includes('permission') || errorMsg.includes('ads_read') || errorMsg.includes('ads_management')) {
+            results.push({ 
+              accountId: account.meta_ad_account_id, 
+              success: false, 
+              error: `Missing permission: ads_read or ads_management. Please reconnect Facebook/Instagram with full permissions.` 
+            });
+          } else {
+            results.push({ accountId: account.meta_ad_account_id, success: false, error: errorMsg });
+          }
           continue;
         }
 

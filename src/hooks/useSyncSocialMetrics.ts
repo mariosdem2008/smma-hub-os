@@ -7,6 +7,7 @@ interface SyncResult {
   profiles_synced?: number;
   errors?: string[];
   error?: string;
+  permissionError?: string;
 }
 
 export function useSyncSocialMetrics() {
@@ -19,7 +20,23 @@ export function useSyncSocialMetrics() {
       });
 
       if (error) throw error;
-      return data as SyncResult;
+      
+      const result = data as SyncResult;
+      
+      // Check for permission errors in the response
+      if (result.errors && result.errors.length > 0) {
+        const permissionErrors = result.errors.filter(e => 
+          e.includes('permission') || e.includes('Missing permission')
+        );
+        if (permissionErrors.length > 0) {
+          return {
+            ...result,
+            permissionError: permissionErrors[0]
+          };
+        }
+      }
+      
+      return result;
     },
     onSuccess: () => {
       // Invalidate all analytics-related queries

@@ -183,7 +183,7 @@ async function exchangeCodeForToken(
   appSecret: string,
   redirectUri: string,
   graphApiVersion: string
-): Promise<{ access_token: string; refresh_token?: string; expires_at: string } | null> {
+): Promise<{ access_token: string; refresh_token?: string; expires_at: string; granted_scopes?: string[] } | null> {
   try {
     console.log('[TOKEN-EXCHANGE] Starting token exchange');
     
@@ -213,9 +213,40 @@ async function exchangeCodeForToken(
       return null;
     }
 
+    // Debug: Log token permissions by calling /me/permissions
+    try {
+      const permissionsUrl = `https://graph.facebook.com/${graphApiVersion}/me/permissions?access_token=${longLivedData.access_token}`;
+      const permissionsResponse = await fetch(permissionsUrl);
+      const permissionsData = await permissionsResponse.json();
+      
+      const grantedScopes = (permissionsData.data || [])
+        .filter((p: any) => p.status === 'granted')
+        .map((p: any) => p.permission);
+      
+      const declinedScopes = (permissionsData.data || [])
+        .filter((p: any) => p.status === 'declined')
+        .map((p: any) => p.permission);
+      
+      console.log('[TOKEN-EXCHANGE] ✓ GRANTED SCOPES:', grantedScopes.join(', '));
+      if (declinedScopes.length > 0) {
+        console.log('[TOKEN-EXCHANGE] ⚠️ DECLINED/MISSING SCOPES:', declinedScopes.join(', '));
+      }
+      
+      // Check for critical scopes
+      const criticalScopes = ['instagram_manage_insights', 'read_insights', 'ads_read'];
+      const missingCritical = criticalScopes.filter(s => !grantedScopes.includes(s));
+      if (missingCritical.length > 0) {
+        console.log('[TOKEN-EXCHANGE] ⚠️ MISSING CRITICAL SCOPES for analytics/ads:', missingCritical.join(', '));
+      }
+    } catch (permError) {
+      console.error('[TOKEN-EXCHANGE] Error fetching permissions (non-fatal):', permError);
+    }
+
     // Calculate expiration (60 days for long-lived tokens)
     const expiresIn = longLivedData.expires_in || 5184000; // 60 days default
     const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
+    
+    console.log('[TOKEN-EXCHANGE] Token expires at:', expiresAt);
 
     return {
       access_token: longLivedData.access_token,

@@ -88,8 +88,26 @@ export default function AdsTab({ clientId, agencyId }: AdsTabProps) {
   };
 
   const handleSync = () => {
-    syncMutation.mutate(clientId);
-    toast({ title: "Syncing", description: "Fetching latest ad data from Meta..." });
+    syncMutation.mutate(clientId, {
+      onSuccess: (data) => {
+        if (data.permissionError) {
+          toast({
+            title: "Permission Error",
+            description: data.permissionError,
+            variant: "destructive",
+          });
+        } else {
+          toast({ title: "Sync Complete", description: "Ad data synced successfully" });
+        }
+      },
+      onError: (error: any) => {
+        toast({
+          title: "Sync Error",
+          description: error.message || "Failed to sync ad data",
+          variant: "destructive",
+        });
+      },
+    });
   };
 
   // Calculate totals
@@ -138,6 +156,10 @@ export default function AdsTab({ clientId, agencyId }: AdsTabProps) {
                 <DialogTitle>Connect Meta Ad Account</DialogTitle>
                 <DialogDescription>
                   Enter your Meta Ad Account ID to start tracking campaign performance.
+                  <span className="block mt-2 text-xs">
+                    <strong>Note:</strong> Make sure your Facebook/Instagram connection has Ads permissions. 
+                    If data doesn't sync, reconnect social profiles with full permissions.
+                  </span>
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
