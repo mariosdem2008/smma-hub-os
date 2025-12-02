@@ -84,7 +84,7 @@ serve(async (req) => {
           .select("access_token")
           .eq("client_id", account.client_id)
           .eq("platform", "facebook")
-          .eq("status", "active")
+          .eq("status", "connected")
           .single();
 
         if (connError || !connection?.access_token) {

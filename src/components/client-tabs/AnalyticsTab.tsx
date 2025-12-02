@@ -1,11 +1,14 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { useClientAnalytics } from "@/hooks/useClientAnalytics";
 import { useTopPosts } from "@/hooks/useTopPosts";
 import { useWorstPosts } from "@/hooks/useWorstPosts";
 import { useProfileTrends } from "@/hooks/useProfileTrends";
-import { Eye, Users, Heart, TrendingUp, TrendingDown, Instagram, Facebook } from "lucide-react";
+import { useSyncSocialMetrics } from "@/hooks/useSyncSocialMetrics";
+import { useToast } from "@/hooks/use-toast";
+import { Eye, Users, Heart, TrendingUp, TrendingDown, Instagram, Facebook, RefreshCw } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { format } from "date-fns";
 
@@ -14,10 +17,38 @@ interface AnalyticsTabProps {
 }
 
 export default function AnalyticsTab({ clientId }: AnalyticsTabProps) {
-  const { data: analytics, isLoading: analyticsLoading } = useClientAnalytics(clientId);
+  const { toast } = useToast();
+  const { data: analytics, isLoading: analyticsLoading, error: analyticsError } = useClientAnalytics(clientId);
   const { data: topPosts, isLoading: topPostsLoading } = useTopPosts(clientId, 5);
   const { data: worstPosts, isLoading: worstPostsLoading } = useWorstPosts(clientId, 5);
   const { data: trends, isLoading: trendsLoading } = useProfileTrends(clientId, 30);
+  const syncMutation = useSyncSocialMetrics();
+
+  const handleSync = () => {
+    syncMutation.mutate(undefined, {
+      onSuccess: (data) => {
+        if (data.success) {
+          toast({
+            title: "Sync Complete",
+            description: `Synced ${data.posts_synced || 0} posts and ${data.profiles_synced || 0} profiles.`,
+          });
+        } else {
+          toast({
+            title: "Sync Failed",
+            description: data.error || "Failed to sync metrics",
+            variant: "destructive",
+          });
+        }
+      },
+      onError: (error: any) => {
+        toast({
+          title: "Sync Error",
+          description: error.message || "Failed to sync metrics",
+          variant: "destructive",
+        });
+      },
+    });
+  };
 
   const getPlatformIcon = (platform: string) => {
     switch (platform.toLowerCase()) {
@@ -48,9 +79,13 @@ export default function AnalyticsTab({ clientId }: AnalyticsTabProps) {
             <Eye className="h-8 w-8 text-primary" />
           </div>
           <p className="text-muted-foreground font-medium mb-2">No Analytics Data Yet</p>
-          <p className="text-sm text-muted-foreground">
-            Connect social profiles and publish content to see insights and performance metrics.
+          <p className="text-sm text-muted-foreground mb-6">
+            Connect social profiles and publish content to see insights. Metrics sync runs every 6 hours.
           </p>
+          <Button onClick={handleSync} disabled={syncMutation.isPending} variant="outline">
+            <RefreshCw className={`h-4 w-4 mr-2 ${syncMutation.isPending ? "animate-spin" : ""}`} />
+            {syncMutation.isPending ? "Syncing..." : "Sync Now"}
+          </Button>
         </CardContent>
       </Card>
     );
@@ -58,7 +93,17 @@ export default function AnalyticsTab({ clientId }: AnalyticsTabProps) {
 
   return (
     <div className="space-y-6">
-      {/* Key Metrics Grid */}
+      {/* Header with Sync Button */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-semibold">Performance Analytics</h2>
+          <p className="text-sm text-muted-foreground">Last 30 days</p>
+        </div>
+        <Button onClick={handleSync} disabled={syncMutation.isPending} variant="outline" size="sm">
+          <RefreshCw className={`h-4 w-4 mr-2 ${syncMutation.isPending ? "animate-spin" : ""}`} />
+          {syncMutation.isPending ? "Syncing..." : "Sync Metrics"}
+        </Button>
+      </div>
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardContent className="pt-6">
