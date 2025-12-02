@@ -15,6 +15,9 @@ verify_jwt = true
 [functions.mark-message-read]
 verify_jwt = true
 
+[functions.generate-approval-reminders]
+verify_jwt = false
+
 [functions.sync-social-metrics]
 verify_jwt = false
 
@@ -70,4 +73,16 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.send-waitlist-email]
+verify_jwt = false
+
+[functions.send-approval-notification]
+verify_jwt = true
+
+[functions.notify-assigned-editor]
+verify_jwt = true
+
+[functions.publish-scheduled-posts]
+verify_jwt = false
+
+[functions.refresh-meta-tokens]
 verify_jwt = false

@@ -4,6 +4,7 @@ import { MessageBubble } from './MessageBubble';
 import { MessageInput } from './MessageInput';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/lib/auth';
+import { useMarkConversationNotificationsRead } from '@/hooks/useNotifications';
 
 interface ConversationThreadProps {
   conversationId: string;
@@ -13,10 +14,18 @@ export function ConversationThread({ conversationId }: ConversationThreadProps) 
   const { data: messages, isLoading } = useMessages(conversationId);
   const { user } = useAuth();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { mutate: markNotificationsRead } = useMarkConversationNotificationsRead();
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Mark notifications for this conversation as read when opened
+  useEffect(() => {
+    if (conversationId) {
+      markNotificationsRead(conversationId);
+    }
+  }, [conversationId, markNotificationsRead]);
 
   if (isLoading) {
     return (

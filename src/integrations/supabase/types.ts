@@ -1515,6 +1515,67 @@ export type Database = {
         }
         Relationships: []
       }
+      notifications: {
+        Row: {
+          agency_id: string
+          conversation_id: string | null
+          created_at: string
+          id: string
+          payload: Json
+          project_id: string | null
+          read_at: string | null
+          type: string
+          user_id: string
+          user_type: string
+        }
+        Insert: {
+          agency_id: string
+          conversation_id?: string | null
+          created_at?: string
+          id?: string
+          payload?: Json
+          project_id?: string | null
+          read_at?: string | null
+          type: string
+          user_id: string
+          user_type: string
+        }
+        Update: {
+          agency_id?: string
+          conversation_id?: string | null
+          created_at?: string
+          id?: string
+          payload?: Json
+          project_id?: string | null
+          read_at?: string | null
+          type?: string
+          user_id?: string
+          user_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       post_logs: {
         Row: {
           attempt_number: number | null

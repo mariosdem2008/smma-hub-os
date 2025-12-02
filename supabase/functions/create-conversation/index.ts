@@ -40,10 +40,10 @@ Deno.serve(async (req) => {
     const payload: CreateConversationPayload = await req.json();
     const { type, client_id, title, member_ids = [], client_user_ids = [] } = payload;
 
-    // Get user's agency
+    // Get user's agency membership
     const { data: agencyMember } = await supabaseClient
       .from('agency_members')
-      .select('agency_id')
+      .select('id, agency_id')
       .eq('user_id', user.id)
       .single();
 
@@ -52,6 +52,51 @@ Deno.serve(async (req) => {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
+
+    // For client_chat, check if conversation already exists
+    if (type === 'client_chat' && client_id) {
+      const { data: existingConv } = await supabaseClient
+        .from('conversations')
+        .select('*')
+        .eq('agency_id', agencyMember.agency_id)
+        .eq('type', 'client_chat')
+        .eq('client_id', client_id)
+        .maybeSingle();
+
+      if (existingConv) {
+        return new Response(JSON.stringify({ conversation: existingConv }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    // For direct chats, check if conversation already exists between these two members
+    if (type === 'direct' && member_ids.length === 1) {
+      const otherMemberId = member_ids[0];
+      
+      // Find existing direct conversation between these two members
+      const { data: existingConvs } = await supabaseClient
+        .from('conversations')
+        .select(`
+          *,
+          conversation_participants(agency_member_id)
+        `)
+        .eq('agency_id', agencyMember.agency_id)
+        .eq('type', 'direct');
+
+      if (existingConvs) {
+        for (const conv of existingConvs) {
+          const participantIds = conv.conversation_participants?.map((p: any) => p.agency_member_id) || [];
+          if (participantIds.includes(agencyMember.id) && participantIds.includes(otherMemberId)) {
+            return new Response(JSON.stringify({ conversation: conv }), {
+              status: 200,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+        }
+      }
     }
 
     // Create conversation
@@ -74,28 +119,41 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Add agency member participants
-    const agencyParticipants = member_ids.map(memberId => ({
+    // Always add creator as participant
+    const participants = [{
       conversation_id: conversation.id,
       agency_id: agencyMember.agency_id,
-      agency_member_id: memberId,
+      agency_member_id: agencyMember.id,
       role: 'agency_member',
-    }));
+    }];
+
+    // Add other agency member participants (excluding creator if already in list)
+    for (const memberId of member_ids) {
+      if (memberId !== agencyMember.id) {
+        participants.push({
+          conversation_id: conversation.id,
+          agency_id: agencyMember.agency_id,
+          agency_member_id: memberId,
+          role: 'agency_member',
+        });
+      }
+    }
 
     // Add client user participants
-    const clientParticipants = client_user_ids.map(userId => ({
-      conversation_id: conversation.id,
-      agency_id: agencyMember.agency_id,
-      client_user_id: userId,
-      role: 'client_user',
-    }));
+    for (const userId of client_user_ids) {
+      participants.push({
+        conversation_id: conversation.id,
+        agency_id: agencyMember.agency_id,
+        agency_member_id: null,
+        client_user_id: userId,
+        role: 'client_user',
+      } as any);
+    }
 
-    const allParticipants = [...agencyParticipants, ...clientParticipants];
-
-    if (allParticipants.length > 0) {
+    if (participants.length > 0) {
       const { error: participantsError } = await supabaseClient
         .from('conversation_participants')
-        .insert(allParticipants);
+        .insert(participants);
 
       if (participantsError) {
         console.error('Error adding participants:', participantsError);
@@ -106,7 +164,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`Conversation created: ${conversation.id} (type: ${type})`);
+    console.log(`Conversation created: ${conversation.id} (type: ${type}) with ${participants.length} participants`);
 
     return new Response(JSON.stringify({ conversation }), {
       status: 200,

@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
     // Check if agency member
     const { data: agencyMember } = await supabaseClient
       .from('agency_members')
-      .select('agency_id')
+      .select('id, agency_id')
       .eq('user_id', user.id)
       .single();
 
@@ -44,18 +44,13 @@ Deno.serve(async (req) => {
         .from('conversations')
         .select(`
           *,
-          messages!inner(
-            id,
-            body,
-            created_at,
-            sender_type
-          ),
           conversation_participants(
             id,
             agency_member_id,
             client_user_id,
             role
-          )
+          ),
+          clients(name)
         `)
         .eq('agency_id', agencyMember.agency_id)
         .order('updated_at', { ascending: false });
@@ -82,18 +77,13 @@ Deno.serve(async (req) => {
           .from('conversations')
           .select(`
             *,
-            messages!inner(
-              id,
-              body,
-              created_at,
-              sender_type
-            ),
             conversation_participants(
               id,
               agency_member_id,
               client_user_id,
               role
-            )
+            ),
+            clients(name)
           `)
           .eq('type', 'client_chat')
           .eq('client_id', clientUser.client_id)
@@ -121,19 +111,15 @@ Deno.serve(async (req) => {
           .eq('conversation_id', conv.id)
           .order('created_at', { ascending: false })
           .limit(1)
-          .single();
+          .maybeSingle();
 
-        // Get unread count for current user
+        // Get participant for current user
         const { data: participant } = await supabaseClient
           .from('conversation_participants')
           .select('id')
           .eq('conversation_id', conv.id)
-          .or(
-            agencyMember
-              ? `agency_member_id.eq.${agencyMember.agency_id}`
-              : `client_user_id.eq.${user.id}`
-          )
-          .single();
+          .eq('agency_member_id', agencyMember?.id || null)
+          .maybeSingle();
 
         let unreadCount = 0;
         if (participant) {
@@ -144,13 +130,20 @@ Deno.serve(async (req) => {
 
           const readMessageIds = readReceipts?.map(r => r.message_id) || [];
 
-          const { count } = await supabaseClient
-            .from('messages')
-            .select('*', { count: 'exact', head: true })
-            .eq('conversation_id', conv.id)
-            .not('id', 'in', `(${readMessageIds.join(',') || 'null'})`);
-
-          unreadCount = count || 0;
+          if (readMessageIds.length > 0) {
+            const { count } = await supabaseClient
+              .from('messages')
+              .select('*', { count: 'exact', head: true })
+              .eq('conversation_id', conv.id)
+              .not('id', 'in', `(${readMessageIds.join(',')})`);
+            unreadCount = count || 0;
+          } else {
+            const { count } = await supabaseClient
+              .from('messages')
+              .select('*', { count: 'exact', head: true })
+              .eq('conversation_id', conv.id);
+            unreadCount = count || 0;
+          }
         }
 
         return {

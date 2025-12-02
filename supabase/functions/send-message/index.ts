@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
     // Get conversation details
     const { data: conversation } = await supabaseClient
       .from('conversations')
-      .select('agency_id, client_id')
+      .select('agency_id, client_id, type')
       .eq('id', conversation_id)
       .single();
 
@@ -57,11 +57,12 @@ Deno.serve(async (req) => {
     let senderAgencyMemberId = null;
     let senderClientUserId = null;
     let participantId = null;
+    let senderName = 'Someone';
 
     if (sender_type === 'agency_member') {
       const { data: agencyMember } = await supabaseClient
         .from('agency_members')
-        .select('id')
+        .select('id, user_id')
         .eq('user_id', user.id)
         .eq('agency_id', conversation.agency_id)
         .single();
@@ -75,6 +76,15 @@ Deno.serve(async (req) => {
 
       senderAgencyMemberId = agencyMember.id;
 
+      // Get sender name
+      const { data: profile } = await supabaseClient
+        .from('profiles')
+        .select('full_name, email')
+        .eq('id', user.id)
+        .single();
+      
+      senderName = profile?.full_name || profile?.email || 'Agency member';
+
       // Get participant record
       const { data: participant } = await supabaseClient
         .from('conversation_participants')
@@ -87,7 +97,7 @@ Deno.serve(async (req) => {
     } else {
       const { data: clientUser } = await supabaseClient
         .from('client_users')
-        .select('id')
+        .select('id, full_name, email')
         .eq('id', user.id)
         .single();
 
@@ -99,6 +109,7 @@ Deno.serve(async (req) => {
       }
 
       senderClientUserId = clientUser.id;
+      senderName = clientUser.full_name || clientUser.email || 'Client';
 
       // Get participant record
       const { data: participant } = await supabaseClient
@@ -145,6 +156,61 @@ Deno.serve(async (req) => {
           participant_id: participantId,
         });
     }
+
+    // Get all participants except sender to create notifications
+    const { data: participants } = await supabaseClient
+      .from('conversation_participants')
+      .select('id, agency_member_id, client_user_id, role')
+      .eq('conversation_id', conversation_id);
+
+    if (participants) {
+      const notifications = [];
+      const snippet = text ? (text.length > 50 ? text.substring(0, 50) + '...' : text) : 'Sent an attachment';
+
+      for (const participant of participants) {
+        // Skip sender
+        if (sender_type === 'agency_member' && participant.agency_member_id === senderAgencyMemberId) continue;
+        if (sender_type === 'client_user' && participant.client_user_id === senderClientUserId) continue;
+
+        if (participant.agency_member_id) {
+          notifications.push({
+            agency_id: conversation.agency_id,
+            user_type: 'agency_member',
+            user_id: participant.agency_member_id,
+            type: 'new_message',
+            conversation_id: conversation_id,
+            payload: {
+              sender_name: senderName,
+              snippet,
+              conversation_type: conversation.type,
+            },
+          });
+        } else if (participant.client_user_id) {
+          notifications.push({
+            agency_id: conversation.agency_id,
+            user_type: 'client_user',
+            user_id: participant.client_user_id,
+            type: 'new_message',
+            conversation_id: conversation_id,
+            payload: {
+              sender_name: senderName,
+              snippet,
+              conversation_type: conversation.type,
+            },
+          });
+        }
+      }
+
+      if (notifications.length > 0) {
+        await supabaseClient.from('notifications').insert(notifications);
+      }
+    }
+
+    // Update conversation updated_at
+    await supabaseClient
+      .from('conversations')
+      .update({ updated_at: new Date().toISOString() })
+      .eq('id', conversation_id);
 
     console.log(`Message sent: ${message.id} in conversation ${conversation_id}`);
 
