@@ -14,6 +14,7 @@ import { InviteTeamMemberDialog } from "./InviteTeamMemberDialog";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 
 export function AppLayout() {
   const { user } = useAuth();
@@ -46,6 +47,7 @@ export function AppLayout() {
               <h2 className="text-lg font-bold bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] bg-clip-text text-transparent">SMMAHUB</h2>
             </div>
             <div className="flex items-center gap-2 md:gap-3">
+              <NotificationCenter />
               <ThemeToggle />
               {upgradeBadgeText && !isMobile && (
                 <Badge

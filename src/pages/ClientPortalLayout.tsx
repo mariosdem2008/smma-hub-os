@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ClientPortalMobileBottomNav } from "@/components/ClientPortalMobileBottomNav";
+import { ClientPortalNotificationCenter } from "@/components/notifications/ClientPortalNotificationCenter";
 import {
   FolderOpen,
   LogOut,
@@ -123,6 +124,7 @@ function ClientPortalLayoutContent() {
             </div>
           </div>
           <div className="flex items-center gap-2 md:gap-4">
+            <ClientPortalNotificationCenter />
             {!isMobile && (
               <span className="text-sm text-muted-foreground">
                 {clientUser.full_name || clientUser.email}
