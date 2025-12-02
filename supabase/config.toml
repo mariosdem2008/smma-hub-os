@@ -88,4 +88,4 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.sync-meta-ads]
-verify_jwt = true
+verify_jwt = false

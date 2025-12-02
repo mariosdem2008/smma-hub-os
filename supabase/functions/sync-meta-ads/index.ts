@@ -2,6 +2,23 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 
+/**
+ * sync-meta-ads - Fetches campaign & insights data from Meta Marketing API
+ * 
+ * CRON SCHEDULE: Run daily at 6 AM UTC
+ * SELECT cron.schedule(
+ *   'sync-meta-ads-daily',
+ *   '0 6 * * *',
+ *   $$
+ *   SELECT net.http_post(
+ *     url:='https://dzyhrzdwwuaorruscxcn.supabase.co/functions/v1/sync-meta-ads',
+ *     headers:='{"Content-Type": "application/json", "Authorization": "Bearer YOUR_ANON_KEY"}'::jsonb,
+ *     body:='{}'::jsonb
+ *   ) as request_id;
+ *   $$
+ * );
+ */
+
 const GRAPH_API_VERSION = Deno.env.get("GRAPH_API_VERSION") || "v21.0";
 
 interface AdAccount {
