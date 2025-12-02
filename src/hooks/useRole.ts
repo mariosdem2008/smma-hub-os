@@ -55,14 +55,17 @@ export function useRole() {
   const isOwner = role === "owner";
   const isAdmin = role === "admin";
   const isManager = role === "manager";
-  const canManageTeam = isOwner || isAdmin; // Admins can manage team
+  const isCreator = role === "creator";
+  const isViewer = role === "viewer";
+  
+  const canManageTeam = isOwner || isAdmin;
   const canManageClients = isOwner || isAdmin || isManager;
   const canDeleteClients = isOwner || isAdmin || isManager;
-  const canEditSettings = isOwner || isAdmin || isManager || role === "creator";
-  const canCreateContent = isOwner || isAdmin || isManager || role === "creator";
-  const canEditContent = isOwner || isAdmin || isManager || role === "creator";
+  const canEditSettings = isOwner || isAdmin || isManager || isCreator;
+  const canCreateContent = isOwner || isAdmin || isManager || isCreator;
+  const canEditContent = isOwner || isAdmin || isManager || isCreator;
   const canDeleteContent = isOwner || isAdmin || isManager;
-  const isViewer = role === "viewer";
+  const canApproveContent = isOwner || isAdmin || isManager;
 
   return {
     role,
@@ -70,6 +73,8 @@ export function useRole() {
     isOwner,
     isAdmin,
     isManager,
+    isCreator,
+    isViewer,
     canManageTeam,
     canManageClients,
     canDeleteClients,
@@ -77,6 +82,6 @@ export function useRole() {
     canCreateContent,
     canEditContent,
     canDeleteContent,
-    isViewer,
+    canApproveContent,
   };
 }
