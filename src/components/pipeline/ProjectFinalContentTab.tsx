@@ -31,6 +31,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { convertToUTC, convertToLocal } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
+import { logActivity } from "@/hooks/useActivityLog";
 
 interface Project {
   id: string;
@@ -182,6 +183,15 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
       toast({
         title: "Success",
         description: "Final content uploaded successfully",
+      });
+
+      // Log activity
+      await logActivity({
+        projectId: project.id,
+        actionType: 'final_asset_uploaded',
+        details: {
+          file_count: files.length
+        }
       });
 
       fetchFinalAssets();
