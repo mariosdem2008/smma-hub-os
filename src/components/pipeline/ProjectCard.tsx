@@ -38,7 +38,8 @@ import {
   ArrowRight,
   ArrowLeft,
   User,
-  Check
+  Check,
+  MessageSquare
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -72,6 +73,8 @@ interface Project {
   script_id: string | null;
   created_at: string;
   asset_count?: number;
+  comment_count?: number;
+  external_comment_count?: number;
   error_message?: string | null;
   assigned_to?: string | null;
   assigned_user?: AssignedUser | null;
@@ -513,10 +516,22 @@ export default function ProjectCard({
                   Script
                 </Badge>
               )}
-              {project.asset_count !== undefined && (
+              {project.asset_count !== undefined && project.asset_count > 0 && (
                 <Badge variant="secondary" className="text-xs">
                   <ImageIcon className="h-3 w-3 mr-1" />
                   {project.asset_count}
+                </Badge>
+              )}
+              {project.comment_count !== undefined && project.comment_count > 0 && (
+                <Badge 
+                  variant={project.external_comment_count && project.external_comment_count > 0 ? "default" : "outline"} 
+                  className={`text-xs ${project.external_comment_count && project.external_comment_count > 0 ? 'bg-blue-500/20 text-blue-600 dark:text-blue-400 border-blue-500/30' : ''}`}
+                >
+                  <MessageSquare className="h-3 w-3 mr-1" />
+                  {project.comment_count}
+                  {project.external_comment_count && project.external_comment_count > 0 && (
+                    <span className="ml-1 text-[10px] font-bold">•</span>
+                  )}
                 </Badge>
               )}
             </div>

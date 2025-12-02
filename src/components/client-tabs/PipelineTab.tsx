@@ -36,6 +36,8 @@ interface Project {
   script_id: string | null;
   created_at: string;
   asset_count?: number;
+  comment_count?: number;
+  external_comment_count?: number;
   assigned_to: string | null;
   assigned_user?: AssignedUser | null;
   rejection_reason: string | null;
@@ -92,21 +94,38 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
 
       if (error) throw error;
 
-      // Fetch asset counts in a single query
+      // Fetch asset counts and comment counts in parallel
       const projectIds = (projectsData || []).map(p => p.id);
       let assetCounts: Record<string, number> = {};
+      let commentCounts: Record<string, number> = {};
+      let externalCommentCounts: Record<string, number> = {};
       
       if (projectIds.length > 0) {
-        const { data: assetData } = await supabase
-          .from('project_assets')
-          .select('project_id')
-          .in('project_id', projectIds);
+        const [assetRes, commentRes] = await Promise.all([
+          supabase
+            .from('project_assets')
+            .select('project_id')
+            .in('project_id', projectIds),
+          supabase
+            .from('pipeline_comments')
+            .select('project_id, is_internal')
+            .in('project_id', projectIds)
+        ]);
         
-        if (assetData) {
-          assetCounts = assetData.reduce((acc, item) => {
+        if (assetRes.data) {
+          assetCounts = assetRes.data.reduce((acc, item) => {
             acc[item.project_id] = (acc[item.project_id] || 0) + 1;
             return acc;
           }, {} as Record<string, number>);
+        }
+        
+        if (commentRes.data) {
+          commentRes.data.forEach(item => {
+            commentCounts[item.project_id] = (commentCounts[item.project_id] || 0) + 1;
+            if (!item.is_internal) {
+              externalCommentCounts[item.project_id] = (externalCommentCounts[item.project_id] || 0) + 1;
+            }
+          });
         }
       }
 
@@ -148,6 +167,8 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
       const projectsWithData = (projectsData || []).map(project => ({
         ...project,
         asset_count: assetCounts[project.id] || 0,
+        comment_count: commentCounts[project.id] || 0,
+        external_comment_count: externalCommentCounts[project.id] || 0,
         assigned_user: project.assigned_to ? assignedUsers[project.assigned_to] : null
       }));
 
