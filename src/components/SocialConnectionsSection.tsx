@@ -382,6 +382,9 @@ export default function SocialConnectionsSection({ clientId, isClientPortal = fa
         <p className="text-sm text-muted-foreground">
           Connect social media accounts to sync data and automate posting
         </p>
+        <p className="text-xs text-muted-foreground mt-1">
+          <strong>Note:</strong> If analytics or ads data is missing, disconnect and reconnect to grant all required permissions (Insights, Ads).
+        </p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

@@ -53,15 +53,22 @@ serve(async (req) => {
     const state = btoa(JSON.stringify(statePayload));
     console.log('[OAUTH] STATE:', state);
 
-    // Build Facebook OAuth URL
+    // Build Facebook OAuth URL with ALL required scopes for analytics & ads
     const scopes = [
       'instagram_basic',
       'instagram_content_publish',
+      'instagram_manage_insights',
       'pages_show_list',
       'pages_read_engagement',
+      'pages_read_user_content',
       'pages_manage_posts',
+      'read_insights',
+      'ads_read',
+      'ads_management',
       'business_management'
     ].join(',');
+
+    console.log('[OAUTH] Requesting scopes:', scopes);
 
     const url = 
       `https://www.facebook.com/${GRAPH_API_VERSION}/dialog/oauth` +

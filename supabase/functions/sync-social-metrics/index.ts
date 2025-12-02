@@ -273,16 +273,22 @@ async function fetchPostInsights(
 
   try {
     if (platform === 'instagram') {
-      // Instagram post insights
+      // Instagram post insights - requires instagram_manage_insights permission
       const metricsUrl = `${baseUrl}/${postId}/insights?metric=impressions,reach,likes,comments,saves,shares&access_token=${accessToken}`;
       const response = await fetch(metricsUrl);
+      const data = await response.json();
 
-      if (!response.ok) {
-        console.error(`[METRICS-SYNC] Instagram API error for post ${postId}:`, response.status);
+      if (!response.ok || data.error) {
+        const errorCode = data.error?.code;
+        const errorMsg = data.error?.message || 'Unknown error';
+        console.error(`[METRICS-SYNC] Instagram API error for post ${postId}:`, errorCode, errorMsg);
+        
+        // Check for specific permission errors
+        if (errorCode === 10 || errorCode === 200 || errorMsg.includes('permission')) {
+          throw new Error(`Missing permission: instagram_manage_insights. Please reconnect Instagram with full permissions.`);
+        }
         return null;
       }
-
-      const data = await response.json();
       
       if (!data.data || data.data.length === 0) {
         return null;
@@ -312,16 +318,21 @@ async function fetchPostInsights(
       return metrics;
 
     } else if (platform === 'facebook') {
-      // Facebook post insights
+      // Facebook post insights - requires read_insights permission
       const metricsUrl = `${baseUrl}/${postId}/insights?metric=post_impressions,post_impressions_unique,post_engaged_users,post_clicks&access_token=${accessToken}`;
       const response = await fetch(metricsUrl);
+      const data = await response.json();
 
-      if (!response.ok) {
-        console.error(`[METRICS-SYNC] Facebook API error for post ${postId}:`, response.status);
+      if (!response.ok || data.error) {
+        const errorCode = data.error?.code;
+        const errorMsg = data.error?.message || 'Unknown error';
+        console.error(`[METRICS-SYNC] Facebook API error for post ${postId}:`, errorCode, errorMsg);
+        
+        if (errorCode === 10 || errorCode === 200 || errorMsg.includes('permission')) {
+          throw new Error(`Missing permission: read_insights. Please reconnect Facebook with full permissions.`);
+        }
         return null;
       }
-
-      const data = await response.json();
 
       if (!data.data || data.data.length === 0) {
         return null;
@@ -362,7 +373,7 @@ async function fetchPostInsights(
     return null;
   } catch (error) {
     console.error(`[METRICS-SYNC] Error fetching post insights:`, error);
-    return null;
+    throw error; // Re-throw to propagate permission errors
   }
 }
 

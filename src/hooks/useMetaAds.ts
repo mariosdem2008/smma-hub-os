@@ -237,18 +237,48 @@ export function useDisconnectAdAccount() {
   });
 }
 
+interface AdsSyncResult {
+  success: boolean;
+  synced?: number;
+  results?: Array<{
+    accountId: string;
+    success: boolean;
+    error?: string;
+    campaigns?: number;
+  }>;
+  error?: string;
+  permissionError?: string;
+}
+
 // Sync ads data
 export function useSyncMetaAds() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (clientId?: string) => {
+    mutationFn: async (clientId?: string): Promise<AdsSyncResult> => {
       const { data, error } = await supabase.functions.invoke("sync-meta-ads", {
         body: clientId ? { client_id: clientId } : {},
       });
 
       if (error) throw error;
-      return data;
+      
+      const result = data as AdsSyncResult;
+      
+      // Check for permission errors in the results
+      if (result.results && result.results.length > 0) {
+        const permissionErrors = result.results
+          .filter(r => r.error && (r.error.includes('permission') || r.error.includes('Missing permission')))
+          .map(r => r.error);
+        
+        if (permissionErrors.length > 0) {
+          return {
+            ...result,
+            permissionError: permissionErrors[0]
+          };
+        }
+      }
+      
+      return result;
     },
     onSuccess: (_, clientId) => {
       if (clientId) {
