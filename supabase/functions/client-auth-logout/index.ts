@@ -15,16 +15,22 @@ function corsHeaders(request: Request) {
   };
 }
 
-function clearAuthCookiesHeaders(): Headers {
-  const headers = new Headers({ "Content-Type": "application/json", ...corsHeaders(new Request("")) });
+function clearAuthCookiesHeaders(req: Request): Headers {
+  const headers = new Headers({
+    "Content-Type": "application/json",
+    ...corsHeaders(req),
+  });
+
   headers.append(
     "Set-Cookie",
     "cp_access_token=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Lax",
   );
+
   headers.append(
     "Set-Cookie",
     "cp_refresh_token=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Lax",
   );
+
   return headers;
 }
 

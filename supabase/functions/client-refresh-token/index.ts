@@ -103,10 +103,10 @@ function createAuthCookies(accessToken: string, refreshToken: string): string[] 
   return [accessCookie, refreshCookie];
 }
 
-function clearAuthCookiesHeaders(request: Request): Headers {
+function clearAuthCookiesHeaders(req: Request): Headers {
   const headers = new Headers({
     "Content-Type": "application/json",
-    ...corsHeaders(request),
+    ...corsHeaders(req),
   });
   headers.append(
     "Set-Cookie",
