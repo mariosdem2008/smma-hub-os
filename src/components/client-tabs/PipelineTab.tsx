@@ -355,12 +355,13 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
         </div>
       </div>
 
-      {/* Pipeline Board - Accordion Style */}
+      {/* Pipeline Board - Horizontal Stages */}
       <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="space-y-2">
+        {/* Stage Headers Row */}
+        <div className="flex gap-2 overflow-x-auto pb-2">
           {PIPELINE_STAGES.map(stage => {
             const stageProjects = getProjectsByStage(stage.key);
-            const isExpanded = expandedStage === stage.key;
+            const isSelected = expandedStage === stage.key;
             
             return (
               <Droppable droppableId={stage.key} key={stage.key}>
@@ -368,129 +369,114 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
                   <div
                     ref={provided.innerRef}
                     {...provided.droppableProps}
-                    className={`rounded-lg border bg-card transition-all ${
-                      snapshot.isDraggingOver ? 'ring-2 ring-primary bg-primary/5' : ''
-                    }`}
+                    className="flex-shrink-0"
                   >
-                    {/* Stage Header - Clickable */}
                     <button
                       onClick={() => toggleStage(stage.key)}
-                      className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors rounded-t-lg"
+                      className={`min-w-[120px] p-3 rounded-lg border transition-all ${
+                        isSelected 
+                          ? 'ring-2 ring-primary bg-primary/5 border-primary' 
+                          : 'bg-card hover:bg-muted/50'
+                      } ${snapshot.isDraggingOver ? 'ring-2 ring-primary bg-primary/10' : ''}`}
                     >
-                      <div className="flex items-center gap-3">
-                        {isExpanded ? (
-                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                        )}
-                        <h3 className="font-semibold">{stage.label}</h3>
+                      <div className="flex flex-col items-center gap-2">
+                        <h3 className={`font-semibold text-sm text-center ${isSelected ? 'text-primary' : ''}`}>
+                          {stage.label}
+                        </h3>
                         <Badge
                           variant="secondary"
                           className="text-xs"
                           style={{
-                            backgroundColor: `hsl(${stage.color} / 0.1)`,
+                            backgroundColor: `hsl(${stage.color} / 0.15)`,
                             color: `hsl(${stage.color})`,
                           }}
                         >
                           {stageProjects.length}
                         </Badge>
                       </div>
-                      <span className="text-xs text-muted-foreground">
-                        {isExpanded ? 'Click to collapse' : 'Click to expand'}
-                      </span>
                     </button>
-                    
-                    {/* Expanded Content */}
-                    {isExpanded && (
-                      <div className="border-t">
-                        <ScrollArea className="max-h-[500px]">
-                          <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                            {stageProjects.length === 0 ? (
-                              <p className="text-sm text-muted-foreground col-span-full text-center py-8">
-                                No projects in this stage. Drag a project here or create a new one.
-                              </p>
-                            ) : (
-                              stageProjects.map((project, index) => (
-                                <Draggable key={project.id} draggableId={project.id} index={index}>
-                                  {(provided, snapshot) => (
-                                    <div
-                                      ref={provided.innerRef}
-                                      {...provided.draggableProps}
-                                      {...provided.dragHandleProps}
-                                    >
-                                      <ProjectCard
-                                        project={project}
-                                        onClick={() => setSelectedProjectId(project.id)}
-                                        isDragging={snapshot.isDragging}
-                                        onDelete={() => fetchProjects()}
-                                        onSchedule={
-                                          project.status === 'approved'
-                                            ? () => setSchedulingProjectId(project.id)
-                                            : undefined
-                                        }
-                                        onMoveStage={handleMoveStage}
-                                        stages={PIPELINE_STAGES}
-                                      />
-                                    </div>
-                                  )}
-                                </Draggable>
-                              ))
-                            )}
-                          </div>
-                        </ScrollArea>
-                      </div>
-                    )}
-                    
-                    {/* Collapsed preview - show mini thumbnails as drag targets */}
-                    {!isExpanded && (
-                      <div className="px-4 pb-4 min-h-[60px] flex items-center">
-                        {stageProjects.length > 0 ? (
-                          <div className="flex items-center gap-2 flex-wrap">
-                            {stageProjects.slice(0, 5).map((project, index) => (
-                              <Draggable key={project.id} draggableId={project.id} index={index}>
-                                {(provided, snapshot) => (
-                                  <div
-                                    ref={provided.innerRef}
-                                    {...provided.draggableProps}
-                                    {...provided.dragHandleProps}
-                                    className={`w-10 h-10 rounded bg-muted flex items-center justify-center text-xs font-medium cursor-grab ${
-                                      snapshot.isDragging ? 'ring-2 ring-primary shadow-lg' : ''
-                                    }`}
-                                    title={project.title}
-                                  >
-                                    {project.thumbnail_url ? (
-                                      <img 
-                                        src={project.thumbnail_url} 
-                                        alt={project.title}
-                                        className="w-full h-full object-cover rounded"
-                                      />
-                                    ) : (
-                                      project.title.charAt(0).toUpperCase()
-                                    )}
-                                  </div>
-                                )}
-                              </Draggable>
-                            ))}
-                            {stageProjects.length > 5 && (
-                              <span className="text-xs text-muted-foreground">
-                                +{stageProjects.length - 5} more
-                              </span>
-                            )}
-                          </div>
-                        ) : (
-                          <p className="text-xs text-muted-foreground">
-                            Drop projects here
-                          </p>
-                        )}
-                      </div>
-                    )}
-                    {provided.placeholder}
+                    <div className="hidden">{provided.placeholder}</div>
                   </div>
                 )}
               </Droppable>
             );
           })}
         </div>
+
+        {/* Expanded Stage Content */}
+        {expandedStage && (
+          <Droppable droppableId={expandedStage} key={`expanded-${expandedStage}`}>
+            {(provided, snapshot) => {
+              const stage = PIPELINE_STAGES.find(s => s.key === expandedStage);
+              const stageProjects = getProjectsByStage(expandedStage);
+              
+              return (
+                <div
+                  ref={provided.innerRef}
+                  {...provided.droppableProps}
+                  className={`mt-4 rounded-lg border bg-card p-4 transition-all ${
+                    snapshot.isDraggingOver ? 'ring-2 ring-primary bg-primary/5' : ''
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold text-lg">{stage?.label}</h3>
+                      <Badge
+                        variant="secondary"
+                        style={{
+                          backgroundColor: `hsl(${stage?.color} / 0.15)`,
+                          color: `hsl(${stage?.color})`,
+                        }}
+                      >
+                        {stageProjects.length} projects
+                      </Badge>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={() => setExpandedStage(null)}>
+                      Close
+                    </Button>
+                  </div>
+                  
+                  <ScrollArea className="max-h-[500px]">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                      {stageProjects.length === 0 ? (
+                        <p className="text-sm text-muted-foreground col-span-full text-center py-8">
+                          No projects in this stage. Drag a project here or create a new one.
+                        </p>
+                      ) : (
+                        stageProjects.map((project, index) => (
+                          <Draggable key={project.id} draggableId={project.id} index={index}>
+                            {(provided, snapshot) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                {...provided.dragHandleProps}
+                              >
+                                <ProjectCard
+                                  project={project}
+                                  onClick={() => setSelectedProjectId(project.id)}
+                                  isDragging={snapshot.isDragging}
+                                  onDelete={() => fetchProjects()}
+                                  onSchedule={
+                                    project.status === 'approved'
+                                      ? () => setSchedulingProjectId(project.id)
+                                      : undefined
+                                  }
+                                  onMoveStage={handleMoveStage}
+                                  stages={PIPELINE_STAGES}
+                                />
+                              </div>
+                            )}
+                          </Draggable>
+                        ))
+                      )}
+                    </div>
+                  </ScrollArea>
+                  {provided.placeholder}
+                </div>
+              );
+            }}
+          </Droppable>
+        )}
       </DragDropContext>
 
       {/* Modals */}
