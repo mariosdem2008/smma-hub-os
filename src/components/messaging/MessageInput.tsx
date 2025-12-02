@@ -20,6 +20,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
     sendMessage({
       conversation_id: conversationId,
       sender_type: participant.type,
+      sender_id: participant.id, // Pass sender ID for optimistic updates
       text: text.trim(),
     });
 

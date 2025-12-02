@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 interface SendMessagePayload {
   conversation_id: string;
   sender_type: 'agency_member' | 'client_user';
+  sender_id?: string; // Include sender ID for optimistic updates
   text?: string;
   attachment_url?: string;
   related_project_id?: string;
@@ -15,12 +16,45 @@ export const useSendMessage = () => {
 
   return useMutation({
     mutationFn: async (payload: SendMessagePayload) => {
-      const { data, error } = await supabase.functions.invoke('send-message', {
-        body: payload,
-      });
+      // Get auth token - check for client portal token first
+      const clientToken = localStorage.getItem('client_auth_token');
+      
+      let headers: Record<string, string> = {};
+      
+      if (clientToken && payload.sender_type === 'client_user') {
+        // Use client portal token
+        headers = {
+          'Authorization': `Bearer ${clientToken}`,
+          'Content-Type': 'application/json',
+        };
+        
+        const response = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-message`,
+          {
+            method: 'POST',
+            headers: {
+              ...headers,
+              'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            },
+            body: JSON.stringify(payload),
+          }
+        );
 
-      if (error) throw error;
-      return data;
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Failed to send message');
+        }
+
+        return response.json();
+      } else {
+        // Use Supabase auth for agency members
+        const { data, error } = await supabase.functions.invoke('send-message', {
+          body: payload,
+        });
+
+        if (error) throw error;
+        return data;
+      }
     },
     onMutate: async (variables) => {
       // Cancel any outgoing refetches
@@ -29,16 +63,18 @@ export const useSendMessage = () => {
       // Snapshot the previous value
       const previousMessages = queryClient.getQueryData(['messages', variables.conversation_id]);
 
-      // Optimistically add the new message
+      // Optimistically add the new message with proper styling hint
       queryClient.setQueryData(['messages', variables.conversation_id], (old: any[] | undefined) => {
         const optimisticMessage = {
           id: `temp-${Date.now()}`,
           body: variables.text,
           sender_type: variables.sender_type,
+          // Include sender IDs for proper isOwnMessage detection
+          sender_agency_member_id: variables.sender_type === 'agency_member' ? variables.sender_id : null,
+          sender_client_user_id: variables.sender_type === 'client_user' ? variables.sender_id : null,
           created_at: new Date().toISOString(),
           attachment_url: variables.attachment_url,
           related_project_id: variables.related_project_id,
-          // Mark as optimistic for UI differentiation if needed
           _optimistic: true,
         };
         return [...(old || []), optimisticMessage];
