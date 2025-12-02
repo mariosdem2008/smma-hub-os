@@ -4,14 +4,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Loader2, Globe, CheckCheck } from "lucide-react";
-import PipelineStageColumn from "@/components/pipeline/PipelineStageColumn";
+import { Plus, Loader2, Globe, CheckCheck, ChevronDown, ChevronRight } from "lucide-react";
 import ProjectCard from "@/components/pipeline/ProjectCard";
 import ProjectEditor from "@/components/pipeline/ProjectEditor";
 import BulkUploadModal from "@/components/pipeline/BulkUploadModal";
-import StageDetailModal from "@/components/pipeline/StageDetailModal";
 import SchedulingModal from "@/components/pipeline/SchedulingModal";
 import { useRole } from "@/hooks/useRole";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface PipelineTabProps {
   clientId: string;
@@ -60,9 +59,7 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
   const [loading, setLoading] = useState(true);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [showBulkUpload, setShowBulkUpload] = useState(false);
-  const [selectedStage, setSelectedStage] = useState<{ key: string; label: string; color: string } | null>(null);
-  const [hoveredStage, setHoveredStage] = useState<string | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
+  const [expandedStage, setExpandedStage] = useState<string | null>(null);
   const [userTimezone, setUserTimezone] = useState<string>("UTC");
   const [schedulingProjectId, setSchedulingProjectId] = useState<string | null>(null);
   const [bulkApproving, setBulkApproving] = useState(false);
@@ -71,7 +68,6 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
 
   const fetchProjects = async () => {
     try {
-      // Fetch projects with assigned user info via a join
       const { data: projectsData, error } = await supabase
         .from('projects')
         .select(`
@@ -189,7 +185,6 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
     fetchProjects();
     fetchUserTimezone();
 
-    // Subscribe to real-time changes
     const channel = supabase
       .channel('pipeline-projects-changes')
       .on(
@@ -220,7 +215,6 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
         last_moved_by: user?.id || null
       };
       
-      // Clear rejection reason when moving forward, set it when rejecting
       if (rejectionReason) {
         updatePayload.rejection_reason = rejectionReason;
       } else if (newStage !== 'client_review') {
@@ -239,7 +233,6 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
         description: `Project moved to ${PIPELINE_STAGES.find(s => s.key === newStage)?.label || newStage}`
       });
 
-      // Optimistically update local state
       setProjects(projects.map(p => p.id === projectId ? { ...p, status: newStage, rejection_reason: rejectionReason || null } : p));
     } catch (error: any) {
       console.error('Stage transition error:', error);
@@ -297,7 +290,6 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
   };
 
   const handleDragEnd = async (result: DropResult) => {
-    setIsDragging(false);
     const { source, destination, draggableId } = result;
 
     if (!destination) return;
@@ -307,16 +299,17 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
     const newStage = destination.droppableId;
 
     // Optimistically update UI
-    const project = projects.find(p => p.id === projectId);
-    if (project) {
-      setProjects(projects.map(p => p.id === projectId ? { ...p, status: newStage } : p));
-    }
+    setProjects(prev => prev.map(p => p.id === projectId ? { ...p, status: newStage } : p));
 
     await handleMoveStage(projectId, newStage);
   };
 
   const getProjectsByStage = (stage: string) => {
     return projects.filter(p => p.status === stage);
+  };
+
+  const toggleStage = (stageKey: string) => {
+    setExpandedStage(prev => prev === stageKey ? null : stageKey);
   };
 
   if (loading) {
@@ -362,15 +355,12 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
         </div>
       </div>
 
-      {/* Pipeline Board */}
-      <DragDropContext 
-        onDragEnd={handleDragEnd}
-        onDragStart={() => setIsDragging(true)}
-      >
-        <div className="flex gap-2 overflow-x-auto pb-4">
+      {/* Pipeline Board - Accordion Style */}
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <div className="space-y-2">
           {PIPELINE_STAGES.map(stage => {
             const stageProjects = getProjectsByStage(stage.key);
-            const isHovered = !isDragging && hoveredStage === stage.key;
+            const isExpanded = expandedStage === stage.key;
             
             return (
               <Droppable droppableId={stage.key} key={stage.key}>
@@ -378,92 +368,122 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
                   <div
                     ref={provided.innerRef}
                     {...provided.droppableProps}
-                    className={`transition-all duration-1000 ease-in-out ${
-                      isHovered ? 'flex-[2]' : 'flex-[0.5]'
-                    } min-w-[80px]`}
-                    style={{ 
-                      transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)'
-                    }}
-                    onMouseEnter={() => !isDragging && setHoveredStage(stage.key)}
-                    onMouseLeave={() => setHoveredStage(null)}
+                    className={`rounded-lg border bg-card transition-all ${
+                      snapshot.isDraggingOver ? 'ring-2 ring-primary bg-primary/5' : ''
+                    }`}
                   >
-                    <div 
-                      className={`h-full rounded-lg border bg-card transition-all cursor-pointer ${
-                        snapshot.isDraggingOver ? 'ring-2 ring-primary bg-primary/5' : ''
-                      }`}
-                      onClick={() => setSelectedStage(stage)}
+                    {/* Stage Header - Clickable */}
+                    <button
+                      onClick={() => toggleStage(stage.key)}
+                      className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors rounded-t-lg"
                     >
-                      <div className="p-4 border-b flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <h3 className={`font-semibold transition-all ${isHovered ? 'text-base' : 'text-sm'}`}>
-                            {stage.label}
-                          </h3>
-                          <Badge
-                            variant="secondary"
-                            className="text-xs"
-                            style={{
-                              backgroundColor: `hsl(${stage.color} / 0.1)`,
-                              color: `hsl(${stage.color})`,
-                            }}
-                          >
-                            {stageProjects.length}
-                          </Badge>
-                        </div>
+                      <div className="flex items-center gap-3">
+                        {isExpanded ? (
+                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        )}
+                        <h3 className="font-semibold">{stage.label}</h3>
+                        <Badge
+                          variant="secondary"
+                          className="text-xs"
+                          style={{
+                            backgroundColor: `hsl(${stage.color} / 0.1)`,
+                            color: `hsl(${stage.color})`,
+                          }}
+                        >
+                          {stageProjects.length}
+                        </Badge>
                       </div>
-                      
-                      {isHovered && (
-                        <div className="p-3 space-y-2 overflow-y-auto max-h-[600px]">
-                          {stageProjects.length === 0 ? (
-                            <p className="text-sm text-muted-foreground text-center py-8">
-                              No projects
-                            </p>
-                          ) : (
-                            stageProjects.slice(0, 3).map((project, index) => (
+                      <span className="text-xs text-muted-foreground">
+                        {isExpanded ? 'Click to collapse' : 'Click to expand'}
+                      </span>
+                    </button>
+                    
+                    {/* Expanded Content */}
+                    {isExpanded && (
+                      <div className="border-t">
+                        <ScrollArea className="max-h-[500px]">
+                          <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                            {stageProjects.length === 0 ? (
+                              <p className="text-sm text-muted-foreground col-span-full text-center py-8">
+                                No projects in this stage. Drag a project here or create a new one.
+                              </p>
+                            ) : (
+                              stageProjects.map((project, index) => (
+                                <Draggable key={project.id} draggableId={project.id} index={index}>
+                                  {(provided, snapshot) => (
+                                    <div
+                                      ref={provided.innerRef}
+                                      {...provided.draggableProps}
+                                      {...provided.dragHandleProps}
+                                    >
+                                      <ProjectCard
+                                        project={project}
+                                        onClick={() => setSelectedProjectId(project.id)}
+                                        isDragging={snapshot.isDragging}
+                                        onDelete={() => fetchProjects()}
+                                        onSchedule={
+                                          project.status === 'approved'
+                                            ? () => setSchedulingProjectId(project.id)
+                                            : undefined
+                                        }
+                                        onMoveStage={handleMoveStage}
+                                        stages={PIPELINE_STAGES}
+                                      />
+                                    </div>
+                                  )}
+                                </Draggable>
+                              ))
+                            )}
+                          </div>
+                        </ScrollArea>
+                      </div>
+                    )}
+                    
+                    {/* Collapsed preview - show mini thumbnails as drag targets */}
+                    {!isExpanded && (
+                      <div className="px-4 pb-4 min-h-[60px] flex items-center">
+                        {stageProjects.length > 0 ? (
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {stageProjects.slice(0, 5).map((project, index) => (
                               <Draggable key={project.id} draggableId={project.id} index={index}>
                                 {(provided, snapshot) => (
                                   <div
                                     ref={provided.innerRef}
                                     {...provided.draggableProps}
                                     {...provided.dragHandleProps}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setSelectedProjectId(project.id);
-                                    }}
+                                    className={`w-10 h-10 rounded bg-muted flex items-center justify-center text-xs font-medium cursor-grab ${
+                                      snapshot.isDragging ? 'ring-2 ring-primary shadow-lg' : ''
+                                    }`}
+                                    title={project.title}
                                   >
-                                    <ProjectCard
-                                      project={project}
-                                      onClick={() => {}}
-                                      isDragging={snapshot.isDragging}
-                                      onDelete={() => fetchProjects()}
-                                      onSchedule={
-                                        project.status === 'approved'
-                                          ? () => setSchedulingProjectId(project.id)
-                                          : undefined
-                                      }
-                                      onMoveStage={handleMoveStage}
-                                      stages={PIPELINE_STAGES}
-                                    />
+                                    {project.thumbnail_url ? (
+                                      <img 
+                                        src={project.thumbnail_url} 
+                                        alt={project.title}
+                                        className="w-full h-full object-cover rounded"
+                                      />
+                                    ) : (
+                                      project.title.charAt(0).toUpperCase()
+                                    )}
                                   </div>
                                 )}
                               </Draggable>
-                            ))
-                          )}
-                          {stageProjects.length > 3 && (
-                            <p className="text-xs text-muted-foreground text-center pt-2">
-                              +{stageProjects.length - 3} more projects
-                            </p>
-                          )}
-                        </div>
-                      )}
-                      
-                      {!isHovered && (
-                        <div className="p-3">
-                          <p className="text-xs text-muted-foreground text-center">
-                            Click to view all
+                            ))}
+                            {stageProjects.length > 5 && (
+                              <span className="text-xs text-muted-foreground">
+                                +{stageProjects.length - 5} more
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">
+                            Drop projects here
                           </p>
-                        </div>
-                      )}
-                    </div>
+                        )}
+                      </div>
+                    )}
                     {provided.placeholder}
                   </div>
                 )}
@@ -486,29 +506,6 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
           }}
         />
       )}
-
-      <StageDetailModal
-        open={!!selectedStage}
-        onOpenChange={(open) => {
-          if (!open) {
-            setSelectedStage(null);
-            fetchProjects();
-          }
-        }}
-        stage={selectedStage}
-        projects={selectedStage ? getProjectsByStage(selectedStage.key) : []}
-        onProjectClick={(projectId) => {
-          setSelectedStage(null);
-          setSelectedProjectId(projectId);
-        }}
-        onScheduleClick={(projectId) => {
-          setSelectedStage(null);
-          setSchedulingProjectId(projectId);
-        }}
-        onMoveStage={handleMoveStage}
-        onBulkApprove={handleBulkApprove}
-        stages={PIPELINE_STAGES}
-      />
 
       {selectedProjectId && (
         <ProjectEditor
