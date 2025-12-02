@@ -58,20 +58,24 @@ async function generateAccessToken(user: ClientUser): Promise<{ token: string; e
   return { token, exp };
 }
 
-async function generateRefreshToken(): Promise<{ token: string; hash: string; expiresAt: Date }> {
-  const bytes = new Uint8Array(32);
-  crypto.getRandomValues(bytes);
-  const token = Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
-
+async function hashToken(token: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(token);
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const hash = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+}
 
-  const expiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_SECONDS * 1000);
-
-  return { token, hash, expiresAt };
+function parseCookies(header: string | null): Record<string, string> {
+  const cookies: Record<string, string> = {};
+  if (!header) return cookies;
+  const parts = header.split(";");
+  for (const part of parts) {
+    const [name, ...rest] = part.trim().split("=");
+    if (!name) continue;
+    cookies[name] = rest.join("=");
+  }
+  return cookies;
 }
 
 function createAuthCookies(accessToken: string, refreshToken: string): string[] {
@@ -83,54 +87,71 @@ function createAuthCookies(accessToken: string, refreshToken: string): string[] 
   return [accessCookie, refreshCookie];
 }
 
+function clearAuthCookiesHeaders(): Headers {
+  const headers = new Headers({ ...corsHeaders, "Content-Type": "application/json" });
+  headers.append(
+    "Set-Cookie",
+    "cp_access_token=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Lax",
+  );
+  headers.append(
+    "Set-Cookie",
+    "cp_refresh_token=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Lax",
+  );
+  return headers;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { reset_token, new_password } = await req.json();
+    const cookieHeader = req.headers.get("Cookie");
+    const cookies = parseCookies(cookieHeader);
+    const refreshToken = cookies["cp_refresh_token"];
 
-    if (!reset_token || !new_password) {
-      return new Response(
-        JSON.stringify({ error: "Missing required fields" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+    if (!refreshToken) {
+      const headers = clearAuthCookiesHeaders();
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers,
+      });
     }
 
+    const refreshHash = await hashToken(refreshToken);
     const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Find user with valid reset token
+    // Find valid refresh token
+    const { data: storedToken, error: tokenError } = await supabaseAdmin
+      .from("client_refresh_tokens")
+      .select("id, client_user_id, expires_at, revoked_at")
+      .eq("token_hash", refreshHash)
+      .is("revoked_at", null)
+      .gt("expires_at", new Date().toISOString())
+      .single();
+
+    if (tokenError || !storedToken) {
+      const headers = clearAuthCookiesHeaders();
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers,
+      });
+    }
+
+    // Load user
     const { data: user, error: userError } = await supabaseAdmin
       .from("client_users")
-      .select("*")
-      .eq("password_reset_token", reset_token)
-      .gt("password_reset_expires_at", new Date().toISOString())
+      .select("id, email, full_name, client_id, agency_id, role")
+      .eq("id", storedToken.client_user_id)
       .single();
 
     if (userError || !user) {
-      return new Response(
-        JSON.stringify({ error: "Invalid or expired reset token" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      const headers = clearAuthCookiesHeaders();
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers,
+      });
     }
-
-    // Hash new password
-    const encoder = new TextEncoder();
-    const data = encoder.encode(new_password);
-    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const password_hash = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
-
-    // Update password and clear reset token
-    await supabaseAdmin
-      .from("client_users")
-      .update({
-        password_hash,
-        password_reset_token: null,
-        password_reset_expires_at: null,
-      })
-      .eq("id", user.id);
 
     const clientUser: ClientUser = {
       id: user.id,
@@ -141,34 +162,42 @@ Deno.serve(async (req) => {
       role: user.role,
     };
 
-    // Create refresh token entry
-    const { token: refreshToken, hash: refreshHash, expiresAt } = await generateRefreshToken();
+    // Revoke old token
+    await supabaseAdmin
+      .from("client_refresh_tokens")
+      .update({ revoked_at: new Date().toISOString() })
+      .eq("id", storedToken.id);
+
+    // Create new refresh token
+    const newBytes = new Uint8Array(32);
+    crypto.getRandomValues(newBytes);
+    const newRefreshToken = Array.from(newBytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+    const newRefreshHash = await hashToken(newRefreshToken);
+    const newRefreshExpires = new Date(Date.now() + REFRESH_TOKEN_TTL_SECONDS * 1000);
 
     await supabaseAdmin.from("client_refresh_tokens").insert({
       client_user_id: clientUser.id,
-      token_hash: refreshHash,
-      expires_at: expiresAt.toISOString(),
+      token_hash: newRefreshHash,
+      expires_at: newRefreshExpires.toISOString(),
     });
 
-    // Generate access token
+    // Generate new access token
     const { token: accessToken, exp } = await generateAccessToken(clientUser);
 
-    const cookies = createAuthCookies(accessToken, refreshToken);
+    const cookiesOut = createAuthCookies(accessToken, newRefreshToken);
     const headers = new Headers({ ...corsHeaders, "Content-Type": "application/json" });
-    cookies.forEach((cookie) => headers.append("Set-Cookie", cookie));
+    cookiesOut.forEach((cookie) => headers.append("Set-Cookie", cookie));
 
-    return new Response(
-      JSON.stringify({
-        user: clientUser,
-        exp,
-      }),
-      { status: 200, headers },
-    );
+    return new Response(JSON.stringify({ user: clientUser, exp }), {
+      status: 200,
+      headers,
+    });
   } catch (error) {
-    console.error("Reset password error:", error);
-    return new Response(
-      JSON.stringify({ error: "Internal server error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+    console.error("Refresh token error:", error);
+    const headers = clearAuthCookiesHeaders();
+    return new Response(JSON.stringify({ error: "Internal server error" }), {
+      status: 500,
+      headers,
+    });
   }
 });

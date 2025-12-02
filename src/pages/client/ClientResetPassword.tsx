@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { useClientAuth } from "@/lib/client-auth";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 
@@ -49,10 +48,11 @@ export default function ClientResetPassword() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "apikey": import.meta.env.VITE_SUPABASE_ANON_KEY,
+            apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
           },
+          credentials: "include",
           body: JSON.stringify({ reset_token: token, new_password: password }),
-        }
+        },
       );
 
       if (!response.ok) {
@@ -60,12 +60,8 @@ export default function ClientResetPassword() {
         throw new Error(error.error || "Failed to reset password");
       }
 
-      const { token: authToken, user } = await response.json();
+      const { user } = await response.json();
       
-      // Store auth token and user
-      localStorage.setItem("client_auth_token", authToken);
-      localStorage.setItem("client_user", JSON.stringify(user));
-
       toast({
         title: "Password Reset",
         description: "Your password has been reset successfully",
