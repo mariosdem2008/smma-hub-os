@@ -66,7 +66,7 @@ const ROLES = ["admin", "manager", "creator", "viewer"];
 
 export default function Team() {
   const { user } = useAuth();
-  const { canManageTeam, isOwner: userIsOwner, loading: roleLoading } = useRole();
+  const { canManageTeam, canRemoveTeamMembers, isOwner: userIsOwner, loading: roleLoading } = useRole();
   const { limits } = usePlanLimits();
   const { openUpgradeModal } = useUpgradeModal();
   const { toast } = useToast();
@@ -517,85 +517,97 @@ export default function Team() {
                   <TableHead>Email</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Role</TableHead>
-                  {isOwner && <TableHead className="text-right">Actions</TableHead>}
+                  {canManageTeam && <TableHead className="text-right">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {teamMembers.map((member) => (
-                  <TableRow key={member.id}>
-                    <TableCell className="font-medium">
-                      {member.profile?.email || "N/A"}
-                    </TableCell>
-                    <TableCell>
-                      {member.profile?.full_name || "-"}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getRoleBadgeVariant(member.role)}>
-                        {member.role}
-                      </Badge>
-                    </TableCell>
-                    {isOwner && (
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={async () => {
-                              if (!agencyId || member.user_id === user?.id) return;
-                              
-                              try {
-                                const { data: agencyMembers } = await supabase
-                                  .from("agency_members")
-                                  .select("id")
-                                  .eq("agency_id", agencyId)
-                                  .in("user_id", [user!.id, member.user_id]);
+                {teamMembers.map((member) => {
+                  const isCurrentUser = member.user_id === user?.id;
+                  const isOwnerMember = member.role === "owner";
+                  const canEditThisMember = canManageTeam && !isOwnerMember;
+                  const canRemoveThisMember = canRemoveTeamMembers && !isOwnerMember && !isCurrentUser;
 
-                                if (!agencyMembers || agencyMembers.length !== 2) {
-                                  toast({
-                                    title: "Error",
-                                    description: "Failed to find agency member records",
-                                    variant: "destructive",
+                  return (
+                    <TableRow key={member.id}>
+                      <TableCell className="font-medium">
+                        {member.profile?.email || "N/A"}
+                      </TableCell>
+                      <TableCell>
+                        {member.profile?.full_name || "-"}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={getRoleBadgeVariant(member.role)}>
+                          {member.role}
+                        </Badge>
+                      </TableCell>
+                      {canManageTeam && (
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={async () => {
+                                if (!agencyId || isCurrentUser) return;
+
+                                try {
+                                  const { data: agencyMembers } = await supabase
+                                    .from("agency_members")
+                                    .select("id")
+                                    .eq("agency_id", agencyId)
+                                    .in("user_id", [user!.id, member.user_id]);
+
+                                  if (!agencyMembers || agencyMembers.length !== 2) {
+                                    toast({
+                                      title: "Error",
+                                      description: "Failed to find agency member records",
+                                      variant: "destructive",
+                                    });
+                                    return;
+                                  }
+
+                                  await createConversation.mutateAsync({
+                                    type: "direct",
+                                    member_ids: agencyMembers.map((m) => m.id),
                                   });
-                                  return;
+
+                                  navigate("/messages");
+                                } catch (error) {
+                                  console.error("Error creating conversation:", error);
                                 }
-
-                                await createConversation.mutateAsync({
-                                  type: "direct",
-                                  member_ids: agencyMembers.map(m => m.id),
-                                });
-
-                                navigate("/messages");
-                              } catch (error) {
-                                console.error("Error creating conversation:", error);
-                              }
-                            }}
-                            disabled={member.user_id === user?.id}
-                            title={member.user_id === user?.id ? "Cannot message yourself" : "Send message"}
-                          >
-                            <MessageSquare className="h-4 w-4" />
-                          </Button>
-                          {member.role !== "owner" && (
-                            <>
+                              }}
+                              disabled={isCurrentUser}
+                              title={isCurrentUser ? "Cannot message yourself" : "Send message"}
+                            >
+                              <MessageSquare className="h-4 w-4" />
+                            </Button>
+                            {canEditThisMember && (
                               <Select
                                 value={member.role}
-                                onValueChange={(value) =>
-                                  handleRoleChange(member.id, value)
-                                }
+                                onValueChange={(value) => handleRoleChange(member.id, value)}
                               >
                                 <SelectTrigger className="w-[130px]">
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
                                   {ROLES.map((role) => (
-                                    <SelectItem key={role} value={role}>
+                                    <SelectItem
+                                      key={role}
+                                      value={role}
+                                      disabled={
+                                        (role === "admin" && currentUserPlan !== "agency_plus") ||
+                                        role === "owner"
+                                      }
+                                    >
                                       {role.charAt(0).toUpperCase() + role.slice(1)}
-                                      {role === 'admin' && currentUserPlan !== 'agency_plus' && (
+                                      {role === "admin" && currentUserPlan !== "agency_plus" && (
                                         <span className="text-xs text-muted-foreground ml-1">(Agency Plus)</span>
                                       )}
                                     </SelectItem>
                                   ))}
                                 </SelectContent>
                               </Select>
+                            )}
+                            {canRemoveThisMember && (
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -603,18 +615,18 @@ export default function Team() {
                               >
                                 <Trash2 className="h-4 w-4 text-destructive" />
                               </Button>
-                            </>
-                          )}
-                          {member.role === "admin" && (
-                            <Badge variant="secondary" className="ml-2">
-                              Agency Plus Feature
-                            </Badge>
-                          )}
-                        </div>
-                      </TableCell>
-                    )}
-                  </TableRow>
-                ))}
+                            )}
+                            {member.role === "admin" && (
+                              <Badge variant="secondary" className="ml-2">
+                                Agency Plus Feature
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}
@@ -622,7 +634,7 @@ export default function Team() {
       </Card>
 
       {/* Pending Invites Section */}
-      {isOwner && pendingInvites.length > 0 && (
+      {canManageTeam && pendingInvites.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle>Pending Invites</CardTitle>
@@ -684,7 +696,7 @@ export default function Team() {
       )}
 
       {/* Invite Team Member Section */}
-      {isOwner && (
+      {canManageTeam && (
         <Card>
           <CardHeader>
             <CardTitle>Invite Team Member</CardTitle>
@@ -713,20 +725,20 @@ export default function Team() {
                   </SelectTrigger>
                   <SelectContent>
                     {ROLES.map((role) => (
-                      <SelectItem 
-                        key={role} 
+                      <SelectItem
+                        key={role}
                         value={role}
-                        disabled={role === 'admin' && currentUserPlan !== 'agency_plus'}
+                        disabled={role === "admin" && currentUserPlan !== "agency_plus"}
                       >
                         {role.charAt(0).toUpperCase() + role.slice(1)}
-                        {role === 'admin' && currentUserPlan !== 'agency_plus' && (
+                        {role === "admin" && currentUserPlan !== "agency_plus" && (
                           <span className="text-xs text-muted-foreground ml-1">(Agency Plus)</span>
                         )}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                {inviteRole === 'admin' && currentUserPlan === 'agency_plus' && (
+                {inviteRole === "admin" && currentUserPlan === "agency_plus" && (
                   <p className="text-xs text-muted-foreground">
                     Admins have full management permissions like owners
                   </p>

@@ -66,6 +66,8 @@ export function useRole() {
   const canEditContent = isOwner || isAdmin || isManager || isCreator;
   const canDeleteContent = isOwner || isAdmin || isManager;
   const canApproveContent = isOwner || isAdmin || isManager;
+  const canChangeRoles = isOwner || isAdmin;
+  const canRemoveTeamMembers = isOwner || isAdmin;
 
   return {
     role,
@@ -83,5 +85,7 @@ export function useRole() {
     canEditContent,
     canDeleteContent,
     canApproveContent,
+    canChangeRoles,
+    canRemoveTeamMembers,
   };
 }
