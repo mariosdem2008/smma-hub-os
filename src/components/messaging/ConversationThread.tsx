@@ -1,0 +1,57 @@
+import { useEffect, useRef } from 'react';
+import { useMessages } from '@/hooks/useMessages';
+import { MessageBubble } from './MessageBubble';
+import { MessageInput } from './MessageInput';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useAuth } from '@/lib/auth';
+
+interface ConversationThreadProps {
+  conversationId: string;
+}
+
+export function ConversationThread({ conversationId }: ConversationThreadProps) {
+  const { data: messages, isLoading } = useMessages(conversationId);
+  const { user } = useAuth();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  if (isLoading) {
+    return (
+      <div className="h-full flex flex-col">
+        <div className="flex-1 p-6 space-y-4">
+          <Skeleton className="h-16 w-3/4" />
+          <Skeleton className="h-16 w-2/3 ml-auto" />
+          <Skeleton className="h-16 w-3/4" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-full flex flex-col">
+      <div className="flex-1 overflow-y-auto p-6 space-y-4">
+        {messages?.map((message: any) => {
+          const isOwnMessage =
+            (message.sender_type === 'agency_member' && message.sender_agency_member_id) ||
+            (message.sender_type === 'client_user' && message.sender_client_user_id === user?.id);
+
+          return (
+            <MessageBubble
+              key={message.id}
+              message={message}
+              isOwnMessage={isOwnMessage}
+            />
+          );
+        })}
+        <div ref={messagesEndRef} />
+      </div>
+
+      <div className="border-t border-border bg-card">
+        <MessageInput conversationId={conversationId} />
+      </div>
+    </div>
+  );
+}

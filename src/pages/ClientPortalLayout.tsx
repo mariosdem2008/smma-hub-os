@@ -13,6 +13,7 @@ import {
   CalendarDays,
   CheckCircle,
   Upload,
+  MessageSquare,
 } from "lucide-react";
 
 interface Client {
@@ -32,6 +33,7 @@ interface Client {
 const navItems = [
   { path: "approvals", label: "Approvals", key: "approvals", icon: CheckCircle },
   { path: "content-calendar", label: "Calendar", key: "content_calendar", icon: CalendarDays },
+  { path: "messages", label: "Messages", key: "messages", icon: MessageSquare },
   { path: "assets", label: "Assets", key: "assets", icon: FolderOpen },
   { path: "uploads", label: "Upload", key: "uploads", icon: Upload },
   { path: "social-profiles", label: "Social Profiles", key: "social_profiles", icon: () => (
