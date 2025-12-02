@@ -15,6 +15,7 @@ import {
   CheckCircle,
   Upload,
   MessageSquare,
+  BarChart3,
 } from "lucide-react";
 
 interface Client {
@@ -34,6 +35,7 @@ interface Client {
 const navItems = [
   { path: "approvals", label: "Approvals", key: "approvals", icon: CheckCircle },
   { path: "content-calendar", label: "Calendar", key: "content_calendar", icon: CalendarDays },
+  { path: "performance", label: "Performance", key: "performance", icon: BarChart3 },
   { path: "messages", label: "Messages", key: "messages", icon: MessageSquare },
   { path: "assets", label: "Assets", key: "assets", icon: FolderOpen },
   { path: "uploads", label: "Upload", key: "uploads", icon: Upload },
