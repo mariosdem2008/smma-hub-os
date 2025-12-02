@@ -18,10 +18,14 @@ interface PipelineStageColumnProps {
   children: ReactNode;
 }
 
+// Updated stage descriptions for 8-stage workflow
 const STAGE_DESCRIPTIONS: Record<string, string> = {
   idea: "Initial content concepts and brainstorming",
-  in_production: "Content is being actively created and edited",
-  review: "Ready for client review and approval",
+  script_copy: "Writing scripts, captions, and copy",
+  raw_assets: "Collecting raw footage, photos, and materials",
+  editing: "Content is being actively edited and produced",
+  internal_review: "Internal team review before client sees it",
+  client_review: "Awaiting client approval or feedback",
   approved: "Client approved, ready for scheduling",
   scheduled: "Set to publish at a specific date/time",
   published: "Live on social media platforms",
@@ -46,7 +50,7 @@ export default function PipelineStageColumn({
                   <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p className="text-sm">{STAGE_DESCRIPTIONS[stageId]}</p>
+                  <p className="text-sm">{STAGE_DESCRIPTIONS[stageId] || "Pipeline stage"}</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>

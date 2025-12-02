@@ -4,17 +4,25 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Loader2, Globe } from "lucide-react";
+import { Plus, Loader2, Globe, CheckCheck } from "lucide-react";
 import PipelineStageColumn from "@/components/pipeline/PipelineStageColumn";
 import ProjectCard from "@/components/pipeline/ProjectCard";
 import ProjectEditor from "@/components/pipeline/ProjectEditor";
 import BulkUploadModal from "@/components/pipeline/BulkUploadModal";
 import StageDetailModal from "@/components/pipeline/StageDetailModal";
 import SchedulingModal from "@/components/pipeline/SchedulingModal";
+import { useRole } from "@/hooks/useRole";
 
 interface PipelineTabProps {
   clientId: string;
   agencyId: string;
+}
+
+interface AssignedUser {
+  id: string;
+  user_id: string;
+  full_name: string | null;
+  email: string;
 }
 
 interface Project {
@@ -28,12 +36,18 @@ interface Project {
   script_id: string | null;
   created_at: string;
   asset_count?: number;
+  assigned_to: string | null;
+  assigned_user?: AssignedUser | null;
+  rejection_reason: string | null;
+  last_moved_at: string | null;
 }
 
+// Canonical 8-stage pipeline
 const PIPELINE_STAGES = [
   { key: 'idea', label: 'Idea', color: '220 70% 50%' },
-  { key: 'scripting', label: 'Scripting', color: '250 70% 50%' },
-  { key: 'production', label: 'Production', color: '270 70% 50%' },
+  { key: 'script_copy', label: 'Script/Copy', color: '250 70% 50%' },
+  { key: 'raw_assets', label: 'Raw Assets', color: '280 70% 50%' },
+  { key: 'editing', label: 'Editing', color: '310 70% 50%' },
   { key: 'internal_review', label: 'Internal Review', color: '30 70% 50%' },
   { key: 'client_review', label: 'Client Review', color: '35 70% 50%' },
   { key: 'approved', label: 'Approved', color: '150 70% 50%' },
@@ -51,10 +65,13 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [userTimezone, setUserTimezone] = useState<string>("UTC");
   const [schedulingProjectId, setSchedulingProjectId] = useState<string | null>(null);
+  const [bulkApproving, setBulkApproving] = useState(false);
   const { toast } = useToast();
+  const { isOwner, isAdmin, isManager } = useRole();
 
   const fetchProjects = async () => {
     try {
+      // Fetch projects with assigned user info via a join
       const { data: projectsData, error } = await supabase
         .from('projects')
         .select(`
@@ -66,29 +83,76 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
           thumbnail_url,
           idea_id,
           script_id,
-          created_at
+          created_at,
+          assigned_to,
+          rejection_reason,
+          last_moved_at
         `)
         .eq('client_id', clientId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      // Get asset counts for each project
-      const projectsWithCounts = await Promise.all(
-        (projectsData || []).map(async (project) => {
-          const { count } = await supabase
-            .from('project_assets')
-            .select('*', { count: 'exact', head: true })
-            .eq('project_id', project.id);
+      // Fetch asset counts in a single query
+      const projectIds = (projectsData || []).map(p => p.id);
+      let assetCounts: Record<string, number> = {};
+      
+      if (projectIds.length > 0) {
+        const { data: assetData } = await supabase
+          .from('project_assets')
+          .select('project_id')
+          .in('project_id', projectIds);
+        
+        if (assetData) {
+          assetCounts = assetData.reduce((acc, item) => {
+            acc[item.project_id] = (acc[item.project_id] || 0) + 1;
+            return acc;
+          }, {} as Record<string, number>);
+        }
+      }
 
-          return {
-            ...project,
-            asset_count: count || 0
-          };
-        })
-      );
+      // Fetch assigned user profiles
+      const assignedIds = (projectsData || [])
+        .map(p => p.assigned_to)
+        .filter(Boolean) as string[];
+      
+      let assignedUsers: Record<string, AssignedUser> = {};
+      if (assignedIds.length > 0) {
+        const { data: membersData } = await supabase
+          .from('agency_members')
+          .select('id, user_id')
+          .in('id', assignedIds);
+        
+        if (membersData) {
+          const userIds = membersData.map(m => m.user_id);
+          const { data: profilesData } = await supabase
+            .from('profiles')
+            .select('id, full_name, email')
+            .in('id', userIds);
+          
+          if (profilesData) {
+            membersData.forEach(member => {
+              const profile = profilesData.find(p => p.id === member.user_id);
+              if (profile) {
+                assignedUsers[member.id] = {
+                  id: member.id,
+                  user_id: member.user_id,
+                  full_name: profile.full_name,
+                  email: profile.email
+                };
+              }
+            });
+          }
+        }
+      }
 
-      setProjects(projectsWithCounts);
+      const projectsWithData = (projectsData || []).map(project => ({
+        ...project,
+        asset_count: assetCounts[project.id] || 0,
+        assigned_user: project.assigned_to ? assignedUsers[project.assigned_to] : null
+      }));
+
+      setProjects(projectsWithData);
     } catch (error: any) {
       console.error("Error fetching projects:", error);
       toast({
@@ -147,14 +211,26 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
     };
   }, [clientId]);
 
-  const handleMoveStage = async (projectId: string, newStage: string) => {
+  const handleMoveStage = async (projectId: string, newStage: string, rejectionReason?: string) => {
     try {
-      const { data, error } = await supabase
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      const updatePayload: any = { 
+        status: newStage,
+        last_moved_by: user?.id || null
+      };
+      
+      // Clear rejection reason when moving forward, set it when rejecting
+      if (rejectionReason) {
+        updatePayload.rejection_reason = rejectionReason;
+      } else if (newStage !== 'client_review') {
+        updatePayload.rejection_reason = null;
+      }
+
+      const { error } = await supabase
         .from('projects')
-        .update({ status: newStage })
-        .eq('id', projectId)
-        .select()
-        .single();
+        .update(updatePayload)
+        .eq('id', projectId);
 
       if (error) throw error;
 
@@ -164,7 +240,7 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
       });
 
       // Optimistically update local state
-      setProjects(projects.map(p => p.id === projectId ? { ...p, status: newStage } : p));
+      setProjects(projects.map(p => p.id === projectId ? { ...p, status: newStage, rejection_reason: rejectionReason || null } : p));
     } catch (error: any) {
       console.error('Stage transition error:', error);
       toast({
@@ -172,8 +248,51 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
         description: error.message || "Failed to move project",
         variant: "destructive"
       });
-      // Revert optimistic update by refetching
       fetchProjects();
+    }
+  };
+
+  const handleBulkApprove = async () => {
+    const clientReviewProjects = projects.filter(p => p.status === 'client_review');
+    if (clientReviewProjects.length === 0) {
+      toast({
+        title: "No projects to approve",
+        description: "There are no projects in client review",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setBulkApproving(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      const { error } = await supabase
+        .from('projects')
+        .update({ 
+          status: 'approved',
+          last_moved_by: user?.id || null,
+          rejection_reason: null
+        })
+        .in('id', clientReviewProjects.map(p => p.id));
+
+      if (error) throw error;
+
+      toast({
+        title: "Bulk approve complete",
+        description: `${clientReviewProjects.length} projects approved`
+      });
+
+      fetchProjects();
+    } catch (error: any) {
+      console.error('Bulk approve error:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to bulk approve",
+        variant: "destructive"
+      });
+    } finally {
+      setBulkApproving(false);
     }
   };
 
@@ -181,18 +300,8 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
     setIsDragging(false);
     const { source, destination, draggableId } = result;
 
-    // Dropped outside the list
-    if (!destination) {
-      return;
-    }
-
-    // Dropped in the same position
-    if (
-      source.droppableId === destination.droppableId &&
-      source.index === destination.index
-    ) {
-      return;
-    }
+    if (!destination) return;
+    if (source.droppableId === destination.droppableId && source.index === destination.index) return;
 
     const projectId = draggableId;
     const newStage = destination.droppableId;
@@ -203,7 +312,6 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
       setProjects(projects.map(p => p.id === projectId ? { ...p, status: newStage } : p));
     }
 
-    // Update in database
     await handleMoveStage(projectId, newStage);
   };
 
@@ -219,10 +327,13 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
     );
   }
 
+  const clientReviewCount = getProjectsByStage('client_review').length;
+  const canBulkApprove = (isOwner || isAdmin || isManager) && clientReviewCount > 0;
+
   return (
     <div className="space-y-6">
-      {/* Header with Create Project Button */}
-      <div className="flex items-center justify-between">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <div className="flex items-center gap-3">
             <h2 className="text-2xl font-bold">Content Pipeline</h2>
@@ -231,15 +342,27 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
               {userTimezone}
             </Badge>
           </div>
-          <p className="text-sm text-muted-foreground">Manage projects through the production workflow</p>
+          <p className="text-sm text-muted-foreground">Manage projects through the 8-stage production workflow</p>
         </div>
-        <Button onClick={() => setShowBulkUpload(true)} size="lg">
-          <Plus className="h-4 w-4 mr-2" />
-          Create Project
-        </Button>
+        <div className="flex items-center gap-2">
+          {canBulkApprove && (
+            <Button 
+              variant="outline" 
+              onClick={handleBulkApprove}
+              disabled={bulkApproving}
+            >
+              <CheckCheck className="h-4 w-4 mr-2" />
+              {bulkApproving ? "Approving..." : `Bulk Approve (${clientReviewCount})`}
+            </Button>
+          )}
+          <Button onClick={() => setShowBulkUpload(true)} size="lg">
+            <Plus className="h-4 w-4 mr-2" />
+            Create Project
+          </Button>
+        </div>
       </div>
 
-      {/* Pipeline Board - Compact Tabs with Drag & Drop */}
+      {/* Pipeline Board */}
       <DragDropContext 
         onDragEnd={handleDragEnd}
         onDragStart={() => setIsDragging(true)}
@@ -314,11 +437,11 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
                                       onDelete={() => fetchProjects()}
                                       onSchedule={
                                         project.status === 'approved'
-                                          ? () => {
-                                              setSchedulingProjectId(project.id);
-                                            }
+                                          ? () => setSchedulingProjectId(project.id)
                                           : undefined
                                       }
+                                      onMoveStage={handleMoveStage}
+                                      stages={PIPELINE_STAGES}
                                     />
                                   </div>
                                 )}
@@ -350,7 +473,7 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
         </div>
       </DragDropContext>
 
-      {/* Bulk Upload Modal */}
+      {/* Modals */}
       {showBulkUpload && (
         <BulkUploadModal
           open={showBulkUpload}
@@ -364,13 +487,12 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
         />
       )}
 
-      {/* Stage Detail Modal */}
       <StageDetailModal
         open={!!selectedStage}
         onOpenChange={(open) => {
           if (!open) {
             setSelectedStage(null);
-            fetchProjects(); // Refresh projects after modal closes
+            fetchProjects();
           }
         }}
         stage={selectedStage}
@@ -383,9 +505,11 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
           setSelectedStage(null);
           setSchedulingProjectId(projectId);
         }}
+        onMoveStage={handleMoveStage}
+        onBulkApprove={handleBulkApprove}
+        stages={PIPELINE_STAGES}
       />
 
-      {/* Project Editor */}
       {selectedProjectId && (
         <ProjectEditor
           open={!!selectedProjectId}
@@ -395,7 +519,6 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
         />
       )}
 
-      {/* Scheduling Modal */}
       {schedulingProjectId && (
         <SchedulingModal
           open={!!schedulingProjectId}

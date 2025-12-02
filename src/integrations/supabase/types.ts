@@ -1992,6 +1992,7 @@ export type Database = {
       projects: {
         Row: {
           agency_id: string
+          assigned_to: string | null
           client_id: string
           created_at: string | null
           description: string | null
@@ -2003,12 +2004,16 @@ export type Database = {
           id: string
           idea_id: string | null
           ideas: Json | null
+          last_moved_at: string | null
+          last_moved_by: string | null
+          latest_activity_id: string | null
           notes: string | null
           pipeline_stage: string | null
           platform_captions: Json | null
           platforms: string[] | null
           published_at: string | null
           published_urls: Json | null
+          rejection_reason: string | null
           retry_count: number | null
           scheduled_for: string | null
           scheduled_time: string | null
@@ -2022,6 +2027,7 @@ export type Database = {
         }
         Insert: {
           agency_id: string
+          assigned_to?: string | null
           client_id: string
           created_at?: string | null
           description?: string | null
@@ -2033,12 +2039,16 @@ export type Database = {
           id?: string
           idea_id?: string | null
           ideas?: Json | null
+          last_moved_at?: string | null
+          last_moved_by?: string | null
+          latest_activity_id?: string | null
           notes?: string | null
           pipeline_stage?: string | null
           platform_captions?: Json | null
           platforms?: string[] | null
           published_at?: string | null
           published_urls?: Json | null
+          rejection_reason?: string | null
           retry_count?: number | null
           scheduled_for?: string | null
           scheduled_time?: string | null
@@ -2052,6 +2062,7 @@ export type Database = {
         }
         Update: {
           agency_id?: string
+          assigned_to?: string | null
           client_id?: string
           created_at?: string | null
           description?: string | null
@@ -2063,12 +2074,16 @@ export type Database = {
           id?: string
           idea_id?: string | null
           ideas?: Json | null
+          last_moved_at?: string | null
+          last_moved_by?: string | null
+          latest_activity_id?: string | null
           notes?: string | null
           pipeline_stage?: string | null
           platform_captions?: Json | null
           platforms?: string[] | null
           published_at?: string | null
           published_urls?: Json | null
+          rejection_reason?: string | null
           retry_count?: number | null
           scheduled_for?: string | null
           scheduled_time?: string | null
@@ -2081,6 +2096,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "projects_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "agency_members"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "projects_client_id_fkey"
             columns: ["client_id"]
@@ -2114,6 +2136,13 @@ export type Database = {
             columns: ["idea_id"]
             isOneToOne: false
             referencedRelation: "ideas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_latest_activity_id_fkey"
+            columns: ["latest_activity_id"]
+            isOneToOne: false
+            referencedRelation: "project_activities"
             referencedColumns: ["id"]
           },
           {
