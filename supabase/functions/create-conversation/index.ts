@@ -120,7 +120,7 @@ Deno.serve(async (req) => {
     }
 
     // Always add creator as participant
-    const participants = [{
+    const participants: any[] = [{
       conversation_id: conversation.id,
       agency_id: agencyMember.agency_id,
       agency_member_id: agencyMember.id,
@@ -139,7 +139,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Add client user participants
+    // Add explicitly passed client user participants
     for (const userId of client_user_ids) {
       participants.push({
         conversation_id: conversation.id,
@@ -147,7 +147,34 @@ Deno.serve(async (req) => {
         agency_member_id: null,
         client_user_id: userId,
         role: 'client_user',
-      } as any);
+      });
+    }
+
+    // For client_chat conversations, auto-add ALL client users for that client
+    if (type === 'client_chat' && client_id) {
+      const { data: clientUsers } = await supabaseClient
+        .from('client_users')
+        .select('id')
+        .eq('client_id', client_id);
+
+      if (clientUsers && clientUsers.length > 0) {
+        for (const clientUser of clientUsers) {
+          // Avoid duplicates if already added via client_user_ids
+          const alreadyAdded = participants.some(
+            p => p.client_user_id === clientUser.id
+          );
+          if (!alreadyAdded) {
+            participants.push({
+              conversation_id: conversation.id,
+              agency_id: agencyMember.agency_id,
+              agency_member_id: null,
+              client_user_id: clientUser.id,
+              role: 'client_user',
+            });
+          }
+        }
+      }
+      console.log(`Auto-added ${clientUsers?.length || 0} client users as participants`);
     }
 
     if (participants.length > 0) {
