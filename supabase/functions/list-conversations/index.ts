@@ -3,6 +3,70 @@ import { corsHeaders } from '../_shared/cors.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const CLIENT_PORTAL_JWT_SECRET = Deno.env.get('CLIENT_PORTAL_JWT_SECRET');
+
+interface ClientPortalJwtPayload {
+  sub: string;
+  email: string;
+  client_id: string;
+  agency_id: string;
+  role: string;
+  exp: number;
+}
+
+// Helper to verify client portal JWT
+async function verifyClientPortalToken(token: string): Promise<ClientPortalJwtPayload | null> {
+  if (!CLIENT_PORTAL_JWT_SECRET) {
+    console.error('CLIENT_PORTAL_JWT_SECRET not configured');
+    return null;
+  }
+
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+
+    const [encodedHeader, encodedPayload, encodedSignature] = parts;
+    
+    // Verify signature
+    const key = await crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(CLIENT_PORTAL_JWT_SECRET),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['verify']
+    );
+
+    // Handle base64url encoding
+    const base64 = encodedSignature.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64 + '='.repeat((4 - base64.length % 4) % 4);
+    const signature = Uint8Array.from(atob(padded), c => c.charCodeAt(0));
+    
+    const isValid = await crypto.subtle.verify(
+      'HMAC',
+      key,
+      signature,
+      new TextEncoder().encode(`${encodedHeader}.${encodedPayload}`)
+    );
+
+    if (!isValid) return null;
+
+    // Decode payload with base64url handling
+    const payloadBase64 = encodedPayload.replace(/-/g, '+').replace(/_/g, '/');
+    const payloadPadded = payloadBase64 + '='.repeat((4 - payloadBase64.length % 4) % 4);
+    const payload: ClientPortalJwtPayload = JSON.parse(atob(payloadPadded));
+    
+    // Check expiration
+    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
+      console.log('Client portal token expired');
+      return null;
+    }
+
+    return payload;
+  } catch (error) {
+    console.error('Error verifying client portal token:', error);
+    return null;
+  }
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -20,59 +84,42 @@ Deno.serve(async (req) => {
 
     const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
     const token = authHeader.replace('Bearer ', '');
+    
+    let authUserId: string | null = null;
+    let clientPortalUser: ClientPortalJwtPayload | null = null;
+
+    // Try Supabase auth first (for agency members)
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
-
-    if (userError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // Check if agency member
-    const { data: agencyMember } = await supabaseClient
-      .from('agency_members')
-      .select('id, agency_id')
-      .eq('user_id', user.id)
-      .single();
-
-    let conversations: any[] = [];
-
-    if (agencyMember) {
-      // Agency user - get all conversations for their agency
-      const { data, error } = await supabaseClient
-        .from('conversations')
-        .select(`
-          *,
-          conversation_participants(
-            id,
-            agency_member_id,
-            client_user_id,
-            role
-          ),
-          clients(id, name, logo_url)
-        `)
-        .eq('agency_id', agencyMember.agency_id)
-        .order('updated_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching conversations:', error);
-        return new Response(JSON.stringify({ error: error.message }), {
-          status: 500,
+    
+    if (user && !userError) {
+      authUserId = user.id;
+    } else {
+      // Try client portal JWT
+      clientPortalUser = await verifyClientPortalToken(token);
+      
+      if (!clientPortalUser) {
+        console.log('Auth failed: neither Supabase auth nor client portal token valid');
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
+    }
 
-      conversations = data || [];
-    } else {
-      // Client user - get only their client chat
-      const { data: clientUser } = await supabaseClient
-        .from('client_users')
-        .select('client_id')
-        .eq('id', user.id)
+    let conversations: any[] = [];
+    let agencyMember: { id: string; agency_id: string } | null = null;
+
+    if (authUserId) {
+      // Agency member flow
+      const { data: member } = await supabaseClient
+        .from('agency_members')
+        .select('id, agency_id')
+        .eq('user_id', authUserId)
         .single();
 
-      if (clientUser) {
+      agencyMember = member;
+
+      if (agencyMember) {
         const { data, error } = await supabaseClient
           .from('conversations')
           .select(`
@@ -85,8 +132,7 @@ Deno.serve(async (req) => {
             ),
             clients(id, name, logo_url)
           `)
-          .eq('type', 'client_chat')
-          .eq('client_id', clientUser.client_id)
+          .eq('agency_id', agencyMember.agency_id)
           .order('updated_at', { ascending: false });
 
         if (error) {
@@ -99,6 +145,34 @@ Deno.serve(async (req) => {
 
         conversations = data || [];
       }
+    } else if (clientPortalUser) {
+      // Client portal user flow - only get their client_chat
+      const { data, error } = await supabaseClient
+        .from('conversations')
+        .select(`
+          *,
+          conversation_participants(
+            id,
+            agency_member_id,
+            client_user_id,
+            role
+          ),
+          clients(id, name, logo_url)
+        `)
+        .eq('type', 'client_chat')
+        .eq('client_id', clientPortalUser.client_id)
+        .order('updated_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching conversations for client:', error);
+        return new Response(JSON.stringify({ error: error.message }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      conversations = data || [];
+      console.log(`Found ${conversations.length} conversations for client ${clientPortalUser.client_id}`);
     }
 
     // Get all agency member IDs from participants to fetch profiles
@@ -145,12 +219,18 @@ Deno.serve(async (req) => {
           .maybeSingle();
 
         // Get participant for current user
-        const { data: participant } = await supabaseClient
+        let participantQuery = supabaseClient
           .from('conversation_participants')
           .select('id')
-          .eq('conversation_id', conv.id)
-          .eq('agency_member_id', agencyMember?.id || null)
-          .maybeSingle();
+          .eq('conversation_id', conv.id);
+        
+        if (agencyMember) {
+          participantQuery = participantQuery.eq('agency_member_id', agencyMember.id);
+        } else if (clientPortalUser) {
+          participantQuery = participantQuery.eq('client_user_id', clientPortalUser.sub);
+        }
+        
+        const { data: participant } = await participantQuery.maybeSingle();
 
         let unreadCount = 0;
         if (participant) {
