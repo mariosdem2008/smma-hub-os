@@ -115,7 +115,10 @@ Deno.serve(async (req) => {
     if (!reset_token || !new_password) {
       return new Response(
         JSON.stringify({ error: "Missing required fields" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        {
+          status: 400,
+          headers: { ...corsHeaders(req), "Content-Type": "application/json" },
+        },
       );
     }
 
@@ -132,7 +135,10 @@ Deno.serve(async (req) => {
     if (userError || !user) {
       return new Response(
         JSON.stringify({ error: "Invalid or expired reset token" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        {
+          status: 400,
+          headers: { ...corsHeaders(req), "Content-Type": "application/json" },
+        },
       );
     }
 
@@ -175,7 +181,10 @@ Deno.serve(async (req) => {
     const { token: accessToken, exp } = await generateAccessToken(clientUser);
 
     const cookies = createAuthCookies(accessToken, refreshToken);
-    const headers = new Headers({ ...corsHeaders, "Content-Type": "application/json" });
+    const headers = new Headers({
+      ...corsHeaders(req),
+      "Content-Type": "application/json",
+    });
     cookies.forEach((cookie) => headers.append("Set-Cookie", cookie));
 
     return new Response(
@@ -189,7 +198,7 @@ Deno.serve(async (req) => {
     console.error("Reset password error:", error);
     return new Response(
       JSON.stringify({ error: "Internal server error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      { status: 500, headers: { ...corsHeaders(req), "Content-Type": "application/json" } },
     );
   }
 });
