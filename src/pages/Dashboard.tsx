@@ -12,6 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ClientCard } from "@/components/ClientCard";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,6 +39,8 @@ import {
   TrendingUp,
   Clock,
   AlertTriangle,
+  Eye,
+  Heart,
 } from "lucide-react";
 import {
   Dialog,
@@ -84,6 +88,9 @@ export default function Dashboard() {
     totalClients: 0,
     postsThisWeek: 0,
     tasksThisWeek: 0,
+    totalImpressions: 0,
+    totalEngagement: 0,
+    avgEngagementRate: 0,
   });
   const [upcomingPosts, setUpcomingPosts] = useState<any[]>([]);
   const [overdueTasks, setOverdueTasks] = useState<any[]>([]);
@@ -182,10 +189,32 @@ export default function Dashboard() {
         .gte("scheduled_time", weekStart.toISOString())
         .lte("scheduled_time", weekEnd.toISOString());
 
+      // Fetch aggregate analytics for all clients (last 30 days)
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      const { data: analyticsData } = await supabase
+        .from("social_post_metrics")
+        .select("impressions, reach, likes, comments, shares, saves")
+        .in("client_id", clientIds)
+        .gte("date", thirtyDaysAgo.toISOString().split("T")[0]);
+
+      const totalImpressions = analyticsData?.reduce((sum, m) => sum + (m.impressions || 0), 0) || 0;
+      const totalReach = analyticsData?.reduce((sum, m) => sum + (m.reach || 0), 0) || 0;
+      const totalLikes = analyticsData?.reduce((sum, m) => sum + (m.likes || 0), 0) || 0;
+      const totalComments = analyticsData?.reduce((sum, m) => sum + (m.comments || 0), 0) || 0;
+      const totalShares = analyticsData?.reduce((sum, m) => sum + (m.shares || 0), 0) || 0;
+      const totalSaves = analyticsData?.reduce((sum, m) => sum + (m.saves || 0), 0) || 0;
+      const totalEngagement = totalLikes + totalComments + totalShares + totalSaves;
+      const avgEngagementRate = totalReach > 0 ? parseFloat(((totalEngagement / totalReach) * 100).toFixed(2)) : 0;
+
       setMetrics({
         totalClients: clientsData?.length || 0,
         postsThisWeek: projectsData?.length || 0,
         tasksThisWeek: 0,
+        totalImpressions,
+        totalEngagement,
+        avgEngagementRate,
       });
 
       // Fetch upcoming scheduled projects (next 10)
@@ -268,6 +297,9 @@ export default function Dashboard() {
         totalClients: clientsData?.length || 0,
         postsThisWeek: projectsData?.length || 0,
         tasksThisWeek: tasksThisWeekCount || 0,
+        totalImpressions,
+        totalEngagement,
+        avgEngagementRate,
       });
 
       // Fetch team members for task assignment
@@ -613,7 +645,7 @@ export default function Dashboard() {
       ) : (
         <>
           {/* Metrics Cards */}
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-5">
             <StatCard
               title="Total Clients"
               value={metrics.totalClients}
@@ -629,11 +661,25 @@ export default function Dashboard() {
               variant="teal"
             />
             <StatCard
-              title="Tasks Due This Week"
+              title="Tasks This Week"
               value={metrics.tasksThisWeek}
               icon={CheckCircle2}
               description="Tasks to complete"
               variant="orange"
+            />
+            <StatCard
+              title="Total Impressions"
+              value={metrics.totalImpressions.toLocaleString()}
+              icon={Eye}
+              description="Last 30 days"
+              variant="default"
+            />
+            <StatCard
+              title="Engagement Rate"
+              value={`${metrics.avgEngagementRate}%`}
+              icon={Heart}
+              description={`${metrics.totalEngagement.toLocaleString()} interactions`}
+              variant="green"
             />
           </div>
 
@@ -942,45 +988,11 @@ export default function Dashboard() {
               </div>
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {clients.map((client) => (
-                  <Card
+                  <ClientCard
                     key={client.id}
-                    className="overflow-hidden hover:border-primary/50 transition-all duration-300 cursor-pointer group hover:shadow-lg border"
+                    client={client}
                     onClick={() => navigate(`/clients/${client.id}`)}
-                  >
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center gap-3">
-                        {client.logo_url ? (
-                          <img
-                            src={client.logo_url}
-                            alt={client.name}
-                            className="h-12 w-12 rounded-xl object-cover shadow-sm group-hover:shadow-md transition-shadow"
-                          />
-                        ) : (
-                          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary/5 to-accent-purple/5 text-lg font-bold text-primary group-hover:scale-105 transition-transform">
-                            {client.name.charAt(0)}
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <CardTitle className="truncate group-hover:text-primary transition-colors">
-                            {client.name}
-                          </CardTitle>
-                          {client.company && <CardDescription className="truncate">{client.company}</CardDescription>}
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex items-center justify-between text-sm text-muted-foreground">
-                        <div className="flex items-center gap-1 bg-muted/50 px-2 py-1 rounded-lg">
-                          <FileText className="h-3 w-3" />
-                          <span>{client.assetCount} assets</span>
-                        </div>
-                        <div className="flex items-center gap-1 bg-muted/50 px-2 py-1 rounded-lg">
-                          <Video className="h-3 w-3" />
-                          <span>{client.publishedVideoCount} published</span>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  />
                 ))}
               </div>
             </div>
