@@ -44,7 +44,11 @@ async function verifyClientPortalToken(token: string): Promise<ClientPortalJwtPa
       ['verify']
     );
 
-    const signature = Uint8Array.from(atob(encodedSignature), c => c.charCodeAt(0));
+    // Handle base64url encoding properly
+    const base64 = encodedSignature.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64 + '='.repeat((4 - base64.length % 4) % 4);
+    const signature = Uint8Array.from(atob(padded), c => c.charCodeAt(0));
+    
     const isValid = await crypto.subtle.verify(
       'HMAC',
       key,
@@ -54,7 +58,10 @@ async function verifyClientPortalToken(token: string): Promise<ClientPortalJwtPa
 
     if (!isValid) return null;
 
-    const payload: ClientPortalJwtPayload = JSON.parse(atob(encodedPayload));
+    // Decode payload with base64url handling
+    const payloadBase64 = encodedPayload.replace(/-/g, '+').replace(/_/g, '/');
+    const payloadPadded = payloadBase64 + '='.repeat((4 - payloadBase64.length % 4) % 4);
+    const payload: ClientPortalJwtPayload = JSON.parse(atob(payloadPadded));
     
     // Check expiration
     if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
