@@ -65,6 +65,7 @@ async function verifyClientPortalToken(token: string): Promise<ClientPortalJwtPa
   } catch (error) {
     console.error('Error verifying client portal token:', error);
     return null;
+  }
 }
 
 function getCookie(header: string | null, name: string): string | null {
@@ -99,6 +100,16 @@ Deno.serve(async (req) => {
     if (!token) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const url = new URL(req.url);
+    const conversationId = url.searchParams.get('conversation_id');
+
+    if (!conversationId) {
+      return new Response(JSON.stringify({ error: 'Missing conversation_id' }), {
+        status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }

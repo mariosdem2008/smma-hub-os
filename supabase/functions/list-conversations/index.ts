@@ -65,6 +65,7 @@ async function verifyClientPortalToken(token: string): Promise<ClientPortalJwtPa
   } catch (error) {
     console.error('Error verifying client portal token:', error);
     return null;
+  }
 }
 
 function getCookie(header: string | null, name: string): string | null {
