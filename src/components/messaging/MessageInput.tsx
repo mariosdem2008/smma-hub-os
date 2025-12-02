@@ -3,7 +3,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Send, Paperclip } from 'lucide-react';
 import { useSendMessage } from '@/hooks/useSendMessage';
-import { useAuth } from '@/lib/auth';
+import { useCurrentParticipant } from '@/hooks/useCurrentParticipant';
 
 interface MessageInputProps {
   conversationId: string;
@@ -12,14 +12,14 @@ interface MessageInputProps {
 export function MessageInput({ conversationId }: MessageInputProps) {
   const [text, setText] = useState('');
   const { mutate: sendMessage, isPending } = useSendMessage();
-  const { user } = useAuth();
+  const { participant } = useCurrentParticipant();
 
   const handleSend = () => {
-    if (!text.trim() || isPending) return;
+    if (!text.trim() || isPending || !participant) return;
 
     sendMessage({
       conversation_id: conversationId,
-      sender_type: 'agency_member', // TODO: Detect if client user
+      sender_type: participant.type,
       text: text.trim(),
     });
 
@@ -56,7 +56,7 @@ export function MessageInput({ conversationId }: MessageInputProps) {
           <Button
             size="icon"
             onClick={handleSend}
-            disabled={!text.trim() || isPending}
+            disabled={!text.trim() || isPending || !participant}
           >
             <Send className="h-4 w-4" />
           </Button>
