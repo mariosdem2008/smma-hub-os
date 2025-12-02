@@ -65,6 +65,44 @@ SELECT cron.schedule(
 );
 ```
 
+### 4. generate-approval-reminders (Daily at 9 AM)
+
+Creates notifications for projects stuck in `client_review` stage for more than 48 hours.
+
+```sql
+-- Run in Supabase SQL Editor
+SELECT cron.schedule(
+  'generate-approval-reminders-daily',
+  '0 9 * * *',
+  $$
+  SELECT net.http_post(
+    url := 'https://YOUR_PROJECT_REF.supabase.co/functions/v1/generate-approval-reminders',
+    headers := '{"Content-Type": "application/json", "Authorization": "Bearer YOUR_ANON_KEY"}'::jsonb,
+    body := '{}'::jsonb
+  ) as request_id;
+  $$
+);
+```
+
+### 5. sync-meta-ads (Daily at 6 AM)
+
+Fetches campaign and insights data from Meta Marketing API for all connected ad accounts.
+
+```sql
+-- Run in Supabase SQL Editor
+SELECT cron.schedule(
+  'sync-meta-ads-daily',
+  '0 6 * * *',
+  $$
+  SELECT net.http_post(
+    url := 'https://YOUR_PROJECT_REF.supabase.co/functions/v1/sync-meta-ads',
+    headers := '{"Content-Type": "application/json", "Authorization": "Bearer YOUR_ANON_KEY"}'::jsonb,
+    body := '{}'::jsonb
+  ) as request_id;
+  $$
+);
+```
+
 ## How to Enable pg_cron and pg_net
 
 1. Go to your Supabase Dashboard → Database → Extensions
