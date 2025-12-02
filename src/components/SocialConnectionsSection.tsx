@@ -21,17 +21,17 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  Instagram, 
-  Facebook, 
-  Linkedin, 
+import {
+  Instagram,
+  Facebook,
+  Linkedin,
   Youtube,
   MoreVertical,
   RefreshCw,
   Unplug,
   Check,
   AlertCircle,
-  Clock
+  Clock,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { InstagramRequirementsModal } from "./InstagramRequirementsModal";
@@ -52,39 +52,39 @@ interface SocialConnectionsSectionProps {
 }
 
 const PLATFORMS = [
-  { 
-    id: "instagram", 
-    name: "Instagram", 
+  {
+    id: "instagram",
+    name: "Instagram",
     icon: Instagram,
-    color: "from-purple-500 to-pink-500"
+    color: "from-purple-500 to-pink-500",
   },
-  { 
-    id: "facebook", 
-    name: "Facebook", 
+  {
+    id: "facebook",
+    name: "Facebook",
     icon: Facebook,
-    color: "from-blue-600 to-blue-500"
+    color: "from-blue-600 to-blue-500",
   },
-  { 
-    id: "tiktok", 
-    name: "TikTok", 
+  {
+    id: "tiktok",
+    name: "TikTok",
     icon: ({ className }: { className?: string }) => (
       <svg viewBox="0 0 24 24" className={className} fill="currentColor">
-        <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
+        <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
       </svg>
     ),
-    color: "from-black to-gray-800"
+    color: "from-black to-gray-800",
   },
-  { 
-    id: "youtube", 
-    name: "YouTube", 
+  {
+    id: "youtube",
+    name: "YouTube",
     icon: Youtube,
-    color: "from-red-600 to-red-500"
+    color: "from-red-600 to-red-500",
   },
-  { 
-    id: "linkedin", 
-    name: "LinkedIn", 
+  {
+    id: "linkedin",
+    name: "LinkedIn",
     icon: Linkedin,
-    color: "from-blue-700 to-blue-600"
+    color: "from-blue-700 to-blue-600",
   },
 ];
 
@@ -119,10 +119,7 @@ export default function SocialConnectionsSection({ clientId, isClientPortal = fa
   const fetchConnections = async () => {
     setLoading(true);
     // Use safe view that excludes OAuth tokens for security
-    const { data, error } = await supabase
-      .from("social_connections_safe")
-      .select("*")
-      .eq("client_id", clientId);
+    const { data, error } = await supabase.from("social_connections_safe").select("*").eq("client_id", clientId);
 
     if (error) {
       toast({
@@ -141,11 +138,11 @@ export default function SocialConnectionsSection({ clientId, isClientPortal = fa
     if (platformId === "instagram") {
       const existingConnection = getConnectionForPlatform("instagram");
       const hadPreviousError = existingConnection?.status === "error";
-      
+
       setInstagramRequirementsModal({
         open: true,
         showError: hadPreviousError,
-        errorMessage: hadPreviousError 
+        errorMessage: hadPreviousError
           ? "We could not find any Facebook Pages linked to this Instagram account. Please make sure your Instagram is linked to a Facebook Page, not a personal profile."
           : undefined,
       });
@@ -158,19 +155,21 @@ export default function SocialConnectionsSection({ clientId, isClientPortal = fa
 
   const initiateOAuthFlow = async (platformId: string) => {
     setConnectingPlatform(platformId);
-    
+
     try {
       console.log(`[CONNECT] Initiating ${platformId} connection for client ${clientId}`);
-      
-      const { data: { session } } = await supabase.auth.getSession();
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       const token = session?.access_token;
-      
-      console.log('[CONNECT] Token:', token ? 'present' : 'missing');
-      console.log('[CONNECT] ClientId:', clientId);
-      console.log('[CONNECT] Platform:', platformId);
-      
+
+      console.log("[CONNECT] Token:", token ? "present" : "missing");
+      console.log("[CONNECT] ClientId:", clientId);
+      console.log("[CONNECT] Platform:", platformId);
+
       if (!session || !token) {
-        console.error('[CONNECT] No auth token available');
+        console.error("[CONNECT] No auth token available");
         toast({
           title: "Authentication Required",
           description: "Please log in to connect social accounts",
@@ -186,7 +185,7 @@ export default function SocialConnectionsSection({ clientId, isClientPortal = fa
       });
 
       const { data, error } = await supabase.functions.invoke("social-oauth", {
-        body: { 
+        body: {
           action: "connect",
           platform: platformId,
           clientId: clientId,
@@ -196,9 +195,9 @@ export default function SocialConnectionsSection({ clientId, isClientPortal = fa
           Authorization: `Bearer ${token}`,
         },
       });
-      
-      console.log('[CONNECT] Response data:', data);
-      console.log('[CONNECT] Response error:', error);
+
+      console.log("[CONNECT] Response data:", data);
+      console.log("[CONNECT] Response error:", error);
 
       if (error) throw error;
 
@@ -208,12 +207,8 @@ export default function SocialConnectionsSection({ clientId, isClientPortal = fa
         const height = 700;
         const left = window.screenX + (window.outerWidth - width) / 2;
         const top = window.screenY + (window.outerHeight - height) / 2;
-        
-        const popup = window.open(
-          data.url,
-          'OAuth',
-          `width=${width},height=${height},left=${left},top=${top}`
-        );
+
+        const popup = window.open(data.url, "OAuth", `width=${width},height=${height},left=${left},top=${top}`);
 
         if (!popup) {
           toast({
@@ -230,7 +225,7 @@ export default function SocialConnectionsSection({ clientId, isClientPortal = fa
           if (popup.closed) {
             clearInterval(pollInterval);
             await fetchConnections();
-            
+
             // Check if Instagram connection explicitly failed (not just missing)
             if (platformId === "instagram") {
               const connection = getConnectionForPlatform("instagram");
@@ -239,7 +234,8 @@ export default function SocialConnectionsSection({ clientId, isClientPortal = fa
                 setInstagramRequirementsModal({
                   open: true,
                   showError: true,
-                  errorMessage: "We could not find any Facebook Pages linked to this Instagram account. Please make sure your Instagram is linked to a Facebook Page, not a personal profile.",
+                  errorMessage:
+                    "We could not find any Facebook Pages linked to this Instagram account. Please make sure your Instagram is linked to a Facebook Page, not a personal profile.",
                 });
               } else if (connection?.status === "connected") {
                 toast({
@@ -248,7 +244,7 @@ export default function SocialConnectionsSection({ clientId, isClientPortal = fa
                 });
               }
             }
-            
+
             setConnectingPlatform(null);
           }
         }, 1000);
@@ -256,7 +252,7 @@ export default function SocialConnectionsSection({ clientId, isClientPortal = fa
         throw new Error("No OAuth URL returned");
       }
     } catch (error) {
-      console.error('Connection error:', error);
+      console.error("Connection error:", error);
       toast({
         title: "Connection Error",
         description: error instanceof Error ? error.message : "Failed to initiate connection",
@@ -268,9 +264,11 @@ export default function SocialConnectionsSection({ clientId, isClientPortal = fa
 
   const handleReauthenticate = async (connectionId: string, platform: string) => {
     setConnectingPlatform(platform);
-    
+
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       if (!session) {
         toast({
           title: "Authentication Required",
@@ -282,7 +280,7 @@ export default function SocialConnectionsSection({ clientId, isClientPortal = fa
       }
 
       const { data, error } = await supabase.functions.invoke("social-oauth", {
-        body: { 
+        body: {
           action: "reconnect",
           platform: platform,
           clientId: clientId,
@@ -314,10 +312,7 @@ export default function SocialConnectionsSection({ clientId, isClientPortal = fa
   const handleDisconnect = async () => {
     if (!disconnectDialog.connectionId) return;
 
-    const { error } = await supabase
-      .from("social_connections")
-      .delete()
-      .eq("id", disconnectDialog.connectionId);
+    const { error } = await supabase.from("social_connections").delete().eq("id", disconnectDialog.connectionId);
 
     if (error) {
       toast({
@@ -337,7 +332,7 @@ export default function SocialConnectionsSection({ clientId, isClientPortal = fa
   };
 
   const getConnectionForPlatform = (platformId: string) => {
-    return connections.find(conn => conn.platform === platformId);
+    return connections.find((conn) => conn.platform === platformId);
   };
 
   const getStatusBadge = (status: string) => {
@@ -379,12 +374,7 @@ export default function SocialConnectionsSection({ clientId, isClientPortal = fa
     <div className="space-y-4">
       <div>
         <h3 className="text-lg font-semibold">API Connections</h3>
-        <p className="text-sm text-muted-foreground">
-          Connect social media accounts to sync data and automate posting
-        </p>
-        <p className="text-xs text-muted-foreground mt-1">
-          <strong>Note:</strong> If analytics or ads data is missing, disconnect and reconnect to grant all required permissions (Insights, Ads).
-        </p>
+        <p className="text-sm text-muted-foreground">Connect social media accounts to sync data and automate posting</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -401,9 +391,7 @@ export default function SocialConnectionsSection({ clientId, isClientPortal = fa
                   <div className={`p-2 rounded-lg bg-gradient-to-r ${platform.color}`}>
                     <Icon className="h-5 w-5 text-white" />
                   </div>
-                  <CardTitle className="text-sm font-medium">
-                    {platform.name}
-                  </CardTitle>
+                  <CardTitle className="text-sm font-medium">{platform.name}</CardTitle>
                 </div>
                 {connection && connection.status === "connected" && (
                   <DropdownMenu>
@@ -422,9 +410,7 @@ export default function SocialConnectionsSection({ clientId, isClientPortal = fa
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         className="text-destructive"
-                        onClick={() =>
-                          setDisconnectDialog({ open: true, connectionId: connection.id })
-                        }
+                        onClick={() => setDisconnectDialog({ open: true, connectionId: connection.id })}
                         disabled={!canManageConnections}
                       >
                         <Unplug className="mr-2 h-4 w-4" />
@@ -465,11 +451,7 @@ export default function SocialConnectionsSection({ clientId, isClientPortal = fa
                 {(!connection || connection.status !== "connected") && (
                   <>
                     {canManageConnections ? (
-                      <Button
-                        className="w-full"
-                        onClick={() => handleConnect(platform.id)}
-                        disabled={isConnecting}
-                      >
+                      <Button className="w-full" onClick={() => handleConnect(platform.id)} disabled={isConnecting}>
                         {isConnecting ? (
                           <>
                             <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
@@ -506,9 +488,7 @@ export default function SocialConnectionsSection({ clientId, isClientPortal = fa
 
       <InstagramRequirementsModal
         open={instagramRequirementsModal.open}
-        onOpenChange={(open) =>
-          setInstagramRequirementsModal({ ...instagramRequirementsModal, open })
-        }
+        onOpenChange={(open) => setInstagramRequirementsModal({ ...instagramRequirementsModal, open })}
         onConfirm={() => initiateOAuthFlow("instagram")}
         showError={instagramRequirementsModal.showError}
         errorMessage={instagramRequirementsModal.errorMessage}
@@ -522,13 +502,16 @@ export default function SocialConnectionsSection({ clientId, isClientPortal = fa
           <AlertDialogHeader>
             <AlertDialogTitle>Disconnect Account</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to disconnect this social media account? This will remove all
-              stored credentials and stop data syncing.
+              Are you sure you want to disconnect this social media account? This will remove all stored credentials and
+              stop data syncing.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDisconnect} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogAction
+              onClick={handleDisconnect}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
               Disconnect
             </AlertDialogAction>
           </AlertDialogFooter>
