@@ -211,29 +211,6 @@ export default function TeamTab() {
     });
   };
 
-  if (!canManageTeam) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Team Management</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground">
-            You don't have permission to manage team members.
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       <Card>
@@ -245,10 +222,12 @@ export default function TeamTab() {
                 Manage your agency team and permissions
               </CardDescription>
             </div>
-            <Button onClick={() => setInviteDialogOpen(true)}>
-              <UserPlus className="mr-2 h-4 w-4" />
-              Invite Member
-            </Button>
+            {canManageTeam && (
+              <Button onClick={() => setInviteDialogOpen(true)}>
+                <UserPlus className="mr-2 h-4 w-4" />
+                Invite Member
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent>
@@ -258,52 +237,63 @@ export default function TeamTab() {
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Role</TableHead>
-                <TableHead>Actions</TableHead>
+                {canManageTeam && <TableHead>Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {members.map((member) => (
-                <TableRow key={member.id}>
-                  <TableCell>
-                    {member.profiles?.full_name || "Unknown"}
-                  </TableCell>
-                  <TableCell>{member.profiles?.email}</TableCell>
-                  <TableCell>
-                    {isOwner ? (
-                      <Select
-                        value={member.role}
-                        onValueChange={(value) =>
-                          handleRoleChange(member.id, value)
-                        }
-                      >
-                        <SelectTrigger className="w-32">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="owner">Owner</SelectItem>
-                          <SelectItem value="admin">Admin</SelectItem>
-                          <SelectItem value="manager">Manager</SelectItem>
-                          <SelectItem value="creator">Creator</SelectItem>
-                          <SelectItem value="viewer">Viewer</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <Badge variant="secondary">{member.role}</Badge>
+              {members.map((member) => {
+                const isCurrentUser = member.user_id === user?.id;
+                const isOwnerMember = member.role === "owner";
+                const canEditThisMember = canManageTeam && !isOwnerMember;
+                const canRemoveThisMember = canManageTeam && !isOwnerMember && !isCurrentUser;
+
+                return (
+                  <TableRow key={member.id}>
+                    <TableCell>
+                      {member.profiles?.full_name || "Unknown"}
+                    </TableCell>
+                    <TableCell>{member.profiles?.email}</TableCell>
+                    <TableCell>
+                      {canEditThisMember ? (
+                        <Select
+                          value={member.role}
+                          onValueChange={(value) =>
+                            handleRoleChange(member.id, value)
+                          }
+                        >
+                          <SelectTrigger className="w-32">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="owner" disabled>
+                              Owner
+                            </SelectItem>
+                            <SelectItem value="admin">Admin</SelectItem>
+                            <SelectItem value="manager">Manager</SelectItem>
+                            <SelectItem value="creator">Creator</SelectItem>
+                            <SelectItem value="viewer">Viewer</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Badge variant="secondary">{member.role}</Badge>
+                      )}
+                    </TableCell>
+                    {canManageTeam && (
+                      <TableCell>
+                        {canRemoveThisMember && (
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => setRemovingMember(member.id)}
+                          >
+                            Remove
+                          </Button>
+                        )}
+                      </TableCell>
                     )}
-                  </TableCell>
-                  <TableCell>
-                    {isOwner && member.user_id !== user?.id && (
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => setRemovingMember(member.id)}
-                      >
-                        Remove
-                      </Button>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </CardContent>
@@ -324,7 +314,7 @@ export default function TeamTab() {
                   <TableHead>Email</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
+                  {canManageTeam && <TableHead>Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -341,22 +331,24 @@ export default function TeamTab() {
                           {isExpired ? "Expired" : "Pending"}
                         </Badge>
                       </TableCell>
-                      <TableCell className="space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => copyInviteLink(invite.token)}
-                        >
-                          Copy Link
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => handleCancelInvite(invite.id)}
-                        >
-                          Cancel
-                        </Button>
-                      </TableCell>
+                      {canManageTeam && (
+                        <TableCell className="space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => copyInviteLink(invite.token)}
+                          >
+                            Copy Link
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleCancelInvite(invite.id)}
+                          >
+                            Cancel
+                          </Button>
+                        </TableCell>
+                      )}
                     </TableRow>
                   );
                 })}
@@ -367,7 +359,7 @@ export default function TeamTab() {
       )}
 
       <InviteTeamMemberDialog
-        open={inviteDialogOpen}
+        open={inviteDialogOpen && canManageTeam}
         onOpenChange={(open) => {
           setInviteDialogOpen(open);
           if (!open) fetchTeamData();
