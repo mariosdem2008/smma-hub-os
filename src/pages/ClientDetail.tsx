@@ -1,10 +1,7 @@
-import { useState, useRef } from "react";
-import { useParams, Link, useSearchParams } from "react-router-dom";
-import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import { useParams, useSearchParams } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useClientFonts } from "@/hooks/useClientFonts";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -16,17 +13,31 @@ import AnalyticsTab from "@/components/client-tabs/AnalyticsTab";
 import BrandIdentityTab from "@/components/client-tabs/BrandIdentityTab";
 import SocialProfilesTab from "@/components/SocialProfilesTab";
 import ContentPlanningTab from "@/components/client-tabs/ContentPlanningTab";
-import ContentLibraryTab from "@/components/client-tabs/ContentLibraryTab";
 import PipelineTab from "@/components/client-tabs/PipelineTab";
 import CalendarTab from "@/components/client-tabs/CalendarTab";
 import ClientUploadsTab from "@/components/client-tabs/ClientUploadsTab";
-import WorkspaceTab from "@/components/client-tabs/WorkspaceTab";
 import { ClientPortalTab } from "@/components/client-tabs/ClientPortalTab";
 import LibraryTab from "@/components/client-tabs/LibraryTab";
 import TasksTab from "@/components/client-tabs/TasksTab";
 import ReportsTab from "@/components/client-tabs/ReportsTab";
 import AdsTab from "@/components/client-tabs/AdsTab";
 import { useEffect } from "react";
+import { cn } from "@/lib/utils";
+import {
+  LayoutDashboard,
+  BarChart3,
+  Megaphone,
+  FileText,
+  Palette,
+  Workflow,
+  Calendar as CalendarIcon,
+  FolderOpen,
+  CheckSquare,
+  Share2,
+  Upload,
+  Users,
+  Lightbulb,
+} from "lucide-react";
 
 interface Client {
   id: string;
@@ -50,6 +61,22 @@ interface ClientBranding {
   primary_color: string | null;
 }
 
+const tabs = [
+  { id: "overview", label: "Overview", icon: LayoutDashboard },
+  { id: "analytics", label: "Analytics", icon: BarChart3 },
+  { id: "ads", label: "Ads", icon: Megaphone },
+  { id: "reports", label: "Reports", icon: FileText },
+  { id: "brand", label: "Brand Identity", icon: Palette },
+  { id: "pipeline", label: "Pipeline", icon: Workflow },
+  { id: "planning", label: "Content Planning", icon: Lightbulb },
+  { id: "library", label: "Library", icon: FolderOpen },
+  { id: "calendar", label: "Calendar", icon: CalendarIcon },
+  { id: "tasks", label: "Tasks", icon: CheckSquare },
+  { id: "social", label: "Social Profiles", icon: Share2 },
+  { id: "uploads", label: "Client Uploads", icon: Upload },
+  { id: "portal", label: "Client Portal", icon: Users },
+];
+
 export default function ClientDetail() {
   const { clientId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -60,7 +87,6 @@ export default function ClientDetail() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
   const [agencyId, setAgencyId] = useState<string>("");
-  const tabsRef = useRef<HTMLDivElement>(null);
 
   // Pull-to-refresh for mobile
   const { isRefreshing, pullDistance } = usePullToRefresh({
@@ -132,6 +158,12 @@ export default function ClientDetail() {
     }
   };
 
+  const handleTabChange = (tabId: string) => {
+    setActiveTab(tabId);
+    setSearchParams({ tab: tabId });
+    hapticSelection();
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -142,13 +174,7 @@ export default function ClientDetail() {
 
   if (!client) {
     return (
-      <div className="space-y-6">
-        <Link to="/clients">
-          <Button variant="ghost">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Clients
-          </Button>
-        </Link>
+      <div className="p-6">
         <Card>
           <CardContent className="py-12 text-center">
             <p className="text-muted-foreground">Client not found</p>
@@ -158,9 +184,42 @@ export default function ClientDetail() {
     );
   }
 
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case "overview":
+        return <OverviewTab clientId={clientId!} client={client} onNotesUpdate={handleNotesUpdate} />;
+      case "analytics":
+        return <AnalyticsTab clientId={clientId!} />;
+      case "ads":
+        return <AdsTab clientId={clientId!} agencyId={agencyId} />;
+      case "reports":
+        return <ReportsTab clientId={clientId!} agencyId={agencyId} />;
+      case "brand":
+        return <BrandIdentityTab clientId={clientId!} clientName={client.name} />;
+      case "social":
+        return <SocialProfilesTab clientId={clientId!} />;
+      case "planning":
+        return <ContentPlanningTab clientId={clientId!} />;
+      case "pipeline":
+        return <PipelineTab clientId={clientId!} agencyId={agencyId} />;
+      case "calendar":
+        return <CalendarTab clientId={clientId!} />;
+      case "library":
+        return <LibraryTab clientId={clientId!} agencyId={agencyId} />;
+      case "uploads":
+        return <ClientUploadsTab clientId={clientId!} agencyId={agencyId} />;
+      case "tasks":
+        return <TasksTab clientId={clientId!} agencyId={agencyId} />;
+      case "portal":
+        return <ClientPortalTab clientId={clientId!} />;
+      default:
+        return <OverviewTab clientId={clientId!} client={client} onNotesUpdate={handleNotesUpdate} />;
+    }
+  };
+
   return (
     <div 
-      className="space-y-4 md:space-y-6 client-workspace"
+      className="flex min-h-[calc(100vh-3.5rem)]"
       style={{
         transform: isMobile ? `translateY(${pullDistance}px)` : undefined,
         transition: isRefreshing ? "transform 0.3s ease-out" : "none",
@@ -168,115 +227,99 @@ export default function ClientDetail() {
     >
       {/* Pull-to-refresh indicator */}
       {isMobile && pullDistance > 0 && (
-        <div className="flex justify-center">
+        <div className="absolute top-0 left-0 right-0 flex justify-center z-50">
           <div className={`text-sm text-muted-foreground transition-opacity ${pullDistance > 60 ? "opacity-100" : "opacity-50"}`}>
             {isRefreshing ? "Refreshing..." : pullDistance > 60 ? "Release to refresh" : "Pull to refresh"}
           </div>
         </div>
       )}
 
-      <Link to="/clients">
-        <Button 
-          variant="ghost" 
-          style={{ minHeight: isMobile ? "44px" : undefined }}
-          className="touch-manipulation"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Clients
-        </Button>
-      </Link>
+      {/* Left Sidebar Navigation */}
+      {!isMobile && (
+        <aside className="w-56 border-r bg-muted/30 flex-shrink-0">
+          <div className="p-4 border-b">
+            <ClientHeader
+              clientId={clientId!}
+              name={client.name}
+              logoUrl={client.logo_url}
+              niche={client.niche}
+              website={client.website}
+              primaryColor={branding?.primary_color}
+              compact
+            />
+          </div>
+          <nav className="p-2">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => handleTabChange(tab.id)}
+                  className={cn(
+                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-left",
+                    activeTab === tab.id
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  )}
+                >
+                  <Icon className="h-4 w-4 flex-shrink-0" />
+                  <span className="truncate">{tab.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </aside>
+      )}
 
-      <ClientHeader
-        clientId={clientId!}
-        name={client.name}
-        logoUrl={client.logo_url}
-        niche={client.niche}
-        website={client.website}
-        primaryColor={branding?.primary_color}
-      />
-
-      <Tabs 
-        value={activeTab} 
-        onValueChange={(value) => {
-          setActiveTab(value);
-          hapticSelection();
-        }} 
-        className="w-full"
-      >
-        <div className="overflow-x-auto scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
-          <TabsList className="inline-flex w-auto min-w-full md:grid md:grid-cols-13 h-auto">
-            <TabsTrigger value="overview" className="flex-shrink-0 min-h-[44px] px-3 md:px-4">Overview</TabsTrigger>
-            <TabsTrigger value="analytics" className="flex-shrink-0 min-h-[44px] px-3 md:px-4">Analytics</TabsTrigger>
-            <TabsTrigger value="ads" className="flex-shrink-0 min-h-[44px] px-3 md:px-4">Ads</TabsTrigger>
-            <TabsTrigger value="reports" className="flex-shrink-0 min-h-[44px] px-3 md:px-4">Reports</TabsTrigger>
-            <TabsTrigger value="brand" className="flex-shrink-0 min-h-[44px] px-3 md:px-4 whitespace-nowrap">Brand Identity</TabsTrigger>
-            <TabsTrigger value="pipeline" className="flex-shrink-0 min-h-[44px] px-3 md:px-4">Pipeline</TabsTrigger>
-            <TabsTrigger value="planning" className="flex-shrink-0 min-h-[44px] px-3 md:px-4 whitespace-nowrap">Content Planning</TabsTrigger>
-            <TabsTrigger value="library" className="flex-shrink-0 min-h-[44px] px-3 md:px-4">Library</TabsTrigger>
-            <TabsTrigger value="calendar" className="flex-shrink-0 min-h-[44px] px-3 md:px-4">Calendar</TabsTrigger>
-            <TabsTrigger value="tasks" className="flex-shrink-0 min-h-[44px] px-3 md:px-4">Tasks</TabsTrigger>
-            <TabsTrigger value="social" className="flex-shrink-0 min-h-[44px] px-3 md:px-4 whitespace-nowrap">Social Profiles</TabsTrigger>
-            <TabsTrigger value="uploads" className="flex-shrink-0 min-h-[44px] px-3 md:px-4 whitespace-nowrap">Client Uploads</TabsTrigger>
-            <TabsTrigger value="portal" className="flex-shrink-0 min-h-[44px] px-3 md:px-4 whitespace-nowrap">Client Portal</TabsTrigger>
-          </TabsList>
+      {/* Mobile Tab Bar */}
+      {isMobile && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t">
+          <div className="flex overflow-x-auto scrollbar-hide py-2 px-2 gap-1">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => handleTabChange(tab.id)}
+                  className={cn(
+                    "flex flex-col items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium transition-colors flex-shrink-0 min-w-[60px]",
+                    activeTab === tab.id
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground"
+                  )}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span className="truncate max-w-[60px]">{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
+      )}
 
-        <TabsContent value="overview" className="space-y-4">
-          <OverviewTab 
-            clientId={clientId!} 
-            client={client} 
-            onNotesUpdate={handleNotesUpdate}
-          />
-        </TabsContent>
-
-        <TabsContent value="analytics" className="space-y-4">
-          <AnalyticsTab clientId={clientId!} />
-        </TabsContent>
-
-        <TabsContent value="ads" className="space-y-4">
-          <AdsTab clientId={clientId!} agencyId={agencyId} />
-        </TabsContent>
-
-        <TabsContent value="reports" className="space-y-4">
-          <ReportsTab clientId={clientId!} agencyId={agencyId} />
-        </TabsContent>
-
-        <TabsContent value="brand" className="space-y-4">
-          <BrandIdentityTab clientId={clientId!} clientName={client.name} />
-        </TabsContent>
-
-        <TabsContent value="social" className="space-y-4">
-          <SocialProfilesTab clientId={clientId!} />
-        </TabsContent>
-
-        <TabsContent value="planning" className="space-y-4">
-          <ContentPlanningTab clientId={clientId!} />
-        </TabsContent>
-
-        <TabsContent value="pipeline" className="space-y-4">
-          <PipelineTab clientId={clientId!} agencyId={agencyId} />
-        </TabsContent>
-
-        <TabsContent value="calendar" className="space-y-4">
-          <CalendarTab clientId={clientId!} />
-        </TabsContent>
-
-        <TabsContent value="library" className="space-y-4">
-          <LibraryTab clientId={clientId!} agencyId={agencyId} />
-        </TabsContent>
-
-        <TabsContent value="uploads" className="space-y-4">
-          <ClientUploadsTab clientId={clientId!} agencyId={agencyId} />
-        </TabsContent>
-
-        <TabsContent value="tasks" className="space-y-4">
-          <TasksTab clientId={clientId!} agencyId={agencyId} />
-        </TabsContent>
-
-        <TabsContent value="portal" className="space-y-4">
-          <ClientPortalTab clientId={clientId!} />
-        </TabsContent>
-      </Tabs>
+      {/* Main Content */}
+      <main className={cn(
+        "flex-1 overflow-auto",
+        isMobile ? "pb-24 p-4" : "p-6"
+      )}>
+        {/* Show client header on mobile */}
+        {isMobile && (
+          <div className="mb-4">
+            <ClientHeader
+              clientId={clientId!}
+              name={client.name}
+              logoUrl={client.logo_url}
+              niche={client.niche}
+              website={client.website}
+              primaryColor={branding?.primary_color}
+            />
+          </div>
+        )}
+        
+        <div className="space-y-4">
+          {renderTabContent()}
+        </div>
+      </main>
     </div>
   );
 }
