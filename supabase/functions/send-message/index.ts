@@ -3,6 +3,7 @@ import { corsHeaders } from '../_shared/cors.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const CLIENT_PORTAL_JWT_SECRET = Deno.env.get('CLIENT_PORTAL_JWT_SECRET');
 
 interface SendMessagePayload {
   conversation_id: string;
@@ -10,6 +11,62 @@ interface SendMessagePayload {
   text?: string;
   attachment_url?: string;
   related_project_id?: string;
+}
+
+interface ClientPortalJwtPayload {
+  sub: string;
+  email: string;
+  client_id: string;
+  agency_id: string;
+  role: string;
+  exp: number;
+}
+
+// Helper to verify client portal JWT
+async function verifyClientPortalToken(token: string): Promise<ClientPortalJwtPayload | null> {
+  if (!CLIENT_PORTAL_JWT_SECRET) {
+    console.error('CLIENT_PORTAL_JWT_SECRET not configured');
+    return null;
+  }
+
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+
+    const [encodedHeader, encodedPayload, encodedSignature] = parts;
+    
+    // Verify signature
+    const key = await crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(CLIENT_PORTAL_JWT_SECRET),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['verify']
+    );
+
+    const signature = Uint8Array.from(atob(encodedSignature), c => c.charCodeAt(0));
+    const isValid = await crypto.subtle.verify(
+      'HMAC',
+      key,
+      signature,
+      new TextEncoder().encode(`${encodedHeader}.${encodedPayload}`)
+    );
+
+    if (!isValid) return null;
+
+    const payload: ClientPortalJwtPayload = JSON.parse(atob(encodedPayload));
+    
+    // Check expiration
+    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
+      console.log('Client portal token expired');
+      return null;
+    }
+
+    return payload;
+  } catch (error) {
+    console.error('Error verifying client portal token:', error);
+    return null;
+  }
 }
 
 Deno.serve(async (req) => {
@@ -28,13 +85,26 @@ Deno.serve(async (req) => {
 
     const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
     const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
+    
+    let authUserId: string | null = null;
+    let clientPortalUser: ClientPortalJwtPayload | null = null;
 
-    if (userError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    // Try Supabase auth first (for agency members)
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
+    
+    if (user && !userError) {
+      authUserId = user.id;
+    } else {
+      // Try client portal JWT
+      clientPortalUser = await verifyClientPortalToken(token);
+      
+      if (!clientPortalUser) {
+        console.log('Auth failed: neither Supabase auth nor client portal token valid');
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
     }
 
     const payload: SendMessagePayload = await req.json();
@@ -60,10 +130,17 @@ Deno.serve(async (req) => {
     let senderName = 'Someone';
 
     if (sender_type === 'agency_member') {
+      if (!authUserId) {
+        return new Response(JSON.stringify({ error: 'Agency members must use Supabase auth' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
       const { data: agencyMember } = await supabaseClient
         .from('agency_members')
         .select('id, user_id')
-        .eq('user_id', user.id)
+        .eq('user_id', authUserId)
         .eq('agency_id', conversation.agency_id)
         .single();
 
@@ -80,7 +157,7 @@ Deno.serve(async (req) => {
       const { data: profile } = await supabaseClient
         .from('profiles')
         .select('full_name, email')
-        .eq('id', user.id)
+        .eq('id', authUserId)
         .single();
       
       senderName = profile?.full_name || profile?.email || 'Agency member';
@@ -95,31 +172,48 @@ Deno.serve(async (req) => {
 
       participantId = participant?.id;
     } else {
-      const { data: clientUser } = await supabaseClient
-        .from('client_users')
-        .select('id, full_name, email')
-        .eq('id', user.id)
-        .single();
+      // Client user - can use either auth method but must be from client portal
+      if (clientPortalUser) {
+        // Using client portal JWT
+        const { data: clientUser } = await supabaseClient
+          .from('client_users')
+          .select('id, full_name, email, client_id')
+          .eq('id', clientPortalUser.sub)
+          .single();
 
-      if (!clientUser) {
-        return new Response(JSON.stringify({ error: 'Not authorized to send in this conversation' }), {
+        if (!clientUser) {
+          return new Response(JSON.stringify({ error: 'Client user not found' }), {
+            status: 403,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        // Verify client user belongs to this conversation's client
+        if (clientUser.client_id !== conversation.client_id) {
+          return new Response(JSON.stringify({ error: 'Not authorized to send in this conversation' }), {
+            status: 403,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        senderClientUserId = clientUser.id;
+        senderName = clientUser.full_name || clientUser.email || 'Client';
+
+        // Get participant record
+        const { data: participant } = await supabaseClient
+          .from('conversation_participants')
+          .select('id')
+          .eq('conversation_id', conversation_id)
+          .eq('client_user_id', clientUser.id)
+          .single();
+
+        participantId = participant?.id;
+      } else {
+        return new Response(JSON.stringify({ error: 'Client users must use client portal authentication' }), {
           status: 403,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-
-      senderClientUserId = clientUser.id;
-      senderName = clientUser.full_name || clientUser.email || 'Client';
-
-      // Get participant record
-      const { data: participant } = await supabaseClient
-        .from('conversation_participants')
-        .select('id')
-        .eq('conversation_id', conversation_id)
-        .eq('client_user_id', clientUser.id)
-        .single();
-
-      participantId = participant?.id;
     }
 
     // Insert message

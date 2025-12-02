@@ -54,6 +54,7 @@ export function ConversationThread({ conversationId }: ConversationThreadProps) 
               key={message.id}
               message={message}
               isOwnMessage={isOwnMessage}
+              conversationId={conversationId}
             />
           );
         })}
