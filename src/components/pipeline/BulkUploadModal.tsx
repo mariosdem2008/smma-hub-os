@@ -9,8 +9,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
-import { Upload, File, Loader2, Image as ImageIcon, X, Video } from "lucide-react";
+import { Upload, File, Loader2, Image as ImageIcon, X, Video, Check } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 interface BulkUploadModalProps {
   open: boolean;
@@ -45,6 +50,16 @@ interface LibraryAsset {
   thumbnail_url: string | null;
 }
 
+interface TeamMember {
+  id: string;
+  user_id: string;
+  role: string;
+  profile?: {
+    full_name: string | null;
+    email: string;
+  };
+}
+
 export default function BulkUploadModal({
   open,
   onOpenChange,
@@ -63,6 +78,9 @@ export default function BulkUploadModal({
   const [currentMemberId, setCurrentMemberId] = useState<string | null>(null);
   const [thumbnail, setThumbnail] = useState<File | null>(null);
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
+  const [assigneePopoverOpen, setAssigneePopoverOpen] = useState(false);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -71,11 +89,12 @@ export default function BulkUploadModal({
     notes: "",
   });
 
-  // Fetch ideas and scripts when modal opens
+  // Fetch ideas, scripts and team members when modal opens
   useEffect(() => {
     if (open) {
       fetchIdeasAndScripts();
       fetchCurrentMember();
+      fetchTeamMembers();
     }
   }, [open]);
 
@@ -89,10 +108,54 @@ export default function BulkUploadModal({
         .eq("agency_id", agencyId)
         .single();
       
-      if (data) setCurrentMemberId(data.id);
+      if (data) {
+        setCurrentMemberId(data.id);
+        setSelectedAssignees([data.id]); // Default to current user
+      }
     } catch (error) {
       console.error("Error fetching current member:", error);
     }
+  };
+
+  const fetchTeamMembers = async () => {
+    try {
+      const { data } = await supabase
+        .from("agency_members")
+        .select(`
+          id,
+          user_id,
+          role,
+          profile:profiles(full_name, email)
+        `)
+        .eq("agency_id", agencyId);
+      
+      if (data) {
+        const formattedMembers = data.map(m => ({
+          ...m,
+          profile: Array.isArray(m.profile) ? m.profile[0] : m.profile,
+        }));
+        setTeamMembers(formattedMembers as TeamMember[]);
+      }
+    } catch (error) {
+      console.error("Error fetching team members:", error);
+    }
+  };
+
+  const toggleAssignee = (memberId: string) => {
+    setSelectedAssignees(prev => 
+      prev.includes(memberId)
+        ? prev.filter(id => id !== memberId)
+        : [...prev, memberId]
+    );
+  };
+
+  const getSelectedAssigneeNames = () => {
+    return selectedAssignees
+      .map(id => {
+        const member = teamMembers.find(m => m.id === id);
+        return member?.profile?.full_name || member?.profile?.email?.split('@')[0] || 'Unknown';
+      })
+      .join(', ');
   };
 
   const fetchIdeasAndScripts = async () => {
@@ -181,7 +244,8 @@ export default function BulkUploadModal({
         thumbnailUrl = publicUrl;
       }
 
-      // 2. Create project record
+      // 2. Create project record (use first selected assignee as primary)
+      const primaryAssignee = selectedAssignees.length > 0 ? selectedAssignees[0] : currentMemberId;
       const { data: project, error: projectError } = await supabase
         .from("projects")
         .insert({
@@ -193,12 +257,29 @@ export default function BulkUploadModal({
           notes: formData.notes || null,
           thumbnail_url: thumbnailUrl,
           status: "idea",
-          assigned_to: currentMemberId,
+          assigned_to: primaryAssignee,
         })
         .select()
         .single();
 
       if (projectError) throw projectError;
+
+      // Send notification to assigned team members (excluding creator)
+      for (const memberId of selectedAssignees) {
+        if (memberId !== currentMemberId) {
+          try {
+            await supabase.functions.invoke('notify-assigned-editor', {
+              body: {
+                project_id: project.id,
+                assigned_member_id: memberId,
+                project_title: formData.title,
+              },
+            });
+          } catch (notifError) {
+            console.error('Error sending assignment notification:', notifError);
+          }
+        }
+      }
 
       // 3. Upload all files and create asset records
       const uploadPromises = selectedFiles.map(async ({ file }) => {
@@ -274,6 +355,7 @@ export default function BulkUploadModal({
       setSelectedLibraryAssets([]);
       setThumbnail(null);
       setThumbnailPreview(null);
+      setSelectedAssignees([]);
       setFormData({ title: "", ideaId: "", scriptId: "", notes: "" });
       onSuccess();
       onOpenChange(false);
@@ -371,6 +453,82 @@ export default function BulkUploadModal({
                   )}
                 </div>
               </div>
+            </div>
+
+            {/* Team Member Assignment */}
+            <div className="space-y-2">
+              <Label>Assign Team Members</Label>
+              <Popover open={assigneePopoverOpen} onOpenChange={setAssigneePopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    className="w-full justify-start text-left font-normal"
+                  >
+                    {selectedAssignees.length > 0 ? (
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {selectedAssignees.slice(0, 3).map(id => {
+                          const member = teamMembers.find(m => m.id === id);
+                          const name = member?.profile?.full_name || member?.profile?.email?.split('@')[0] || 'Unknown';
+                          const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+                          return (
+                            <Badge key={id} variant="secondary" className="flex items-center gap-1">
+                              <Avatar className="h-4 w-4">
+                                <AvatarFallback className="text-[8px]">{initials}</AvatarFallback>
+                              </Avatar>
+                              {name}
+                            </Badge>
+                          );
+                        })}
+                        {selectedAssignees.length > 3 && (
+                          <Badge variant="secondary">+{selectedAssignees.length - 3} more</Badge>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">Select team members...</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[300px] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search team members..." />
+                    <CommandList>
+                      <CommandEmpty>No team members found.</CommandEmpty>
+                      <CommandGroup>
+                        {teamMembers.map((member) => {
+                          const name = member.profile?.full_name || member.profile?.email?.split('@')[0] || 'Unknown';
+                          const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+                          const isSelected = selectedAssignees.includes(member.id);
+                          return (
+                            <CommandItem
+                              key={member.id}
+                              onSelect={() => toggleAssignee(member.id)}
+                              className="flex items-center gap-2"
+                            >
+                              <div className={cn(
+                                "flex h-4 w-4 items-center justify-center rounded border",
+                                isSelected ? "bg-primary border-primary text-primary-foreground" : "border-muted-foreground"
+                              )}>
+                                {isSelected && <Check className="h-3 w-3" />}
+                              </div>
+                              <Avatar className="h-6 w-6">
+                                <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1 truncate">
+                                <p className="text-sm font-medium">{name}</p>
+                                <p className="text-xs text-muted-foreground capitalize">{member.role}</p>
+                              </div>
+                            </CommandItem>
+                          );
+                        })}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              <p className="text-xs text-muted-foreground">
+                First selected member will be the primary assignee
+              </p>
             </div>
 
             <div className="space-y-2">
