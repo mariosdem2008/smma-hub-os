@@ -194,11 +194,11 @@ export default function ProjectApprovalInterface({
     setLoading(true);
 
     try {
-      // Move project back to production stage with rejection info
+      // Move project back to editing stage with rejection info
       const { error: updateError } = await supabase
         .from("projects")
         .update({ 
-          status: "production",
+          status: "editing",
           rejection_category: rejectionCategory,
           rejection_reason: comment.trim() || null
         })
