@@ -261,6 +261,21 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
         });
       }
 
+      // Send notification for stage change
+      try {
+        await supabase.functions.invoke('notify-assigned-editor', {
+          body: {
+            notification_type: 'stage_changed',
+            project_id: projectId,
+            old_stage: oldStage,
+            new_stage: newStage,
+            project_title: project?.title
+          }
+        });
+      } catch (notifError) {
+        console.error('Notification error:', notifError);
+      }
+
       toast({
         title: "Stage updated",
         description: `Project moved to ${PIPELINE_STAGES.find(s => s.key === newStage)?.label || newStage}`

@@ -250,6 +250,21 @@ export default function ProjectCommentsTab({ projectId, clientId }: ProjectComme
         }
       });
 
+      // Send notification for external comments
+      if (!isInternal) {
+        try {
+          await supabase.functions.invoke('notify-assigned-editor', {
+            body: {
+              notification_type: 'comment_added',
+              project_id: projectId,
+              comment_preview: newComment.trim().substring(0, 100)
+            }
+          });
+        } catch (notifError) {
+          console.error('Notification error:', notifError);
+        }
+      }
+
       setNewComment("");
       setAttachments([]);
       toast({

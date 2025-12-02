@@ -35,6 +35,20 @@ export function NotificationCenter() {
         return <AlertTriangle className="h-4 w-4 text-destructive" />;
       case 'approval_reminder':
         return <Clock className="h-4 w-4 text-yellow-500" />;
+      case 'project_assigned':
+        return <Bell className="h-4 w-4 text-blue-500" />;
+      case 'stage_changed':
+        return <Bell className="h-4 w-4 text-green-500" />;
+      case 'client_approved':
+        return <Check className="h-4 w-4 text-green-500" />;
+      case 'client_rejected':
+        return <X className="h-4 w-4 text-destructive" />;
+      case 'comment_added':
+        return <MessageSquare className="h-4 w-4 text-blue-500" />;
+      case 'final_asset_uploaded':
+        return <Bell className="h-4 w-4 text-purple-500" />;
+      case 'publish_success':
+        return <Check className="h-4 w-4 text-green-500" />;
       default:
         return <Bell className="h-4 w-4" />;
     }
@@ -48,8 +62,22 @@ export function NotificationCenter() {
         return `Post failed: ${notification.payload?.project_title || 'Unknown project'}`;
       case 'approval_reminder':
         return notification.payload?.message || 'Content awaiting approval';
+      case 'project_assigned':
+        return `Assigned to: ${notification.payload?.project_title || 'Project'}`;
+      case 'stage_changed':
+        return `Project moved to ${notification.payload?.new_stage || 'new stage'}`;
+      case 'client_approved':
+        return `Client approved: ${notification.payload?.project_title || 'Project'}`;
+      case 'client_rejected':
+        return `Changes requested: ${notification.payload?.project_title || 'Project'}`;
+      case 'comment_added':
+        return `New comment on ${notification.payload?.project_title || 'project'}`;
+      case 'final_asset_uploaded':
+        return `Final content uploaded: ${notification.payload?.project_title || 'Project'}`;
+      case 'publish_success':
+        return `Published: ${notification.payload?.project_title || 'Project'}`;
       default:
-        return 'Notification';
+        return notification.payload?.message || 'Notification';
     }
   };
 
@@ -61,6 +89,19 @@ export function NotificationCenter() {
         return `Platform: ${notification.payload?.platform || 'Unknown'} - ${notification.payload?.error_message || 'Unknown error'}`;
       case 'approval_reminder':
         return notification.payload?.client_name ? `Client: ${notification.payload.client_name}` : '';
+      case 'project_assigned':
+        return notification.payload?.client_name ? `Client: ${notification.payload.client_name}` : '';
+      case 'stage_changed':
+        return notification.payload?.project_title || '';
+      case 'client_approved':
+      case 'client_rejected':
+        return notification.payload?.client_name ? `Client: ${notification.payload.client_name}` : '';
+      case 'comment_added':
+        return notification.payload?.comment_preview || '';
+      case 'final_asset_uploaded':
+        return notification.payload?.client_name ? `Client: ${notification.payload.client_name}` : '';
+      case 'publish_success':
+        return notification.payload?.platform ? `Platform: ${notification.payload.platform}` : '';
       default:
         return '';
     }
