@@ -1,19 +1,20 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const allowedOrigins = [
-  "https://73a2983b-0136-47d2-9a1f-01fe580ac593.lovableproject.com",
+  "http://localhost:8080",
   "https://smmahub.net",
+  "https://73a2983b-0136-47d2-9a1f-01fe580ac593.lovableproject.com",
+  "https://id-preview--73a2983b-0136-47d2-9a1f-01fe580ac593.lovable.app",
 ];
 
-function corsHeaders(request: Request) {
-  const origin = request.headers.get("Origin") ?? "";
-  const allowedOrigin = allowedOrigins.includes(origin) ? origin : "";
-
+function corsHeaders(request: Request): Record<string, string> {
+  const origin = request.headers.get("origin") ?? "";
+  const isAllowed = allowedOrigins.includes(origin);
   return {
-    "Access-Control-Allow-Origin": allowedOrigin,
-    "Access-Control-Allow-Credentials": "true",
-    "Access-Control-Allow-Headers": "Content-Type, apikey, Authorization, X-Requested-With",
+    "Access-Control-Allow-Origin": isAllowed ? origin : "",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, apikey, x-client-info",
+    "Access-Control-Allow-Credentials": "true",
   };
 }
 
