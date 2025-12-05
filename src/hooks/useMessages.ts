@@ -1,9 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useClientAuth } from "@/lib/client-auth";
+import { useMemo } from "react";
 
 export const useMessages = (conversationId?: string) => {
   const { clientUser, isAuthenticated } = useClientAuth();
+
+  const url = useMemo(() => {
+    // Use Vite environment variable
+    return import.meta.env.VITE_SUPABASE_URL;
+  }, []);
 
   return useQuery({
     queryKey: ["messages", conversationId],
@@ -13,27 +19,26 @@ export const useMessages = (conversationId?: string) => {
       }
 
       // If this is a temporary ID from optimistic update, return empty array
-      if (conversationId.startsWith("temp-")) {
+      if (conversationId.startsWith("temp-") || conversationId.startsWith("optimistic-")) {
         console.log("Temporary conversation ID, returning empty messages");
         return [];
       }
+
+      console.log(`Fetching messages for conversation: ${conversationId}`);
 
       // Check if client portal user
       const clientToken = typeof window !== "undefined" ? localStorage.getItem("client_auth_token") : null;
 
       if (clientUser && isAuthenticated && clientToken) {
         // For client portal users
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/list-messages?conversation_id=${conversationId}`,
-          {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${clientToken}`,
-            },
-            credentials: "include",
+        const response = await fetch(`${url}/functions/v1/list-messages?conversation_id=${conversationId}`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${clientToken}`,
           },
-        );
+          credentials: "include",
+        });
 
         if (!response.ok) {
           // Don't throw error for 404, just return empty array
@@ -45,6 +50,7 @@ export const useMessages = (conversationId?: string) => {
         }
 
         const data = await response.json();
+        console.log(`Fetched ${data.messages?.length || 0} messages for client user`);
         return data.messages || [];
       } else {
         // For Supabase auth users
@@ -56,16 +62,13 @@ export const useMessages = (conversationId?: string) => {
           throw new Error("No active session");
         }
 
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/list-messages?conversation_id=${conversationId}`,
-          {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${session.access_token}`,
-            },
+        const response = await fetch(`${url}/functions/v1/list-messages?conversation_id=${conversationId}`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
           },
-        );
+        });
 
         if (!response.ok) {
           // Don't throw error for 404, just return empty array
@@ -77,6 +80,7 @@ export const useMessages = (conversationId?: string) => {
         }
 
         const data = await response.json();
+        console.log(`Fetched ${data.messages?.length || 0} messages for agency user`);
         return data.messages || [];
       }
     },
@@ -88,5 +92,11 @@ export const useMessages = (conversationId?: string) => {
       }
       return failureCount < 3;
     },
+    // Optimizations for Instagram-like performance:
+    staleTime: 1000 * 30, // 30 seconds - messages can be stale briefly
+    gcTime: 1000 * 60 * 5, // 5 minutes - keep in cache longer
+    refetchOnWindowFocus: false, // Don't refetch when tab regains focus
+    refetchOnMount: false, // Don't refetch when component mounts if data exists
+    refetchOnReconnect: true, // Only refetch on reconnect
   });
 };
