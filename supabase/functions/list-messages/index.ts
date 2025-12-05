@@ -24,53 +24,6 @@ function corsHeaders(request: Request): Record<string, string> {
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-// Cache for conversation validation (5 minute TTL)
-const conversationCache = new Map<string, { id: string; timestamp: number }>();
-
-// Define proper TypeScript interfaces
-interface AgencyMember {
-  id: string;
-  user: Array<{
-    id: string;
-    email: string;
-    full_name: string;
-  }>;
-}
-
-interface ClientUser {
-  id: string;
-  email: string;
-  full_name: string;
-}
-
-interface Message {
-  id: string;
-  body: string;
-  created_at: string;
-  sender_type: string;
-  agency_member_id: string | null;
-  client_user_id: string | null;
-  conversation_id: string;
-  agency_member: AgencyMember[] | null;
-  client_user: ClientUser[] | null;
-}
-
-interface FormattedMessage {
-  id: string;
-  body: string;
-  created_at: string;
-  sender_type: string;
-  sender_agency_member_id: string | null;
-  sender_client_user_id: string | null;
-  conversation_id: string;
-  sender: {
-    id: string;
-    email: string;
-    full_name: string;
-    type: string;
-  } | null;
-}
-
 Deno.serve(async (req) => {
   // Handle OPTIONS request first
   if (req.method === "OPTIONS") {
@@ -94,7 +47,6 @@ Deno.serve(async (req) => {
     const url = new URL(req.url);
     const conversationId = url.searchParams.get("conversation_id");
     const limit = parseInt(url.searchParams.get("limit") || "100");
-    const before = url.searchParams.get("before");
 
     if (!conversationId) {
       return new Response(JSON.stringify({ error: "conversation_id is required" }), {
@@ -114,33 +66,22 @@ Deno.serve(async (req) => {
 
     const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Check cache first for conversation validation
-    const cachedConversation = conversationCache.get(conversationId);
-    const now = Date.now();
+    // Verify the conversation exists
+    const { data: conversation, error: convError } = await supabaseClient
+      .from("conversations")
+      .select("id")
+      .eq("id", conversationId)
+      .single();
 
-    if (cachedConversation && now - cachedConversation.timestamp < 5 * 60 * 1000) {
-      console.log(`Using cached conversation validation for: ${conversationId}`);
-    } else {
-      // Verify the conversation exists
-      const { data: conversation, error: convError } = await supabaseClient
-        .from("conversations")
-        .select("id")
-        .eq("id", conversationId)
-        .single();
-
-      if (convError || !conversation) {
-        return new Response(JSON.stringify({ error: "Conversation not found" }), {
-          status: 404,
-          headers: { ...corsHeaders(req), "Content-Type": "application/json" },
-        });
-      }
-
-      // Cache the conversation validation
-      conversationCache.set(conversationId, { id: conversation.id, timestamp: now });
+    if (convError || !conversation) {
+      return new Response(JSON.stringify({ error: "Conversation not found" }), {
+        status: 404,
+        headers: { ...corsHeaders(req), "Content-Type": "application/json" },
+      });
     }
 
-    // Build query for messages
-    let query = supabaseClient
+    // Fetch messages for the conversation (SIMPLIFIED - no joins)
+    const { data: messages, error: messagesError } = await supabaseClient
       .from("messages")
       .select(
         `
@@ -151,31 +92,13 @@ Deno.serve(async (req) => {
         agency_member_id,
         client_user_id,
         conversation_id,
-        agency_member:agency_member_id(
-          id,
-          user:user_id(
-            id,
-            email,
-            full_name
-          )
-        ),
-        client_user:client_user_id(
-          id,
-          email,
-          full_name
-        )
+        attachment_url,
+        related_project_id
       `,
       )
       .eq("conversation_id", conversationId)
-      .order("created_at", { ascending: false })
-      .limit(Math.min(limit, 200)); // Cap at 200 messages max
-
-    // Add cursor-based pagination if before timestamp provided
-    if (before) {
-      query = query.lt("created_at", before);
-    }
-
-    const { data: messages, error: messagesError } = await query;
+      .order("created_at", { ascending: true })
+      .limit(Math.min(limit, 200));
 
     if (messagesError) {
       console.error("Error fetching messages:", messagesError);
@@ -185,40 +108,84 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Sort by created_at ascending for display
-    const sortedMessages = (messages || []).sort(
-      (a: Message, b: Message) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
-    );
+    // Collect all agency_member_ids and client_user_ids to fetch profiles separately
+    const agencyMemberIds: string[] = [];
+    const clientUserIds: string[] = [];
 
-    // Transform the response to a cleaner format
-    const formattedMessages: FormattedMessage[] = sortedMessages.map((msg: Message) => {
-      let sender = null;
+    (messages || []).forEach((msg: any) => {
+      if (msg.sender_type === "agency_member" && msg.agency_member_id) {
+        agencyMemberIds.push(msg.agency_member_id);
+      } else if (msg.sender_type === "client_user" && msg.client_user_id) {
+        clientUserIds.push(msg.client_user_id);
+      }
+    });
 
-      if (msg.sender_type === "agency_member") {
-        // Handle array response from Supabase
-        if (msg.agency_member && Array.isArray(msg.agency_member) && msg.agency_member.length > 0) {
-          const agencyMember = msg.agency_member[0];
-          if (agencyMember.user && Array.isArray(agencyMember.user) && agencyMember.user.length > 0) {
-            const user = agencyMember.user[0];
-            sender = {
-              id: agencyMember.id,
+    // Fetch agency member profiles
+    let agencyMembersMap = new Map<string, any>();
+    if (agencyMemberIds.length > 0) {
+      const { data: agencyMembers } = await supabaseClient
+        .from("agency_members")
+        .select(
+          `
+          id,
+          user:user_id (
+            id,
+            email,
+            full_name
+          )
+        `,
+        )
+        .in("id", agencyMemberIds);
+
+      if (agencyMembers) {
+        agencyMembers.forEach((member: any) => {
+          if (member.user && Array.isArray(member.user) && member.user.length > 0) {
+            const user = member.user[0];
+            agencyMembersMap.set(member.id, {
+              id: member.id,
               email: user.email,
               full_name: user.full_name,
               type: "agency_member",
-            };
+            });
           }
-        }
-      } else if (msg.sender_type === "client_user") {
-        // Handle array response from Supabase
-        if (msg.client_user && Array.isArray(msg.client_user) && msg.client_user.length > 0) {
-          const clientUser = msg.client_user[0];
-          sender = {
-            id: clientUser.id,
-            email: clientUser.email,
-            full_name: clientUser.full_name,
+        });
+      }
+    }
+
+    // Fetch client user profiles
+    let clientUsersMap = new Map<string, any>();
+    if (clientUserIds.length > 0) {
+      const { data: clientUsers } = await supabaseClient
+        .from("client_users")
+        .select(
+          `
+          id,
+          email,
+          full_name
+        `,
+        )
+        .in("id", clientUserIds);
+
+      if (clientUsers) {
+        clientUsers.forEach((user: any) => {
+          clientUsersMap.set(user.id, {
+            id: user.id,
+            email: user.email,
+            full_name: user.full_name,
             type: "client_user",
-          };
-        }
+          });
+        });
+      }
+    }
+
+    // Transform the response
+    const formattedMessages = (messages || []).map((msg: any) => {
+      let sender = null;
+
+      if (msg.sender_type === "agency_member" && msg.agency_member_id) {
+        sender = agencyMembersMap.get(msg.agency_member_id) || null;
+      } else if (msg.sender_type === "client_user" && msg.client_user_id) {
+        sender = clientUsersMap.get(msg.client_user_id) || null;
       }
 
       return {
@@ -229,25 +196,23 @@ Deno.serve(async (req) => {
         sender_agency_member_id: msg.agency_member_id,
         sender_client_user_id: msg.client_user_id,
         conversation_id: msg.conversation_id,
+        attachment_url: msg.attachment_url,
+        related_project_id: msg.related_project_id,
         sender,
       };
     });
-
-    // Get the timestamp of the oldest message for pagination
-    const oldestMessageTime = sortedMessages.length > 0 ? sortedMessages[0].created_at : null;
 
     return new Response(
       JSON.stringify({
         messages: formattedMessages,
         has_more: messages?.length === limit,
-        next_cursor: oldestMessageTime,
       }),
       {
         status: 200,
         headers: {
           ...corsHeaders(req),
           "Content-Type": "application/json",
-          "Cache-Control": "private, max-age=10", // Cache for 10 seconds
+          "Cache-Control": "private, max-age=10",
         },
       },
     );
