@@ -229,7 +229,6 @@ export default function ClientDetail() {
           </div>
         </div>
       )}
-
       {/* Left Sidebar Navigation */}
       {!isMobile && (
         <aside className="w-56 border-r bg-muted/30 flex-shrink-0">
@@ -248,9 +247,13 @@ export default function ClientDetail() {
             {tabs.map((tab) => {
               const Icon = tab.icon;
               return (
-                <button
+                <Link
                   key={tab.id}
-                  onClick={() => handleTabChange(tab.id)}
+                  to={`?tab=${tab.id}`}
+                  onClick={(e) => {
+                    hapticSelection();
+                    // Don't prevent default - let Link handle it
+                  }}
                   className={cn(
                     "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-left",
                     activeTab === tab.id
@@ -260,37 +263,40 @@ export default function ClientDetail() {
                 >
                   <Icon className="h-4 w-4 flex-shrink-0" />
                   <span className="truncate">{tab.label}</span>
-                </button>
+                </Link>
               );
             })}
           </nav>
         </aside>
       )}
-
-      {/* Mobile Tab Bar */}
+      // Replace the mobile tab bar with this:
       {isMobile && (
         <div className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t">
           <div className="flex overflow-x-auto scrollbar-hide py-2 px-2 gap-1">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               return (
-                <button
+                <Link
                   key={tab.id}
-                  onClick={() => handleTabChange(tab.id)}
+                  to={`?tab=${tab.id}`}
+                  onClick={(e) => {
+                    hapticSelection();
+                  }}
                   className={cn(
                     "flex flex-col items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium transition-colors flex-shrink-0 min-w-[60px]",
-                    activeTab === tab.id ? "bg-primary text-primary-foreground" : "text-muted-foreground",
+                    activeTab === tab.id
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-muted",
                   )}
                 >
                   <Icon className="h-4 w-4" />
                   <span className="truncate max-w-[60px]">{tab.label}</span>
-                </button>
+                </Link>
               );
             })}
           </div>
         </div>
       )}
-
       {/* Main Content */}
       <main className={cn("flex-1 overflow-auto", isMobile ? "pb-24 p-4" : "p-6")}>
         {/* Show client header on mobile */}
