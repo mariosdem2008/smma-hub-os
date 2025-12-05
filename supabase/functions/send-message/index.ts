@@ -9,15 +9,15 @@ const allowedOrigins = [
 
 function corsHeaders(request: Request): Record<string, string> {
   const origin = request.headers.get("origin") ?? "";
-  if (!allowedOrigins.includes(origin)) {
-    return {};
-  }
+  const isAllowed = allowedOrigins.includes(origin);
 
   return {
-    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Origin": isAllowed ? origin : allowedOrigins[0],
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Headers":
+      request.headers.get("Access-Control-Request-Headers") || "Content-Type, Authorization, apikey, Apikey, APIKEY",
     "Access-Control-Allow-Credentials": "true",
+    "Access-Control-Max-Age": "86400",
   };
 }
 
@@ -109,11 +109,21 @@ function getCookie(header: string | null, name: string): string | null {
 }
 
 Deno.serve(async (req) => {
+  // Handle OPTIONS request first
   if (req.method === "OPTIONS") {
-    return new Response("ok", {
-      status: 200,
+    const origin = req.headers.get("origin") ?? "";
+    const isAllowed = allowedOrigins.includes(origin);
+
+    return new Response(null, {
+      status: 204,
       headers: {
-        ...corsHeaders(req),
+        "Access-Control-Allow-Origin": isAllowed ? origin : allowedOrigins[0],
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers":
+          req.headers.get("Access-Control-Request-Headers") || "Content-Type, Authorization, apikey, Apikey, APIKEY",
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Max-Age": "86400",
+        Vary: "Origin, Access-Control-Request-Headers",
       },
     });
   }
