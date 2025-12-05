@@ -16,8 +16,9 @@ function corsHeaders(request: Request): Record<string, string> {
   return {
     "Access-Control-Allow-Origin": origin,
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization, apikey",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, apikey, Apikey",
     "Access-Control-Allow-Credentials": "true",
+    "Access-Control-Max-Age": "86400",
   };
 }
 
@@ -101,11 +102,17 @@ function getCookie(header: string | null, name: string): string | null {
 }
 
 Deno.serve(async (req) => {
+  // Handle OPTIONS request first
   if (req.method === "OPTIONS") {
-    return new Response("ok", {
-      status: 200,
+    return new Response(null, {
+      status: 204,
       headers: {
         ...corsHeaders(req),
+        "Access-Control-Allow-Origin": req.headers.get("origin") || "*",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization, apikey, Apikey",
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Max-Age": "86400",
       },
     });
   }
