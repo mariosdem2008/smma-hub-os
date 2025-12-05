@@ -88,6 +88,12 @@ export default function ClientDetail() {
   const [activeTab, setActiveTab] = useState("overview");
   const [agencyId, setAgencyId] = useState<string>("");
 
+  // Add this useEffect to debug navigation
+  useEffect(() => {
+    console.log("ClientDetail mounted with clientId:", clientId);
+    console.log("Current searchParams:", Object.fromEntries(searchParams.entries()));
+  }, [clientId, searchParams]);
+
   // Pull-to-refresh for mobile
   const { isRefreshing, pullDistance } = usePullToRefresh({
     onRefresh: async () => {
@@ -98,11 +104,7 @@ export default function ClientDetail() {
   const fetchClient = async () => {
     if (!clientId) return;
 
-    const { data, error } = await supabase
-      .from("clients")
-      .select("*")
-      .eq("id", clientId)
-      .single();
+    const { data, error } = await supabase.from("clients").select("*").eq("id", clientId).single();
 
     if (error) {
       toast({
@@ -113,9 +115,7 @@ export default function ClientDetail() {
     } else {
       setClient({
         ...data,
-        brand_colors: Array.isArray(data.brand_colors) 
-          ? (data.brand_colors as string[]) 
-          : null,
+        brand_colors: Array.isArray(data.brand_colors) ? (data.brand_colors as string[]) : null,
       });
       setAgencyId(data.agency_id);
     }
@@ -143,7 +143,7 @@ export default function ClientDetail() {
   // Handle URL-based tab navigation
   useEffect(() => {
     const tab = searchParams.get("tab");
-    if (tab) {
+    if (tab && tabs.some((t) => t.id === tab)) {
       setActiveTab(tab);
     }
   }, [searchParams]);
@@ -159,8 +159,10 @@ export default function ClientDetail() {
   };
 
   const handleTabChange = (tabId: string) => {
+    console.log("Tab changed to:", tabId);
     setActiveTab(tabId);
-    setSearchParams({ tab: tabId });
+    // Use replace to avoid adding to history stack
+    setSearchParams({ tab: tabId }, { replace: true });
     hapticSelection();
   };
 
@@ -218,7 +220,7 @@ export default function ClientDetail() {
   };
 
   return (
-    <div 
+    <div
       className="flex min-h-[calc(100vh-3.5rem)]"
       style={{
         transform: isMobile ? `translateY(${pullDistance}px)` : undefined,
@@ -228,7 +230,9 @@ export default function ClientDetail() {
       {/* Pull-to-refresh indicator */}
       {isMobile && pullDistance > 0 && (
         <div className="absolute top-0 left-0 right-0 flex justify-center z-50">
-          <div className={`text-sm text-muted-foreground transition-opacity ${pullDistance > 60 ? "opacity-100" : "opacity-50"}`}>
+          <div
+            className={`text-sm text-muted-foreground transition-opacity ${pullDistance > 60 ? "opacity-100" : "opacity-50"}`}
+          >
             {isRefreshing ? "Refreshing..." : pullDistance > 60 ? "Release to refresh" : "Pull to refresh"}
           </div>
         </div>
@@ -254,12 +258,17 @@ export default function ClientDetail() {
               return (
                 <button
                   key={tab.id}
-                  onClick={() => handleTabChange(tab.id)}
+                  onClick={(e) => {
+                    e.preventDefault(); // Prevent any default behavior
+                    e.stopPropagation(); // Stop event bubbling
+                    handleTabChange(tab.id);
+                  }}
+                  type="button" // Explicitly set type to button
                   className={cn(
                     "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-left",
                     activeTab === tab.id
                       ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
                   )}
                 >
                   <Icon className="h-4 w-4 flex-shrink-0" />
@@ -280,12 +289,15 @@ export default function ClientDetail() {
               return (
                 <button
                   key={tab.id}
-                  onClick={() => handleTabChange(tab.id)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleTabChange(tab.id);
+                  }}
+                  type="button"
                   className={cn(
                     "flex flex-col items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium transition-colors flex-shrink-0 min-w-[60px]",
-                    activeTab === tab.id
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground"
+                    activeTab === tab.id ? "bg-primary text-primary-foreground" : "text-muted-foreground",
                   )}
                 >
                   <Icon className="h-4 w-4" />
@@ -298,10 +310,7 @@ export default function ClientDetail() {
       )}
 
       {/* Main Content */}
-      <main className={cn(
-        "flex-1 overflow-auto",
-        isMobile ? "pb-24 p-4" : "p-6"
-      )}>
+      <main className={cn("flex-1 overflow-auto", isMobile ? "pb-24 p-4" : "p-6")}>
         {/* Show client header on mobile */}
         {isMobile && (
           <div className="mb-4">
@@ -315,10 +324,8 @@ export default function ClientDetail() {
             />
           </div>
         )}
-        
-        <div className="space-y-4">
-          {renderTabContent()}
-        </div>
+
+        <div className="space-y-4">{renderTabContent()}</div>
       </main>
     </div>
   );
