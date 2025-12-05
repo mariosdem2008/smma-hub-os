@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 interface CreateConversationPayload {
   type: "client_chat" | "direct" | "group";
@@ -12,6 +13,7 @@ interface CreateConversationPayload {
 
 export const useCreateConversation = () => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   return useMutation({
     mutationFn: async (payload: CreateConversationPayload) => {
@@ -44,33 +46,42 @@ export const useCreateConversation = () => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ["conversations"] });
 
-      // Optimistically add to conversation list
-      const previousConversations = queryClient.getQueryData(["conversations"]) || [];
+      // Create a temporary conversation ID that won't be used for fetching messages
+      const tempId = `optimistic-${Date.now()}`;
 
       const optimisticConversation = {
-        id: `temp-${Date.now()}`,
+        id: tempId,
         type: variables.type,
         title: variables.title || (variables.type === "client_chat" ? "Client Chat" : "New Chat"),
         client_id: variables.client_id,
         _optimistic: true,
+        _tempId: tempId, // Add this flag to identify it
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         unread_count: 0,
+        latest_message: null,
       };
 
+      // Optimistically add to conversation list but don't select it
       queryClient.setQueryData(["conversations"], (old: any[] | undefined) => {
         return [...(old || []), optimisticConversation];
       });
 
-      return { previousConversations };
+      return { previousConversations: queryClient.getQueryData(["conversations"]) };
     },
-    onSuccess: (data) => {
-      // Force immediate refetch of conversations
+    onSuccess: (data, variables, context) => {
+      // Invalidate conversations query to get the real data
       queryClient.invalidateQueries({ queryKey: ["conversations"] });
+
       toast.success("Conversation created");
 
-      // Return the created conversation for navigation
-      return data.conversation;
+      // Navigate to the real conversation
+      if (data.conversation?.id) {
+        // Small delay to ensure the conversation list is updated
+        setTimeout(() => {
+          navigate("/messages", { state: { selectedConversationId: data.conversation.id } });
+        }, 100);
+      }
     },
     onError: (error: Error, variables, context) => {
       // Rollback on error
