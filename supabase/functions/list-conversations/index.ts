@@ -18,6 +18,7 @@ function corsHeaders(request: Request): Record<string, string> {
       request.headers.get("Access-Control-Request-Headers") || "Content-Type, Authorization, apikey, Apikey, APIKEY",
     "Access-Control-Allow-Credentials": "true",
     "Access-Control-Max-Age": "86400",
+    Vary: "Origin",
   };
 }
 
@@ -26,7 +27,7 @@ const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const CLIENT_PORTAL_JWT_SECRET = Deno.env.get("CLIENT_PORTAL_JWT_SECRET");
 
 interface ClientPortalJwtPayload {
-  sub: string;
+  sub: string; // This should be client_user.id
   email: string;
   client_id: string;
   agency_id: string;
@@ -34,7 +35,6 @@ interface ClientPortalJwtPayload {
   exp: number;
 }
 
-// Helper to verify client portal JWT
 async function verifyClientPortalToken(token: string): Promise<ClientPortalJwtPayload | null> {
   if (!CLIENT_PORTAL_JWT_SECRET) {
     console.error("CLIENT_PORTAL_JWT_SECRET not configured");
@@ -43,7 +43,10 @@ async function verifyClientPortalToken(token: string): Promise<ClientPortalJwtPa
 
   try {
     const parts = token.split(".");
-    if (parts.length !== 3) return null;
+    if (parts.length !== 3) {
+      console.log("Invalid JWT format");
+      return null;
+    }
 
     const [encodedHeader, encodedPayload, encodedSignature] = parts;
 
@@ -68,9 +71,12 @@ async function verifyClientPortalToken(token: string): Promise<ClientPortalJwtPa
       new TextEncoder().encode(`${encodedHeader}.${encodedPayload}`),
     );
 
-    if (!isValid) return null;
+    if (!isValid) {
+      console.log("Invalid JWT signature");
+      return null;
+    }
 
-    // Decode payload with base64url handling
+    // Decode payload
     const payloadBase64 = encodedPayload.replace(/-/g, "+").replace(/_/g, "/");
     const payloadPadded = payloadBase64 + "=".repeat((4 - (payloadBase64.length % 4)) % 4);
     const payload: ClientPortalJwtPayload = JSON.parse(atob(payloadPadded));
@@ -81,6 +87,7 @@ async function verifyClientPortalToken(token: string): Promise<ClientPortalJwtPa
       return null;
     }
 
+    console.log(`JWT verified for client_user.id: ${payload.sub}, client_id: ${payload.client_id}`);
     return payload;
   } catch (error) {
     console.error("Error verifying client portal token:", error);
@@ -101,28 +108,18 @@ function getCookie(header: string | null, name: string): string | null {
 }
 
 Deno.serve(async (req) => {
-  // Handle OPTIONS request first
+  // Handle OPTIONS request
   if (req.method === "OPTIONS") {
-    const origin = req.headers.get("origin") ?? "";
-    const isAllowed = allowedOrigins.includes(origin);
-
     return new Response(null, {
       status: 204,
       headers: {
-        "Access-Control-Allow-Origin": isAllowed ? origin : allowedOrigins[0],
-        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-        "Access-Control-Allow-Headers":
-          req.headers.get("Access-Control-Request-Headers") || "Content-Type, Authorization, apikey, Apikey, APIKEY",
-        "Access-Control-Allow-Credentials": "true",
-        "Access-Control-Max-Age": "86400",
+        ...corsHeaders(req),
         Vary: "Origin, Access-Control-Request-Headers",
       },
     });
   }
 
-  // Log the incoming request headers for debugging
-  console.log("Request headers:", Object.fromEntries(req.headers.entries()));
-  console.log("Request method:", req.method);
+  console.log(`[${new Date().toISOString()}] List conversations request from: ${req.headers.get("origin")}`);
 
   try {
     const authHeader = req.headers.get("Authorization");
@@ -132,12 +129,15 @@ Deno.serve(async (req) => {
 
     if (authHeader?.startsWith("Bearer ")) {
       token = authHeader.replace("Bearer ", "");
+      console.log("Token from Authorization header");
     } else {
       token = getCookie(cookieHeader, "cp_access_token");
+      if (token) console.log("Token from cookie");
     }
 
     if (!token) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      console.log("No token provided");
+      return new Response(JSON.stringify({ error: "Unauthorized - No token provided" }), {
         status: 401,
         headers: { ...corsHeaders(req), "Content-Type": "application/json" },
       });
@@ -149,6 +149,7 @@ Deno.serve(async (req) => {
     let clientPortalUser: ClientPortalJwtPayload | null = null;
 
     // Try Supabase auth first (for agency members)
+    console.log("Attempting Supabase auth...");
     const {
       data: { user },
       error: userError,
@@ -156,17 +157,20 @@ Deno.serve(async (req) => {
 
     if (user && !userError) {
       authUserId = user.id;
+      console.log(`Supabase auth successful for user: ${user.email}`);
     } else {
       // Try client portal JWT
+      console.log("Supabase auth failed, trying client portal JWT...");
       clientPortalUser = await verifyClientPortalToken(token);
 
       if (!clientPortalUser) {
-        console.log("Auth failed: neither Supabase auth nor client portal token valid");
-        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        console.log("All authentication methods failed");
+        return new Response(JSON.stringify({ error: "Unauthorized - Invalid token" }), {
           status: 401,
           headers: { ...corsHeaders(req), "Content-Type": "application/json" },
         });
       }
+      console.log(`Client portal auth successful for client_user.id: ${clientPortalUser.sub}`);
     }
 
     let conversations: any[] = [];
@@ -174,6 +178,7 @@ Deno.serve(async (req) => {
 
     if (authUserId) {
       // Agency member flow
+      console.log("Fetching agency member info...");
       const { data: member } = await supabaseClient
         .from("agency_members")
         .select("id, agency_id")
@@ -183,6 +188,8 @@ Deno.serve(async (req) => {
       agencyMember = member;
 
       if (agencyMember) {
+        console.log(`Agency member found: ${agencyMember.id}, agency: ${agencyMember.agency_id}`);
+
         const { data, error } = await supabaseClient
           .from("conversations")
           .select(
@@ -209,37 +216,85 @@ Deno.serve(async (req) => {
         }
 
         conversations = data || [];
-      }
-    } else if (clientPortalUser) {
-      // Client portal user flow - only get their client_chat
-      const { data, error } = await supabaseClient
-        .from("conversations")
-        .select(
-          `
-          *,
-          conversation_participants(
-            id,
-            agency_member_id,
-            client_user_id,
-            role
-          ),
-          clients(id, name, logo_url)
-        `,
-        )
-        .eq("type", "client_chat")
-        .eq("client_id", clientPortalUser.client_id)
-        .order("updated_at", { ascending: false });
-
-      if (error) {
-        console.error("Error fetching conversations for client:", error);
-        return new Response(JSON.stringify({ error: error.message }), {
-          status: 500,
+        console.log(`Found ${conversations.length} conversations for agency`);
+      } else {
+        console.log("User is not an agency member");
+        return new Response(JSON.stringify({ error: "User is not an agency member" }), {
+          status: 403,
           headers: { ...corsHeaders(req), "Content-Type": "application/json" },
         });
       }
+    } else if (clientPortalUser) {
+      // Client portal user flow
+      console.log(`Fetching conversations for client_id: ${clientPortalUser.client_id}`);
 
-      conversations = data || [];
-      console.log(`Found ${conversations.length} conversations for client ${clientPortalUser.client_id}`);
+      // First, check if this client_user exists in conversation_participants
+      const { data: participantRecords } = await supabaseClient
+        .from("conversation_participants")
+        .select("conversation_id")
+        .eq("client_user_id", clientPortalUser.sub);
+
+      if (participantRecords && participantRecords.length > 0) {
+        const conversationIds = participantRecords.map((p) => p.conversation_id);
+
+        const { data, error } = await supabaseClient
+          .from("conversations")
+          .select(
+            `
+            *,
+            conversation_participants(
+              id,
+              agency_member_id,
+              client_user_id,
+              role
+            ),
+            clients(id, name, logo_url)
+          `,
+          )
+          .in("id", conversationIds)
+          .eq("type", "client_chat")
+          .order("updated_at", { ascending: false });
+
+        if (error) {
+          console.error("Error fetching conversations by participant:", error);
+          // Fall back to client_id method
+        } else {
+          conversations = data || [];
+          console.log(`Found ${conversations.length} conversations via participant records`);
+        }
+      }
+
+      // If no conversations found via participant records, try by client_id
+      if (conversations.length === 0) {
+        const { data, error } = await supabaseClient
+          .from("conversations")
+          .select(
+            `
+            *,
+            conversation_participants(
+              id,
+              agency_member_id,
+              client_user_id,
+              role
+            ),
+            clients(id, name, logo_url)
+          `,
+          )
+          .eq("type", "client_chat")
+          .eq("client_id", clientPortalUser.client_id)
+          .order("updated_at", { ascending: false });
+
+        if (error) {
+          console.error("Error fetching conversations for client:", error);
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders(req), "Content-Type": "application/json" },
+          });
+        }
+
+        conversations = data || [];
+        console.log(`Found ${conversations.length} conversations via client_id`);
+      }
     }
 
     // Get all agency member IDs from participants to fetch profiles
@@ -354,15 +409,24 @@ Deno.serve(async (req) => {
           type: conv.type,
           title: conv.title,
           client_id: conv.client_id,
-          latest_message: latestMessage ? { body: latestMessage.body, created_at: latestMessage.created_at } : null,
+          latest_message: latestMessage
+            ? {
+                body: latestMessage.body,
+                created_at: latestMessage.created_at,
+                sender_type: latestMessage.sender_type,
+              }
+            : null,
           unread_count: unreadCount,
           created_at: conv.created_at,
           updated_at: conv.updated_at,
           other_participant: otherParticipant,
           client_info: clientInfo,
+          participant_count: conv.conversation_participants?.length || 0,
         };
       }),
     );
+
+    console.log(`Returning ${conversationsWithMeta.length} conversations`);
 
     return new Response(JSON.stringify({ conversations: conversationsWithMeta }), {
       status: 200,
