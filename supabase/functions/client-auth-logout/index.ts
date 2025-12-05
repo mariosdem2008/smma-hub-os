@@ -7,11 +7,14 @@ const allowedOrigins = [
 
 function corsHeaders(request: Request): Record<string, string> {
   const origin = request.headers.get("origin") ?? "";
-  const isAllowed = allowedOrigins.includes(origin);
+  if (!allowedOrigins.includes(origin)) {
+    return {};
+  }
+
   return {
-    "Access-Control-Allow-Origin": isAllowed ? origin : "",
+    "Access-Control-Allow-Origin": origin,
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization, apikey, x-client-info",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
     "Access-Control-Allow-Credentials": "true",
   };
 }
