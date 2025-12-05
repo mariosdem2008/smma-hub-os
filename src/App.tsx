@@ -8,7 +8,6 @@ import { ClientAuthProvider } from "@/lib/client-auth";
 import { UpgradeModalProvider } from "@/contexts/UpgradeModalContext";
 import { GlobalUpgradeModal } from "@/components/GlobalUpgradeModal";
 import { UpgradeAssistantProvider } from "@/contexts/UpgradeAssistantContext";
-import { UpgradeAssistantBubble } from "@/components/UpgradeAssistantBubble";
 import { UpgradeAssistantCard } from "@/components/UpgradeAssistantCard";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/AppLayout";
@@ -54,98 +53,98 @@ const queryClient = new QueryClient();
 const App = () => {
   // Initialize timezone detection
   useTimezoneDetection();
-  
-  return (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-          <ClientAuthProvider>
-            <UpgradeModalProvider>
-              <UpgradeAssistantProvider>
-                <GlobalUpgradeModal />
-                <UpgradeAssistantCard />
-                <Routes>
-                  {/* Public Routes */}
-                  <Route path="/" element={<Landing />} />
-                  <Route path="/auth" element={<Auth />} />
-                  <Route path="/forgot-password" element={<ForgotPassword />} />
-                  <Route path="/reset-password" element={<ResetPassword />} />
-                  <Route path="/pricing" element={<Pricing />} />
-                  <Route path="/invite/:token" element={<InviteAccept />} />
-                  
-                  {/* Client Portal Auth Routes */}
-                  <Route path="/client/login/:portalSlug" element={<ClientLogin />} />
-                  <Route path="/client/accept-invite" element={<ClientAcceptInvite />} />
-                  <Route path="/client/forgot-password/:portalSlug" element={<ClientForgotPassword />} />
-                  <Route path="/client/reset-password" element={<ClientResetPassword />} />
-                  
-                  {/* Client Portal Protected Routes */}
-                  <Route path="/client/portal/:portalSlug" element={<ClientPortalLayout />}>
-                    <Route index element={<PortalOverview />} />
-                    <Route path="approvals" element={<PortalApprovals />} />
-                    <Route path="content-calendar" element={<PortalContentCalendar />} />
-                    <Route path="performance" element={<PortalPerformance />} />
-                    <Route path="ideas" element={<PortalIdeas />} />
-                    <Route path="assets" element={<PortalAssets />} />
-                    <Route path="branding" element={<PortalBranding />} />
-                    <Route path="social" element={<PortalSocial />} />
-                    <Route path="social-profiles" element={<PortalSocialProfiles />} />
-                    <Route path="uploads" element={<PortalUploads />} />
-                    <Route path="messages" element={<PortalMessages />} />
-                  </Route>
-                  
-                  {/* Onboarding */}
-                  <Route
-                    path="/onboarding"
-                    element={
-                      <ProtectedRoute>
-                        <Onboarding />
-                      </ProtectedRoute>
-                    }
-                  />
-                  
-                  {/* Protected App Routes */}
-                  <Route
-                    element={
-                      <ProtectedRoute>
-                        <AppLayout />
-                      </ProtectedRoute>
-                    }
-                  >
-                    <Route path="/dashboard" element={<Dashboard />} />
-                    <Route path="/clients" element={<Clients />} />
-                    <Route path="/messages" element={<Messages />} />
-                    <Route path="/team" element={<Team />} />
-                    <Route path="/billing" element={<Billing />} />
-                    <Route path="/billing/overview" element={<BillingOverview />} />
-                    <Route path="/settings" element={<Settings />} />
-                  </Route>
 
-                  {/* Client Detail Routes - No Sidebar */}
-                  <Route
-                    element={
-                      <ProtectedRoute>
-                        <ClientDetailLayout />
-                      </ProtectedRoute>
-                    }
-                  >
-                    <Route path="/clients/:clientId" element={<ClientDetail />} />
-                    <Route path="/clients/:clientId/reports/:reportId" element={<ReportDetail />} />
-                  </Route>
-                  
-                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </UpgradeAssistantProvider>
-            </UpgradeModalProvider>
-          </ClientAuthProvider>
-        </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AuthProvider>
+            <ClientAuthProvider>
+              <UpgradeModalProvider>
+                <UpgradeAssistantProvider>
+                  <GlobalUpgradeModal />
+                  <UpgradeAssistantCard />
+                  <Routes>
+                    {/* Public Routes */}
+                    <Route path="/" element={<Landing />} />
+                    <Route path="/auth" element={<Auth />} />
+                    <Route path="/forgot-password" element={<ForgotPassword />} />
+                    <Route path="/reset-password" element={<ResetPassword />} />
+                    <Route path="/pricing" element={<Pricing />} />
+                    <Route path="/invite/:token" element={<InviteAccept />} />
+
+                    {/* Client Portal Auth Routes */}
+                    <Route path="/client/login/:portalSlug" element={<ClientLogin />} />
+                    <Route path="/client/accept-invite" element={<ClientAcceptInvite />} />
+                    <Route path="/client/forgot-password/:portalSlug" element={<ClientForgotPassword />} />
+                    <Route path="/client/reset-password" element={<ClientResetPassword />} />
+
+                    {/* Client Portal Protected Routes */}
+                    <Route path="/client/portal/:portalSlug" element={<ClientPortalLayout />}>
+                      <Route index element={<PortalOverview />} />
+                      <Route path="approvals" element={<PortalApprovals />} />
+                      <Route path="content-calendar" element={<PortalContentCalendar />} />
+                      <Route path="performance" element={<PortalPerformance />} />
+                      <Route path="ideas" element={<PortalIdeas />} />
+                      <Route path="assets" element={<PortalAssets />} />
+                      <Route path="branding" element={<PortalBranding />} />
+                      <Route path="social" element={<PortalSocial />} />
+                      <Route path="social-profiles" element={<PortalSocialProfiles />} />
+                      <Route path="uploads" element={<PortalUploads />} />
+                      <Route path="messages" element={<PortalMessages />} />
+                    </Route>
+
+                    {/* Onboarding */}
+                    <Route
+                      path="/onboarding"
+                      element={
+                        <ProtectedRoute>
+                          <Onboarding />
+                        </ProtectedRoute>
+                      }
+                    />
+
+                    {/* Protected App Routes */}
+                    <Route
+                      element={
+                        <ProtectedRoute>
+                          <AppLayout />
+                        </ProtectedRoute>
+                      }
+                    >
+                      <Route path="/dashboard" element={<Dashboard />} />
+
+                      {/* Clients Route Group - NESTED PROPERLY */}
+                      <Route path="/clients">
+                        {/* This shows all clients */}
+                        <Route index element={<Clients />} />
+
+                        {/* Client Detail Routes - These will use ClientDetailLayout */}
+                        <Route element={<ClientDetailLayout />}>
+                          <Route path=":clientId" element={<ClientDetail />} />
+                          <Route path=":clientId/reports/:reportId" element={<ReportDetail />} />
+                        </Route>
+                      </Route>
+
+                      <Route path="/messages" element={<Messages />} />
+                      <Route path="/team" element={<Team />} />
+                      <Route path="/billing" element={<Billing />} />
+                      <Route path="/billing/overview" element={<BillingOverview />} />
+                      <Route path="/settings" element={<Settings />} />
+                    </Route>
+
+                    {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </UpgradeAssistantProvider>
+              </UpgradeModalProvider>
+            </ClientAuthProvider>
+          </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
   );
 };
 
