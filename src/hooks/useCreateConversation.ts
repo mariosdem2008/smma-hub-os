@@ -17,6 +17,8 @@ export const useCreateConversation = () => {
 
   return useMutation({
     mutationFn: async (payload: CreateConversationPayload) => {
+      console.log("Creating conversation with payload:", payload);
+
       // Get session for agency members
       const {
         data: { session },
@@ -35,12 +37,25 @@ export const useCreateConversation = () => {
         body: JSON.stringify(payload),
       });
 
+      const responseText = await response.text();
+      console.log("Edge Function response:", response.status, responseText);
+
       if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.error || "Failed to create conversation");
+        let errorMessage = "Failed to create conversation";
+        try {
+          const errorData = JSON.parse(responseText);
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          errorMessage = responseText || errorMessage;
+        }
+        throw new Error(errorMessage);
       }
 
-      return response.json();
+      try {
+        return JSON.parse(responseText);
+      } catch (e) {
+        throw new Error("Invalid response from server");
+      }
     },
     onMutate: async (variables) => {
       // Cancel any outgoing refetches
@@ -62,6 +77,8 @@ export const useCreateConversation = () => {
         latest_message: null,
       };
 
+      console.log("Optimistic update with temp ID:", tempId);
+
       // Optimistically add to conversation list but don't select it
       queryClient.setQueryData(["conversations"], (old: any[] | undefined) => {
         return [...(old || []), optimisticConversation];
@@ -70,13 +87,16 @@ export const useCreateConversation = () => {
       return { previousConversations: queryClient.getQueryData(["conversations"]) };
     },
     onSuccess: (data, variables, context) => {
+      console.log("Mutation successful, data:", data);
+
       // Invalidate conversations query to get the real data
       queryClient.invalidateQueries({ queryKey: ["conversations"] });
 
-      toast.success("Conversation created");
+      toast.success(data.message || "Conversation created");
 
       // Navigate to the real conversation
       if (data.conversation?.id) {
+        console.log("Navigating to conversation:", data.conversation.id);
         // Small delay to ensure the conversation list is updated
         setTimeout(() => {
           navigate("/messages", { state: { selectedConversationId: data.conversation.id } });
@@ -84,6 +104,8 @@ export const useCreateConversation = () => {
       }
     },
     onError: (error: Error, variables, context) => {
+      console.error("Mutation error:", error.message);
+
       // Rollback on error
       if (context?.previousConversations) {
         queryClient.setQueryData(["conversations"], context.previousConversations);
