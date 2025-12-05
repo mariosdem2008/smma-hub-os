@@ -1,26 +1,14 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const allowedOrigins = [
-  "http://localhost:8080",
-  "https://smmahub.net",
-  "https://73a2983b-0136-47d2-9a1f-01fe580ac593.lovableproject.com",
-  "https://id-preview--73a2983b-0136-47d2-9a1f-01fe580ac593.lovable.app",
-];
-
 function corsHeaders(request: Request): Record<string, string> {
-  const origin = request.headers.get("origin") ?? "";
-  if (!allowedOrigins.includes(origin)) {
-    return {};
-  }
-
+  const origin = request.headers.get("Origin");
   return {
-    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Origin": origin ?? "*",
+    "Access-Control-Allow-Headers": "apikey, Authorization, Content-Type, X-Client-Info",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
     "Access-Control-Allow-Credentials": "true",
   };
 }
-
 
 const JWT_SECRET = Deno.env.get("CLIENT_PORTAL_JWT_SECRET");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
