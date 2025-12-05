@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,9 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function Auth() {
-  const { signIn, signUp, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isLogin, setIsLogin] = useState(true);
@@ -19,19 +18,28 @@ export default function Auth() {
     confirmPassword: "",
     fullName: "",
   });
-
-  // REMOVED the problematic useEffect entirely!
+  const [loading, setLoading] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { error } = await signIn(formData.email, formData.password);
+    setLoading(true);
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email: formData.email,
+      password: formData.password,
+    });
+
     if (error) {
       toast({
         title: "Error",
         description: error.message,
         variant: "destructive",
       });
+    } else {
+      navigate("/dashboard");
     }
+
+    setLoading(false);
   };
 
   const handleSignup = async (e: React.FormEvent) => {
@@ -46,7 +54,21 @@ export default function Auth() {
       return;
     }
 
-    const { error } = await signUp(formData.email, formData.password, formData.fullName);
+    setLoading(true);
+
+    const redirectUrl = `${window.location.origin}/onboarding`;
+
+    const { error } = await supabase.auth.signUp({
+      email: formData.email,
+      password: formData.password,
+      options: {
+        emailRedirectTo: redirectUrl,
+        data: {
+          full_name: formData.fullName,
+        },
+      },
+    });
+
     if (error) {
       toast({
         title: "Error",
@@ -54,8 +76,13 @@ export default function Auth() {
         variant: "destructive",
       });
     } else {
-      navigate("/onboarding");
+      toast({
+        title: "Success",
+        description: "Check your email to confirm your account",
+      });
     }
+
+    setLoading(false);
   };
 
   if (loading) {
@@ -90,6 +117,7 @@ export default function Auth() {
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   required
+                  disabled={loading}
                 />
               </div>
               <div className="space-y-2">
@@ -100,16 +128,29 @@ export default function Auth() {
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   required
+                  disabled={loading}
                 />
               </div>
-              <Button type="submit" className="w-full">
-                Login
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? "Logging in..." : "Login"}
               </Button>
-              <Button type="button" variant="link" className="w-full" onClick={() => navigate("/forgot-password")}>
+              <Button
+                type="button"
+                variant="link"
+                className="w-full"
+                onClick={() => navigate("/forgot-password")}
+                disabled={loading}
+              >
                 Forgot password?
               </Button>
               <Separator />
-              <Button type="button" variant="outline" className="w-full" onClick={() => setIsLogin(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={() => setIsLogin(false)}
+                disabled={loading}
+              >
                 Create an account
               </Button>
             </form>
@@ -124,6 +165,7 @@ export default function Auth() {
                   value={formData.fullName}
                   onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                   required
+                  disabled={loading}
                 />
               </div>
               <div className="space-y-2">
@@ -135,6 +177,7 @@ export default function Auth() {
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   required
+                  disabled={loading}
                 />
               </div>
               <div className="space-y-2">
@@ -145,6 +188,7 @@ export default function Auth() {
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   required
+                  disabled={loading}
                 />
               </div>
               <div className="space-y-2">
@@ -155,13 +199,20 @@ export default function Auth() {
                   value={formData.confirmPassword}
                   onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                   required
+                  disabled={loading}
                 />
               </div>
-              <Button type="submit" className="w-full">
-                Create Account
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? "Creating account..." : "Create Account"}
               </Button>
               <Separator />
-              <Button type="button" variant="outline" className="w-full" onClick={() => setIsLogin(true)}>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={() => setIsLogin(true)}
+                disabled={loading}
+              >
                 Already have an account? Log in
               </Button>
             </form>
