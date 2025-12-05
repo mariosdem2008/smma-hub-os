@@ -7,7 +7,6 @@ export const useMessages = (conversationId?: string) => {
   const { clientUser, isAuthenticated } = useClientAuth();
 
   const url = useMemo(() => {
-    // Use Vite environment variable
     return import.meta.env.VITE_SUPABASE_URL;
   }, []);
 
@@ -18,19 +17,16 @@ export const useMessages = (conversationId?: string) => {
         return [];
       }
 
-      // If this is a temporary ID from optimistic update, return empty array
       if (conversationId.startsWith("temp-") || conversationId.startsWith("optimistic-")) {
-        console.log("Temporary conversation ID, returning empty messages");
         return [];
       }
 
-      console.log(`Fetching messages for conversation: ${conversationId}`);
+      console.log(`Fetching messages for: ${conversationId}`);
 
-      // Check if client portal user
       const clientToken = typeof window !== "undefined" ? localStorage.getItem("client_auth_token") : null;
 
       if (clientUser && isAuthenticated && clientToken) {
-        // For client portal users
+        // Client portal user
         const response = await fetch(`${url}/functions/v1/list-messages?conversation_id=${conversationId}`, {
           method: "GET",
           headers: {
@@ -41,9 +37,7 @@ export const useMessages = (conversationId?: string) => {
         });
 
         if (!response.ok) {
-          // Don't throw error for 404, just return empty array
           if (response.status === 404) {
-            console.log("Conversation not found, returning empty messages");
             return [];
           }
           const errorText = await response.text();
@@ -52,10 +46,12 @@ export const useMessages = (conversationId?: string) => {
         }
 
         const data = await response.json();
-        console.log(`Fetched ${data.messages?.length || 0} messages for client user`);
-        return data.messages || [];
+        const messages = data.messages || [];
+
+        // Get sender info on client side if needed
+        return await enhanceMessagesWithSenderInfo(messages);
       } else {
-        // For Supabase auth users
+        // Supabase auth user
         const {
           data: { session },
         } = await supabase.auth.getSession();
@@ -73,9 +69,7 @@ export const useMessages = (conversationId?: string) => {
         });
 
         if (!response.ok) {
-          // Don't throw error for 404, just return empty array
           if (response.status === 404) {
-            console.log("Conversation not found, returning empty messages");
             return [];
           }
           const errorText = await response.text();
@@ -84,23 +78,82 @@ export const useMessages = (conversationId?: string) => {
         }
 
         const data = await response.json();
-        console.log(`Fetched ${data.messages?.length || 0} messages for agency user`);
-        return data.messages || [];
+        const messages = data.messages || [];
+
+        // Get sender info on client side
+        return await enhanceMessagesWithSenderInfo(messages);
       }
     },
     enabled: !!conversationId,
-    retry: (failureCount, error: any) => {
-      // Don't retry on 404 errors
-      if (error?.message?.includes("404") || error?.message?.includes("Conversation not found")) {
-        return false;
-      }
-      return failureCount < 3;
-    },
-    // Optimizations for Instagram-like performance:
-    staleTime: 1000 * 30, // 30 seconds - messages can be stale briefly
-    gcTime: 1000 * 60 * 5, // 5 minutes - keep in cache longer
-    refetchOnWindowFocus: false, // Don't refetch when tab regains focus
-    refetchOnMount: false, // Don't refetch when component mounts if data exists
-    refetchOnReconnect: true, // Only refetch on reconnect
+    retry: 2,
+    staleTime: 1000 * 30,
+    gcTime: 1000 * 60 * 5,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: true,
   });
 };
+
+// Helper function to get sender info on client side
+async function enhanceMessagesWithSenderInfo(messages: any[]) {
+  if (!messages.length) return messages;
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) return messages;
+
+  // Collect all user IDs
+  const agencyMemberIds = messages
+    .filter((msg) => msg.sender_type === "agency_member" && msg.sender_agency_member_id)
+    .map((msg) => msg.sender_agency_member_id);
+
+  const clientUserIds = messages
+    .filter((msg) => msg.sender_type === "client_user" && msg.sender_client_user_id)
+    .map((msg) => msg.sender_client_user_id);
+
+  // Fetch agency member profiles
+  const agencyMembersMap = new Map();
+  if (agencyMemberIds.length > 0) {
+    const { data: agencyMembers } = await supabase
+      .from("agency_members")
+      .select("id, user_id")
+      .in("id", agencyMemberIds);
+
+    if (agencyMembers) {
+      const userIds = agencyMembers.map((m) => m.user_id).filter(Boolean);
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase.from("profiles").select("id, email, full_name").in("id", userIds);
+
+        if (profiles) {
+          const profileMap = new Map(profiles.map((p) => [p.id, p]));
+          agencyMembers.forEach((member) => {
+            const profile = profileMap.get(member.user_id);
+            if (profile) {
+              agencyMembersMap.set(member.id, {
+                id: member.id,
+                email: profile.email,
+                full_name: profile.full_name,
+                type: "agency_member",
+              });
+            }
+          });
+        }
+      }
+    }
+  }
+
+  // Enhance messages with sender info
+  return messages.map((msg) => {
+    let sender = null;
+
+    if (msg.sender_type === "agency_member" && msg.sender_agency_member_id) {
+      sender = agencyMembersMap.get(msg.sender_agency_member_id) || null;
+    }
+
+    return {
+      ...msg,
+      sender,
+    };
+  });
+}
