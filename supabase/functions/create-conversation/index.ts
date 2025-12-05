@@ -43,6 +43,10 @@ Deno.serve(async (req) => {
     const payload: CreateConversationPayload = await req.json();
     const { type, client_id, title, member_ids = [], client_user_ids = [] } = payload;
 
+    console.log(
+      `Creating conversation: type=${type}, client_id=${client_id}, member_ids=${member_ids.length}, client_user_ids=${client_user_ids.length}`,
+    );
+
     // Get user's agency membership
     const { data: agencyMember } = await supabaseClient
       .from("agency_members")
@@ -57,7 +61,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    console.log(`Creating conversation: type=${type}, agency_id=${agencyMember.agency_id}`);
+    console.log(`User agency member: ${agencyMember.id}, agency: ${agencyMember.agency_id}`);
 
     // For client_chat, check if conversation already exists
     if (type === "client_chat" && client_id) {
@@ -71,10 +75,16 @@ Deno.serve(async (req) => {
 
       if (existingConv) {
         console.log(`Found existing conversation: ${existingConv.id}`);
-        return new Response(JSON.stringify({ conversation: existingConv }), {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return new Response(
+          JSON.stringify({
+            conversation: existingConv,
+            message: "Existing conversation found",
+          }),
+          {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
       }
     }
 
@@ -99,10 +109,16 @@ Deno.serve(async (req) => {
           const participantIds = conv.conversation_participants?.map((p: any) => p.agency_member_id) || [];
           if (participantIds.includes(agencyMember.id) && participantIds.includes(otherMemberId)) {
             console.log(`Found existing direct conversation: ${conv.id}`);
-            return new Response(JSON.stringify({ conversation: conv }), {
-              status: 200,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            });
+            return new Response(
+              JSON.stringify({
+                conversation: conv,
+                message: "Existing conversation found",
+              }),
+              {
+                status: 200,
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+              },
+            );
           }
         }
       }
@@ -122,13 +138,13 @@ Deno.serve(async (req) => {
 
     if (conversationError) {
       console.error("Error creating conversation:", conversationError);
-      return new Response(JSON.stringify({ error: conversationError.message }), {
+      return new Response(JSON.stringify({ error: `Failed to create conversation: ${conversationError.message}` }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    console.log(`Created conversation: ${conversation.id}`);
+    console.log(`Successfully created conversation: ${conversation.id}`);
 
     // Always add creator as participant
     const participants: any[] = [
@@ -155,6 +171,7 @@ Deno.serve(async (req) => {
     }
 
     // Add explicitly passed client user participants
+    // These would come from the agency UI when starting a client chat
     for (const userId of client_user_ids) {
       participants.push({
         conversation_id: conversation.id,
@@ -166,27 +183,18 @@ Deno.serve(async (req) => {
       });
     }
 
-    // For client_chat conversations, auto-add ALL client users for that client
+    // IMPORTANT CHANGE: DO NOT try to auto-add all client users
+    // Client users using JWT auth will be added when they first access the portal
+    // This avoids RLS/JWT authentication issues
     if (type === "client_chat" && client_id) {
-      const { data: clientUsers } = await supabaseClient.from("client_users").select("id").eq("client_id", client_id);
+      console.log(`Client chat created. Client users will be added when they first access the portal.`);
 
-      if (clientUsers && clientUsers.length > 0) {
-        for (const clientUser of clientUsers) {
-          // Avoid duplicates if already added via client_user_ids
-          const alreadyAdded = participants.some((p) => p.client_user_id === clientUser.id);
-          if (!alreadyAdded) {
-            participants.push({
-              conversation_id: conversation.id,
-              agency_id: agencyMember.agency_id,
-              agency_member_id: null,
-              client_user_id: clientUser.id,
-              role: "client_user",
-              created_at: new Date().toISOString(),
-            });
-          }
-        }
+      // Get client info for logging
+      const { data: client } = await supabaseClient.from("clients").select("name").eq("id", client_id).single();
+
+      if (client) {
+        console.log(`Client chat created for: ${client.name}`);
       }
-      console.log(`Auto-added ${clientUsers?.length || 0} client users as participants`);
     }
 
     console.log(`Adding ${participants.length} participants to conversation`);
@@ -207,13 +215,29 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(
-      `Successfully created conversation: ${conversation.id} (type: ${type}) with ${participants.length} participants`,
-    );
+    console.log(`Successfully created conversation ${conversation.id} with ${participants.length} participants`);
+
+    // Get the full conversation with participants
+    const { data: fullConversation } = await supabaseClient
+      .from("conversations")
+      .select(
+        `
+        *,
+        conversation_participants(
+          id,
+          agency_member_id,
+          client_user_id,
+          role
+        ),
+        clients(id, name, logo_url)
+      `,
+      )
+      .eq("id", conversation.id)
+      .single();
 
     return new Response(
       JSON.stringify({
-        conversation,
+        conversation: fullConversation || conversation,
         message: "Conversation created successfully",
       }),
       {
@@ -224,7 +248,7 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error("Error in create-conversation:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
-    return new Response(JSON.stringify({ error: message }), {
+    return new Response(JSON.stringify({ error: `Server error: ${message}` }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
