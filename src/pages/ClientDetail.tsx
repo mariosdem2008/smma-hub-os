@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams, useSearchParams, Link } from "react-router-dom"; // Added Link import
+import { useParams, useSearchParams } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -88,11 +88,6 @@ export default function ClientDetail() {
   const [activeTab, setActiveTab] = useState("overview");
   const [agencyId, setAgencyId] = useState<string>("");
 
-  // Add debug logging
-  useEffect(() => {
-    console.log("ClientDetail mounted with clientId:", clientId);
-  }, [clientId]);
-
   // Pull-to-refresh for mobile
   const { isRefreshing, pullDistance } = usePullToRefresh({
     onRefresh: async () => {
@@ -142,13 +137,8 @@ export default function ClientDetail() {
   // Handle URL-based tab navigation
   useEffect(() => {
     const tab = searchParams.get("tab");
-    console.log("URL tab param changed to:", tab);
-
-    if (tab && tabs.some((t) => t.id === tab)) {
+    if (tab) {
       setActiveTab(tab);
-    } else if (!tab) {
-      // Set default tab if none specified
-      setSearchParams({ tab: "overview" }, { replace: true });
     }
   }, [searchParams]);
 
@@ -163,10 +153,8 @@ export default function ClientDetail() {
   };
 
   const handleTabChange = (tabId: string) => {
-    console.log("Tab changed to:", tabId);
     setActiveTab(tabId);
-    // Use replace to avoid adding to history stack
-    setSearchParams({ tab: tabId }, { replace: true });
+    setSearchParams({ tab: tabId });
     hapticSelection();
   };
 
@@ -262,15 +250,7 @@ export default function ClientDetail() {
               return (
                 <button
                   key={tab.id}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    // Add extra prevention
-                    e.nativeEvent.stopImmediatePropagation?.();
-                    handleTabChange(tab.id);
-                    return false;
-                  }}
-                  type="button"
+                  onClick={() => handleTabChange(tab.id)}
                   className={cn(
                     "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-left",
                     activeTab === tab.id
@@ -296,19 +276,10 @@ export default function ClientDetail() {
               return (
                 <button
                   key={tab.id}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    e.nativeEvent.stopImmediatePropagation?.();
-                    handleTabChange(tab.id);
-                    return false;
-                  }}
-                  type="button"
+                  onClick={() => handleTabChange(tab.id)}
                   className={cn(
                     "flex flex-col items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium transition-colors flex-shrink-0 min-w-[60px]",
-                    activeTab === tab.id
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:bg-muted",
+                    activeTab === tab.id ? "bg-primary text-primary-foreground" : "text-muted-foreground",
                   )}
                 >
                   <Icon className="h-4 w-4" />
