@@ -1,7 +1,7 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useClientAuth } from '@/lib/client-auth';
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useClientAuth } from "@/lib/client-auth";
 
 export const useMessages = (conversationId: string | undefined) => {
   const queryClient = useQueryClient();
@@ -14,15 +14,15 @@ export const useMessages = (conversationId: string | undefined) => {
     const channel = supabase
       .channel(`messages-${conversationId}`)
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: '*',
-          schema: 'public',
-          table: 'messages',
+          event: "*",
+          schema: "public",
+          table: "messages",
           filter: `conversation_id=eq.${conversationId}`,
         },
         () => {
-          queryClient.invalidateQueries({ queryKey: ['messages', conversationId] });
+          queryClient.invalidateQueries({ queryKey: ["messages", conversationId] });
         },
       )
       .subscribe();
@@ -33,42 +33,58 @@ export const useMessages = (conversationId: string | undefined) => {
   }, [conversationId, queryClient]);
 
   return useQuery({
-    queryKey: ['messages', conversationId],
+    queryKey: ["messages", conversationId],
     queryFn: async () => {
       if (!conversationId) return [];
-      
+
       // Client portal user: use direct fetch with HttpOnly cookies
       if (clientUser) {
         const response = await fetch(
           `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/list-messages?conversation_id=${conversationId}`,
           {
-            method: 'GET',
+            method: "GET",
             headers: {
-              apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-              'Content-Type': 'application/json',
+              "Content-Type": "application/json",
             },
-            credentials: 'include',
+            credentials: "include", // Cookies will be sent automatically
           },
         );
 
         if (!response.ok) {
           const error = await response.json().catch(() => ({}));
-          throw new Error(error.error || 'Failed to fetch messages');
+          throw new Error(error.error || "Failed to fetch messages");
         }
 
         const data = await response.json();
         return data.messages;
       }
 
-      // Agency members: use Supabase auth
-      const { data, error } = await supabase.functions.invoke(
-        `list-messages?conversation_id=${conversationId}`,
+      // Agency members: get session and use direct fetch to avoid apikey header issue
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session) {
+        throw new Error("No active session");
+      }
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/list-messages?conversation_id=${conversationId}`,
         {
-          method: 'GET',
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
         },
       );
-      
-      if (error) throw error;
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || "Failed to fetch messages");
+      }
+
+      const data = await response.json();
       return data.messages;
     },
     enabled: !!conversationId,
