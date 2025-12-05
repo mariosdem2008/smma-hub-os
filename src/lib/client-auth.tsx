@@ -65,17 +65,14 @@ export function ClientAuthProvider({ children }: { children: React.ReactNode }) 
 
   const refreshSession = useCallback(async () => {
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/client-refresh-token`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-          },
-          credentials: "include",
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/client-refresh-token`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
         },
-      );
+        credentials: "include",
+      });
 
       if (!response.ok) {
         clearSession();
@@ -112,18 +109,15 @@ export function ClientAuthProvider({ children }: { children: React.ReactNode }) 
   }, [refreshSession]);
 
   const login = async (email: string, password: string, clientId: string) => {
-    const response = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/client-auth-login`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-        },
-        credentials: "include",
-        body: JSON.stringify({ email, password, client_id: clientId }),
+    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/client-auth-login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
       },
-    );
+      credentials: "include",
+      body: JSON.stringify({ email, password, client_id: clientId }),
+    });
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
@@ -139,18 +133,15 @@ export function ClientAuthProvider({ children }: { children: React.ReactNode }) 
   };
 
   const signup = async (inviteToken: string, password: string, fullName?: string) => {
-    const response = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/client-auth-signup`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-        },
-        credentials: "include",
-        body: JSON.stringify({ invite_token: inviteToken, password, full_name: fullName }),
+    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/client-auth-signup`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
       },
-    );
+      credentials: "include",
+      body: JSON.stringify({ invite_token: inviteToken, password, full_name: fullName }),
+    });
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
@@ -168,17 +159,14 @@ export function ClientAuthProvider({ children }: { children: React.ReactNode }) 
 
   const logout = async () => {
     try {
-      await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/client-auth-logout`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-          },
-          credentials: "include",
+      await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/client-auth-logout`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
         },
-      );
+        credentials: "include",
+      });
     } catch (error) {
       console.error("Client portal logout failed", error);
     } finally {
