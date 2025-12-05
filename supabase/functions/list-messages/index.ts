@@ -23,202 +23,83 @@ function corsHeaders(request: Request): Record<string, string> {
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const CLIENT_PORTAL_JWT_SECRET = Deno.env.get("CLIENT_PORTAL_JWT_SECRET");
-
-interface ClientPortalJwtPayload {
-  sub: string;
-  email: string;
-  client_id: string;
-  agency_id: string;
-  role: string;
-  exp: number;
-}
-
-// Helper to verify client portal JWT
-async function verifyClientPortalToken(token: string): Promise<ClientPortalJwtPayload | null> {
-  if (!CLIENT_PORTAL_JWT_SECRET) {
-    console.error("CLIENT_PORTAL_JWT_SECRET not configured");
-    return null;
-  }
-
-  try {
-    const parts = token.split(".");
-    if (parts.length !== 3) return null;
-
-    const [encodedHeader, encodedPayload, encodedSignature] = parts;
-
-    // Verify signature
-    const key = await crypto.subtle.importKey(
-      "raw",
-      new TextEncoder().encode(CLIENT_PORTAL_JWT_SECRET),
-      { name: "HMAC", hash: "SHA-256" },
-      false,
-      ["verify"],
-    );
-
-    // Handle base64url encoding
-    const base64 = encodedSignature.replace(/-/g, "+").replace(/_/g, "/");
-    const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
-    const signature = Uint8Array.from(atob(padded), (c) => c.charCodeAt(0));
-
-    const isValid = await crypto.subtle.verify(
-      "HMAC",
-      key,
-      signature,
-      new TextEncoder().encode(`${encodedHeader}.${encodedPayload}`),
-    );
-
-    if (!isValid) return null;
-
-    // Decode payload with base64url handling
-    const payloadBase64 = encodedPayload.replace(/-/g, "+").replace(/_/g, "/");
-    const payloadPadded = payloadBase64 + "=".repeat((4 - (payloadBase64.length % 4)) % 4);
-    const payload: ClientPortalJwtPayload = JSON.parse(atob(payloadPadded));
-
-    // Check expiration
-    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
-      console.log("Client portal token expired");
-      return null;
-    }
-
-    return payload;
-  } catch (error) {
-    console.error("Error verifying client portal token:", error);
-    return null;
-  }
-}
-
-function getCookie(header: string | null, name: string): string | null {
-  if (!header) return null;
-  const cookies = header.split(";").map((c) => c.trim());
-  for (const cookie of cookies) {
-    const [cookieName, ...rest] = cookie.split("=");
-    if (cookieName === name) {
-      return rest.join("=");
-    }
-  }
-  return null;
-}
 
 Deno.serve(async (req) => {
   // Handle OPTIONS request first
   if (req.method === "OPTIONS") {
-    const origin = req.headers.get("origin") ?? "";
-    const isAllowed = allowedOrigins.includes(origin);
-
     return new Response(null, {
       status: 204,
       headers: {
-        "Access-Control-Allow-Origin": isAllowed ? origin : allowedOrigins[0],
-        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-        "Access-Control-Allow-Headers":
-          req.headers.get("Access-Control-Request-Headers") || "Content-Type, Authorization, apikey, Apikey, APIKEY",
-        "Access-Control-Allow-Credentials": "true",
-        "Access-Control-Max-Age": "86400",
+        ...corsHeaders(req),
         Vary: "Origin, Access-Control-Request-Headers",
       },
     });
   }
 
+  if (req.method !== "GET") {
+    return new Response(JSON.stringify({ error: "Method not allowed" }), {
+      status: 405,
+      headers: { ...corsHeaders(req), "Content-Type": "application/json" },
+    });
+  }
+
   try {
-    const authHeader = req.headers.get("Authorization");
-    const cookieHeader = req.headers.get("Cookie");
-
-    let token: string | null = null;
-
-    if (authHeader?.startsWith("Bearer ")) {
-      token = authHeader.replace("Bearer ", "");
-    } else {
-      token = getCookie(cookieHeader, "cp_access_token");
-    }
-
-    if (!token) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders(req), "Content-Type": "application/json" },
-      });
-    }
-
     const url = new URL(req.url);
     const conversationId = url.searchParams.get("conversation_id");
 
     if (!conversationId) {
-      return new Response(JSON.stringify({ error: "Missing conversation_id" }), {
+      return new Response(JSON.stringify({ error: "conversation_id is required" }), {
         status: 400,
+        headers: { ...corsHeaders(req), "Content-Type": "application/json" },
+      });
+    }
+
+    // Check if this is a temporary ID from optimistic update
+    if (conversationId.startsWith("temp-")) {
+      console.log(`Temporary conversation ID detected: ${conversationId}`);
+      return new Response(JSON.stringify({ messages: [] }), {
+        status: 200,
         headers: { ...corsHeaders(req), "Content-Type": "application/json" },
       });
     }
 
     const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    let authUserId: string | null = null;
-    let clientPortalUser: ClientPortalJwtPayload | null = null;
-
-    // Try Supabase auth first (for agency members)
-    const {
-      data: { user },
-      error: userError,
-    } = await supabaseClient.auth.getUser(token);
-
-    if (user && !userError) {
-      authUserId = user.id;
-    } else {
-      // Try client portal JWT
-      clientPortalUser = await verifyClientPortalToken(token);
-
-      if (!clientPortalUser) {
-        console.log("Auth failed: neither Supabase auth nor client portal token valid");
-        return new Response(JSON.stringify({ error: "Unauthorized" }), {
-          status: 401,
-          headers: { ...corsHeaders(req), "Content-Type": "application/json" },
-        });
-      }
-    }
-
-    // Verify user has access to this conversation
-    const { data: conversation } = await supabaseClient
+    // First, verify the conversation exists and user has access
+    const { data: conversation, error: convError } = await supabaseClient
       .from("conversations")
-      .select("agency_id, client_id, type")
+      .select("id")
       .eq("id", conversationId)
       .single();
 
-    if (!conversation) {
+    if (convError || !conversation) {
       return new Response(JSON.stringify({ error: "Conversation not found" }), {
         status: 404,
         headers: { ...corsHeaders(req), "Content-Type": "application/json" },
       });
     }
 
-    // Verify authorization
-    if (authUserId) {
-      // Agency member - check if they belong to the agency
-      const { data: agencyMember } = await supabaseClient
-        .from("agency_members")
-        .select("id")
-        .eq("user_id", authUserId)
-        .eq("agency_id", conversation.agency_id)
-        .single();
-
-      if (!agencyMember) {
-        return new Response(JSON.stringify({ error: "Not authorized to view this conversation" }), {
-          status: 403,
-          headers: { ...corsHeaders(req), "Content-Type": "application/json" },
-        });
-      }
-    } else if (clientPortalUser) {
-      // Client user - check if conversation is for their client
-      if (conversation.client_id !== clientPortalUser.client_id) {
-        return new Response(JSON.stringify({ error: "Not authorized to view this conversation" }), {
-          status: 403,
-          headers: { ...corsHeaders(req), "Content-Type": "application/json" },
-        });
-      }
-    }
-
-    // Fetch messages
+    // Fetch messages for the conversation
     const { data: messages, error: messagesError } = await supabaseClient
       .from("messages")
-      .select("*")
+      .select(
+        `
+        *,
+        agency_member:agency_member_id(
+          id,
+          user:user_id(
+            id,
+            email,
+            full_name
+          )
+        ),
+        client_user:client_user_id(
+          id,
+          email,
+          full_name
+        )
+      `,
+      )
       .eq("conversation_id", conversationId)
       .order("created_at", { ascending: true });
 
@@ -230,24 +111,36 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Get read receipts for all messages
-    const messagesWithReceipts = await Promise.all(
-      messages.map(async (message) => {
-        const { data: receipts } = await supabaseClient
-          .from("message_read_receipts")
-          .select("participant_id, read_at")
-          .eq("message_id", message.id);
+    // Transform the response to a cleaner format
+    const formattedMessages = (messages || []).map((msg) => ({
+      id: msg.id,
+      body: msg.body,
+      created_at: msg.created_at,
+      sender_type: msg.sender_type,
+      sender_agency_member_id: msg.agency_member_id,
+      sender_client_user_id: msg.client_user_id,
+      conversation_id: msg.conversation_id,
+      sender:
+        msg.sender_type === "agency_member"
+          ? msg.agency_member?.user
+            ? {
+                id: msg.agency_member.id,
+                email: msg.agency_member.user.email,
+                full_name: msg.agency_member.user.full_name,
+                type: "agency_member",
+              }
+            : null
+          : msg.client_user
+            ? {
+                id: msg.client_user.id,
+                email: msg.client_user.email,
+                full_name: msg.client_user.full_name,
+                type: "client_user",
+              }
+            : null,
+    }));
 
-        return {
-          ...message,
-          read_receipts: receipts || [],
-        };
-      }),
-    );
-
-    console.log(`Listed ${messages.length} messages for conversation ${conversationId}`);
-
-    return new Response(JSON.stringify({ messages: messagesWithReceipts }), {
+    return new Response(JSON.stringify({ messages: formattedMessages }), {
       status: 200,
       headers: { ...corsHeaders(req), "Content-Type": "application/json" },
     });
