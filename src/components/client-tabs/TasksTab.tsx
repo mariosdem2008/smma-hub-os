@@ -92,41 +92,28 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
     fetchTemplates();
   }, [clientId]);
 
-  const fetchTeamMembersSeparately = async () => {
-    try {
-      // First get agency members
-      const { data: members, error: membersError } = await supabase
-        .from("agency_members")
-        .select("user_id, role")
-        .eq("agency_id", agencyId);
+  const fetchTeamMembers = async () => {
+    // OPTION 1: Fix the foreign key reference (if you have proper foreign key relationship)
+    const { data, error } = await supabase
+      .from("agency_members")
+      .select(
+        `
+      user_id,
+      role,
+      profiles (
+        full_name,
+        email
+      )
+    `,
+      )
+      .eq("agency_id", agencyId);
 
-      if (membersError) throw membersError;
-      if (!members || members.length === 0) {
-        setTeamMembers([]);
-        return;
-      }
-
-      // Get user IDs
-      const userIds = members.map((m) => m.user_id);
-
-      // Then get profiles
-      const { data: profiles, error: profilesError } = await supabase
-        .from("profiles")
-        .select("id, full_name, email")
-        .in("id", userIds);
-
-      if (profilesError) throw profilesError;
-
-      // Combine the data
-      const combinedData = members.map((member) => ({
-        ...member,
-        profiles: profiles?.find((p) => p.id === member.user_id) || null,
-      }));
-
-      setTeamMembers(combinedData);
-    } catch (error) {
-      console.error("Error fetching team members separately:", error);
-      setTeamMembers([]);
+    if (error) {
+      console.error("Error fetching team members:", error);
+      // OPTION 2: If the above doesn't work, fetch separately
+      await fetchTeamMembersSeparately();
+    } else {
+      setTeamMembers(data || []);
     }
   };
 
