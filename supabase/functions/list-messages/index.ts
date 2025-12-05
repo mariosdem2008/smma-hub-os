@@ -7,17 +7,14 @@ const allowedOrigins = [
   "https://id-preview--73a2983b-0136-47d2-9a1f-01fe580ac593.lovable.app",
 ];
 
-function corsHeaders(request: Request): Record<string, string> {
-  const origin = request.headers.get("origin") ?? "";
-  const isAllowed = allowedOrigins.includes(origin);
-
+function corsHeaders(): Record<string, string> {
   return {
-    "Access-Control-Allow-Origin": isAllowed ? origin : allowedOrigins[0],
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers":
-      request.headers.get("Access-Control-Request-Headers") || "Content-Type, Authorization, apikey, Apikey, APIKEY",
+    "Access-Control-Allow-Origin": allowedOrigins[0],
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS, PUT, DELETE",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, apikey, Apikey, APIKEY",
     "Access-Control-Allow-Credentials": "true",
     "Access-Control-Max-Age": "86400",
+    Vary: "Origin",
   };
 }
 
@@ -25,21 +22,18 @@ const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 Deno.serve(async (req) => {
-  // Handle OPTIONS request first
+  // Handle OPTIONS request
   if (req.method === "OPTIONS") {
     return new Response(null, {
       status: 204,
-      headers: {
-        ...corsHeaders(req),
-        Vary: "Origin, Access-Control-Request-Headers",
-      },
+      headers: corsHeaders(),
     });
   }
 
   if (req.method !== "GET") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
       status: 405,
-      headers: { ...corsHeaders(req), "Content-Type": "application/json" },
+      headers: { ...corsHeaders(), "Content-Type": "application/json" },
     });
   }
 
@@ -51,51 +45,27 @@ Deno.serve(async (req) => {
     if (!conversationId) {
       return new Response(JSON.stringify({ error: "conversation_id is required" }), {
         status: 400,
-        headers: { ...corsHeaders(req), "Content-Type": "application/json" },
+        headers: { ...corsHeaders(), "Content-Type": "application/json" },
       });
     }
 
-    // Check if this is a temporary ID from optimistic update
+    // Check if this is a temporary ID
     if (conversationId.startsWith("temp-") || conversationId.startsWith("optimistic-")) {
-      console.log(`Temporary conversation ID detected: ${conversationId}`);
+      console.log(`Temporary conversation ID: ${conversationId}`);
       return new Response(JSON.stringify({ messages: [] }), {
         status: 200,
-        headers: { ...corsHeaders(req), "Content-Type": "application/json" },
+        headers: { ...corsHeaders(), "Content-Type": "application/json" },
       });
     }
 
     const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Verify the conversation exists
-    const { data: conversation, error: convError } = await supabaseClient
-      .from("conversations")
-      .select("id")
-      .eq("id", conversationId)
-      .single();
+    console.log(`Fetching messages for conversation: ${conversationId}`);
 
-    if (convError || !conversation) {
-      return new Response(JSON.stringify({ error: "Conversation not found" }), {
-        status: 404,
-        headers: { ...corsHeaders(req), "Content-Type": "application/json" },
-      });
-    }
-
-    // Fetch messages for the conversation (SIMPLIFIED - no joins)
+    // SIMPLE QUERY - NO JOINS, NO RELATIONSHIPS
     const { data: messages, error: messagesError } = await supabaseClient
       .from("messages")
-      .select(
-        `
-        id,
-        body,
-        created_at,
-        sender_type,
-        agency_member_id,
-        client_user_id,
-        conversation_id,
-        attachment_url,
-        related_project_id
-      `,
-      )
+      .select("*")
       .eq("conversation_id", conversationId)
       .order("created_at", { ascending: true })
       .limit(Math.min(limit, 200));
@@ -104,66 +74,82 @@ Deno.serve(async (req) => {
       console.error("Error fetching messages:", messagesError);
       return new Response(JSON.stringify({ error: messagesError.message }), {
         status: 500,
-        headers: { ...corsHeaders(req), "Content-Type": "application/json" },
+        headers: { ...corsHeaders(), "Content-Type": "application/json" },
       });
     }
 
-    // Collect all agency_member_ids and client_user_ids to fetch profiles separately
+    console.log(`Found ${messages?.length || 0} messages`);
+
+    // If no messages, return empty array
+    if (!messages || messages.length === 0) {
+      return new Response(JSON.stringify({ messages: [] }), {
+        status: 200,
+        headers: { ...corsHeaders(), "Content-Type": "application/json" },
+      });
+    }
+
+    // Collect user IDs to fetch profiles
     const agencyMemberIds: string[] = [];
     const clientUserIds: string[] = [];
 
-    (messages || []).forEach((msg: any) => {
+    messages.forEach((msg: any) => {
       if (msg.sender_type === "agency_member" && msg.agency_member_id) {
         agencyMemberIds.push(msg.agency_member_id);
-      } else if (msg.sender_type === "client_user" && msg.client_user_id) {
+      }
+      if (msg.sender_type === "client_user" && msg.client_user_id) {
         clientUserIds.push(msg.client_user_id);
       }
     });
 
     // Fetch agency member profiles
-    let agencyMembersMap = new Map<string, any>();
+    const agencyMembersMap = new Map<string, any>();
     if (agencyMemberIds.length > 0) {
+      console.log(`Fetching ${agencyMemberIds.length} agency members`);
+
+      // First get agency members
       const { data: agencyMembers } = await supabaseClient
         .from("agency_members")
-        .select(
-          `
-          id,
-          user:user_id (
-            id,
-            email,
-            full_name
-          )
-        `,
-        )
+        .select("id, user_id")
         .in("id", agencyMemberIds);
 
-      if (agencyMembers) {
-        agencyMembers.forEach((member: any) => {
-          if (member.user && Array.isArray(member.user) && member.user.length > 0) {
-            const user = member.user[0];
-            agencyMembersMap.set(member.id, {
-              id: member.id,
-              email: user.email,
-              full_name: user.full_name,
-              type: "agency_member",
+      if (agencyMembers && agencyMembers.length > 0) {
+        // Then get user profiles
+        const userIds = agencyMembers.map((m: any) => m.user_id).filter(Boolean);
+        if (userIds.length > 0) {
+          const { data: profiles } = await supabaseClient
+            .from("profiles")
+            .select("id, email, full_name")
+            .in("id", userIds);
+
+          if (profiles) {
+            // Create a map from user_id to profile
+            const profileMap = new Map(profiles.map((p: any) => [p.id, p]));
+
+            // Map agency_member_id to profile
+            agencyMembers.forEach((member: any) => {
+              const profile = profileMap.get(member.user_id);
+              if (profile) {
+                agencyMembersMap.set(member.id, {
+                  id: member.id,
+                  email: profile.email,
+                  full_name: profile.full_name,
+                  type: "agency_member",
+                });
+              }
             });
           }
-        });
+        }
       }
     }
 
     // Fetch client user profiles
-    let clientUsersMap = new Map<string, any>();
+    const clientUsersMap = new Map<string, any>();
     if (clientUserIds.length > 0) {
+      console.log(`Fetching ${clientUserIds.length} client users`);
+
       const { data: clientUsers } = await supabaseClient
         .from("client_users")
-        .select(
-          `
-          id,
-          email,
-          full_name
-        `,
-        )
+        .select("id, email, full_name")
         .in("id", clientUserIds);
 
       if (clientUsers) {
@@ -178,8 +164,8 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Transform the response
-    const formattedMessages = (messages || []).map((msg: any) => {
+    // Format messages
+    const formattedMessages = messages.map((msg: any) => {
       let sender = null;
 
       if (msg.sender_type === "agency_member" && msg.agency_member_id) {
@@ -205,14 +191,13 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         messages: formattedMessages,
-        has_more: messages?.length === limit,
+        has_more: messages.length === limit,
       }),
       {
         status: 200,
         headers: {
-          ...corsHeaders(req),
+          ...corsHeaders(),
           "Content-Type": "application/json",
-          "Cache-Control": "private, max-age=10",
         },
       },
     );
@@ -221,7 +206,7 @@ Deno.serve(async (req) => {
     const message = error instanceof Error ? error.message : "Unknown error";
     return new Response(JSON.stringify({ error: message }), {
       status: 500,
-      headers: { ...corsHeaders(req), "Content-Type": "application/json" },
+      headers: { ...corsHeaders(), "Content-Type": "application/json" },
     });
   }
 });
