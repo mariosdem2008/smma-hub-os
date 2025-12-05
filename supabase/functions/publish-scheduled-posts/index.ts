@@ -3,28 +3,12 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 import { publishToInstagram, publishToFacebook } from "../_utils/instagram-publish.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
-/**
- * AUTOPUBLISH ENGINE - publish-scheduled-posts
- * 
- * This function automatically publishes scheduled content to social media platforms.
- * 
- * REQUIRED CRON CONFIGURATION:
- * Run this function every 5 minutes via Supabase pg_cron.
- * 
- * FEATURES:
- * - Publishes to Instagram, Facebook (LinkedIn coming soon)
- * - 3-attempt retry policy with 10-minute delays
- * - Comprehensive logging in post_logs table
- * - Activity logging in activity_logs table
- * - Project status management based on completion
- * - Uses service role key to bypass RLS
- * - 1-minute scheduling buffer to catch posts slightly in the past
- * - Uses project_assets with is_final_content = true for media lookup
- */
-
 serve(async (req) => {
+  const origin = req.headers.get("Origin");
+  const headers = corsHeaders(origin);
+
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { status: 204, headers });
   }
 
   try {
@@ -38,7 +22,7 @@ serve(async (req) => {
 
     // Query scheduled posts ready to publish (with 1 minute buffer and retry limit)
     const now = new Date();
-    const bufferTime = new Date(now.getTime() + 60000).toISOString(); // +1 minute buffer
+    const bufferTime = new Date(now.getTime() + 60000).toISOString();
     const { data: scheduledPosts, error: queryError } = await supabaseAdmin
       .from('scheduled_posts')
       .select(`
@@ -69,7 +53,7 @@ serve(async (req) => {
       console.log('[AUTOPUBLISH] No scheduled posts ready to publish');
       return new Response(
         JSON.stringify({ message: 'No posts to publish', processed: 0 }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...headers, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -99,7 +83,7 @@ serve(async (req) => {
         processed: results.length,
         results
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: { ...headers, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
@@ -107,7 +91,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders(req.headers.get("Origin")), 'Content-Type': 'application/json' },
         status: 500
       }
     );
@@ -118,14 +102,12 @@ async function publishScheduledPost(supabaseAdmin: any, scheduledPost: any) {
   const startTime = Date.now();
   console.log(`[AUTOPUBLISH] Publishing scheduled post ${scheduledPost.id} for platform ${scheduledPost.platform}`);
 
-  // Update status to publishing
   await supabaseAdmin
     .from('scheduled_posts')
     .update({ status: 'publishing' })
     .eq('id', scheduledPost.id);
 
   try {
-    // Fetch project
     const { data: project, error: projectError } = await supabaseAdmin
       .from('projects')
       .select('id, title')
@@ -136,7 +118,6 @@ async function publishScheduledPost(supabaseAdmin: any, scheduledPost: any) {
       throw new Error('Project not found');
     }
 
-    // Fetch final asset from project_assets where is_final_content = true
     const { data: finalAssets, error: assetsError } = await supabaseAdmin
       .from('project_assets')
       .select(`
@@ -161,8 +142,6 @@ async function publishScheduledPost(supabaseAdmin: any, scheduledPost: any) {
     if (!finalAssets || finalAssets.length === 0 || !finalAssets[0].assets) {
       const errorMessage = 'No final content asset found for project';
       console.error(`[AUTOPUBLISH] ${errorMessage}`);
-      
-      // Mark as failed and send notification
       await handlePublishFailure(supabaseAdmin, scheduledPost, errorMessage, startTime, true);
       throw new Error(errorMessage);
     }
@@ -171,7 +150,6 @@ async function publishScheduledPost(supabaseAdmin: any, scheduledPost: any) {
     const mediaUrl = asset.file_url;
     const mediaType = asset.file_type?.startsWith('video') ? 'video' : 'image';
 
-    // Fetch social connection
     const { data: connection, error: connectionError } = await supabaseAdmin
       .from('social_connections')
       .select('*')
@@ -186,12 +164,10 @@ async function publishScheduledPost(supabaseAdmin: any, scheduledPost: any) {
       throw new Error('Social connection is not active');
     }
 
-    // Validate Instagram Business Account
     if (scheduledPost.platform === 'instagram' && !connection.account_id) {
       throw new Error('No Instagram Business Account connected');
     }
 
-    // Prepare caption
     const caption = scheduledPost.caption || project.title || '';
     const hashtags = scheduledPost.hashtags || '';
     const fullCaption = `${caption}\n\n${hashtags}`.trim();
@@ -227,7 +203,6 @@ async function publishScheduledPost(supabaseAdmin: any, scheduledPost: any) {
     const duration = Date.now() - startTime;
 
     if (result.success && result.mediaUrl) {
-      // Update scheduled post as published
       await supabaseAdmin
         .from('scheduled_posts')
         .update({
@@ -239,7 +214,6 @@ async function publishScheduledPost(supabaseAdmin: any, scheduledPost: any) {
         })
         .eq('id', scheduledPost.id);
 
-      // Log success to post_logs
       await supabaseAdmin.from('post_logs').insert({
         scheduled_post_id: scheduledPost.id,
         project_id: scheduledPost.project_id,
@@ -252,7 +226,6 @@ async function publishScheduledPost(supabaseAdmin: any, scheduledPost: any) {
         attempt_number: (scheduledPost.retry_count || 0) + 1
       });
 
-      // Log success to activity_logs
       await supabaseAdmin.from('activity_logs').insert({
         project_id: scheduledPost.project_id,
         action_type: 'auto_published_success',
@@ -266,7 +239,6 @@ async function publishScheduledPost(supabaseAdmin: any, scheduledPost: any) {
 
       console.log(`[AUTOPUBLISH] Successfully published scheduled post ${scheduledPost.id}: ${result.mediaUrl}`);
 
-      // Check if all scheduled posts for this project are complete
       await updateProjectStatus(supabaseAdmin, scheduledPost.project_id);
 
       return {
@@ -298,11 +270,9 @@ async function handlePublishFailure(
   
   console.error(`[AUTOPUBLISH] Error publishing scheduled post ${scheduledPost.id} (attempt ${nextRetryCount}/3):`, errorMessage);
 
-  // Determine if we should retry (not for fatal errors like missing assets)
   const shouldRetry = !isFatalError && nextRetryCount < 3;
 
   if (shouldRetry) {
-    // Reschedule for retry in 10 minutes
     const retryTime = new Date(Date.now() + 10 * 60 * 1000).toISOString();
     console.log(`[AUTOPUBLISH] Scheduling retry ${nextRetryCount + 1} for ${scheduledPost.id} at ${retryTime}`);
     
@@ -316,7 +286,6 @@ async function handlePublishFailure(
       })
       .eq('id', scheduledPost.id);
   } else {
-    // Max retries reached or fatal error - mark as failed
     console.error(`[AUTOPUBLISH] ${isFatalError ? 'Fatal error' : 'Max retries reached'} for ${scheduledPost.id}, marking as failed`);
     
     await supabaseAdmin
@@ -328,7 +297,6 @@ async function handlePublishFailure(
       })
       .eq('id', scheduledPost.id);
 
-    // Log failure to activity_logs
     await supabaseAdmin.from('activity_logs').insert({
       project_id: scheduledPost.project_id,
       action_type: 'auto_published_failed',
@@ -340,11 +308,9 @@ async function handlePublishFailure(
       }
     });
 
-    // Check if all scheduled posts for this project are complete
     await updateProjectStatus(supabaseAdmin, scheduledPost.project_id);
   }
 
-  // Log failure to post_logs
   await supabaseAdmin.from('post_logs').insert({
     scheduled_post_id: scheduledPost.id,
     project_id: scheduledPost.project_id,
@@ -358,7 +324,6 @@ async function handlePublishFailure(
 }
 
 async function updateProjectStatus(supabaseAdmin: any, projectId: string) {
-  // Fetch all scheduled posts for this project
   const { data: allPosts, error } = await supabaseAdmin
     .from('scheduled_posts')
     .select('status')
@@ -369,25 +334,21 @@ async function updateProjectStatus(supabaseAdmin: any, projectId: string) {
   }
 
   const hasPublished = allPosts.some((p: any) => p.status === 'published');
-  const hasPending = allPosts.some((p: any) => p.status === 'pending' || p.status === 'publishing');
   const allCancelled = allPosts.every((p: any) => p.status === 'cancelled');
   const allCompleted = allPosts.every((p: any) => p.status === 'published' || p.status === 'failed' || p.status === 'cancelled');
 
   if (allCompleted) {
     if (hasPublished) {
-      // At least one published - mark project as published
       await supabaseAdmin
         .from('projects')
         .update({ status: 'published', published_at: new Date().toISOString() })
         .eq('id', projectId);
     } else if (allCancelled) {
-      // All cancelled - revert to approved
       await supabaseAdmin
         .from('projects')
         .update({ status: 'approved', scheduled_for: null })
         .eq('id', projectId);
     } else {
-      // All failed - mark as failed
       await supabaseAdmin
         .from('projects')
         .update({ status: 'failed', error_message: 'All scheduled posts failed' })

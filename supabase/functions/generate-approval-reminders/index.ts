@@ -5,8 +5,11 @@ const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
 Deno.serve(async (req) => {
+  const origin = req.headers.get("Origin");
+  const headers = corsHeaders(origin);
+
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { status: 204, headers });
   }
 
   try {
@@ -32,14 +35,14 @@ Deno.serve(async (req) => {
       console.error('Error fetching stuck projects:', projectsError);
       return new Response(JSON.stringify({ error: projectsError.message }), {
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...headers, 'Content-Type': 'application/json' },
       });
     }
 
     if (!stuckProjects || stuckProjects.length === 0) {
       return new Response(JSON.stringify({ message: 'No stuck projects found', notifications_created: 0 }), {
         status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...headers, 'Content-Type': 'application/json' },
       });
     }
 
@@ -120,7 +123,7 @@ Deno.serve(async (req) => {
         console.error('Error inserting notifications:', insertError);
         return new Response(JSON.stringify({ error: insertError.message }), {
           status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          headers: { ...headers, 'Content-Type': 'application/json' },
         });
       }
     }
@@ -132,14 +135,14 @@ Deno.serve(async (req) => {
       notifications_created: notifications.length,
     }), {
       status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...headers, 'Content-Type': 'application/json' },
     });
   } catch (error) {
     console.error('Error in generate-approval-reminders:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
     return new Response(JSON.stringify({ error: message }), {
       status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders(req.headers.get("Origin")), 'Content-Type': 'application/json' },
     });
   }
 });

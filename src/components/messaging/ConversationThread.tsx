@@ -5,7 +5,7 @@ import { MessageInput } from "./MessageInput";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCurrentParticipant } from "@/hooks/useCurrentParticipant";
 import { useMarkConversationNotificationsRead } from "@/hooks/useNotifications";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, MessageCircle } from "lucide-react";
 
 interface ConversationThreadProps {
   conversationId?: string;
@@ -32,7 +32,7 @@ export function ConversationThread({ conversationId }: ConversationThreadProps) 
   if (!conversationId || conversationId.startsWith("temp-") || conversationId.startsWith("optimistic-")) {
     return (
       <div className="h-full flex flex-col items-center justify-center text-muted-foreground p-8">
-        <MessageBubble className="h-16 w-16 mb-4 opacity-20" />
+        <MessageCircle className="h-16 w-16 mb-4 opacity-20" />
         <p className="text-center">Select a conversation to start messaging</p>
         <p className="text-sm text-center mt-1">or create a new conversation</p>
       </div>
@@ -68,7 +68,7 @@ export function ConversationThread({ conversationId }: ConversationThreadProps) 
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-muted-foreground p-8">
             <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
-              <MessageBubble className="h-8 w-8" />
+              <MessageCircle className="h-8 w-8" />
             </div>
             <p className="text-center font-medium">No messages yet</p>
             <p className="text-sm text-center mt-1">Send a message to start the conversation</p>

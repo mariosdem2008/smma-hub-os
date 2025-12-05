@@ -13,8 +13,11 @@ interface CreateConversationPayload {
 }
 
 Deno.serve(async (req) => {
+  const origin = req.headers.get("Origin");
+  const headers = corsHeaders(origin);
+
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { status: 204, headers });
   }
 
   try {
@@ -22,7 +25,7 @@ Deno.serve(async (req) => {
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Missing authorization header" }), {
         status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...headers, "Content-Type": "application/json" },
       });
     }
 
@@ -36,7 +39,7 @@ Deno.serve(async (req) => {
     if (userError || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...headers, "Content-Type": "application/json" },
       });
     }
 
@@ -57,7 +60,7 @@ Deno.serve(async (req) => {
     if (!agencyMember) {
       return new Response(JSON.stringify({ error: "User is not an agency member" }), {
         status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...headers, "Content-Type": "application/json" },
       });
     }
 
@@ -82,7 +85,7 @@ Deno.serve(async (req) => {
           }),
           {
             status: 200,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            headers: { ...headers, "Content-Type": "application/json" },
           },
         );
       }
@@ -116,7 +119,7 @@ Deno.serve(async (req) => {
               }),
               {
                 status: 200,
-                headers: { ...corsHeaders, "Content-Type": "application/json" },
+                headers: { ...headers, "Content-Type": "application/json" },
               },
             );
           }
@@ -140,7 +143,7 @@ Deno.serve(async (req) => {
       console.error("Error creating conversation:", conversationError);
       return new Response(JSON.stringify({ error: `Failed to create conversation: ${conversationError.message}` }), {
         status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...headers, "Content-Type": "application/json" },
       });
     }
 
@@ -171,7 +174,6 @@ Deno.serve(async (req) => {
     }
 
     // Add explicitly passed client user participants
-    // These would come from the agency UI when starting a client chat
     for (const userId of client_user_ids) {
       participants.push({
         conversation_id: conversation.id,
@@ -183,13 +185,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    // IMPORTANT CHANGE: DO NOT try to auto-add all client users
     // Client users using JWT auth will be added when they first access the portal
-    // This avoids RLS/JWT authentication issues
     if (type === "client_chat" && client_id) {
       console.log(`Client chat created. Client users will be added when they first access the portal.`);
 
-      // Get client info for logging
       const { data: client } = await supabaseClient.from("clients").select("name").eq("id", client_id).single();
 
       if (client) {
@@ -205,19 +204,17 @@ Deno.serve(async (req) => {
       if (participantsError) {
         console.error("Error adding participants:", participantsError);
 
-        // Delete the conversation since participants failed
         await supabaseClient.from("conversations").delete().eq("id", conversation.id);
 
         return new Response(JSON.stringify({ error: `Failed to add participants: ${participantsError.message}` }), {
           status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: { ...headers, "Content-Type": "application/json" },
         });
       }
     }
 
     console.log(`Successfully created conversation ${conversation.id} with ${participants.length} participants`);
 
-    // Get the full conversation with participants
     const { data: fullConversation } = await supabaseClient
       .from("conversations")
       .select(
@@ -242,7 +239,7 @@ Deno.serve(async (req) => {
       }),
       {
         status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...headers, "Content-Type": "application/json" },
       },
     );
   } catch (error) {
@@ -250,7 +247,7 @@ Deno.serve(async (req) => {
     const message = error instanceof Error ? error.message : "Unknown error";
     return new Response(JSON.stringify({ error: `Server error: ${message}` }), {
       status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...corsHeaders(req.headers.get("Origin")), "Content-Type": "application/json" },
     });
   }
 });

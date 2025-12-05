@@ -3,8 +3,11 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 import { corsHeaders } from "../_shared/cors.ts";
 
 serve(async (req) => {
+  const origin = req.headers.get("Origin");
+  const headers = corsHeaders(origin);
+
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { status: 204, headers });
   }
 
   try {
@@ -22,7 +25,6 @@ serve(async (req) => {
       throw new Error('META_APP_ID or META_APP_SECRET not configured');
     }
 
-    // Query tokens expiring in less than 15 days
     const fifteenDaysFromNow = new Date();
     fifteenDaysFromNow.setDate(fifteenDaysFromNow.getDate() + 15);
 
@@ -42,7 +44,7 @@ serve(async (req) => {
       console.log('[TOKEN-REFRESH] No tokens need refreshing');
       return new Response(
         JSON.stringify({ message: 'No tokens need refreshing', refreshed: 0 }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...headers, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -56,7 +58,6 @@ serve(async (req) => {
 
         const oldTokenPreview = connection.access_token?.substring(0, 10) || 'unknown';
 
-        // Call Meta token exchange endpoint
         const tokenUrl = new URL('https://graph.facebook.com/v21.0/oauth/access_token');
         tokenUrl.searchParams.set('grant_type', 'fb_exchange_token');
         tokenUrl.searchParams.set('client_id', metaAppId);
@@ -70,13 +71,11 @@ serve(async (req) => {
           const errorCode = data.error?.code || data.error?.type || 'REFRESH_FAILED';
           console.error(`[TOKEN-REFRESH] Failed to refresh token for ${connection.id}:`, data);
           
-          // Update connection status to error
           await supabaseAdmin
             .from('social_connections')
             .update({ status: 'error' })
             .eq('id', connection.id);
           
-          // Log failure with error code
           await supabaseAdmin.from('token_refresh_logs').insert({
             social_connection_id: connection.id,
             old_token_preview: oldTokenPreview,
@@ -99,18 +98,16 @@ serve(async (req) => {
 
         const newTokenPreview = data.access_token?.substring(0, 10) || 'unknown';
 
-        // Calculate new expiration (60 days from now for long-lived tokens)
         const newExpiresAt = new Date();
         newExpiresAt.setDate(newExpiresAt.getDate() + 60);
 
-        // Update connection with new token
         const { error: updateError } = await supabaseAdmin
           .from('social_connections')
           .update({
             access_token: data.access_token,
             token_expires_at: newExpiresAt.toISOString(),
             last_synced_at: new Date().toISOString(),
-            status: 'connected', // Reset status to connected on successful refresh
+            status: 'connected',
             updated_at: new Date().toISOString()
           })
           .eq('id', connection.id);
@@ -120,13 +117,12 @@ serve(async (req) => {
           throw updateError;
         }
 
-        // Log success
         await supabaseAdmin.from('token_refresh_logs').insert({
           social_connection_id: connection.id,
           old_token_preview: oldTokenPreview,
           new_token_preview: newTokenPreview,
           success: true,
-          response: { expires_in: data.expires_in || 5184000 } // 60 days in seconds
+          response: { expires_in: data.expires_in || 5184000 }
         });
 
         console.log(`[TOKEN-REFRESH] Successfully refreshed token for ${connection.id}`);
@@ -143,13 +139,11 @@ serve(async (req) => {
         const errorCode = 'EXCEPTION_ERROR';
         console.error(`[TOKEN-REFRESH] Error refreshing token for ${connection.id}:`, error);
         
-        // Update connection status to error
         await supabaseAdmin
           .from('social_connections')
           .update({ status: 'error' })
           .eq('id', connection.id);
         
-        // Log failure
         await supabaseAdmin.from('token_refresh_logs').insert({
           social_connection_id: connection.id,
           old_token_preview: connection.access_token?.substring(0, 10) || 'unknown',
@@ -180,7 +174,7 @@ serve(async (req) => {
         failed: results.length - successCount,
         results
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: { ...headers, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
@@ -188,7 +182,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders(req.headers.get("Origin")), 'Content-Type': 'application/json' },
         status: 500
       }
     );

@@ -2,23 +2,6 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 
-/**
- * sync-meta-ads - Fetches campaign & insights data from Meta Marketing API
- * 
- * CRON SCHEDULE: Run daily at 6 AM UTC
- * SELECT cron.schedule(
- *   'sync-meta-ads-daily',
- *   '0 6 * * *',
- *   $$
- *   SELECT net.http_post(
- *     url:='https://dzyhrzdwwuaorruscxcn.supabase.co/functions/v1/sync-meta-ads',
- *     headers:='{"Content-Type": "application/json", "Authorization": "Bearer YOUR_ANON_KEY"}'::jsonb,
- *     body:='{}'::jsonb
- *   ) as request_id;
- *   $$
- * );
- */
-
 const GRAPH_API_VERSION = Deno.env.get("GRAPH_API_VERSION") || "v21.0";
 
 interface AdAccount {
@@ -29,8 +12,11 @@ interface AdAccount {
 }
 
 serve(async (req) => {
+  const origin = req.headers.get("Origin");
+  const headers = corsHeaders(origin);
+
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { status: 204, headers });
   }
 
   try {
@@ -38,7 +24,6 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Parse request body for optional client_id filter
     let clientId: string | null = null;
     try {
       const body = await req.json();
@@ -49,7 +34,6 @@ serve(async (req) => {
 
     console.log("[SYNC-ADS] Starting Meta Ads sync", { clientId });
 
-    // Get all ad accounts (optionally filtered by client)
     let query = supabase
       .from("ad_accounts")
       .select("id, client_id, agency_id, meta_ad_account_id")
@@ -70,7 +54,7 @@ serve(async (req) => {
       console.log("[SYNC-ADS] No ad accounts to sync");
       return new Response(
         JSON.stringify({ success: true, message: "No ad accounts to sync", synced: 0 }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { headers: { ...headers, "Content-Type": "application/json" } }
       );
     }
 
@@ -78,7 +62,6 @@ serve(async (req) => {
 
     for (const account of adAccounts as AdAccount[]) {
       try {
-        // Get the social connection for this client to get the access token
         const { data: connection, error: connError } = await supabase
           .from("social_connections")
           .select("access_token")
@@ -95,7 +78,6 @@ serve(async (req) => {
 
         const accessToken = connection.access_token;
 
-        // Fetch campaigns from Meta Marketing API
         const campaignsUrl = `https://graph.facebook.com/${GRAPH_API_VERSION}/act_${account.meta_ad_account_id}/campaigns?fields=id,name,objective,status,daily_budget,lifetime_budget,start_time,stop_time&access_token=${accessToken}`;
         
         console.log(`[SYNC-ADS] Fetching campaigns for account ${account.meta_ad_account_id}`);
@@ -108,7 +90,6 @@ serve(async (req) => {
           const errorMsg = campaignsData.error.message;
           console.error(`[SYNC-ADS] Meta API error for account ${account.meta_ad_account_id}:`, errorCode, errorMsg);
           
-          // Check for permission errors
           if (errorCode === 10 || errorCode === 200 || errorCode === 190 || 
               errorMsg.includes('permission') || errorMsg.includes('ads_read') || errorMsg.includes('ads_management')) {
             results.push({ 
@@ -126,7 +107,6 @@ serve(async (req) => {
         let campaignsSynced = 0;
 
         for (const campaign of campaigns) {
-          // Upsert campaign
           const { data: upsertedCampaign, error: campaignError } = await supabase
             .from("ad_campaigns")
             .upsert({
@@ -148,7 +128,6 @@ serve(async (req) => {
             continue;
           }
 
-          // Fetch insights for this campaign (last 30 days)
           const today = new Date();
           const thirtyDaysAgo = new Date(today);
           thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -196,14 +175,14 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({ success: true, results, synced: results.filter(r => r.success).length }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { headers: { ...headers, "Content-Type": "application/json" } }
     );
 
   } catch (error) {
     console.error("[SYNC-ADS] Error:", error);
     return new Response(
       JSON.stringify({ error: String(error) }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+      { headers: { ...corsHeaders(req.headers.get("Origin")), "Content-Type": "application/json" }, status: 500 }
     );
   }
 });
