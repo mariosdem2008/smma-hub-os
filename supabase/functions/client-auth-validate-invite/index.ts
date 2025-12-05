@@ -2,15 +2,18 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 
 Deno.serve(async (req) => {
+  const origin = req.headers.get("Origin");
+  const headers = corsHeaders(origin);
+
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { status: 204, headers });
   }
 
   try {
     if (req.method !== "POST") {
       return new Response(
         JSON.stringify({ error: "Method not allowed" }),
-        { status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 405, headers: { ...headers, "Content-Type": "application/json" } }
       );
     }
 
@@ -19,7 +22,7 @@ Deno.serve(async (req) => {
     if (!invite_token) {
       return new Response(
         JSON.stringify({ error: "Missing invite token" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: { ...headers, "Content-Type": "application/json" } }
       );
     }
 
@@ -38,7 +41,7 @@ Deno.serve(async (req) => {
     if (error || !invite) {
       return new Response(
         JSON.stringify({ error: "Invalid invitation token" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: { ...headers, "Content-Type": "application/json" } }
       );
     }
 
@@ -50,7 +53,7 @@ Deno.serve(async (req) => {
           portal_slug: invite.clients.portal_slug,
           message: "This invitation has already been accepted"
         }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 200, headers: { ...headers, "Content-Type": "application/json" } }
       );
     }
 
@@ -58,7 +61,7 @@ Deno.serve(async (req) => {
     if (new Date(invite.expires_at) < new Date()) {
       return new Response(
         JSON.stringify({ error: "Invitation has expired" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: { ...headers, "Content-Type": "application/json" } }
       );
     }
 
@@ -72,13 +75,13 @@ Deno.serve(async (req) => {
         client_name: invite.clients.name,
         portal_slug: invite.clients.portal_slug,
       }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 200, headers: { ...headers, "Content-Type": "application/json" } }
     );
   } catch (err) {
     console.error("Validate invite error:", err);
     return new Response(
       JSON.stringify({ error: "Internal server error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: { ...headers, "Content-Type": "application/json" } }
     );
   }
 });

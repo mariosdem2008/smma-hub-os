@@ -3,8 +3,11 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 import { corsHeaders } from "../_shared/cors.ts";
 
 serve(async (req) => {
+  const origin = req.headers.get("Origin");
+  const headers = corsHeaders(origin);
+
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { status: 204, headers });
   }
 
   try {
@@ -17,12 +20,11 @@ serve(async (req) => {
     console.log('[OAUTH-CALLBACK] state:', state);
     console.log('[OAUTH-CALLBACK] error:', error);
 
-    // Handle OAuth errors
     if (error) {
       console.error('[OAUTH-CALLBACK] OAuth error:', error);
       return new Response(
         `<html><body><script>alert('OAuth error: ${error}'); window.close();</script></body></html>`,
-        { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
+        { headers: { ...headers, 'Content-Type': 'text/html' } }
       );
     }
 
@@ -30,16 +32,14 @@ serve(async (req) => {
       console.error('[OAUTH-CALLBACK] Missing code or state');
       return new Response(
         '<html><body><script>alert("Missing authorization code or state"); window.close();</script></body></html>',
-        { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
+        { headers: { ...headers, 'Content-Type': 'text/html' } }
       );
     }
 
-    // Decode state
     const decodedState = JSON.parse(atob(state));
     const { platform, clientId, userId, source = 'agency' } = decodedState;
     console.log('[OAUTH-CALLBACK] STATE:', decodedState);
 
-    // Validate environment variables
     const META_APP_ID = Deno.env.get('META_APP_ID');
     const META_APP_SECRET = Deno.env.get('META_APP_SECRET');
     const META_REDIRECT_URI = Deno.env.get('META_REDIRECT_URI');
@@ -55,10 +55,8 @@ serve(async (req) => {
 
     console.log('[OAUTH-CALLBACK] Environment variables validated');
 
-    // Create admin client with service role
     const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Exchange code for tokens
     const tokens = await exchangeCodeForToken(code, META_APP_ID, META_APP_SECRET, META_REDIRECT_URI, GRAPH_API_VERSION);
     console.log('[OAUTH-CALLBACK] TOKEN EXCHANGE RESPONSE:', tokens ? 'success' : 'failed');
 
@@ -66,7 +64,6 @@ serve(async (req) => {
       throw new Error('Failed to exchange code for token');
     }
 
-    // Fetch account info (returns both Facebook page and Instagram account if available)
     const accountInfo = await fetchAccountInfo(tokens.access_token, GRAPH_API_VERSION);
     console.log('[OAUTH-CALLBACK] ACCOUNT INFO:', accountInfo);
 
@@ -76,13 +73,12 @@ serve(async (req) => {
 
     const connectionsToSave = [];
 
-    // SAVE FACEBOOK CONNECTION
     const fbConnection = {
       client_id: clientId,
       platform: 'facebook',
       account_name: accountInfo.facebook.name,
       account_handle: accountInfo.facebook.name,
-      account_id: accountInfo.facebook.id, // Facebook Page ID
+      account_id: accountInfo.facebook.id,
       access_token: accountInfo.facebook.access_token,
       refresh_token: tokens.refresh_token || null,
       status: 'connected',
@@ -93,15 +89,14 @@ serve(async (req) => {
     connectionsToSave.push(fbConnection);
     console.log('[OAUTH-CALLBACK] FB CONNECTION TO SAVE:', fbConnection);
 
-    // SAVE INSTAGRAM CONNECTION (only if IG account exists)
     if (accountInfo.instagram) {
       const igConnection = {
         client_id: clientId,
         platform: 'instagram',
         account_name: accountInfo.instagram.name,
         account_handle: accountInfo.instagram.handle,
-        account_id: accountInfo.instagram.id, // Instagram Business Account ID
-        access_token: tokens.access_token, // Use long-lived token from OAuth
+        account_id: accountInfo.instagram.id,
+        access_token: tokens.access_token,
         refresh_token: tokens.refresh_token || null,
         status: 'connected',
         token_expires_at: tokens.expires_at,
@@ -114,7 +109,6 @@ serve(async (req) => {
       console.log('[OAUTH-CALLBACK] No Instagram Business Account found, skipping IG connection');
     }
 
-    // Upsert all connections to database using admin client with explicit onConflict
     for (const connection of connectionsToSave) {
       const { data: upsertResult, error: upsertError } = await admin
         .from('social_connections')
@@ -131,9 +125,7 @@ serve(async (req) => {
 
     console.log('[OAUTH-CALLBACK] All connections saved successfully');
 
-    // Handle redirect based on source
     if (source === 'client') {
-      // Client portal redirect - show success screen
       return new Response(
         `<html>
           <body style="font-family: system-ui; padding: 40px; text-align: center; background: #f9fafb;">
@@ -149,10 +141,9 @@ serve(async (req) => {
             </div>
           </body>
         </html>`,
-        { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
+        { headers: { ...headers, 'Content-Type': 'text/html' } }
       );
     } else {
-      // Agency side - just close popup
       return new Response(
         `<html>
           <body>
@@ -163,7 +154,7 @@ serve(async (req) => {
             <p>Connection successful! This window will close automatically.</p>
           </body>
         </html>`,
-        { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
+        { headers: { ...headers, 'Content-Type': 'text/html' } }
       );
     }
 
@@ -172,7 +163,7 @@ serve(async (req) => {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     return new Response(
       `<html><body><script>alert('Error: ${errorMessage}'); window.close();</script></body></html>`,
-      { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
+      { headers: { ...corsHeaders(req.headers.get("Origin")), 'Content-Type': 'text/html' } }
     );
   }
 });
@@ -187,7 +178,6 @@ async function exchangeCodeForToken(
   try {
     console.log('[TOKEN-EXCHANGE] Starting token exchange');
     
-    // Exchange code for short-lived token
     const tokenUrl = `https://graph.facebook.com/${graphApiVersion}/oauth/access_token?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&client_secret=${appSecret}&code=${code}`;
     
     const tokenResponse = await fetch(tokenUrl);
@@ -200,7 +190,6 @@ async function exchangeCodeForToken(
       return null;
     }
 
-    // Exchange short-lived for long-lived token
     const longLivedUrl = `https://graph.facebook.com/${graphApiVersion}/oauth/access_token?grant_type=fb_exchange_token&client_id=${appId}&client_secret=${appSecret}&fb_exchange_token=${tokenData.access_token}`;
     
     const longLivedResponse = await fetch(longLivedUrl);
@@ -213,7 +202,6 @@ async function exchangeCodeForToken(
       return null;
     }
 
-    // Debug: Log token permissions by calling /me/permissions
     try {
       const permissionsUrl = `https://graph.facebook.com/${graphApiVersion}/me/permissions?access_token=${longLivedData.access_token}`;
       const permissionsResponse = await fetch(permissionsUrl);
@@ -232,7 +220,6 @@ async function exchangeCodeForToken(
         console.log('[TOKEN-EXCHANGE] ⚠️ DECLINED/MISSING SCOPES:', declinedScopes.join(', '));
       }
       
-      // Check for critical scopes
       const criticalScopes = ['instagram_manage_insights', 'read_insights', 'ads_read'];
       const missingCritical = criticalScopes.filter(s => !grantedScopes.includes(s));
       if (missingCritical.length > 0) {
@@ -242,8 +229,7 @@ async function exchangeCodeForToken(
       console.error('[TOKEN-EXCHANGE] Error fetching permissions (non-fatal):', permError);
     }
 
-    // Calculate expiration (60 days for long-lived tokens)
-    const expiresIn = longLivedData.expires_in || 5184000; // 60 days default
+    const expiresIn = longLivedData.expires_in || 5184000;
     const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
     
     console.log('[TOKEN-EXCHANGE] Token expires at:', expiresAt);
@@ -268,12 +254,10 @@ async function fetchAccountInfo(
   try {
     console.log('[FETCH-ACCOUNT] Fetching Facebook pages');
     
-    // Fetch Facebook pages
     const pagesUrl = `https://graph.facebook.com/${graphApiVersion}/me/accounts?access_token=${accessToken}`;
     const pagesResponse = await fetch(pagesUrl);
     const pagesData = await pagesResponse.json();
     
-    // Debug: Log full response from /me/accounts
     console.log('[FETCH-ACCOUNT] FULL PAGES RESPONSE:', JSON.stringify(pagesData, null, 2));
     console.log('[FETCH-ACCOUNT] Number of pages found:', pagesData.data?.length || 0);
 
@@ -282,28 +266,24 @@ async function fetchAccountInfo(
       throw new Error('No Facebook Pages found. Please ensure you have granted all required permissions.');
     }
 
-    // Use the first page for Facebook connection
     const firstPage = pagesData.data[0];
     console.log(`[FETCH-ACCOUNT] Using Facebook Page: "${firstPage.name}" (ID: ${firstPage.id})`);
 
     const facebookInfo = {
-      id: firstPage.id, // Facebook Page ID
+      id: firstPage.id,
       name: firstPage.name,
       access_token: firstPage.access_token
     };
 
-    // Loop through all pages and check for Instagram Business Account
     let instagramInfo: { id: string; name: string; handle: string } | null = null;
 
     for (const page of pagesData.data) {
       console.log(`[FETCH-ACCOUNT] Checking page "${page.name}" for Instagram connection`);
       
-      // Check if this page has a connected Instagram account
       const igAccountUrl = `https://graph.facebook.com/${graphApiVersion}/${page.id}?fields=connected_instagram_account&access_token=${page.access_token}`;
       const igAccountResponse = await fetch(igAccountUrl);
       const igAccountData = await igAccountResponse.json();
       
-      // Debug: Log whether this page has connected_instagram_account
       const hasIgAccount = !!igAccountData.connected_instagram_account;
       console.log(`[FETCH-ACCOUNT] Page "${page.name}" has connected Instagram Account: ${hasIgAccount}`);
       
@@ -314,7 +294,6 @@ async function fetchAccountInfo(
       if (igAccountData.connected_instagram_account?.id) {
         const igBusinessId = igAccountData.connected_instagram_account.id;
         
-        // Fetch Instagram Business Account details
         const igDetailsUrl = `https://graph.facebook.com/${graphApiVersion}/${igBusinessId}?fields=name,username&access_token=${page.access_token}`;
         const igDetailsResponse = await fetch(igDetailsUrl);
         const igDetails = await igDetailsResponse.json();
@@ -325,12 +304,12 @@ async function fetchAccountInfo(
         console.log('[FETCH-ACCOUNT] - IG Username:', igDetails.username);
 
         instagramInfo = {
-          id: igBusinessId, // Instagram Business Account ID
+          id: igBusinessId,
           name: igDetails.name || page.name,
           handle: igDetails.username || ''
         };
         
-        break; // Found it, stop searching
+        break;
       }
     }
 
@@ -346,6 +325,6 @@ async function fetchAccountInfo(
 
   } catch (error) {
     console.error('[FETCH-ACCOUNT] Error:', error);
-    throw error; // Re-throw to be caught by main handler
+    throw error;
   }
 }

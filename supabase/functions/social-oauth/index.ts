@@ -4,30 +4,30 @@ import { corsHeaders } from "../_shared/cors.ts";
 interface OAuthRequest {
   platform: string;
   clientId: string;
-  source?: string; // 'agency' or 'client'
+  source?: string;
 }
 
 serve(async (req) => {
+  const origin = req.headers.get("Origin");
+  const headers = corsHeaders(origin);
+
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { status: 204, headers });
   }
 
   try {
-    // Read JSON body
     const { platform, clientId, source = 'agency' } = await req.json() as OAuthRequest;
     
     console.log('[OAUTH] social-oauth called with:', { platform, clientId });
 
-    // Validate required fields
     if (!platform || !clientId) {
       console.error('[OAUTH] Missing platform or clientId');
       return new Response(
         JSON.stringify({ error: 'Missing platform or clientId' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        { headers: { ...headers, 'Content-Type': 'application/json' }, status: 400 }
       );
     }
 
-    // Read environment variables
     const META_APP_ID = Deno.env.get('META_APP_ID');
     const META_REDIRECT_URI = Deno.env.get('META_REDIRECT_URI');
     const GRAPH_API_VERSION = Deno.env.get('GRAPH_API_VERSION') || 'v21.0';
@@ -36,7 +36,7 @@ serve(async (req) => {
       console.error('[OAUTH] Missing META_APP_ID');
       return new Response(
         JSON.stringify({ error: 'Missing META_APP_ID environment variable' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        { headers: { ...headers, 'Content-Type': 'application/json' }, status: 500 }
       );
     }
     
@@ -44,16 +44,14 @@ serve(async (req) => {
       console.error('[OAUTH] Missing META_REDIRECT_URI');
       return new Response(
         JSON.stringify({ error: 'Missing META_REDIRECT_URI environment variable' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        { headers: { ...headers, 'Content-Type': 'application/json' }, status: 500 }
       );
     }
 
-    // Build state payload
     const statePayload = { clientId, platform, source };
     const state = btoa(JSON.stringify(statePayload));
     console.log('[OAUTH] STATE:', state);
 
-    // Build Facebook OAuth URL with ALL required scopes for analytics & ads
     const scopes = [
       'instagram_basic',
       'instagram_content_publish',
@@ -82,7 +80,7 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({ url }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      { headers: { ...headers, 'Content-Type': 'application/json' }, status: 200 }
     );
 
   } catch (error) {
@@ -91,7 +89,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ error: errorMessage }),
       { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders(req.headers.get("Origin")), 'Content-Type': 'application/json' },
         status: 500 
       }
     );
