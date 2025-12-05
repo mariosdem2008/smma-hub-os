@@ -1,37 +1,91 @@
-// In Auth.tsx - This is causing the redirect!
-useEffect(() => {
-  const clearStaleSession = async () => {
-    // If there's a user but we're on the auth page, verify they exist
-    if (user && !loading) {
-      try {
-        // Try to fetch the user's agency to verify they exist
-        const { data, error } = await supabase.from("agencies").select("id").eq("user_id", user.id).maybeSingle();
+import { createContext, useContext, useEffect, useState } from "react";
+import { User, Session } from "@supabase/supabase-js";
+import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 
-        // Also check if they're a team member
-        const { data: memberData } = await supabase
-          .from("agency_members")
-          .select("id")
-          .eq("user_id", user.id)
-          .maybeSingle();
+interface AuthContextType {
+  user: User | null;
+  session: Session | null;
+  loading: boolean;
+  signUp: (email: string, password: string, fullName: string) => Promise<{ error: any }>;
+  signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signOut: () => Promise<void>;
+}
 
-        // If user exists in database, redirect to dashboard
-        if ((data || memberData) && !error) {
-          navigate("/dashboard");
-        } else {
-          // User was deleted from database but session exists - clear it
-          await supabase.auth.signOut();
-          toast({
-            title: "Session expired",
-            description: "Please sign in again",
-            variant: "destructive",
-          });
-        }
-      } catch (err) {
-        // On error, clear the session
-        await supabase.auth.signOut();
-      }
-    }
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    // Set up auth state listener
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const signUp = async (email: string, password: string, fullName: string) => {
+    const redirectUrl = `${window.location.origin}/onboarding`;
+
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: redirectUrl,
+        data: {
+          full_name: fullName,
+        },
+      },
+    });
+
+    return { error };
   };
 
-  clearStaleSession();
-}, [user, loading, navigate, toast]); // ← This runs EVERY TIME user or loading changes!
+  const signIn = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (!error && window.location.pathname !== "/dashboard") {
+      navigate("/dashboard");
+    }
+
+    return { error };
+  };
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    navigate("/auth");
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signOut }}>{children}</AuthContext.Provider>
+  );
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
+}
