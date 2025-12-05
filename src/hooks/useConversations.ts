@@ -8,42 +8,51 @@ export const useConversations = () => {
   return useQuery({
     queryKey: ["conversations"],
     queryFn: async () => {
+      console.log("Fetching conversations...");
+
       // Check if client portal user
       const clientToken = typeof window !== "undefined" ? localStorage.getItem("client_auth_token") : null;
 
-      if (clientUser && isAuthenticated) {
-        // Use direct fetch with client portal token - IMPORTANT: Don't send apikey header
-        // when using credentials: "include" - it causes CORS issues
-        const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/list-conversations`, {
+      if (clientUser && isAuthenticated && clientToken) {
+        console.log("Using client portal authentication");
+
+        // For client portal users - use JWT token
+        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/list-conversations`, {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${clientToken}`,
           },
-          credentials: "include", // This will send cookies with the request
+          credentials: "include",
         });
 
+        console.log("Client portal response status:", response.status);
+
         if (!response.ok) {
-          const error = await response.json().catch(() => ({}));
-          throw new Error(error.error || "Failed to fetch conversations");
+          const errorText = await response.text();
+          console.error("Client portal fetch error:", errorText);
+          throw new Error("Failed to fetch conversations");
         }
 
         const data = await response.json();
-        return data.conversations;
+        console.log("Client portal conversations:", data.conversations?.length || 0);
+        return data.conversations || [];
       } else {
-        // For Supabase auth users, we need to use a different approach
-        // because supabase.functions.invoke() automatically adds apikey header
+        // For Supabase auth users
+        console.log("Using Supabase authentication");
 
-        // Get the current session
         const {
           data: { session },
         } = await supabase.auth.getSession();
 
         if (!session) {
+          console.log("No Supabase session found");
           throw new Error("No active session");
         }
 
-        // Make a direct fetch with the auth token, but without apikey
-        const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/list-conversations`, {
+        console.log("Supabase session found, calling Edge Function...");
+
+        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/list-conversations`, {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
@@ -51,15 +60,22 @@ export const useConversations = () => {
           },
         });
 
+        console.log("Supabase auth response status:", response.status);
+
         if (!response.ok) {
-          const error = await response.json().catch(() => ({}));
-          throw new Error(error.error || "Failed to fetch conversations");
+          const errorText = await response.text();
+          console.error("Supabase fetch error:", errorText);
+          throw new Error("Failed to fetch conversations");
         }
 
         const data = await response.json();
-        return data.conversations;
+        console.log("Supabase conversations:", data.conversations?.length || 0);
+        return data.conversations || [];
       }
     },
     enabled: true,
+    retry: 2,
+    refetchOnWindowFocus: false,
+    staleTime: 1000 * 60, // 1 minute
   });
 };
