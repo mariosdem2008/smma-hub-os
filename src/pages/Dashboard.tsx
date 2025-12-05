@@ -303,27 +303,41 @@ export default function Dashboard() {
       });
 
       // Fetch team members for task assignment
-      const { data: teamMembersData } = await supabase
-        .from("agency_members")
-        .select(
-          `
-          user_id,
-          role,
-          profiles:user_id (
-            full_name,
-            email
-          )
-        `,
-        )
-        .eq("agency_id", agencyId);
-
-      setTeamMembers(teamMembersData || []);
-    } catch (error) {
-      console.error("Error fetching dashboard data:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+      const fetchTeamMembers = async (agencyId: string) => {
+        try {
+          // First get agency members
+          const { data: members, error: membersError } = await supabase
+            .from("agency_members")
+            .select("user_id, role")
+            .eq("agency_id", agencyId);
+      
+          if (membersError) throw membersError;
+          
+          if (!members || members.length === 0) {
+            return [];
+          }
+      
+          // Get user IDs
+          const userIds = members.map(m => m.user_id);
+          
+          // Then get profiles
+          const { data: profiles, error: profilesError } = await supabase
+            .from("profiles")
+            .select("id, full_name, email")
+            .in("id", userIds);
+      
+          if (profilesError) throw profilesError;
+      
+          // Combine the data
+          return members.map(member => ({
+            ...member,
+            profiles: profiles?.find(p => p.id === member.user_id) || null
+          }));
+        } catch (error) {
+          console.error("Error fetching team members:", error);
+          return [];
+        }
+      };
 
   const getPriorityBadgeVariant = (priority: string | null) => {
     switch (priority) {
