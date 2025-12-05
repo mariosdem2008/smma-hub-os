@@ -88,12 +88,6 @@ export default function ClientDetail() {
   const [activeTab, setActiveTab] = useState("overview");
   const [agencyId, setAgencyId] = useState<string>("");
 
-  // Add this useEffect to debug navigation
-  useEffect(() => {
-    console.log("ClientDetail mounted with clientId:", clientId);
-    console.log("Current searchParams:", Object.fromEntries(searchParams.entries()));
-  }, [clientId, searchParams]);
-
   // Pull-to-refresh for mobile
   const { isRefreshing, pullDistance } = usePullToRefresh({
     onRefresh: async () => {
@@ -143,7 +137,7 @@ export default function ClientDetail() {
   // Handle URL-based tab navigation
   useEffect(() => {
     const tab = searchParams.get("tab");
-    if (tab && tabs.some((t) => t.id === tab)) {
+    if (tab) {
       setActiveTab(tab);
     }
   }, [searchParams]);
@@ -159,10 +153,8 @@ export default function ClientDetail() {
   };
 
   const handleTabChange = (tabId: string) => {
-    console.log("Tab changed to:", tabId);
     setActiveTab(tabId);
-    // Use replace to avoid adding to history stack
-    setSearchParams({ tab: tabId }, { replace: true });
+    setSearchParams({ tab: tabId });
     hapticSelection();
   };
 
@@ -258,12 +250,7 @@ export default function ClientDetail() {
               return (
                 <button
                   key={tab.id}
-                  onClick={(e) => {
-                    e.preventDefault(); // Prevent any default behavior
-                    e.stopPropagation(); // Stop event bubbling
-                    handleTabChange(tab.id);
-                  }}
-                  type="button" // Explicitly set type to button
+                  onClick={() => handleTabChange(tab.id)}
                   className={cn(
                     "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-left",
                     activeTab === tab.id
@@ -289,12 +276,7 @@ export default function ClientDetail() {
               return (
                 <button
                   key={tab.id}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleTabChange(tab.id);
-                  }}
-                  type="button"
+                  onClick={() => handleTabChange(tab.id)}
                   className={cn(
                     "flex flex-col items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium transition-colors flex-shrink-0 min-w-[60px]",
                     activeTab === tab.id ? "bg-primary text-primary-foreground" : "text-muted-foreground",
