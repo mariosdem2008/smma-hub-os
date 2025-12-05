@@ -5,7 +5,7 @@ import { useClientAuth } from "@/lib/client-auth";
 
 export const useMessages = (conversationId: string | undefined) => {
   const queryClient = useQueryClient();
-  const { clientUser } = useClientAuth();
+  const { clientUser, isAuthenticated } = useClientAuth();
 
   // Subscribe to realtime updates for this conversation
   useEffect(() => {
@@ -38,7 +38,7 @@ export const useMessages = (conversationId: string | undefined) => {
       if (!conversationId) return [];
 
       // Client portal user: use direct fetch with HttpOnly cookies
-      if (clientUser) {
+      if (clientUser && isAuthenticated) {
         const response = await fetch(
           `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/list-messages?conversation_id=${conversationId}`,
           {
@@ -46,7 +46,7 @@ export const useMessages = (conversationId: string | undefined) => {
             headers: {
               "Content-Type": "application/json",
             },
-            credentials: "include", // Cookies will be sent automatically
+            credentials: "include",
           },
         );
 
@@ -59,7 +59,7 @@ export const useMessages = (conversationId: string | undefined) => {
         return data.messages;
       }
 
-      // Agency members: get session and use direct fetch to avoid apikey header issue
+      // Agency members: get session and use direct fetch
       const {
         data: { session },
       } = await supabase.auth.getSession();
