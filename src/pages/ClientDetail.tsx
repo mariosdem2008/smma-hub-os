@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,7 +21,6 @@ import LibraryTab from "@/components/client-tabs/LibraryTab";
 import TasksTab from "@/components/client-tabs/TasksTab";
 import ReportsTab from "@/components/client-tabs/ReportsTab";
 import AdsTab from "@/components/client-tabs/AdsTab";
-import { useEffect } from "react";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
@@ -78,7 +77,7 @@ const tabs = [
 ];
 
 export default function ClientDetail() {
-  const { clientId } = useParams();
+  const { clientId: rawClientId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
   const isMobile = useIsMobile();
@@ -87,6 +86,9 @@ export default function ClientDetail() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
   const [agencyId, setAgencyId] = useState<string>("");
+
+  // FIX: Clean the client ID by removing query parameters
+  const clientId = rawClientId?.split("?")[0] || "";
 
   // Pull-to-refresh for mobile
   const { isRefreshing, pullDistance } = usePullToRefresh({
@@ -114,7 +116,7 @@ export default function ClientDetail() {
       setAgencyId(data.agency_id);
     }
 
-    // Fetch branding data
+    // Fetch branding data with clean client ID
     const { data: brandingData } = await supabase
       .from("client_branding")
       .select("primary_color")
@@ -137,13 +139,15 @@ export default function ClientDetail() {
   // Handle URL-based tab navigation
   useEffect(() => {
     const tab = searchParams.get("tab");
-    if (tab) {
+    if (tab && tabs.some((t) => t.id === tab)) {
       setActiveTab(tab);
     }
   }, [searchParams]);
 
   useEffect(() => {
-    fetchClient();
+    if (clientId) {
+      fetchClient();
+    }
   }, [clientId]);
 
   const handleNotesUpdate = (notes: string) => {
@@ -181,33 +185,33 @@ export default function ClientDetail() {
   const renderTabContent = () => {
     switch (activeTab) {
       case "overview":
-        return <OverviewTab clientId={clientId!} client={client} onNotesUpdate={handleNotesUpdate} />;
+        return <OverviewTab clientId={clientId} client={client} onNotesUpdate={handleNotesUpdate} />;
       case "analytics":
-        return <AnalyticsTab clientId={clientId!} />;
+        return <AnalyticsTab clientId={clientId} />;
       case "ads":
-        return <AdsTab clientId={clientId!} agencyId={agencyId} />;
+        return <AdsTab clientId={clientId} agencyId={agencyId} />;
       case "reports":
-        return <ReportsTab clientId={clientId!} agencyId={agencyId} />;
+        return <ReportsTab clientId={clientId} agencyId={agencyId} />;
       case "brand":
-        return <BrandIdentityTab clientId={clientId!} clientName={client.name} />;
+        return <BrandIdentityTab clientId={clientId} clientName={client.name} />;
       case "social":
-        return <SocialProfilesTab clientId={clientId!} />;
+        return <SocialProfilesTab clientId={clientId} />;
       case "planning":
-        return <ContentPlanningTab clientId={clientId!} />;
+        return <ContentPlanningTab clientId={clientId} />;
       case "pipeline":
-        return <PipelineTab clientId={clientId!} agencyId={agencyId} />;
+        return <PipelineTab clientId={clientId} agencyId={agencyId} />;
       case "calendar":
-        return <CalendarTab clientId={clientId!} />;
+        return <CalendarTab clientId={clientId} />;
       case "library":
-        return <LibraryTab clientId={clientId!} agencyId={agencyId} />;
+        return <LibraryTab clientId={clientId} agencyId={agencyId} />;
       case "uploads":
-        return <ClientUploadsTab clientId={clientId!} agencyId={agencyId} />;
+        return <ClientUploadsTab clientId={clientId} agencyId={agencyId} />;
       case "tasks":
-        return <TasksTab clientId={clientId!} agencyId={agencyId} />;
+        return <TasksTab clientId={clientId} agencyId={agencyId} />;
       case "portal":
-        return <ClientPortalTab clientId={clientId!} />;
+        return <ClientPortalTab clientId={clientId} />;
       default:
-        return <OverviewTab clientId={clientId!} client={client} onNotesUpdate={handleNotesUpdate} />;
+        return <OverviewTab clientId={clientId} client={client} onNotesUpdate={handleNotesUpdate} />;
     }
   };
 
@@ -235,7 +239,7 @@ export default function ClientDetail() {
         <aside className="w-56 border-r bg-muted/30 flex-shrink-0">
           <div className="p-4 border-b">
             <ClientHeader
-              clientId={clientId!}
+              clientId={clientId}
               name={client.name}
               logoUrl={client.logo_url}
               niche={client.niche}
@@ -297,7 +301,7 @@ export default function ClientDetail() {
         {isMobile && (
           <div className="mb-4">
             <ClientHeader
-              clientId={clientId!}
+              clientId={clientId}
               name={client.name}
               logoUrl={client.logo_url}
               niche={client.niche}
