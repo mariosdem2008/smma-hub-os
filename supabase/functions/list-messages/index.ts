@@ -24,9 +24,6 @@ function corsHeaders(request: Request): Record<string, string> {
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-// Cache for conversation validation (5 minute TTL)
-const conversationCache = new Map<string, { id: string; timestamp: number }>();
-
 Deno.serve(async (req) => {
   // Handle OPTIONS request first
   if (req.method === "OPTIONS") {
@@ -49,8 +46,6 @@ Deno.serve(async (req) => {
   try {
     const url = new URL(req.url);
     const conversationId = url.searchParams.get("conversation_id");
-    const limit = parseInt(url.searchParams.get("limit") || "100");
-    const before = url.searchParams.get("before");
 
     if (!conversationId) {
       return new Response(JSON.stringify({ error: "conversation_id is required" }), {
@@ -60,7 +55,7 @@ Deno.serve(async (req) => {
     }
 
     // Check if this is a temporary ID from optimistic update
-    if (conversationId.startsWith("temp-") || conversationId.startsWith("optimistic-")) {
+    if (conversationId.startsWith("temp-")) {
       console.log(`Temporary conversation ID detected: ${conversationId}`);
       return new Response(JSON.stringify({ messages: [] }), {
         status: 200,
@@ -70,43 +65,26 @@ Deno.serve(async (req) => {
 
     const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Check cache first for conversation validation
-    const cachedConversation = conversationCache.get(conversationId);
-    const now = Date.now();
+    // First, verify the conversation exists and user has access
+    const { data: conversation, error: convError } = await supabaseClient
+      .from("conversations")
+      .select("id")
+      .eq("id", conversationId)
+      .single();
 
-    if (cachedConversation && now - cachedConversation.timestamp < 5 * 60 * 1000) {
-      console.log(`Using cached conversation validation for: ${conversationId}`);
-    } else {
-      // Verify the conversation exists
-      const { data: conversation, error: convError } = await supabaseClient
-        .from("conversations")
-        .select("id")
-        .eq("id", conversationId)
-        .single();
-
-      if (convError || !conversation) {
-        return new Response(JSON.stringify({ error: "Conversation not found" }), {
-          status: 404,
-          headers: { ...corsHeaders(req), "Content-Type": "application/json" },
-        });
-      }
-
-      // Cache the conversation validation
-      conversationCache.set(conversationId, { id: conversation.id, timestamp: now });
+    if (convError || !conversation) {
+      return new Response(JSON.stringify({ error: "Conversation not found" }), {
+        status: 404,
+        headers: { ...corsHeaders(req), "Content-Type": "application/json" },
+      });
     }
 
-    // Build query for messages
-    let query = supabaseClient
+    // Fetch messages for the conversation
+    const { data: messages, error: messagesError } = await supabaseClient
       .from("messages")
       .select(
         `
-        id,
-        body,
-        created_at,
-        sender_type,
-        agency_member_id,
-        client_user_id,
-        conversation_id,
+        *,
         agency_member:agency_member_id(
           id,
           user:user_id(
@@ -123,15 +101,7 @@ Deno.serve(async (req) => {
       `,
       )
       .eq("conversation_id", conversationId)
-      .order("created_at", { ascending: false })
-      .limit(Math.min(limit, 200)); // Cap at 200 messages max
-
-    // Add cursor-based pagination if before timestamp provided
-    if (before) {
-      query = query.lt("created_at", before);
-    }
-
-    const { data: messages, error: messagesError } = await query;
+      .order("created_at", { ascending: true });
 
     if (messagesError) {
       console.error("Error fetching messages:", messagesError);
@@ -141,13 +111,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Sort by created_at ascending for display
-    const sortedMessages = (messages || []).sort(
-      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
-    );
-
     // Transform the response to a cleaner format
-    const formattedMessages = sortedMessages.map((msg) => ({
+    const formattedMessages = (messages || []).map((msg) => ({
       id: msg.id,
       body: msg.body,
       created_at: msg.created_at,
@@ -175,24 +140,10 @@ Deno.serve(async (req) => {
             : null,
     }));
 
-    // Get the timestamp of the oldest message for pagination
-    const oldestMessageTime = sortedMessages.length > 0 ? sortedMessages[0].created_at : null;
-
-    return new Response(
-      JSON.stringify({
-        messages: formattedMessages,
-        has_more: messages?.length === limit,
-        next_cursor: oldestMessageTime,
-      }),
-      {
-        status: 200,
-        headers: {
-          ...corsHeaders(req),
-          "Content-Type": "application/json",
-          "Cache-Control": "private, max-age=10", // Cache for 10 seconds
-        },
-      },
-    );
+    return new Response(JSON.stringify({ messages: formattedMessages }), {
+      status: 200,
+      headers: { ...corsHeaders(req), "Content-Type": "application/json" },
+    });
   } catch (error) {
     console.error("Error in list-messages:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
