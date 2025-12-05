@@ -30,13 +30,36 @@ export const useConversations = () => {
         const data = await response.json();
         return data.conversations;
       } else {
-        // Use Supabase auth for agency members
-        const { data, error } = await supabase.functions.invoke("list-conversations");
+        // For Supabase auth users, we need to use a different approach
+        // because supabase.functions.invoke() automatically adds apikey header
 
-        if (error) throw error;
+        // Get the current session
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (!session) {
+          throw new Error("No active session");
+        }
+
+        // Make a direct fetch with the auth token, but without apikey
+        const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/list-conversations`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        });
+
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({}));
+          throw new Error(error.error || "Failed to fetch conversations");
+        }
+
+        const data = await response.json();
         return data.conversations;
       }
     },
-    enabled: isAuthenticated || true, // Adjust this based on your auth logic
+    enabled: true,
   });
 };
