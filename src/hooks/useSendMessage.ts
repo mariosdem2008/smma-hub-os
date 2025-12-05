@@ -5,8 +5,8 @@ import { toast } from "sonner";
 interface SendMessagePayload {
   conversation_id: string;
   sender_type: "agency_member" | "client_user";
-  sender_id?: string; // Include sender ID for optimistic updates
-  text?: string;
+  sender_id: string;
+  text: string;
   attachment_url?: string;
   related_project_id?: string;
 }
@@ -16,27 +16,6 @@ export const useSendMessage = () => {
 
   return useMutation({
     mutationFn: async (payload: SendMessagePayload) => {
-      if (payload.sender_type === "client_user") {
-        // Client portal user: use direct fetch with HttpOnly cookies
-        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-message`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            // REMOVED: apikey header - cookies are sent automatically with credentials: 'include'
-          },
-          credentials: "include",
-          body: JSON.stringify(payload),
-        });
-
-        if (!response.ok) {
-          const error = await response.json().catch(() => ({}));
-          throw new Error(error.error || "Failed to send message");
-        }
-
-        return response.json();
-      }
-
-      // Agency members: get session and use direct fetch to avoid apikey header issue
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -45,7 +24,9 @@ export const useSendMessage = () => {
         throw new Error("No active session");
       }
 
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-message`, {
+      const url = import.meta.env.VITE_SUPABASE_URL;
+
+      const response = await fetch(`${url}/functions/v1/send-message`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -65,39 +46,42 @@ export const useSendMessage = () => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ["messages", variables.conversation_id] });
 
-      // Snapshot the previous value
-      const previousMessages = queryClient.getQueryData(["messages", variables.conversation_id]);
+      // Create optimistic message
+      const optimisticMessage = {
+        id: `temp-${Date.now()}`,
+        body: variables.text,
+        created_at: new Date().toISOString(),
+        sender_type: variables.sender_type,
+        sender_agency_member_id: variables.sender_type === "agency_member" ? variables.sender_id : null,
+        sender_client_user_id: variables.sender_type === "client_user" ? variables.sender_id : null,
+        conversation_id: variables.conversation_id,
+        _optimistic: true,
+        sender: null,
+      };
 
-      // Optimistically add the new message with proper styling hint
-      queryClient.setQueryData(["messages", variables.conversation_id], (old: any[] | undefined) => {
-        const optimisticMessage = {
-          id: `temp-${Date.now()}`,
-          body: variables.text,
-          sender_type: variables.sender_type,
-          // Include sender IDs for proper isOwnMessage detection
-          sender_agency_member_id: variables.sender_type === "agency_member" ? variables.sender_id : null,
-          sender_client_user_id: variables.sender_type === "client_user" ? variables.sender_id : null,
-          created_at: new Date().toISOString(),
-          attachment_url: variables.attachment_url,
-          related_project_id: variables.related_project_id,
-          _optimistic: true,
-        };
-        return [...(old || []), optimisticMessage];
+      // Optimistically update messages
+      queryClient.setQueryData(["messages", variables.conversation_id], (old: any[] = []) => {
+        return [...old, optimisticMessage];
       });
 
-      return { previousMessages };
+      return { optimisticMessage };
     },
-    onError: (error: Error, variables, context) => {
-      // Rollback on error
-      if (context?.previousMessages) {
-        queryClient.setQueryData(["messages", variables.conversation_id], context.previousMessages);
-      }
-      toast.error("Failed to send message: " + error.message);
-    },
-    onSettled: (_, __, variables) => {
-      // Always refetch to ensure consistency
-      queryClient.invalidateQueries({ queryKey: ["messages", variables.conversation_id] });
+    onSuccess: (data, variables, context) => {
+      // Replace optimistic message with real one
+      queryClient.setQueryData(["messages", variables.conversation_id], (old: any[] = []) => {
+        return old.map((msg) => (msg.id === context?.optimisticMessage.id ? data.message : msg));
+      });
+
+      // Invalidate conversations list to update latest message
       queryClient.invalidateQueries({ queryKey: ["conversations"] });
+    },
+    onError: (error, variables, context) => {
+      // Remove optimistic message on error
+      queryClient.setQueryData(["messages", variables.conversation_id], (old: any[] = []) => {
+        return old.filter((msg) => msg.id !== context?.optimisticMessage.id);
+      });
+
+      toast.error("Failed to send message: " + error.message);
     },
   });
 };
