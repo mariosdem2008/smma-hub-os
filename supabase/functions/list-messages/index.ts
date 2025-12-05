@@ -24,6 +24,53 @@ function corsHeaders(request: Request): Record<string, string> {
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
+// Cache for conversation validation (5 minute TTL)
+const conversationCache = new Map<string, { id: string; timestamp: number }>();
+
+// Define proper TypeScript interfaces
+interface AgencyMember {
+  id: string;
+  user: Array<{
+    id: string;
+    email: string;
+    full_name: string;
+  }>;
+}
+
+interface ClientUser {
+  id: string;
+  email: string;
+  full_name: string;
+}
+
+interface Message {
+  id: string;
+  body: string;
+  created_at: string;
+  sender_type: string;
+  agency_member_id: string | null;
+  client_user_id: string | null;
+  conversation_id: string;
+  agency_member: AgencyMember[] | null;
+  client_user: ClientUser[] | null;
+}
+
+interface FormattedMessage {
+  id: string;
+  body: string;
+  created_at: string;
+  sender_type: string;
+  sender_agency_member_id: string | null;
+  sender_client_user_id: string | null;
+  conversation_id: string;
+  sender: {
+    id: string;
+    email: string;
+    full_name: string;
+    type: string;
+  } | null;
+}
+
 Deno.serve(async (req) => {
   // Handle OPTIONS request first
   if (req.method === "OPTIONS") {
@@ -46,6 +93,8 @@ Deno.serve(async (req) => {
   try {
     const url = new URL(req.url);
     const conversationId = url.searchParams.get("conversation_id");
+    const limit = parseInt(url.searchParams.get("limit") || "100");
+    const before = url.searchParams.get("before");
 
     if (!conversationId) {
       return new Response(JSON.stringify({ error: "conversation_id is required" }), {
@@ -55,7 +104,7 @@ Deno.serve(async (req) => {
     }
 
     // Check if this is a temporary ID from optimistic update
-    if (conversationId.startsWith("temp-")) {
+    if (conversationId.startsWith("temp-") || conversationId.startsWith("optimistic-")) {
       console.log(`Temporary conversation ID detected: ${conversationId}`);
       return new Response(JSON.stringify({ messages: [] }), {
         status: 200,
@@ -65,26 +114,43 @@ Deno.serve(async (req) => {
 
     const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    // First, verify the conversation exists and user has access
-    const { data: conversation, error: convError } = await supabaseClient
-      .from("conversations")
-      .select("id")
-      .eq("id", conversationId)
-      .single();
+    // Check cache first for conversation validation
+    const cachedConversation = conversationCache.get(conversationId);
+    const now = Date.now();
 
-    if (convError || !conversation) {
-      return new Response(JSON.stringify({ error: "Conversation not found" }), {
-        status: 404,
-        headers: { ...corsHeaders(req), "Content-Type": "application/json" },
-      });
+    if (cachedConversation && now - cachedConversation.timestamp < 5 * 60 * 1000) {
+      console.log(`Using cached conversation validation for: ${conversationId}`);
+    } else {
+      // Verify the conversation exists
+      const { data: conversation, error: convError } = await supabaseClient
+        .from("conversations")
+        .select("id")
+        .eq("id", conversationId)
+        .single();
+
+      if (convError || !conversation) {
+        return new Response(JSON.stringify({ error: "Conversation not found" }), {
+          status: 404,
+          headers: { ...corsHeaders(req), "Content-Type": "application/json" },
+        });
+      }
+
+      // Cache the conversation validation
+      conversationCache.set(conversationId, { id: conversation.id, timestamp: now });
     }
 
-    // Fetch messages for the conversation
-    const { data: messages, error: messagesError } = await supabaseClient
+    // Build query for messages
+    let query = supabaseClient
       .from("messages")
       .select(
         `
-        *,
+        id,
+        body,
+        created_at,
+        sender_type,
+        agency_member_id,
+        client_user_id,
+        conversation_id,
         agency_member:agency_member_id(
           id,
           user:user_id(
@@ -101,7 +167,15 @@ Deno.serve(async (req) => {
       `,
       )
       .eq("conversation_id", conversationId)
-      .order("created_at", { ascending: true });
+      .order("created_at", { ascending: false })
+      .limit(Math.min(limit, 200)); // Cap at 200 messages max
+
+    // Add cursor-based pagination if before timestamp provided
+    if (before) {
+      query = query.lt("created_at", before);
+    }
+
+    const { data: messages, error: messagesError } = await query;
 
     if (messagesError) {
       console.error("Error fetching messages:", messagesError);
@@ -111,39 +185,72 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Transform the response to a cleaner format
-    const formattedMessages = (messages || []).map((msg) => ({
-      id: msg.id,
-      body: msg.body,
-      created_at: msg.created_at,
-      sender_type: msg.sender_type,
-      sender_agency_member_id: msg.agency_member_id,
-      sender_client_user_id: msg.client_user_id,
-      conversation_id: msg.conversation_id,
-      sender:
-        msg.sender_type === "agency_member"
-          ? msg.agency_member?.user
-            ? {
-                id: msg.agency_member.id,
-                email: msg.agency_member.user.email,
-                full_name: msg.agency_member.user.full_name,
-                type: "agency_member",
-              }
-            : null
-          : msg.client_user
-            ? {
-                id: msg.client_user.id,
-                email: msg.client_user.email,
-                full_name: msg.client_user.full_name,
-                type: "client_user",
-              }
-            : null,
-    }));
+    // Sort by created_at ascending for display
+    const sortedMessages = (messages || []).sort(
+      (a: Message, b: Message) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+    );
 
-    return new Response(JSON.stringify({ messages: formattedMessages }), {
-      status: 200,
-      headers: { ...corsHeaders(req), "Content-Type": "application/json" },
+    // Transform the response to a cleaner format
+    const formattedMessages: FormattedMessage[] = sortedMessages.map((msg: Message) => {
+      let sender = null;
+
+      if (msg.sender_type === "agency_member") {
+        // Handle array response from Supabase
+        if (msg.agency_member && Array.isArray(msg.agency_member) && msg.agency_member.length > 0) {
+          const agencyMember = msg.agency_member[0];
+          if (agencyMember.user && Array.isArray(agencyMember.user) && agencyMember.user.length > 0) {
+            const user = agencyMember.user[0];
+            sender = {
+              id: agencyMember.id,
+              email: user.email,
+              full_name: user.full_name,
+              type: "agency_member",
+            };
+          }
+        }
+      } else if (msg.sender_type === "client_user") {
+        // Handle array response from Supabase
+        if (msg.client_user && Array.isArray(msg.client_user) && msg.client_user.length > 0) {
+          const clientUser = msg.client_user[0];
+          sender = {
+            id: clientUser.id,
+            email: clientUser.email,
+            full_name: clientUser.full_name,
+            type: "client_user",
+          };
+        }
+      }
+
+      return {
+        id: msg.id,
+        body: msg.body,
+        created_at: msg.created_at,
+        sender_type: msg.sender_type,
+        sender_agency_member_id: msg.agency_member_id,
+        sender_client_user_id: msg.client_user_id,
+        conversation_id: msg.conversation_id,
+        sender,
+      };
     });
+
+    // Get the timestamp of the oldest message for pagination
+    const oldestMessageTime = sortedMessages.length > 0 ? sortedMessages[0].created_at : null;
+
+    return new Response(
+      JSON.stringify({
+        messages: formattedMessages,
+        has_more: messages?.length === limit,
+        next_cursor: oldestMessageTime,
+      }),
+      {
+        status: 200,
+        headers: {
+          ...corsHeaders(req),
+          "Content-Type": "application/json",
+          "Cache-Control": "private, max-age=10", // Cache for 10 seconds
+        },
+      },
+    );
   } catch (error) {
     console.error("Error in list-messages:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
