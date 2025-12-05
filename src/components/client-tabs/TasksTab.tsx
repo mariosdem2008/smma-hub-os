@@ -13,21 +13,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,11 +25,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
@@ -86,14 +69,14 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
   const [submitting, setSubmitting] = useState(false);
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [templates, setTemplates] = useState<any[]>([]);
-  
+
   // Filter & Sort state
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterPriority, setFilterPriority] = useState<string>("all");
   const [filterAssigned, setFilterAssigned] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("due_date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
-  
+
   const [taskFormData, setTaskFormData] = useState({
     title: "",
     description: "",
@@ -109,28 +92,46 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
     fetchTemplates();
   }, [clientId]);
 
-  const fetchTeamMembers = async () => {
-    const { data } = await supabase
-      .from("agency_members")
-      .select(`
-        user_id,
-        role,
-        profiles:user_id (
-          full_name,
-          email
-        )
-      `)
-      .eq("agency_id", agencyId);
+  const fetchTeamMembersSeparately = async () => {
+    try {
+      // First get agency members
+      const { data: members, error: membersError } = await supabase
+        .from("agency_members")
+        .select("user_id, role")
+        .eq("agency_id", agencyId);
 
-    setTeamMembers(data || []);
+      if (membersError) throw membersError;
+      if (!members || members.length === 0) {
+        setTeamMembers([]);
+        return;
+      }
+
+      // Get user IDs
+      const userIds = members.map((m) => m.user_id);
+
+      // Then get profiles
+      const { data: profiles, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", userIds);
+
+      if (profilesError) throw profilesError;
+
+      // Combine the data
+      const combinedData = members.map((member) => ({
+        ...member,
+        profiles: profiles?.find((p) => p.id === member.user_id) || null,
+      }));
+
+      setTeamMembers(combinedData);
+    } catch (error) {
+      console.error("Error fetching team members separately:", error);
+      setTeamMembers([]);
+    }
   };
 
   const fetchTemplates = async () => {
-    const { data } = await supabase
-      .from("task_templates")
-      .select("*")
-      .eq("agency_id", agencyId)
-      .order("name");
+    const { data } = await supabase.from("task_templates").select("*").eq("agency_id", agencyId).order("name");
 
     setTemplates(data || []);
   };
@@ -192,10 +193,7 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
       };
 
       if (editingTask) {
-        const { error } = await supabase
-          .from("tasks")
-          .update(taskData)
-          .eq("id", editingTask.id);
+        const { error } = await supabase.from("tasks").update(taskData).eq("id", editingTask.id);
 
         if (error) throw error;
 
@@ -204,9 +202,7 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
           description: "Task updated successfully",
         });
       } else {
-        const { error } = await supabase
-          .from("tasks")
-          .insert(taskData);
+        const { error } = await supabase.from("tasks").insert(taskData);
 
         if (error) throw error;
 
@@ -254,10 +250,7 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
   const handleDeleteTask = async () => {
     if (!deletingTaskId) return;
 
-    const { error } = await supabase
-      .from("tasks")
-      .delete()
-      .eq("id", deletingTaskId);
+    const { error } = await supabase.from("tasks").delete().eq("id", deletingTaskId);
 
     if (error) {
       toast({
@@ -321,13 +314,13 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
 
   const getAssignedMemberName = (userId: string | null) => {
     if (!userId) return "Unassigned";
-    const member = teamMembers.find(m => m.user_id === userId);
+    const member = teamMembers.find((m) => m.user_id === userId);
     return member?.profiles?.full_name || member?.profiles?.email || "Unknown";
   };
 
   // Apply filters and sorting
   const filteredAndSortedTasks = tasks
-    .filter(task => {
+    .filter((task) => {
       if (filterStatus !== "all" && task.status !== filterStatus) return false;
       if (filterPriority !== "all" && task.priority !== filterPriority) return false;
       if (filterAssigned !== "all") {
@@ -338,7 +331,7 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
     })
     .sort((a, b) => {
       let aVal, bVal;
-      
+
       switch (sortBy) {
         case "due_date":
           aVal = a.due_date ? new Date(a.due_date).getTime() : Infinity;
@@ -393,9 +386,7 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
                 <DialogContent className="max-w-md">
                   <DialogHeader>
                     <DialogTitle>Task Templates</DialogTitle>
-                    <DialogDescription>
-                      Select a template to quickly create tasks
-                    </DialogDescription>
+                    <DialogDescription>Select a template to quickly create tasks</DialogDescription>
                   </DialogHeader>
                   <div className="space-y-2 max-h-96 overflow-y-auto">
                     {templates.length === 0 ? (
@@ -411,9 +402,7 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
                         >
                           <div className="font-medium">{template.name}</div>
                           {template.description && (
-                            <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
-                              {template.description}
-                            </p>
+                            <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{template.description}</p>
                           )}
                           <div className="flex gap-2 mt-2">
                             <Badge variant="secondary" className="text-xs">
@@ -438,9 +427,7 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
                 </DialogTrigger>
                 <DialogContent className="max-w-md">
                   <DialogHeader>
-                    <DialogTitle>
-                      {editingTask ? "Edit Task" : "Create New Task"}
-                    </DialogTitle>
+                    <DialogTitle>{editingTask ? "Edit Task" : "Create New Task"}</DialogTitle>
                     <DialogDescription>
                       {editingTask ? "Update task details" : "Add a new task for this client"}
                     </DialogDescription>
@@ -453,9 +440,7 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
                       <Input
                         id="task-title"
                         value={taskFormData.title}
-                        onChange={(e) =>
-                          setTaskFormData({ ...taskFormData, title: e.target.value })
-                        }
+                        onChange={(e) => setTaskFormData({ ...taskFormData, title: e.target.value })}
                         placeholder="Enter task title"
                       />
                     </div>
@@ -465,9 +450,7 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
                       <Textarea
                         id="task-description"
                         value={taskFormData.description}
-                        onChange={(e) =>
-                          setTaskFormData({ ...taskFormData, description: e.target.value })
-                        }
+                        onChange={(e) => setTaskFormData({ ...taskFormData, description: e.target.value })}
                         placeholder="Enter task description"
                         rows={3}
                       />
@@ -481,7 +464,7 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
                             variant="outline"
                             className={cn(
                               "w-full justify-start text-left font-normal",
-                              !taskDueDate && "text-muted-foreground"
+                              !taskDueDate && "text-muted-foreground",
                             )}
                           >
                             <CalendarIcon className="mr-2 h-4 w-4" />
@@ -505,9 +488,7 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
                         <Label htmlFor="task-priority">Priority</Label>
                         <Select
                           value={taskFormData.priority}
-                          onValueChange={(value) =>
-                            setTaskFormData({ ...taskFormData, priority: value })
-                          }
+                          onValueChange={(value) => setTaskFormData({ ...taskFormData, priority: value })}
                         >
                           <SelectTrigger id="task-priority">
                             <SelectValue />
@@ -526,9 +507,7 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
                         <Label htmlFor="task-status">Status</Label>
                         <Select
                           value={taskFormData.status}
-                          onValueChange={(value) =>
-                            setTaskFormData({ ...taskFormData, status: value })
-                          }
+                          onValueChange={(value) => setTaskFormData({ ...taskFormData, status: value })}
                         >
                           <SelectTrigger id="task-status">
                             <SelectValue />
@@ -536,8 +515,7 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
                           <SelectContent>
                             {TASK_STATUSES.map((status) => (
                               <SelectItem key={status} value={status}>
-                                {status.replace("_", " ").charAt(0).toUpperCase() +
-                                  status.replace("_", " ").slice(1)}
+                                {status.replace("_", " ").charAt(0).toUpperCase() + status.replace("_", " ").slice(1)}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -549,9 +527,7 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
                       <Label htmlFor="task-assigned">Assign To</Label>
                       <Select
                         value={taskFormData.assigned_to}
-                        onValueChange={(value) =>
-                          setTaskFormData({ ...taskFormData, assigned_to: value })
-                        }
+                        onValueChange={(value) => setTaskFormData({ ...taskFormData, assigned_to: value })}
                       >
                         <SelectTrigger id="task-assigned">
                           <SelectValue placeholder="Unassigned" />
@@ -568,11 +544,7 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
                     </div>
                   </div>
                   <DialogFooter>
-                    <Button
-                      variant="outline"
-                      onClick={() => handleDialogChange(false)}
-                      disabled={submitting}
-                    >
+                    <Button variant="outline" onClick={() => handleDialogChange(false)} disabled={submitting}>
                       Cancel
                     </Button>
                     <Button onClick={handleCreateOrUpdateTask} disabled={submitting}>
@@ -647,11 +619,7 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
                 </SelectContent>
               </Select>
 
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
-              >
+              <Button variant="outline" size="icon" onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}>
                 {sortOrder === "asc" ? "↑" : "↓"}
               </Button>
             </div>
@@ -684,9 +652,7 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
                       <div>
                         <p className="font-medium">{task.title}</p>
                         {task.description && (
-                          <p className="text-sm text-muted-foreground line-clamp-1">
-                            {task.description}
-                          </p>
+                          <p className="text-sm text-muted-foreground line-clamp-1">{task.description}</p>
                         )}
                       </div>
                     </TableCell>
@@ -700,7 +666,9 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
                             {format(new Date(task.due_date), "MMM d, yyyy")}
                           </span>
                           {isTaskOverdue(task.due_date) && (
-                            <Badge variant="destructive" className="text-xs">Overdue</Badge>
+                            <Badge variant="destructive" className="text-xs">
+                              Overdue
+                            </Badge>
                           )}
                         </div>
                       ) : (
@@ -708,30 +676,18 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={getPriorityBadgeVariant(task.priority)}>
-                        {task.priority}
-                      </Badge>
+                      <Badge variant={getPriorityBadgeVariant(task.priority)}>{task.priority}</Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={getStatusBadgeVariant(task.status)}>
-                        {task.status.replace("_", " ")}
-                      </Badge>
+                      <Badge variant={getStatusBadgeVariant(task.status)}>{task.status.replace("_", " ")}</Badge>
                     </TableCell>
                     <TableCell>
                       {canCreateContent && (
                         <div className="flex gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEditTask(task)}
-                          >
+                          <Button variant="ghost" size="icon" onClick={() => handleEditTask(task)}>
                             <Pencil className="h-4 w-4" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setDeletingTaskId(task.id)}
-                          >
+                          <Button variant="ghost" size="icon" onClick={() => setDeletingTaskId(task.id)}>
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
