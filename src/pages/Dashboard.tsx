@@ -117,6 +117,43 @@ export default function Dashboard() {
     fetchDashboardData();
   }, [user]);
 
+  // Helper function to fetch team members with profiles
+  const fetchTeamMembers = async (agencyId: string) => {
+    try {
+      // First get agency members
+      const { data: members, error: membersError } = await supabase
+        .from("agency_members")
+        .select("user_id, role")
+        .eq("agency_id", agencyId);
+
+      if (membersError) throw membersError;
+
+      if (!members || members.length === 0) {
+        return [];
+      }
+
+      // Get user IDs
+      const userIds = members.map((m) => m.user_id);
+
+      // Then get profiles
+      const { data: profiles, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", userIds);
+
+      if (profilesError) throw profilesError;
+
+      // Combine the data
+      return members.map((member) => ({
+        ...member,
+        profiles: profiles?.find((p) => p.id === member.user_id) || null,
+      }));
+    } catch (error) {
+      console.error("Error fetching team members:", error);
+      return [];
+    }
+  };
+
   const fetchDashboardData = async () => {
     if (!user) return;
 
@@ -302,42 +339,15 @@ export default function Dashboard() {
         avgEngagementRate,
       });
 
-      // Fetch team members for task assignment
-      const fetchTeamMembers = async (agencyId: string) => {
-        try {
-          // First get agency members
-          const { data: members, error: membersError } = await supabase
-            .from("agency_members")
-            .select("user_id, role")
-            .eq("agency_id", agencyId);
-      
-          if (membersError) throw membersError;
-          
-          if (!members || members.length === 0) {
-            return [];
-          }
-      
-          // Get user IDs
-          const userIds = members.map(m => m.user_id);
-          
-          // Then get profiles
-          const { data: profiles, error: profilesError } = await supabase
-            .from("profiles")
-            .select("id, full_name, email")
-            .in("id", userIds);
-      
-          if (profilesError) throw profilesError;
-      
-          // Combine the data
-          return members.map(member => ({
-            ...member,
-            profiles: profiles?.find(p => p.id === member.user_id) || null
-          }));
-        } catch (error) {
-          console.error("Error fetching team members:", error);
-          return [];
-        }
-      };
+      // Fetch team members for task assignment using the helper function
+      const teamMembersData = await fetchTeamMembers(agencyId);
+      setTeamMembers(teamMembersData);
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getPriorityBadgeVariant = (priority: string | null) => {
     switch (priority) {
@@ -378,6 +388,12 @@ export default function Dashboard() {
       default:
         return "bg-muted text-muted-foreground shadow-sm";
     }
+  };
+
+  const getAssignedMemberName = (userId: string | null) => {
+    if (!userId) return "Unassigned";
+    const member = teamMembers.find((m) => m.user_id === userId);
+    return member?.profiles?.full_name || member?.profiles?.email || "Unknown";
   };
 
   const handleDismissPost = (postId: string, e: React.MouseEvent) => {
@@ -1002,11 +1018,7 @@ export default function Dashboard() {
               </div>
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {clients.map((client) => (
-                  <ClientCard
-                    key={client.id}
-                    client={client}
-                    onClick={() => navigate(`/clients/${client.id}`)}
-                  />
+                  <ClientCard key={client.id} client={client} onClick={() => navigate(`/clients/${client.id}`)} />
                 ))}
               </div>
             </div>
