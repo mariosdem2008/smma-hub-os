@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useClientAuth } from "@/lib/client-auth";
 
 export const useConversations = () => {
-  const { clientUser } = useClientAuth();
+  const { clientUser, isAuthenticated } = useClientAuth();
 
   return useQuery({
     queryKey: ["conversations"],
@@ -11,19 +11,19 @@ export const useConversations = () => {
       // Check if client portal user
       const clientToken = typeof window !== "undefined" ? localStorage.getItem("client_auth_token") : null;
 
-      if (clientToken && clientUser) {
-        // Use direct fetch with client portal token
+      if (clientUser && isAuthenticated) {
+        // Use direct fetch with client portal token - IMPORTANT: Don't send apikey header
+        // when using credentials: "include" - it causes CORS issues
         const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/list-conversations`, {
           method: "GET",
           headers: {
-            Authorization: `Bearer ${clientToken}`,
-            apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
             "Content-Type": "application/json",
           },
+          credentials: "include", // This will send cookies with the request
         });
 
         if (!response.ok) {
-          const error = await response.json();
+          const error = await response.json().catch(() => ({}));
           throw new Error(error.error || "Failed to fetch conversations");
         }
 
@@ -37,5 +37,6 @@ export const useConversations = () => {
         return data.conversations;
       }
     },
+    enabled: isAuthenticated || true, // Adjust this based on your auth logic
   });
 };
