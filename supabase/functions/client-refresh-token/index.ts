@@ -1,28 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const allowedOrigins = [
-  "http://localhost:8080",
-  "https://73a2983b-0136-47d2-9a1f-01fe580ac593.lovableproject.com",
-  "https://id-preview--73a2983b-0136-47d2-9a1f-01fe580ac593.lovable.app",
-  "https://smmahub.net",
-];
-
 function corsHeaders(request: Request): Record<string, string> {
-  const origin = request.headers.get("Origin") ?? "";
-  if (!allowedOrigins.includes(origin)) {
-    console.warn("CORS blocked origin:", origin);
-    // For security, either throw or pick the first allowed origin
-    return {
-      "Access-Control-Allow-Origin": allowedOrigins[0],
-      "Access-Control-Allow-Headers": "apikey, authorization, content-type, x-client-info",
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Credentials": "true",
-    };
-  }
-
+  const origin = request.headers.get("Origin");
   return {
-    "Access-Control-Allow-Origin": origin,
-    "Access-Control-Allow-Headers": "apikey, authorization, content-type, x-client-info",
+    "Access-Control-Allow-Origin": origin ?? "*",
+    "Access-Control-Allow-Headers": "apikey, Authorization, Content-Type, X-Client-Info",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Credentials": "true",
   };
