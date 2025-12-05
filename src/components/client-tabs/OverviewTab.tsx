@@ -14,22 +14,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/lib/auth";
+// REMOVE useAuth import - it's causing re-renders
+// import { useAuth } from "@/lib/auth";
 import { useRole } from "@/hooks/useRole";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Palette, 
-  Globe, 
-  MessageSquare, 
+import {
+  Palette,
+  Globe,
+  MessageSquare,
   CalendarDays,
   CheckCircle2,
   Clock,
@@ -43,7 +38,7 @@ import {
   TrendingDown,
   Eye,
   Users,
-  Heart
+  Heart,
 } from "lucide-react";
 import { useClientAnalytics } from "@/hooks/useClientAnalytics";
 import { useTopPosts } from "@/hooks/useTopPosts";
@@ -75,7 +70,8 @@ interface Stats {
 
 export default function OverviewTab({ clientId, client, onNotesUpdate }: OverviewTabProps) {
   const { toast } = useToast();
-  const { user } = useAuth();
+  // REMOVE useAuth call - it causes re-renders
+  // const { user } = useAuth();
   const { isOwner, isAdmin, canCreateContent } = useRole();
   const [stats, setStats] = useState<Stats>({
     totalScheduled: 0,
@@ -95,15 +91,15 @@ export default function OverviewTab({ clientId, client, onNotesUpdate }: Overvie
   useEffect(() => {
     fetchStats();
     fetchBrandColors();
-  }, [clientId]);
-  
+  }, [clientId]); // Only run when clientId changes, not on every render
+
   const fetchBrandColors = async () => {
     const { data } = await supabase
       .from("client_branding")
       .select("primary_color, secondary_color, accent_color, brand_palette")
       .eq("client_id", clientId)
       .maybeSingle();
-    
+
     if (data) {
       const colors = [];
       if (data.primary_color) colors.push(data.primary_color);
@@ -150,10 +146,7 @@ export default function OverviewTab({ clientId, client, onNotesUpdate }: Overvie
 
   const handleSaveNotes = async () => {
     setSaving(true);
-    const { error } = await supabase
-      .from("clients")
-      .update({ notes })
-      .eq("id", clientId);
+    const { error } = await supabase.from("clients").update({ notes }).eq("id", clientId);
 
     if (error) {
       toast({
@@ -171,7 +164,6 @@ export default function OverviewTab({ clientId, client, onNotesUpdate }: Overvie
     }
     setSaving(false);
   };
-
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -234,16 +226,14 @@ export default function OverviewTab({ clientId, client, onNotesUpdate }: Overvie
                   <CheckCircle2 className="h-5 w-5 text-muted-foreground mt-0.5" />
                   <div className="flex-1">
                     <p className="text-sm font-medium">Status</p>
-                    <Badge className={getStatusColor(client.status)}>
-                      {client.status}
-                    </Badge>
+                    <Badge className={getStatusColor(client.status)}>{client.status}</Badge>
                   </div>
                 </div>
               )}
             </CardContent>
           </Card>
         )}
-        
+
         {/* Brand Information Card */}
         <Card>
           <CardHeader>
@@ -295,10 +285,7 @@ export default function OverviewTab({ clientId, client, onNotesUpdate }: Overvie
                   <div className="flex flex-wrap gap-2">
                     {brandColors.map((color, index) => (
                       <div key={index} className="flex items-center gap-2 rounded-md border px-3 py-1.5">
-                        <div
-                          className="h-4 w-4 rounded"
-                          style={{ backgroundColor: color }}
-                        />
+                        <div className="h-4 w-4 rounded" style={{ backgroundColor: color }} />
                         <span className="text-xs font-mono">{color}</span>
                       </div>
                     ))}
@@ -323,9 +310,7 @@ export default function OverviewTab({ clientId, client, onNotesUpdate }: Overvie
               <DialogContent className="max-w-2xl">
                 <DialogHeader>
                   <DialogTitle>Edit Client Notes</DialogTitle>
-                  <DialogDescription>
-                    Add or update notes about this client
-                  </DialogDescription>
+                  <DialogDescription>Add or update notes about this client</DialogDescription>
                 </DialogHeader>
                 <Textarea
                   value={notes}
@@ -335,11 +320,7 @@ export default function OverviewTab({ clientId, client, onNotesUpdate }: Overvie
                   className="resize-none"
                 />
                 <DialogFooter>
-                  <Button
-                    variant="outline"
-                    onClick={() => setIsEditNotesOpen(false)}
-                    disabled={saving}
-                  >
+                  <Button variant="outline" onClick={() => setIsEditNotesOpen(false)} disabled={saving}>
                     Cancel
                   </Button>
                   <Button onClick={handleSaveNotes} disabled={saving}>
@@ -351,13 +332,9 @@ export default function OverviewTab({ clientId, client, onNotesUpdate }: Overvie
           </CardHeader>
           <CardContent>
             {client.notes ? (
-              <div className="text-sm text-muted-foreground whitespace-pre-wrap">
-                {client.notes}
-              </div>
+              <div className="text-sm text-muted-foreground whitespace-pre-wrap">{client.notes}</div>
             ) : (
-              <p className="text-sm text-muted-foreground italic">
-                No notes added yet
-              </p>
+              <p className="text-sm text-muted-foreground italic">No notes added yet</p>
             )}
           </CardContent>
         </Card>
@@ -422,7 +399,9 @@ export default function OverviewTab({ clientId, client, onNotesUpdate }: Overvie
                     <div>
                       <p className="text-sm text-muted-foreground">Engagement Rate</p>
                       <p className="text-2xl font-bold">{analytics.avgEngagementRate}%</p>
-                      <p className="text-xs text-muted-foreground">{analytics.totalEngagement.toLocaleString()} interactions</p>
+                      <p className="text-xs text-muted-foreground">
+                        {analytics.totalEngagement.toLocaleString()} interactions
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -483,7 +462,9 @@ export default function OverviewTab({ clientId, client, onNotesUpdate }: Overvie
                     <div className="flex-1">
                       <p className="text-sm font-medium line-clamp-1">{post.project?.title || "Untitled"}</p>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <Badge variant="outline" className="capitalize">{post.platform}</Badge>
+                        <Badge variant="outline" className="capitalize">
+                          {post.platform}
+                        </Badge>
                         <span>{post.engagementRate}% engagement</span>
                         <span>•</span>
                         <span>{post.reach.toLocaleString()} reach</span>
