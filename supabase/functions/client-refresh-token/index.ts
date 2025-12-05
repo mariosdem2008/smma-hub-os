@@ -1,10 +1,18 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+const allowedOrigins = [
+  "http://localhost:8080",
+  "https://73a2983b-0136-47d2-9a1f-01fe580ac593.lovableproject.com",
+  "https://smmahub.net",
+];
+
 function corsHeaders(request: Request): Record<string, string> {
-  const origin = request.headers.get("Origin");
+  const origin = request.headers.get("Origin") || "";
+  const isAllowed = allowedOrigins.includes(origin);
+
   return {
-    "Access-Control-Allow-Origin": origin ?? "*",
-    "Access-Control-Allow-Headers": "apikey, Authorization, Content-Type, X-Client-Info",
+    "Access-Control-Allow-Origin": isAllowed ? origin : "",
+    "Access-Control-Allow-Headers": "apikey, authorization, content-type, x-client-info",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Credentials": "true",
   };
@@ -88,10 +96,8 @@ function parseCookies(header: string | null): Record<string, string> {
 }
 
 function createAuthCookies(accessToken: string, refreshToken: string): string[] {
-  const accessCookie =
-    `cp_access_token=${accessToken}; Max-Age=${ACCESS_TOKEN_TTL_SECONDS}; Path=/; HttpOnly; Secure; SameSite=Lax`;
-  const refreshCookie =
-    `cp_refresh_token=${refreshToken}; Max-Age=${REFRESH_TOKEN_TTL_SECONDS}; Path=/; HttpOnly; Secure; SameSite=Lax`;
+  const accessCookie = `cp_access_token=${accessToken}; Max-Age=${ACCESS_TOKEN_TTL_SECONDS}; Path=/; HttpOnly; Secure; SameSite=Lax`;
+  const refreshCookie = `cp_refresh_token=${refreshToken}; Max-Age=${REFRESH_TOKEN_TTL_SECONDS}; Path=/; HttpOnly; Secure; SameSite=Lax`;
 
   return [accessCookie, refreshCookie];
 }
@@ -101,14 +107,8 @@ function clearAuthCookiesHeaders(req: Request): Headers {
     "Content-Type": "application/json",
     ...corsHeaders(req),
   });
-  headers.append(
-    "Set-Cookie",
-    "cp_access_token=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Lax",
-  );
-  headers.append(
-    "Set-Cookie",
-    "cp_refresh_token=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Lax",
-  );
+  headers.append("Set-Cookie", "cp_access_token=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Lax");
+  headers.append("Set-Cookie", "cp_refresh_token=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Lax");
   return headers;
 }
 
@@ -188,7 +188,8 @@ Deno.serve(async (req) => {
     // Create new refresh token
     const newBytes = new Uint8Array(32);
     crypto.getRandomValues(newBytes);
-    const newRefreshToken = Array.from(newBytes).map((b) => b.toString(16).padStart(2, "0"))
+    const newRefreshToken = Array.from(newBytes)
+      .map((b) => b.toString(16).padStart(2, "0"))
       .join("");
     const newRefreshHash = await hashToken(newRefreshToken);
     const newRefreshExpires = new Date(Date.now() + REFRESH_TOKEN_TTL_SECONDS * 1000);
