@@ -46,6 +46,8 @@ export const useMessages = (conversationId?: string) => {
             console.log("Conversation not found, returning empty messages");
             return [];
           }
+          const errorText = await response.text();
+          console.error("Failed to fetch messages:", errorText);
           throw new Error("Failed to fetch messages");
         }
 
@@ -76,6 +78,8 @@ export const useMessages = (conversationId?: string) => {
             console.log("Conversation not found, returning empty messages");
             return [];
           }
+          const errorText = await response.text();
+          console.error("Failed to fetch messages:", errorText);
           throw new Error("Failed to fetch messages");
         }
 
