@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.84.0';
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.84.0";
 
 const allowedOrigins = [
   "http://localhost:8080",
@@ -9,49 +9,25 @@ const allowedOrigins = [
 
 function corsHeaders(request: Request): Record<string, string> {
   const origin = request.headers.get("origin") ?? "";
-  const isAllowed = allowedOrigins.includes(origin);
+  if (!allowedOrigins.includes(origin)) {
+    return {};
+  }
 
   return {
-    "Access-Control-Allow-Origin": isAllowed ? origin : allowedOrigins[0],
+    "Access-Control-Allow-Origin": origin,
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": 
-      request.headers.get("Access-Control-Request-Headers") || 
-      "Content-Type, Authorization, apikey, Apikey, APIKEY",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
     "Access-Control-Allow-Credentials": "true",
-    "Access-Control-Max-Age": "86400",
   };
 }
 
-// Update the OPTIONS handler:
-Deno.serve(async (req) => {
-  // Handle OPTIONS request first
-  if (req.method === 'OPTIONS') {
-    const origin = req.headers.get("origin") ?? "";
-    const isAllowed = allowedOrigins.includes(origin);
-
-    return new Response(null, {
-      status: 204,
-      headers: {
-        "Access-Control-Allow-Origin": isAllowed ? origin : allowedOrigins[0],
-        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-        "Access-Control-Allow-Headers": 
-          req.headers.get("Access-Control-Request-Headers") || 
-          "Content-Type, Authorization, apikey, Apikey, APIKEY",
-        "Access-Control-Allow-Credentials": "true",
-        "Access-Control-Max-Age": "86400",
-        Vary: "Origin, Access-Control-Request-Headers",
-      },
-    });
-  }
-
-
-const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const CLIENT_PORTAL_JWT_SECRET = Deno.env.get('CLIENT_PORTAL_JWT_SECRET');
+const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const CLIENT_PORTAL_JWT_SECRET = Deno.env.get("CLIENT_PORTAL_JWT_SECRET");
 
 interface SendMessagePayload {
   conversation_id: string;
-  sender_type: 'agency_member' | 'client_user';
+  sender_type: "agency_member" | "client_user";
   text?: string;
   attachment_url?: string;
   related_project_id?: string;
@@ -69,72 +45,72 @@ interface ClientPortalJwtPayload {
 // Helper to verify client portal JWT
 async function verifyClientPortalToken(token: string): Promise<ClientPortalJwtPayload | null> {
   if (!CLIENT_PORTAL_JWT_SECRET) {
-    console.error('CLIENT_PORTAL_JWT_SECRET not configured');
+    console.error("CLIENT_PORTAL_JWT_SECRET not configured");
     return null;
   }
 
   try {
-    const parts = token.split('.');
+    const parts = token.split(".");
     if (parts.length !== 3) return null;
 
     const [encodedHeader, encodedPayload, encodedSignature] = parts;
-    
+
     // Verify signature
     const key = await crypto.subtle.importKey(
-      'raw',
+      "raw",
       new TextEncoder().encode(CLIENT_PORTAL_JWT_SECRET),
-      { name: 'HMAC', hash: 'SHA-256' },
+      { name: "HMAC", hash: "SHA-256" },
       false,
-      ['verify']
+      ["verify"],
     );
 
     // Handle base64url encoding properly
-    const base64 = encodedSignature.replace(/-/g, '+').replace(/_/g, '/');
-    const padded = base64 + '='.repeat((4 - base64.length % 4) % 4);
-    const signature = Uint8Array.from(atob(padded), c => c.charCodeAt(0));
-    
+    const base64 = encodedSignature.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
+    const signature = Uint8Array.from(atob(padded), (c) => c.charCodeAt(0));
+
     const isValid = await crypto.subtle.verify(
-      'HMAC',
+      "HMAC",
       key,
       signature,
-      new TextEncoder().encode(`${encodedHeader}.${encodedPayload}`)
+      new TextEncoder().encode(`${encodedHeader}.${encodedPayload}`),
     );
 
     if (!isValid) return null;
 
     // Decode payload with base64url handling
-    const payloadBase64 = encodedPayload.replace(/-/g, '+').replace(/_/g, '/');
-    const payloadPadded = payloadBase64 + '='.repeat((4 - payloadBase64.length % 4) % 4);
+    const payloadBase64 = encodedPayload.replace(/-/g, "+").replace(/_/g, "/");
+    const payloadPadded = payloadBase64 + "=".repeat((4 - (payloadBase64.length % 4)) % 4);
     const payload: ClientPortalJwtPayload = JSON.parse(atob(payloadPadded));
-    
+
     // Check expiration
     if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
-      console.log('Client portal token expired');
+      console.log("Client portal token expired");
       return null;
     }
 
     return payload;
   } catch (error) {
-    console.error('Error verifying client portal token:', error);
+    console.error("Error verifying client portal token:", error);
     return null;
   }
 }
 
 function getCookie(header: string | null, name: string): string | null {
   if (!header) return null;
-  const cookies = header.split(';').map((c) => c.trim());
+  const cookies = header.split(";").map((c) => c.trim());
   for (const cookie of cookies) {
-    const [cookieName, ...rest] = cookie.split('=');
+    const [cookieName, ...rest] = cookie.split("=");
     if (cookieName === name) {
-      return rest.join('=');
+      return rest.join("=");
     }
   }
   return null;
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", {
       status: 200,
       headers: {
         ...corsHeaders(req),
@@ -143,22 +119,22 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get('Authorization');
-    const cookieHeader = req.headers.get('Cookie');
+    const authHeader = req.headers.get("Authorization");
+    const cookieHeader = req.headers.get("Cookie");
 
     let token: string | null = null;
 
-    if (authHeader?.startsWith('Bearer ')) {
-      token = authHeader.replace('Bearer ', '');
+    if (authHeader?.startsWith("Bearer ")) {
+      token = authHeader.replace("Bearer ", "");
     } else {
-      token = getCookie(cookieHeader, 'cp_access_token');
+      token = getCookie(cookieHeader, "cp_access_token");
     }
 
     if (!token) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
           ...corsHeaders(req),
         },
       });
@@ -182,11 +158,11 @@ Deno.serve(async (req) => {
       clientPortalUser = await verifyClientPortalToken(token);
 
       if (!clientPortalUser) {
-        console.log('Auth failed: neither Supabase auth nor client portal token valid');
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        console.log("Auth failed: neither Supabase auth nor client portal token valid");
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
           status: 401,
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
             ...corsHeaders(req),
           },
         });
@@ -194,21 +170,20 @@ Deno.serve(async (req) => {
     }
 
     const payload: SendMessagePayload = await req.json();
-    const { conversation_id, sender_type, text, attachment_url, related_project_id } =
-      payload;
+    const { conversation_id, sender_type, text, attachment_url, related_project_id } = payload;
 
     // Get conversation details
     const { data: conversation } = await supabaseClient
-      .from('conversations')
-      .select('agency_id, client_id, type')
-      .eq('id', conversation_id)
+      .from("conversations")
+      .select("agency_id, client_id, type")
+      .eq("id", conversation_id)
       .single();
 
     if (!conversation) {
-      return new Response(JSON.stringify({ error: 'Conversation not found' }), {
+      return new Response(JSON.stringify({ error: "Conversation not found" }), {
         status: 404,
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
           ...corsHeaders(req),
         },
       });
@@ -217,59 +192,53 @@ Deno.serve(async (req) => {
     let senderAgencyMemberId = null;
     let senderClientUserId = null;
     let participantId = null;
-    let senderName = 'Someone';
+    let senderName = "Someone";
 
-    if (sender_type === 'agency_member') {
+    if (sender_type === "agency_member") {
       if (!authUserId) {
-        return new Response(
-          JSON.stringify({ error: 'Agency members must use Supabase auth' }),
-          {
-            status: 403,
-            headers: {
-              'Content-Type': 'application/json',
-              ...corsHeaders(req),
-            },
+        return new Response(JSON.stringify({ error: "Agency members must use Supabase auth" }), {
+          status: 403,
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders(req),
           },
-        );
+        });
       }
 
       const { data: agencyMember } = await supabaseClient
-        .from('agency_members')
-        .select('id, user_id')
-        .eq('user_id', authUserId)
-        .eq('agency_id', conversation.agency_id)
+        .from("agency_members")
+        .select("id, user_id")
+        .eq("user_id", authUserId)
+        .eq("agency_id", conversation.agency_id)
         .single();
 
       if (!agencyMember) {
-        return new Response(
-          JSON.stringify({ error: 'Not authorized to send in this conversation' }),
-          {
-            status: 403,
-            headers: {
-              'Content-Type': 'application/json',
-              ...corsHeaders(req),
-            },
+        return new Response(JSON.stringify({ error: "Not authorized to send in this conversation" }), {
+          status: 403,
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders(req),
           },
-        );
+        });
       }
 
       senderAgencyMemberId = agencyMember.id;
 
       // Get sender name
       const { data: profile } = await supabaseClient
-        .from('profiles')
-        .select('full_name, email')
-        .eq('id', authUserId)
+        .from("profiles")
+        .select("full_name, email")
+        .eq("id", authUserId)
         .single();
 
-      senderName = profile?.full_name || profile?.email || 'Agency member';
+      senderName = profile?.full_name || profile?.email || "Agency member";
 
       // Get participant record
       const { data: participant } = await supabaseClient
-        .from('conversation_participants')
-        .select('id')
-        .eq('conversation_id', conversation_id)
-        .eq('agency_member_id', agencyMember.id)
+        .from("conversation_participants")
+        .select("id")
+        .eq("conversation_id", conversation_id)
+        .eq("agency_member_id", agencyMember.id)
         .single();
 
       participantId = participant?.id;
@@ -278,16 +247,16 @@ Deno.serve(async (req) => {
       if (clientPortalUser) {
         // Using client portal JWT
         const { data: clientUser } = await supabaseClient
-          .from('client_users')
-          .select('id, full_name, email, client_id')
-          .eq('id', clientPortalUser.sub)
+          .from("client_users")
+          .select("id, full_name, email, client_id")
+          .eq("id", clientPortalUser.sub)
           .single();
 
         if (!clientUser) {
-          return new Response(JSON.stringify({ error: 'Client user not found' }), {
+          return new Response(JSON.stringify({ error: "Client user not found" }), {
             status: 403,
             headers: {
-              'Content-Type': 'application/json',
+              "Content-Type": "application/json",
               ...corsHeaders(req),
             },
           });
@@ -295,47 +264,41 @@ Deno.serve(async (req) => {
 
         // Verify client user belongs to this conversation's client
         if (clientUser.client_id !== conversation.client_id) {
-          return new Response(
-            JSON.stringify({ error: 'Not authorized to send in this conversation' }),
-            {
-              status: 403,
-              headers: {
-                'Content-Type': 'application/json',
-                ...corsHeaders(req),
-              },
+          return new Response(JSON.stringify({ error: "Not authorized to send in this conversation" }), {
+            status: 403,
+            headers: {
+              "Content-Type": "application/json",
+              ...corsHeaders(req),
             },
-          );
+          });
         }
 
         senderClientUserId = clientUser.id;
-        senderName = clientUser.full_name || clientUser.email || 'Client';
+        senderName = clientUser.full_name || clientUser.email || "Client";
 
         // Get participant record
         const { data: participant } = await supabaseClient
-          .from('conversation_participants')
-          .select('id')
-          .eq('conversation_id', conversation_id)
-          .eq('client_user_id', clientUser.id)
+          .from("conversation_participants")
+          .select("id")
+          .eq("conversation_id", conversation_id)
+          .eq("client_user_id", clientUser.id)
           .single();
 
         participantId = participant?.id;
       } else {
-        return new Response(
-          JSON.stringify({ error: 'Client users must use client portal authentication' }),
-          {
-            status: 403,
-            headers: {
-              'Content-Type': 'application/json',
-              ...corsHeaders(req),
-            },
+        return new Response(JSON.stringify({ error: "Client users must use client portal authentication" }), {
+          status: 403,
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders(req),
           },
-        );
+        });
       }
     }
 
     // Insert message
     const { data: message, error: messageError } = await supabaseClient
-      .from('messages')
+      .from("messages")
       .insert({
         conversation_id,
         agency_id: conversation.agency_id,
@@ -351,11 +314,11 @@ Deno.serve(async (req) => {
       .single();
 
     if (messageError) {
-      console.error('Error sending message:', messageError);
+      console.error("Error sending message:", messageError);
       return new Response(JSON.stringify({ error: messageError.message }), {
         status: 500,
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
           ...corsHeaders(req),
         },
       });
@@ -363,7 +326,7 @@ Deno.serve(async (req) => {
 
     // Create read receipt for sender
     if (participantId) {
-      await supabaseClient.from('message_read_receipts').insert({
+      await supabaseClient.from("message_read_receipts").insert({
         message_id: message.id,
         participant_id: participantId,
       });
@@ -371,37 +334,25 @@ Deno.serve(async (req) => {
 
     // Get all participants except sender to create notifications
     const { data: participants } = await supabaseClient
-      .from('conversation_participants')
-      .select('id, agency_member_id, client_user_id, role')
-      .eq('conversation_id', conversation_id);
+      .from("conversation_participants")
+      .select("id, agency_member_id, client_user_id, role")
+      .eq("conversation_id", conversation_id);
 
     if (participants) {
       const notifications = [];
-      const snippet = text
-        ? text.length > 50
-          ? text.substring(0, 50) + '...'
-          : text
-        : 'Sent an attachment';
+      const snippet = text ? (text.length > 50 ? text.substring(0, 50) + "..." : text) : "Sent an attachment";
 
       for (const participant of participants) {
         // Skip sender
-        if (
-          sender_type === 'agency_member' &&
-          participant.agency_member_id === senderAgencyMemberId
-        )
-          continue;
-        if (
-          sender_type === 'client_user' &&
-          participant.client_user_id === senderClientUserId
-        )
-          continue;
+        if (sender_type === "agency_member" && participant.agency_member_id === senderAgencyMemberId) continue;
+        if (sender_type === "client_user" && participant.client_user_id === senderClientUserId) continue;
 
         if (participant.agency_member_id) {
           notifications.push({
             agency_id: conversation.agency_id,
-            user_type: 'agency_member',
+            user_type: "agency_member",
             user_id: participant.agency_member_id,
-            type: 'new_message',
+            type: "new_message",
             conversation_id: conversation_id,
             payload: {
               sender_name: senderName,
@@ -412,9 +363,9 @@ Deno.serve(async (req) => {
         } else if (participant.client_user_id) {
           notifications.push({
             agency_id: conversation.agency_id,
-            user_type: 'client_user',
+            user_type: "client_user",
             user_id: participant.client_user_id,
-            type: 'new_message',
+            type: "new_message",
             conversation_id: conversation_id,
             payload: {
               sender_name: senderName,
@@ -426,32 +377,32 @@ Deno.serve(async (req) => {
       }
 
       if (notifications.length > 0) {
-        await supabaseClient.from('notifications').insert(notifications);
+        await supabaseClient.from("notifications").insert(notifications);
       }
     }
 
     // Update conversation updated_at
     await supabaseClient
-      .from('conversations')
+      .from("conversations")
       .update({ updated_at: new Date().toISOString() })
-      .eq('id', conversation_id);
+      .eq("id", conversation_id);
 
     console.log(`Message sent: ${message.id} in conversation ${conversation_id}`);
 
     return new Response(JSON.stringify({ message }), {
       status: 200,
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
         ...corsHeaders(req),
       },
     });
   } catch (error) {
-    console.error('Error in send-message:', error);
-    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error("Error in send-message:", error);
+    const message = error instanceof Error ? error.message : "Unknown error";
     return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
         ...corsHeaders(req),
       },
     });
