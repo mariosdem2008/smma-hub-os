@@ -36,7 +36,10 @@ export default function Auth() {
         variant: "destructive",
       });
     } else {
-      navigate("/dashboard");
+      // Check for redirect URL
+      const redirectUrl = sessionStorage.getItem("redirectUrl") || "/dashboard";
+      sessionStorage.removeItem("redirectUrl");
+      navigate(redirectUrl);
     }
 
     setLoading(false);
@@ -80,18 +83,11 @@ export default function Auth() {
         title: "Success",
         description: "Check your email to confirm your account",
       });
+      // Don't navigate - let user check email
     }
 
     setLoading(false);
   };
-
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="animate-pulse">Loading...</div>
-      </div>
-    );
-  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
