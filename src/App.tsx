@@ -8,6 +8,7 @@ import { ClientAuthProvider } from "@/lib/client-auth";
 import { UpgradeModalProvider } from "@/contexts/UpgradeModalContext";
 import { GlobalUpgradeModal } from "@/components/GlobalUpgradeModal";
 import { UpgradeAssistantProvider } from "@/contexts/UpgradeAssistantContext";
+import { UpgradeAssistantBubble } from "@/components/UpgradeAssistantBubble";
 import { UpgradeAssistantCard } from "@/components/UpgradeAssistantCard";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/AppLayout";
@@ -115,24 +116,24 @@ const App = () => {
                       }
                     >
                       <Route path="/dashboard" element={<Dashboard />} />
-
-                      {/* Clients Route Group - NESTED PROPERLY */}
-                      <Route path="/clients">
-                        {/* This shows all clients */}
-                        <Route index element={<Clients />} />
-
-                        {/* Client Detail Routes - These will use ClientDetailLayout */}
-                        <Route element={<ClientDetailLayout />}>
-                          <Route path=":clientId" element={<ClientDetail />} />
-                          <Route path=":clientId/reports/:reportId" element={<ReportDetail />} />
-                        </Route>
-                      </Route>
-
+                      <Route path="/clients" element={<Clients />} />
                       <Route path="/messages" element={<Messages />} />
                       <Route path="/team" element={<Team />} />
                       <Route path="/billing" element={<Billing />} />
                       <Route path="/billing/overview" element={<BillingOverview />} />
                       <Route path="/settings" element={<Settings />} />
+                    </Route>
+
+                    {/* Client Detail Routes - No Sidebar */}
+                    <Route
+                      element={
+                        <ProtectedRoute>
+                          <ClientDetailLayout />
+                        </ProtectedRoute>
+                      }
+                    >
+                      <Route path="/clients/:clientId" element={<ClientDetail />} />
+                      <Route path="/clients/:clientId/reports/:reportId" element={<ReportDetail />} />
                     </Route>
 
                     {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
