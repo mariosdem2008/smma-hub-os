@@ -75,6 +75,58 @@ export default function PortalUploads() {
     };
   };
 
+  const getClientPortalToken = async (): Promise<string | null> => {
+    try {
+      // Try to get token from auth refresh endpoint
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/client-refresh-token`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+        },
+        credentials: "include",
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.token) {
+          console.log("Got token from refresh endpoint");
+          return data.token;
+        }
+      }
+    } catch (error) {
+      console.error("Error getting token from refresh endpoint:", error);
+    }
+
+    // Fallback: Check localStorage for token from other auth flows
+    const tokenFromStorage =
+      localStorage.getItem("client_portal_token") ||
+      localStorage.getItem("cp_access_token") ||
+      localStorage.getItem("sb-access-token");
+
+    if (tokenFromStorage) {
+      console.log("Got token from localStorage");
+      return tokenFromStorage;
+    }
+
+    // Fallback: Check cookies
+    try {
+      const cookies = document.cookie.split(";");
+      for (const cookie of cookies) {
+        const [name, value] = cookie.trim().split("=");
+        if (name === "cp_access_token" || name === "client_portal_token" || name.includes("auth-token")) {
+          console.log(`Got token from cookie: ${name}`);
+          return value;
+        }
+      }
+    } catch (error) {
+      console.error("Error reading cookies:", error);
+    }
+
+    console.log("No token found");
+    return null;
+  };
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !clientUser) return;
@@ -83,7 +135,16 @@ export default function PortalUploads() {
     try {
       console.log("Starting file upload:", file.name, file.size, file.type);
 
-      // Upload through Edge Function - cookies are sent automatically
+      // Get the client portal token
+      const token = await getClientPortalToken();
+
+      if (!token) {
+        throw new Error("Authentication token not found. Please log in again.");
+      }
+
+      console.log("Using token for upload:", token.substring(0, 20) + "...");
+
+      // Upload through Edge Function with token in Authorization header
       const formData = new FormData();
       formData.append("file", file);
 
@@ -91,7 +152,9 @@ export default function PortalUploads() {
         `${import.meta.env.VITE_SUPABASE_URL || "https://dzyhrzdwwuaorruscxcn.supabase.co"}/functions/v1/upload-file`,
         {
           method: "POST",
-          credentials: "include", // This sends HTTP-only cookies
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
           body: formData,
         },
       );
