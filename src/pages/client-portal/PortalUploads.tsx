@@ -196,18 +196,7 @@ export default function PortalUploads() {
     try {
       console.log("Starting file upload:", file.name, file.size, file.type);
 
-      // Get the client portal token
-      const token = getClientPortalToken();
-
-      if (!token) {
-        throw new Error("Authentication token not found. Please log in again.");
-      }
-
-      console.log("Using token for upload (first 50 chars):", token.substring(0, 50) + "...");
-      console.log("Token length:", token.length);
-      console.log("Token parts:", token.split(".").length);
-
-      // Upload through Edge Function with token in Authorization header
+      // Upload through Edge Function - cookies are sent automatically
       const formData = new FormData();
       formData.append("file", file);
 
@@ -215,9 +204,8 @@ export default function PortalUploads() {
         `${import.meta.env.VITE_SUPABASE_URL || "https://dzyhrzdwwuaorruscxcn.supabase.co"}/functions/v1/upload-file`,
         {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          credentials: "include", // This sends HTTP-only cookies
+          // NO Authorization header - cookies are sent automatically
           body: formData,
         },
       );
@@ -231,9 +219,6 @@ export default function PortalUploads() {
         try {
           const errorJson = JSON.parse(errorText);
           errorMessage = errorJson.error || errorMessage;
-          if (errorJson.hint) {
-            errorMessage += `. ${errorJson.hint}`;
-          }
         } catch (e) {
           errorMessage = errorText || errorMessage;
         }
