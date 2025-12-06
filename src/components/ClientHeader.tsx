@@ -23,10 +23,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useRole } from "@/hooks/useRole";
-import { ExternalLink, Upload, Trash2, Edit, Check, X, Camera } from "lucide-react";
+import { ExternalLink, Upload, Trash2, Edit, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ClientSearchBar from "./ClientSearchBar";
 
@@ -283,7 +284,7 @@ export default function ClientHeader({
             )}
             onClick={() => {
               if (canManageClient) {
-                setShowEditDialog(true);
+                document.getElementById("logo-upload-compact")?.click();
               }
             }}
           >
@@ -302,6 +303,11 @@ export default function ClientHeader({
           <h2 className="font-semibold text-sm truncate">{name}</h2>
           {niche && <p className="text-xs text-muted-foreground truncate">{niche}</p>}
         </div>
+        {canManageClient && (
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowEditDialog(true)}>
+            <Edit className="h-4 w-4" />
+          </Button>
+        )}
       </div>
     );
   }
@@ -325,7 +331,7 @@ export default function ClientHeader({
             )}
             onClick={() => {
               if (canManageClient) {
-                setShowEditDialog(true);
+                document.getElementById("logo-upload")?.click();
               }
             }}
           >
@@ -334,18 +340,6 @@ export default function ClientHeader({
               {getInitials(name)}
             </AvatarFallback>
           </Avatar>
-          {canManageClient && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                document.getElementById("logo-upload")?.click();
-              }}
-              className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-primary flex items-center justify-center hover:bg-primary/90 transition-colors border-2 border-background"
-              title="Upload new logo"
-            >
-              <Camera className="h-3 w-3 text-white" />
-            </button>
-          )}
           {uploadingLogo && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full">
               <div className="h-6 w-6 animate-spin rounded-full border-2 border-white border-t-transparent" />
@@ -359,6 +353,17 @@ export default function ClientHeader({
               <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] bg-clip-text text-transparent">
                 {name}
               </h1>
+              {canManageClient && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setShowEditDialog(true)}
+                  title="Edit client details"
+                >
+                  <Edit className="h-4 w-4" />
+                </Button>
+              )}
             </div>
 
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
@@ -506,7 +511,9 @@ export default function ClientHeader({
                   >
                     {uploadingLogo ? "Uploading..." : "Change Logo"}
                   </Button>
-                  <p className="text-xs text-muted-foreground mt-1">Click this button to upload a new logo image</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Click the logo above or this button to upload a new image
+                  </p>
                 </div>
               </div>
             </div>
