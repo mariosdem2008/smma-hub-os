@@ -6,40 +6,55 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/lib/auth";
 import { ClientAuthProvider } from "@/lib/client-auth";
 import { UpgradeModalProvider } from "@/contexts/UpgradeModalContext";
+import { GlobalUpgradeModal } from "@/components/GlobalUpgradeModal";
 import { UpgradeAssistantProvider } from "@/contexts/UpgradeAssistantContext";
-
-// Pages
-import Index from "@/pages/Index";
-import Landing from "@/pages/Landing";
-import Auth from "@/pages/Auth";
-import ForgotPassword from "@/pages/ForgotPassword";
-import ResetPassword from "@/pages/ResetPassword";
-import Dashboard from "@/pages/Dashboard";
-import Clients from "@/pages/Clients";
-import ClientDetail from "@/pages/ClientDetail";
-import Messages from "@/pages/Messages";
-import Settings from "@/pages/Settings";
-import Team from "@/pages/Team";
-import Onboarding from "@/pages/Onboarding";
-import InviteAccept from "@/pages/InviteAccept";
-import Billing from "@/pages/Billing";
-import BillingOverview from "@/pages/BillingOverview";
-import Pricing from "@/pages/Pricing";
-import NotFound from "@/pages/NotFound";
-
-// Client Portal Pages
-import { ClientPortalLayout } from "@/pages/ClientPortalLayout";
-import ClientLogin from "@/pages/client/ClientLogin";
-import ClientForgotPassword from "@/pages/client/ClientForgotPassword";
-import ClientResetPassword from "@/pages/client/ClientResetPassword";
-import ClientAcceptInvite from "@/pages/client/ClientAcceptInvite";
-
-// Protected Route
+import { UpgradeAssistantBubble } from "@/components/UpgradeAssistantBubble";
+import { UpgradeAssistantCard } from "@/components/UpgradeAssistantCard";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { AppLayout } from "@/components/AppLayout";
+import { ClientDetailLayout } from "@/components/ClientDetailLayout";
+import { useTimezoneDetection } from "@/hooks/useTimezoneDetection";
+import Landing from "./pages/Landing";
+import Auth from "./pages/Auth";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
+import Onboarding from "./pages/Onboarding";
+import Dashboard from "./pages/Dashboard";
+import Clients from "./pages/Clients";
+import ClientDetail from "./pages/ClientDetail";
+import Team from "./pages/Team";
+import Settings from "./pages/Settings";
+import Pricing from "./pages/Pricing";
+import Billing from "./pages/Billing";
+import BillingOverview from "./pages/BillingOverview";
+import InviteAccept from "./pages/InviteAccept";
+import Messages from "./pages/Messages";
+import NotFound from "./pages/NotFound";
+import { ClientPortalLayout } from "./pages/ClientPortalLayout";
+import ClientLogin from "./pages/client/ClientLogin";
+import ClientAcceptInvite from "./pages/client/ClientAcceptInvite";
+import ClientForgotPassword from "./pages/client/ClientForgotPassword";
+import ClientResetPassword from "./pages/client/ClientResetPassword";
+
+import { PortalOverview } from "./pages/client-portal/PortalOverview";
+import { PortalBranding } from "./pages/client-portal/PortalBranding";
+import { PortalSocial } from "./pages/client-portal/PortalSocial";
+import PortalSocialProfiles from "./pages/client-portal/PortalSocialProfiles";
+import { PortalIdeas } from "./pages/client-portal/PortalIdeas";
+import { PortalAssets } from "./pages/client-portal/PortalAssets";
+import { PortalContentCalendar } from "./pages/client-portal/PortalContentCalendar";
+import PortalUploads from "./pages/client-portal/PortalUploads";
+import PortalApprovals from "./pages/client-portal/PortalApprovals";
+import PortalMessages from "./pages/client-portal/PortalMessages";
+import { PortalPerformance } from "./pages/client-portal/PortalPerformance";
+import ReportDetail from "./components/client-tabs/ReportDetail";
 
 const queryClient = new QueryClient();
 
-function App() {
+const App = () => {
+  // Initialize timezone detection
+  useTimezoneDetection();
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
@@ -50,8 +65,10 @@ function App() {
             <ClientAuthProvider>
               <UpgradeModalProvider>
                 <UpgradeAssistantProvider>
+                  <GlobalUpgradeModal />
+                  <UpgradeAssistantCard />
                   <Routes>
-                    {/* Public routes */}
+                    {/* Public Routes */}
                     <Route path="/" element={<Landing />} />
                     <Route path="/auth" element={<Auth />} />
                     <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -59,79 +76,28 @@ function App() {
                     <Route path="/pricing" element={<Pricing />} />
                     <Route path="/invite/:token" element={<InviteAccept />} />
 
-                    {/* Protected agency routes */}
-                    <Route
-                      path="/dashboard"
-                      element={
-                        <ProtectedRoute>
-                          <Dashboard />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/clients"
-                      element={
-                        <ProtectedRoute>
-                          <Clients />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/clients/:clientId"
-                      element={
-                        <ProtectedRoute>
-                          <ClientDetail />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/clients/:clientId/reports/:reportId"
-                      element={
-                        <ProtectedRoute>
-                          <ClientDetail />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/messages"
-                      element={
-                        <ProtectedRoute>
-                          <Messages />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/team"
-                      element={
-                        <ProtectedRoute>
-                          <Team />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/settings"
-                      element={
-                        <ProtectedRoute>
-                          <Settings />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/billing"
-                      element={
-                        <ProtectedRoute>
-                          <Billing />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/billing/overview"
-                      element={
-                        <ProtectedRoute>
-                          <BillingOverview />
-                        </ProtectedRoute>
-                      }
-                    />
+                    {/* Client Portal Auth Routes */}
+                    <Route path="/client/login/:portalSlug" element={<ClientLogin />} />
+                    <Route path="/client/accept-invite" element={<ClientAcceptInvite />} />
+                    <Route path="/client/forgot-password/:portalSlug" element={<ClientForgotPassword />} />
+                    <Route path="/client/reset-password" element={<ClientResetPassword />} />
+
+                    {/* Client Portal Protected Routes */}
+                    <Route path="/client/portal/:portalSlug" element={<ClientPortalLayout />}>
+                      <Route index element={<PortalOverview />} />
+                      <Route path="approvals" element={<PortalApprovals />} />
+                      <Route path="content-calendar" element={<PortalContentCalendar />} />
+                      <Route path="performance" element={<PortalPerformance />} />
+                      <Route path="ideas" element={<PortalIdeas />} />
+                      <Route path="assets" element={<PortalAssets />} />
+                      <Route path="branding" element={<PortalBranding />} />
+                      <Route path="social" element={<PortalSocial />} />
+                      <Route path="social-profiles" element={<PortalSocialProfiles />} />
+                      <Route path="uploads" element={<PortalUploads />} />
+                      <Route path="messages" element={<PortalMessages />} />
+                    </Route>
+
+                    {/* Onboarding */}
                     <Route
                       path="/onboarding"
                       element={
@@ -141,16 +107,36 @@ function App() {
                       }
                     />
 
-                    {/* Client portal auth routes */}
-                    <Route path="/portal/:slug/login" element={<ClientLogin />} />
-                    <Route path="/portal/:slug/forgot-password" element={<ClientForgotPassword />} />
-                    <Route path="/portal/:slug/reset-password" element={<ClientResetPassword />} />
-                    <Route path="/client/accept-invite/:token" element={<ClientAcceptInvite />} />
+                    {/* Protected App Routes */}
+                    <Route
+                      element={
+                        <ProtectedRoute>
+                          <AppLayout />
+                        </ProtectedRoute>
+                      }
+                    >
+                      <Route path="/dashboard" element={<Dashboard />} />
+                      <Route path="/clients" element={<Clients />} />
+                      <Route path="/messages" element={<Messages />} />
+                      <Route path="/team" element={<Team />} />
+                      <Route path="/billing" element={<Billing />} />
+                      <Route path="/billing/overview" element={<BillingOverview />} />
+                      <Route path="/settings" element={<Settings />} />
+                    </Route>
 
-                    {/* Client portal protected routes */}
-                    <Route path="/portal/:slug/*" element={<ClientPortalLayout />} />
+                    {/* Client Detail Routes - No Sidebar */}
+                    <Route
+                      element={
+                        <ProtectedRoute>
+                          <ClientDetailLayout />
+                        </ProtectedRoute>
+                      }
+                    >
+                      <Route path="/clients/:clientId" element={<ClientDetail />} />
+                      <Route path="/clients/:clientId/reports/:reportId" element={<ReportDetail />} />
+                    </Route>
 
-                    {/* Fallback */}
+                    {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </UpgradeAssistantProvider>
@@ -161,6 +147,6 @@ function App() {
       </TooltipProvider>
     </QueryClientProvider>
   );
-}
+};
 
 export default App;

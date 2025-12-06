@@ -9,11 +9,6 @@ export interface ClientReport {
   data: {
     month: string;
     generated_at: string;
-    client_info: {
-      name: string;
-      industry: string;
-      platforms: string[];
-    };
     kpis: {
       followersStart: number;
       followersEnd: number;
@@ -24,38 +19,18 @@ export interface ClientReport {
       totalEngagement: number;
       avgEngagementRate: number;
       profileVisits: number;
-      engagementByType: {
-        likes: number;
-        comments: number;
-        shares: number;
-        saves: number;
-      };
-      topPerformingPlatform: string;
-      postingFrequency: number;
-      avgImpressionsPerPost: number;
-      avgReachPerPost: number;
     };
     topPosts: Array<{
       platform: string;
       platform_post_id: string;
       date: string;
-      caption: string;
-      media_type: string;
       impressions: number;
       reach: number;
       engagement: number;
       engagementRate: number;
-      likes: number;
-      comments: number;
-      shares: number;
     }>;
-    analysis: {
-      executiveSummary: string;
-      performanceInsights: string;
-      strategicRecommendations: string;
-      competitiveAnalysis: string;
-      industryBenchmarks: string;
-    };
+    insights: string;
+    recommendations: string;
   };
   created_at: string;
   updated_at: string;
@@ -73,11 +48,7 @@ export function useClientReports(clientId: string) {
 
       if (error) throw error;
 
-      // Type assertion for the data field
-      return (data || []).map((report) => ({
-        ...report,
-        data: report.data as ClientReport["data"],
-      })) as ClientReport[];
+      return (data || []) as ClientReport[];
     },
     enabled: !!clientId,
   });

@@ -14,7 +14,7 @@ export function useGenerateReport() {
 
   return useMutation({
     mutationFn: async ({ clientId, agencyId, month }: GenerateReportParams) => {
-      const { data, error } = await supabase.functions.invoke("generate-monthly-report", {
+      const { data, error } = await supabase.functions.invoke('generate-monthly-report', {
         body: {
           client_id: clientId,
           agency_id: agencyId,
@@ -23,23 +23,20 @@ export function useGenerateReport() {
       });
 
       if (error) throw error;
-      if (!data.success) throw new Error(data.error || "Failed to generate report");
+      if (!data.success) throw new Error(data.error || 'Failed to generate report');
 
-      // Ensure we return the proper report structure
       return data.report;
     },
-    onSuccess: (report, variables) => {
+    onSuccess: (_, variables) => {
       toast({
-        title: "Professional Report Generated",
-        description: "Comprehensive monthly report has been created successfully.",
-        variant: "default",
+        title: "Report Generated",
+        description: "Monthly report has been created successfully.",
       });
       queryClient.invalidateQueries({ queryKey: ["client-reports", variables.clientId] });
-      queryClient.invalidateQueries({ queryKey: ["client-report", report.id] });
     },
     onError: (error: Error) => {
       toast({
-        title: "Report Generation Failed",
+        title: "Generation Failed",
         description: error.message,
         variant: "destructive",
       });
