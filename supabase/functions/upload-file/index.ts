@@ -123,6 +123,18 @@ Deno.serve(async (req) => {
 
   console.log(`[${new Date().toISOString()}] File upload request from: ${req.headers.get("origin")}`);
 
+  // Debug: Log all headers
+  console.log("All request headers:");
+  for (const [key, value] of req.headers.entries()) {
+    if (key.toLowerCase() === "cookie") {
+      console.log(`${key}: ${value}`);
+    } else if (key.toLowerCase() === "authorization") {
+      console.log(`${key}: ${value.substring(0, 20)}...`); // Log partial auth header
+    } else {
+      console.log(`${key}: ${value}`);
+    }
+  }
+
   // Only allow POST requests
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
@@ -136,37 +148,61 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     const cookieHeader = req.headers.get("Cookie");
 
+    console.log("Cookie header raw:", cookieHeader);
+
     let token: string | null = null;
 
     if (authHeader?.startsWith("Bearer ")) {
       token = authHeader.replace("Bearer ", "");
       console.log("Token from Authorization header");
-    } else {
-      // Try to get token from cookie
-      token = getCookie(cookieHeader, "cp_access_token");
-      if (token) {
-        console.log("Token from cookie");
-      } else {
-        console.log("Checking for other cookie names...");
-        // Try other possible cookie names
-        const possibleCookieNames = ["cp_token", "client_portal_token", "access_token"];
-        for (const cookieName of possibleCookieNames) {
-          token = getCookie(cookieHeader, cookieName);
-          if (token) {
-            console.log(`Token found in cookie: ${cookieName}`);
-            break;
-          }
+    } else if (cookieHeader) {
+      // Debug all cookies
+      const cookies = cookieHeader.split(";").map((c) => c.trim());
+      console.log("All cookies found:");
+      for (const cookie of cookies) {
+        const [name, value] = cookie.split("=");
+        console.log(`  ${name}: ${value?.substring(0, 20)}...`);
+      }
+
+      // Check for various possible cookie names
+      const possibleCookieNames = [
+        "cp_access_token",
+        "client_portal_token",
+        "access_token",
+        "token",
+        "supabase-auth-token",
+        "sb-access-token",
+      ];
+
+      for (const cookieName of possibleCookieNames) {
+        token = getCookie(cookieHeader, cookieName);
+        if (token) {
+          console.log(`Token found in cookie: ${cookieName}`);
+          break;
         }
+      }
+
+      if (!token) {
+        console.log("No token found in any known cookie");
       }
     }
 
     if (!token) {
       console.log("No token provided in header or cookie");
-      console.log("Cookies present:", cookieHeader);
-      return new Response(JSON.stringify({ error: "No authorization token provided. Please log in again." }), {
-        status: 401,
-        headers: { ...corsHeaders(req), "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({
+          error: "No authorization token provided. Please log in again.",
+          debug: {
+            hasAuthHeader: !!authHeader,
+            hasCookies: !!cookieHeader,
+            cookieHeader: cookieHeader || "none",
+          },
+        }),
+        {
+          status: 401,
+          headers: { ...corsHeaders(req), "Content-Type": "application/json" },
+        },
+      );
     }
 
     const clientPortalUser = await verifyClientPortalToken(token);
@@ -195,39 +231,13 @@ Deno.serve(async (req) => {
       });
     }
 
+    console.log(`File received: ${file.name}, type: ${file.type}, size: ${file.size} bytes`);
+
     // Validate file size (max 50MB)
     const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
     if (file.size > MAX_FILE_SIZE) {
       console.log(`File too large: ${file.size} bytes`);
       return new Response(JSON.stringify({ error: "File size exceeds 50MB limit" }), {
-        status: 400,
-        headers: { ...corsHeaders(req), "Content-Type": "application/json" },
-      });
-    }
-
-    // Validate file type
-    const allowedTypes = [
-      "image/jpeg",
-      "image/jpg",
-      "image/png",
-      "image/gif",
-      "image/webp",
-      "video/mp4",
-      "video/quicktime",
-      "video/webm",
-      "video/mpeg",
-      "application/pdf",
-      "application/msword",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      "application/vnd.ms-excel",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "text/plain",
-      "text/csv",
-    ];
-
-    if (!allowedTypes.includes(file.type.toLowerCase())) {
-      console.log(`Invalid file type: ${file.type}`);
-      return new Response(JSON.stringify({ error: "File type not allowed" }), {
         status: 400,
         headers: { ...corsHeaders(req), "Content-Type": "application/json" },
       });
@@ -239,7 +249,7 @@ Deno.serve(async (req) => {
     const randomId = Math.random().toString(36).substring(2, 10);
     const fileName = `${clientPortalUser.client_id}/${clientPortalUser.sub}/${timestamp}_${randomId}.${fileExt}`;
 
-    console.log(`Uploading file: ${fileName} (${file.size} bytes)`);
+    console.log(`Uploading file to: ${fileName}`);
 
     // Upload to storage
     const { data: uploadData, error: uploadError } = await supabaseClient.storage
