@@ -66,7 +66,7 @@ export default function PortalUploads() {
         },
         () => {
           fetchUploads();
-        }
+        },
       )
       .subscribe();
 
@@ -75,54 +75,64 @@ export default function PortalUploads() {
     };
   };
 
+  const getClientPortalToken = () => {
+    // Try localStorage first
+    const token = localStorage.getItem("cp_access_token");
+    if (token) return token;
+
+    // Try cookies
+    const cookies = document.cookie.split("; ");
+    for (const cookie of cookies) {
+      const [name, value] = cookie.split("=");
+      if (name === "cp_access_token") {
+        return value;
+      }
+    }
+
+    // Try sessionStorage
+    const sessionToken = sessionStorage.getItem("cp_access_token");
+    if (sessionToken) return sessionToken;
+
+    return null;
+  };
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !clientUser) return;
 
     setUploading(true);
     try {
-      // Get client and agency info
-      const { data: client } = await supabase
-        .from("clients")
-        .select("agency_id")
-        .eq("id", clientId)
-        .single();
+      // Get the client portal JWT token
+      const token = getClientPortalToken();
 
-      if (!client) throw new Error("Client not found");
+      if (!token) {
+        throw new Error("Authentication token not found. Please log in again.");
+      }
 
-      // Upload to storage
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${clientId}/${Date.now()}.${fileExt}`;
-      
-      const { error: uploadError, data: uploadData } = await supabase.storage
-        .from("client-uploads")
-        .upload(fileName, file);
+      // Upload through Edge Function
+      const formData = new FormData();
+      formData.append("file", file);
 
-      if (uploadError) throw uploadError;
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL || "https://dzyhrzdwwuaorruscxcn.supabase.co"}/functions/v1/upload-file`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        },
+      );
 
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from("client-uploads")
-        .getPublicUrl(fileName);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Upload failed");
+      }
 
-      // Create record
-      const { error: insertError } = await supabase
-        .from("client_uploads")
-        .insert({
-          client_id: clientId,
-          agency_id: client.agency_id,
-          uploaded_by: clientUser.id,
-          file_name: file.name,
-          file_url: publicUrl,
-          file_type: file.type,
-          file_size: file.size,
-          status: "pending",
-        });
-
-      if (insertError) throw insertError;
+      const result = await response.json();
 
       toast({
-        title: "File uploaded",
+        title: "File uploaded successfully",
         description: "Your file is pending review by the agency team",
       });
 
@@ -176,9 +186,7 @@ export default function PortalUploads() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">My Uploads</h1>
-        <p className="text-muted-foreground mt-1">
-          Upload files for agency review
-        </p>
+        <p className="text-muted-foreground mt-1">Upload files for agency review</p>
       </div>
 
       <Card>
@@ -188,21 +196,16 @@ export default function PortalUploads() {
         <CardContent>
           <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
             <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground mb-4">
-              Click to upload or drag and drop files here
-            </p>
-            <input
-              type="file"
-              id="file-upload"
-              className="hidden"
-              onChange={handleFileUpload}
-              disabled={uploading}
-            />
+            <p className="text-sm text-muted-foreground mb-4">Click to upload or drag and drop files here</p>
+            <input type="file" id="file-upload" className="hidden" onChange={handleFileUpload} disabled={uploading} />
             <Button asChild disabled={uploading}>
               <label htmlFor="file-upload" className="cursor-pointer">
                 {uploading ? "Uploading..." : "Choose File"}
               </label>
             </Button>
+            <p className="text-xs text-muted-foreground mt-2">
+              Max file size: 50MB. Allowed types: images, PDFs, documents
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -213,9 +216,7 @@ export default function PortalUploads() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Loading uploads...
-            </div>
+            <div className="text-center py-8 text-muted-foreground">Loading uploads...</div>
           ) : uploads.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <FileIcon className="h-12 w-12 mx-auto mb-3 opacity-50" />
@@ -241,17 +242,25 @@ export default function PortalUploads() {
                               {upload.status}
                             </span>
                           </Badge>
-                          <span className="text-sm text-muted-foreground">
-                            {formatFileSize(upload.file_size)}
-                          </span>
+                          <span className="text-sm text-muted-foreground">{formatFileSize(upload.file_size)}</span>
                           <span className="text-sm text-muted-foreground">
                             {format(new Date(upload.created_at), "MMM d, yyyy")}
                           </span>
                         </div>
                         {upload.rejection_reason && (
-                          <p className="text-sm text-destructive mt-2">
-                            Rejection reason: {upload.rejection_reason}
-                          </p>
+                          <p className="text-sm text-destructive mt-2">Rejection reason: {upload.rejection_reason}</p>
+                        )}
+                        {upload.file_url && (
+                          <div className="mt-2">
+                            <a
+                              href={upload.file_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm text-primary hover:underline"
+                            >
+                              View file
+                            </a>
+                          </div>
                         )}
                       </div>
                     </div>
