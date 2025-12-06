@@ -5,6 +5,8 @@ const allowedOrigins = [
   "https://smmahub.net",
   "https://73a2983b-0136-47d2-9a1f-01fe580ac593.lovableproject.com",
   "https://id-preview--73a2983b-0136-47d2-9a1f-01fe580ac593.lovable.app",
+  'Access-Control-Allow-Credentials': 'true' // Important for cookies/auth
+
 ];
 
 function corsHeaders(request: Request): Record<string, string> {
