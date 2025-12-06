@@ -92,10 +92,6 @@ export default function PortalUploads() {
         {
           method: "POST",
           credentials: "include", // This sends HTTP-only cookies
-          headers: {
-            // Add debug header
-            "x-debug-info": "client-portal-upload",
-          },
           body: formData,
         },
       );
@@ -109,7 +105,6 @@ export default function PortalUploads() {
         try {
           const errorJson = JSON.parse(errorText);
           errorMessage = errorJson.error || errorMessage;
-          console.log("Debug info:", errorJson.debug);
         } catch (e) {
           errorMessage = errorText || errorMessage;
         }
