@@ -314,6 +314,7 @@ export default function Clients() {
         phone: editFormData.phone.trim() || null,
         company: editFormData.company.trim() || null,
         status: editFormData.status,
+        updated_at: new Date().toISOString(),
       };
 
       const { error } = await supabase.from("clients").update(updates).eq("id", editFormData.id);
@@ -326,7 +327,7 @@ export default function Clients() {
       });
 
       setShowEditDialog(false);
-      await fetchClients(); // Refresh the list
+      await fetchClients();
     } catch (error) {
       console.error("Error updating client:", error);
       toast({
