@@ -506,20 +506,30 @@ export default function Dashboard() {
         return;
       }
 
-      const { data: client, error } = await supabase
-        .from("clients")
-        .insert({
-          agency_id: agencyId,
-          name: clientFormData.name,
-          email: clientFormData.email || null,
-          phone: clientFormData.phone || null,
-          company: clientFormData.company || null,
-          status: clientFormData.status,
-        } as any)
-        .select()
-        .single();
+      // Generate a UUID for the client ID
+      const clientId = crypto.randomUUID();
 
-      if (error) throw error;
+      // Create client with proper data - wrapped in array
+      const clientData = [
+        {
+          id: clientId,
+          agency_id: agencyId,
+          name: clientFormData.name.trim(),
+          email: clientFormData.email.trim() || null,
+          phone: clientFormData.phone.trim() || null,
+          company: clientFormData.company.trim() || null,
+          status: clientFormData.status,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+      ];
+
+      const { data: client, error } = await supabase.from("clients").insert(clientData).select().single();
+
+      if (error) {
+        console.error("Error creating client:", error);
+        throw error;
+      }
 
       toast({
         title: "Success",
@@ -531,9 +541,20 @@ export default function Dashboard() {
       fetchDashboardData();
       navigate(`/clients/${client.id}`);
     } catch (error: any) {
+      console.error("Error creating client:", error);
+
+      let errorMessage = "Failed to create client";
+      if (error.message) {
+        errorMessage = error.message;
+      } else if (error.details) {
+        errorMessage = error.details;
+      } else if (error.hint) {
+        errorMessage = error.hint;
+      }
+
       toast({
         title: "Error",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
