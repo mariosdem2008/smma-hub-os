@@ -130,6 +130,11 @@ export default function ClientDetail() {
     setLoading(false);
   };
 
+  // Add this function to handle client updates
+  const handleClientUpdate = async () => {
+    await fetchClient(); // This will refetch the client data
+  };
+
   // Load client fonts dynamically
   useClientFonts({
     primaryFont: client?.primary_font,
@@ -246,6 +251,7 @@ export default function ClientDetail() {
               website={client.website}
               primaryColor={branding?.primary_color}
               compact
+              onClientUpdate={handleClientUpdate} // Add this line
             />
           </div>
           <nav className="p-2">
@@ -307,6 +313,7 @@ export default function ClientDetail() {
               niche={client.niche}
               website={client.website}
               primaryColor={branding?.primary_color}
+              onClientUpdate={handleClientUpdate} // Add this line
             />
           </div>
         )}
