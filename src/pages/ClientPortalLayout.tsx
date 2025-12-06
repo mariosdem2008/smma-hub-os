@@ -13,7 +13,7 @@ import {
   LogOut,
   CalendarDays,
   CheckCircle,
-  Upload,
+  //  Upload,
   MessageSquare,
   BarChart3,
 } from "lucide-react";
@@ -38,12 +38,17 @@ const navItems = [
   { path: "performance", label: "Performance", key: "performance", icon: BarChart3 },
   { path: "messages", label: "Messages", key: "messages", icon: MessageSquare },
   { path: "assets", label: "Assets", key: "assets", icon: FolderOpen },
-  { path: "uploads", label: "Upload", key: "uploads", icon: Upload },
-  { path: "social-profiles", label: "Social Profiles", key: "social_profiles", icon: () => (
-    <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
-      <path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z"/>
-    </svg>
-  )},
+  //  { path: "uploads", label: "Upload", key: "uploads", icon: Upload },
+  {
+    path: "social-profiles",
+    label: "Social Profiles",
+    key: "social_profiles",
+    icon: () => (
+      <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
+        <path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z" />
+      </svg>
+    ),
+  },
 ];
 
 function ClientPortalLayoutContent() {
@@ -74,18 +79,12 @@ function ClientPortalLayoutContent() {
   const fetchClient = async () => {
     if (!clientUser?.client_id) return;
 
-    const { data } = await supabase
-      .from("client_portal_view")
-      .select("*")
-      .eq("id", clientUser.client_id)
-      .maybeSingle();
+    const { data } = await supabase.from("client_portal_view").select("*").eq("id", clientUser.client_id).maybeSingle();
 
     if (data) {
       setClient({
         ...data,
-        brand_colors: Array.isArray(data.brand_colors) 
-          ? data.brand_colors 
-          : data.brand_colors,
+        brand_colors: Array.isArray(data.brand_colors) ? data.brand_colors : data.brand_colors,
       });
     }
   };
@@ -113,13 +112,7 @@ function ClientPortalLayoutContent() {
       <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-16 items-center justify-between px-4 md:px-6">
           <div className="flex items-center gap-4">
-            {client.logo_url && (
-              <img
-                src={client.logo_url}
-                alt={client.name}
-                className="h-10 w-10 object-contain"
-              />
-            )}
+            {client.logo_url && <img src={client.logo_url} alt={client.name} className="h-10 w-10 object-contain" />}
             <div>
               <h1 className="text-lg md:text-xl font-semibold">{client.name}</h1>
               <p className="text-xs text-muted-foreground hidden md:block">Client Portal</p>
@@ -128,9 +121,7 @@ function ClientPortalLayoutContent() {
           <div className="flex items-center gap-2 md:gap-4">
             <ClientPortalNotificationCenter />
             {!isMobile && (
-              <span className="text-sm text-muted-foreground">
-                {clientUser.full_name || clientUser.email}
-              </span>
+              <span className="text-sm text-muted-foreground">{clientUser.full_name || clientUser.email}</span>
             )}
             <Button variant="ghost" size="sm" onClick={handleSignOut}>
               <LogOut className="h-4 w-4 md:mr-2" />
@@ -148,8 +139,7 @@ function ClientPortalLayoutContent() {
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const isActive =
-                  window.location.pathname ===
-                  `/client/portal/${portalSlug}${item.path ? `/${item.path}` : ""}`;
+                  window.location.pathname === `/client/portal/${portalSlug}${item.path ? `/${item.path}` : ""}`;
 
                 return (
                   <Link
@@ -159,7 +149,7 @@ function ClientPortalLayoutContent() {
                       "flex items-center gap-3 px-4 py-2 text-sm font-medium rounded-md transition-colors",
                       isActive
                         ? "bg-accent text-accent-foreground"
-                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
                     )}
                   >
                     <Icon className="h-4 w-4" />
