@@ -486,7 +486,7 @@ export default function Clients() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background"
+                        className="h-5 w-5 rounded-full bg-background/50 backdrop-blur-sm hover:bg-background"
                         onClick={(e) => e.preventDefault()}
                       >
                         <MoreVertical className="h-4 w-4" />
