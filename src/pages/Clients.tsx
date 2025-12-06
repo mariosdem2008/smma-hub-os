@@ -95,30 +95,27 @@ export default function Clients() {
   const fetchClients = async () => {
     if (!user) return;
 
-    // Get agency
-    const { data: agency } = await supabase.from("agencies").select("id").eq("user_id", user.id).single();
+    // Get user's agency relationship
+    const { data: agencyData } = await supabase.from("agencies").select("id").eq("user_id", user.id).maybeSingle();
 
-    if (!agency) {
-      // Create agency if it doesn't exist
-      const { data: newAgency, error } = await supabase
-        .from("agencies")
-        .insert({
-          user_id: user.id,
-          name: "My Agency",
-        } as any)
-        .select()
-        .single();
+    let agencyId = agencyData?.id;
 
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to create agency",
-          variant: "destructive",
-        });
+    // If user is not an agency owner, check if they're an agency member
+    if (!agencyId) {
+      const { data: memberData } = await supabase
+        .from("agency_members")
+        .select("agency_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (!memberData) {
         setLoading(false);
         return;
       }
+      agencyId = memberData.agency_id;
+    }
 
+    if (!agencyId) {
       setLoading(false);
       return;
     }
@@ -127,7 +124,7 @@ export default function Clients() {
     const { data, error } = await supabase
       .from("clients")
       .select("id, name, email, phone, company, status, created_at, logo_url")
-      .eq("agency_id", agency.id)
+      .eq("agency_id", agencyId)
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -191,33 +188,57 @@ export default function Clients() {
     setSubmitting(true);
 
     try {
-      // Get agency
-      const { data: agency } = await supabase.from("agencies").select("id").eq("user_id", user?.id).single();
+      // Get user's agency relationship
+      const { data: agencyData } = await supabase.from("agencies").select("id").eq("user_id", user?.id).maybeSingle();
 
-      if (!agency) {
+      let agencyId = agencyData?.id;
+
+      // If user is not an agency owner, check if they're an agency member
+      if (!agencyId) {
+        const { data: memberData } = await supabase
+          .from("agency_members")
+          .select("agency_id")
+          .eq("user_id", user?.id)
+          .maybeSingle();
+
+        if (!memberData) {
+          toast({
+            title: "Error",
+            description: "You are not associated with any agency",
+            variant: "destructive",
+          });
+          return;
+        }
+        agencyId = memberData.agency_id;
+      }
+
+      if (!agencyId) {
         toast({
           title: "Error",
-          description: "Agency not found",
+          description: "Could not determine agency. Please contact support.",
           variant: "destructive",
         });
         return;
       }
 
-      // Create client
-      const { data: newClient, error } = await supabase
-        .from("clients")
-        .insert({
-          agency_id: agency.id,
-          name: formData.name,
-          email: formData.email || null,
-          phone: formData.phone || null,
-          company: formData.company || null,
-          status: formData.status,
-        } as any)
-        .select()
-        .single();
+      // Create client with proper data
+      const clientData = {
+        agency_id: agencyId,
+        name: formData.name.trim(),
+        email: formData.email.trim() || null,
+        phone: formData.phone.trim() || null,
+        company: formData.company.trim() || null,
+        status: formData.status,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
 
-      if (error) throw error;
+      const { data: newClient, error } = await supabase.from("clients").insert(clientData).select().single();
+
+      if (error) {
+        console.error("Supabase error details:", error);
+        throw error;
+      }
 
       toast({
         title: "Success",
@@ -229,11 +250,21 @@ export default function Clients() {
 
       // Navigate to new client
       navigate(`/clients/${newClient.id}`);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating client:", error);
+
+      let errorMessage = "Failed to create client";
+      if (error.message) {
+        errorMessage = error.message;
+      } else if (error.details) {
+        errorMessage = error.details;
+      } else if (error.hint) {
+        errorMessage = error.hint;
+      }
+
       toast({
         title: "Error",
-        description: "Failed to create client",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -272,6 +303,7 @@ export default function Clients() {
         phone: editFormData.phone.trim() || null,
         company: editFormData.company.trim() || null,
         status: editFormData.status,
+        updated_at: new Date().toISOString(),
       };
 
       const { error } = await supabase.from("clients").update(updates).eq("id", editFormData.id);
@@ -284,7 +316,7 @@ export default function Clients() {
       });
 
       setShowEditDialog(false);
-      await fetchClients(); // Refresh the list
+      await fetchClients();
     } catch (error) {
       console.error("Error updating client:", error);
       toast({
@@ -312,7 +344,6 @@ export default function Clients() {
   const handleDeleteClient = async () => {
     setDeleting(true);
     try {
-      // Use the delete_client_cascade function to delete client and all related data
       const { error } = await supabase.rpc("delete_client_cascade", {
         p_client_id: editFormData.id,
       });
@@ -325,7 +356,7 @@ export default function Clients() {
       });
 
       setShowDeleteDialog(false);
-      await fetchClients(); // Refresh the list
+      await fetchClients();
     } catch (error: any) {
       console.error("Delete client error:", error);
       toast({
@@ -486,7 +517,7 @@ export default function Clients() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-5 w-5 rounded-full bg-background/50 backdrop-blur-sm hover:bg-background"
+                        className="h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background"
                         onClick={(e) => e.preventDefault()}
                       >
                         <MoreVertical className="h-4 w-4" />
