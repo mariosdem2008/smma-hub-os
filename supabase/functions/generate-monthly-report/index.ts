@@ -1,631 +1,947 @@
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { useParams, useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  ArrowLeft,
+  Download,
+  TrendingUp,
+  Users,
+  Eye,
+  Heart,
+  FileText,
+  Lightbulb,
+  Target,
+  BarChart3,
+  PieChart,
+  Calendar,
+  CheckCircle2,
+  Award,
+  DollarSign,
+  Building,
+  Sparkles,
+  Shield,
+  Zap,
+  AlertTriangle,
+  Clock,
+} from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { format, parseISO } from "date-fns";
+import type { ClientReport } from "@/hooks/useClientReports";
+import { cn } from "@/lib/utils";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
-serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
-
-  try {
-    console.log("[MONTHLY-REPORT] Function invoked");
-
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: "Authentication required",
-        }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
-    }
-
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      { auth: { persistSession: false } },
-    );
-
-    const token = authHeader.replace("Bearer ", "");
-    const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-    const user = userData?.user;
-
-    if (userError || !user) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: "Authentication failed",
-        }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
-    }
-
-    const { client_id, agency_id, month } = await req.json();
-
-    if (!client_id || !agency_id || !month) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: "client_id, agency_id, and month (YYYY-MM) are required",
-        }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
-    }
-
-    console.log("[MONTHLY-REPORT] Generating report for:", { client_id, month });
-
-    // Verify user has access to this agency
-    const { data: membership } = await supabaseClient
-      .from("agency_members")
-      .select("id")
-      .eq("agency_id", agency_id)
-      .eq("user_id", user.id)
-      .single();
-
-    if (!membership) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: "Unauthorized access to this agency",
-        }),
-        {
-          status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
-    }
-
-    // Get client details
-    const { data: client } = await supabaseClient
-      .from("clients")
-      .select("name, company, logo_url, niche")
-      .eq("id", client_id)
-      .single();
-
-    if (!client) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: "Client not found",
-        }),
-        {
-          status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
-    }
-
-    // Calculate date range for the month
-    const startDate = `${month}-01`;
-    const endDate = new Date(new Date(month).getFullYear(), new Date(month).getMonth() + 1, 0)
-      .toISOString()
-      .split("T")[0];
-    const previousMonth = new Date(new Date(month).setMonth(new Date(month).getMonth() - 1))
-      .toISOString()
-      .split("T")[0]
-      .slice(0, 7);
-
-    console.log("[MONTHLY-REPORT] Date range:", startDate, "to", endDate);
-
-    // Fetch current month stats
-    const { data: currentStats } = await supabaseClient
-      .from("social_profile_stats")
-      .select("followers, impressions, profile_visits, engagement_rate")
-      .eq("client_id", client_id)
-      .gte("date", startDate)
-      .lte("date", endDate)
-      .order("date", { ascending: false })
-      .limit(30);
-
-    // Fetch previous month stats for comparison
-    const { data: previousStats } = await supabaseClient
-      .from("social_profile_stats")
-      .select("followers, impressions, profile_visits, engagement_rate")
-      .eq("client_id", client_id)
-      .gte("date", `${previousMonth}-01`)
-      .lte(
-        "date",
-        new Date(new Date(previousMonth).getFullYear(), new Date(previousMonth).getMonth() + 1, 0)
-          .toISOString()
-          .split("T")[0],
-      )
-      .order("date", { ascending: false })
-      .limit(30);
-
-    // Fetch post metrics for the month
-    const { data: postMetrics } = await supabaseClient
-      .from("social_post_metrics")
-      .select("*")
-      .eq("client_id", client_id)
-      .gte("date", startDate)
-      .lte("date", endDate);
-
-    // Fetch content performance by platform
-    const { data: platformData } = await supabaseClient
-      .from("social_post_metrics")
-      .select("platform, impressions, reach, likes, comments, shares, saves")
-      .eq("client_id", client_id)
-      .gte("date", startDate)
-      .lte("date", endDate);
-
-    // Fetch top performing campaigns/projects
-    const { data: topCampaigns } = await supabaseClient
-      .from("projects")
-      .select("id, title, platforms, scheduled_time, thumbnail_url")
-      .eq("client_id", client_id)
-      .eq("status", "published")
-      .gte("scheduled_time", startDate)
-      .lte("scheduled_time", endDate)
-      .order("scheduled_time", { ascending: false })
-      .limit(5);
-
-    // Calculate comprehensive KPIs
-    const avgFollowersCurrent =
-      currentStats?.length > 0 ? currentStats.reduce((sum, s) => sum + (s.followers || 0), 0) / currentStats.length : 0;
-
-    const avgFollowersPrevious =
-      previousStats?.length > 0
-        ? previousStats.reduce((sum, s) => sum + (s.followers || 0), 0) / previousStats.length
-        : 0;
-
-    const followersGrowth =
-      avgFollowersPrevious > 0
-        ? ((avgFollowersCurrent - avgFollowersPrevious) / avgFollowersPrevious) * 100
-        : avgFollowersCurrent > 0
-          ? 100
-          : 0;
-
-    const postsCount = postMetrics?.length || 0;
-    const totalImpressions = postMetrics?.reduce((sum, m) => sum + (m.impressions || 0), 0) || 0;
-    const totalReach = postMetrics?.reduce((sum, m) => sum + (m.reach || 0), 0) || 0;
-    const totalLikes = postMetrics?.reduce((sum, m) => sum + (m.likes || 0), 0) || 0;
-    const totalComments = postMetrics?.reduce((sum, m) => sum + (m.comments || 0), 0) || 0;
-    const totalShares = postMetrics?.reduce((sum, m) => sum + (m.shares || 0), 0) || 0;
-    const totalSaves = postMetrics?.reduce((sum, m) => sum + (m.saves || 0), 0) || 0;
-    const totalProfileVisits = currentStats?.reduce((sum, s) => sum + (s.profile_visits || 0), 0) || 0;
-
-    const totalEngagement = totalLikes + totalComments + totalShares + totalSaves;
-    const avgEngagementRate = totalReach > 0 ? (totalEngagement / totalReach) * 100 : 0;
-    const avgImpressionsPerPost = postsCount > 0 ? totalImpressions / postsCount : 0;
-    const avgReachPerPost = postsCount > 0 ? totalReach / postsCount : 0;
-
-    // Calculate platform performance
-    const platformPerformance = {};
-    if (platformData) {
-      platformData.forEach((metric) => {
-        if (!platformPerformance[metric.platform]) {
-          platformPerformance[metric.platform] = {
-            impressions: 0,
-            reach: 0,
-            engagement: 0,
-            posts: 0,
-          };
-        }
-        platformPerformance[metric.platform].impressions += metric.impressions || 0;
-        platformPerformance[metric.platform].reach += metric.reach || 0;
-        platformPerformance[metric.platform].engagement +=
-          (metric.likes || 0) + (metric.comments || 0) + (metric.shares || 0) + (metric.saves || 0);
-        platformPerformance[metric.platform].posts += 1;
-      });
-
-      // Calculate engagement rates per platform
-      Object.keys(platformPerformance).forEach((platform) => {
-        const data = platformPerformance[platform];
-        data.engagementRate = data.reach > 0 ? (data.engagement / data.reach) * 100 : 0;
-        data.avgImpressions = data.posts > 0 ? data.impressions / data.posts : 0;
-      });
-    }
-
-    // Find top 5 posts by engagement rate
-    const postsWithEngagement = (postMetrics || []).map((post) => {
-      const engagement = (post.likes || 0) + (post.comments || 0) + (post.shares || 0) + (post.saves || 0);
-      const engagementRate = post.reach > 0 ? (engagement / post.reach) * 100 : 0;
-      return { ...post, engagement, engagementRate };
-    });
-
-    const topPosts = postsWithEngagement.sort((a, b) => b.engagementRate - a.engagementRate).slice(0, 5);
-
-    // Calculate content performance score
-    const contentScore = calculateContentPerformanceScore({
-      engagementRate: avgEngagementRate,
-      growthRate: followersGrowth,
-      consistency: postsCount,
-      reach: totalReach,
-    });
-
-    // Generate professional insights and recommendations
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-    let executiveSummary = "";
-    let detailedAnalysis = "";
-    let strategicRecommendations = "";
-
-    if (OPENAI_API_KEY) {
-      console.log("[MONTHLY-REPORT] Generating professional insights...");
-
-      const aiPrompt = `You are the Chief Strategy Officer at a premier $1M+ social media agency. Generate a comprehensive monthly performance report with:
-
-CLIENT: ${client.name} (${client.company || client.niche || "Client"})
-REPORT PERIOD: ${new Date(month).toLocaleString("default", { month: "long", year: "numeric" })}
-
-PERFORMANCE HIGHLIGHTS:
-- Follower Growth: ${avgFollowersPrevious.toLocaleString()} → ${avgFollowersCurrent.toLocaleString()} (${followersGrowth.toFixed(1)}% MoM)
-- Content Volume: ${postsCount} posts published
-- Total Reach: ${totalReach.toLocaleString()} accounts
-- Total Impressions: ${totalImpressions.toLocaleString()} views
-- Engagement Rate: ${avgEngagementRate.toFixed(2)}% (industry avg: 2-3%)
-- Profile Visits: ${totalProfileVisits.toLocaleString()}
-- Content Performance Score: ${contentScore}/100
-
-TOP PERFORMING PLATFORMS:
-${Object.entries(platformPerformance)
-  .map(
-    ([platform, data]) =>
-      `- ${platform}: ${data.engagementRate.toFixed(2)}% engagement, ${data.impressions.toLocaleString()} impressions`,
-  )
-  .join("\n")}
-
-Generate THREE SECTIONS:
-
-1. EXECUTIVE SUMMARY (2-3 paragraphs):
-   Start with a CEO-level overview highlighting the most significant achievements and opportunities. Focus on business impact and strategic positioning. Use confident, authoritative language.
-
-2. DETAILED PERFORMANCE ANALYSIS (4-5 bullet points each):
-   - Audience Growth Analysis
-   - Content Performance Breakdown  
-   - Platform-Specific Insights
-   - Competitive Positioning Indicators
-   - ROI and Efficiency Metrics
-
-3. STRATEGIC RECOMMENDATIONS (Prioritized quarter roadmap):
-   - Immediate Actions (30 days)
-   - Strategic Initiatives (60-90 days)
-   - Long-term Opportunities (Q4 planning)
-   - Resource Allocation Suggestions
-   - Risk Mitigation Strategies
-
-Format with professional headings and use data-driven insights. The client is a sophisticated business executive - speak to their strategic objectives, not just social metrics.`;
-
-      try {
-        const aiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${OPENAI_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "gpt-4",
-            messages: [
-              {
-                role: "system",
-                content: `You are the Chief Strategy Officer at a premier social media agency serving enterprise clients. 
-                Your reports are data-driven, strategic, and focused on business outcomes. You speak with authority and 
-                provide actionable insights that drive revenue growth and brand equity.`,
-              },
-              { role: "user", content: aiPrompt },
-            ],
-            temperature: 0.7,
-            max_tokens: 2000,
-          }),
-        });
-
-        if (aiResponse.ok) {
-          const aiData = await aiResponse.json();
-          const content = aiData.choices[0].message.content;
-
-          // Parse structured response
-          const sections = content.split(/\d\.\s+/);
-          if (sections.length >= 4) {
-            executiveSummary = sections[1].replace("EXECUTIVE SUMMARY:", "").trim();
-            detailedAnalysis = sections[2].replace("DETAILED PERFORMANCE ANALYSIS:", "").trim();
-            strategicRecommendations = sections[3].replace("STRATEGIC RECOMMENDATIONS:", "").trim();
-          } else {
-            // Fallback parsing
-            const execMatch = content.match(/EXECUTIVE SUMMARY:?([\s\S]*?)(?=DETAILED PERFORMANCE ANALYSIS:|$)/i);
-            const analysisMatch = content.match(
-              /DETAILED PERFORMANCE ANALYSIS:?([\s\S]*?)(?=STRATEGIC RECOMMENDATIONS:|$)/i,
-            );
-            const recMatch = content.match(/STRATEGIC RECOMMENDATIONS:?([\s\S]*?)$/i);
-
-            executiveSummary = execMatch ? execMatch[1].trim() : "";
-            detailedAnalysis = analysisMatch ? analysisMatch[1].trim() : "";
-            strategicRecommendations = recMatch ? recMatch[1].trim() : "";
-          }
-
-          console.log("[MONTHLY-REPORT] Professional insights generated");
-        }
-      } catch (error) {
-        console.error("[MONTHLY-REPORT] AI generation failed:", error);
-        // Fallback insights
-        executiveSummary = generateFallbackExecutiveSummary(client.name, followersGrowth, avgEngagementRate);
-        detailedAnalysis = generateFallbackAnalysis(platformPerformance, postsCount);
-        strategicRecommendations = generateFallbackRecommendations(topPosts, platformPerformance);
-      }
-    } else {
-      // Fallback without AI
-      executiveSummary = generateFallbackExecutiveSummary(client.name, followersGrowth, avgEngagementRate);
-      detailedAnalysis = generateFallbackAnalysis(platformPerformance, postsCount);
-      strategicRecommendations = generateFallbackRecommendations(topPosts, platformPerformance);
-    }
-
-    // Calculate ROI metrics (if we had ad spend data)
-    const estimatedValue = calculateEstimatedValue({
-      followersGrowth,
-      engagement: totalEngagement,
-      profileVisits: totalProfileVisits,
-      industry: client.niche,
-    });
-
-    // Build comprehensive report data
-    const reportData = {
-      metadata: {
-        client: {
-          name: client.name,
-          company: client.company,
-          niche: client.niche,
-          logo_url: client.logo_url,
-        },
-        agency: {
-          name: "Vanguard Social",
-          contact: "strategy@vanguardsocial.com",
-        },
-        period: {
-          month,
-          start_date: startDate,
-          end_date: endDate,
-          generated_at: new Date().toISOString(),
-          report_version: "2.0",
-        },
-      },
-      executive_summary: {
-        overview: executiveSummary,
-        key_highlights: {
-          follower_growth_percentage: parseFloat(followersGrowth.toFixed(2)),
-          engagement_rate: parseFloat(avgEngagementRate.toFixed(2)),
-          content_volume: postsCount,
-          content_performance_score: contentScore,
-        },
-      },
-      performance_kpis: {
-        audience_growth: {
-          starting_followers: Math.round(avgFollowersPrevious),
-          ending_followers: Math.round(avgFollowersCurrent),
-          net_growth: Math.round(avgFollowersCurrent - avgFollowersPrevious),
-          growth_percentage: parseFloat(followersGrowth.toFixed(2)),
-          profile_visits: totalProfileVisits,
-        },
-        content_performance: {
-          total_posts: postsCount,
-          total_impressions: totalImpressions,
-          total_reach: totalReach,
-          total_engagement: totalEngagement,
-          engagement_rate: parseFloat(avgEngagementRate.toFixed(2)),
-          avg_impressions_per_post: Math.round(avgImpressionsPerPost),
-          avg_reach_per_post: Math.round(avgReachPerPost),
-        },
-        engagement_breakdown: {
-          likes: totalLikes,
-          comments: totalComments,
-          shares: totalShares,
-          saves: totalSaves,
-        },
-        efficiency_metrics: {
-          engagement_per_post: postsCount > 0 ? Math.round(totalEngagement / postsCount) : 0,
-          impressions_per_follower:
-            avgFollowersCurrent > 0 ? parseFloat((totalImpressions / avgFollowersCurrent).toFixed(2)) : 0,
-        },
-      },
-      platform_analysis: Object.entries(platformPerformance).map(([platform, data]) => ({
-        platform,
-        posts: data.posts,
-        impressions: data.impressions,
-        reach: data.reach,
-        engagement: data.engagement,
-        engagement_rate: parseFloat(data.engagementRate.toFixed(2)),
-        avg_impressions_per_post: Math.round(data.avgImpressions),
-      })),
-      top_performing_content: {
-        posts: topPosts.map((p, index) => ({
-          rank: index + 1,
-          platform: p.platform,
-          date: p.date,
-          impressions: p.impressions,
-          reach: p.reach,
-          engagement: p.engagement,
-          engagement_rate: parseFloat(p.engagementRate.toFixed(2)),
-          content_type: p.content_type || "Unknown",
-        })),
-        campaigns:
-          topCampaigns?.map((campaign) => ({
-            title: campaign.title,
-            platforms: campaign.platforms,
-            date: campaign.scheduled_time,
-            thumbnail_url: campaign.thumbnail_url,
-          })) || [],
-      },
-      strategic_analysis: {
-        detailed_insights: detailedAnalysis,
-        platform_recommendations: Object.entries(platformPerformance).map(([platform, data]) => ({
-          platform,
-          recommendation:
-            data.engagementRate > 2
-              ? "Increase investment and content volume"
-              : "Optimize content strategy or reallocate resources",
-          priority: data.engagementRate > 3 ? "High" : "Medium",
-        })),
-      },
-      recommendations: {
-        executive_summary: strategicRecommendations,
-        timeline: {
-          immediate: ["Content optimization based on top performers", "Platform resource reallocation"],
-          short_term: ["A/B testing strategy implementation", "Audience segmentation analysis"],
-          long_term: ["Quarterly strategy review", "Competitive analysis update"],
-        },
-      },
-      estimated_value: {
-        brand_exposure_value: estimatedValue.brandExposure,
-        lead_generation_value: estimatedValue.leadGeneration,
-        customer_acquisition_value: estimatedValue.customerAcquisition,
-        total_estimated_roi: estimatedValue.totalROI,
-      },
-      appendix: {
-        methodology:
-          "Data sourced from platform APIs and first-party analytics. Engagement rate calculated as (Total Engagements / Total Reach) × 100. Estimated values based on industry benchmarks.",
-        definitions: {
-          engagement_rate: "Percentage of reached accounts that interacted with content",
-          impressions: "Total number of times content was displayed",
-          reach: "Unique number of accounts that saw the content",
-        },
-      },
+interface ProfessionalReportData {
+  metadata: {
+    client: {
+      name: string;
+      company: string | null;
+      niche: string | null;
+      logo_url: string | null;
     };
-
-    // Store report in database
-    const { data: report, error: insertError } = await supabaseClient
-      .from("client_reports")
-      .upsert(
-        {
-          agency_id,
-          client_id,
-          month,
-          data: reportData,
-          generated_by: user.id,
-          report_type: "monthly_performance",
-        },
-        {
-          onConflict: "client_id,month",
-        },
-      )
-      .select()
-      .single();
-
-    if (insertError) {
-      console.error("[MONTHLY-REPORT] Failed to store report:", insertError);
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: "Failed to store report",
-        }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
-    }
-
-    console.log("[MONTHLY-REPORT] Professional report generated and stored:", report.id);
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        report: {
-          id: report.id,
-          download_url: `https://${Deno.env.get("SUPABASE_URL")?.replace("https://", "")}/storage/v1/object/public/reports/${report.id}.pdf`,
-          ...reportData,
-        },
-      }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
-    );
-  } catch (error) {
-    console.error("[MONTHLY-REPORT] Unexpected error:", error);
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: error instanceof Error ? error.message : "An unexpected error occurred",
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
-    );
-  }
-});
-
-// Helper functions
-function calculateContentPerformanceScore(metrics) {
-  let score = 50; // Base score
-
-  // Engagement rate (0-30 points)
-  if (metrics.engagementRate > 5) score += 30;
-  else if (metrics.engagementRate > 3) score += 20;
-  else if (metrics.engagementRate > 1) score += 10;
-
-  // Growth rate (0-20 points)
-  if (metrics.growthRate > 10) score += 20;
-  else if (metrics.growthRate > 5) score += 15;
-  else if (metrics.growthRate > 0) score += 10;
-
-  // Consistency (0-20 points)
-  if (metrics.consistency > 20) score += 20;
-  else if (metrics.consistency > 10) score += 15;
-  else if (metrics.consistency > 5) score += 10;
-
-  // Reach (0-20 points)
-  if (metrics.reach > 100000) score += 20;
-  else if (metrics.reach > 50000) score += 15;
-  else if (metrics.reach > 10000) score += 10;
-
-  return Math.min(score, 100);
-}
-
-function calculateEstimatedValue(metrics) {
-  // Industry-standard valuation estimates
-  const CPM = 5; // Cost per 1000 impressions
-  const engagementValue = 0.1; // Estimated value per engagement
-  const followerValue = 2.0; // Estimated lifetime value per follower
-  const profileVisitValue = 0.5; // Estimated value per profile visit
-
-  return {
-    brandExposure: Math.round(metrics.engagement * engagementValue + metrics.profileVisits * profileVisitValue),
-    leadGeneration: Math.round(metrics.followersGrowth * followerValue * 0.1), // 10% conversion estimate
-    customerAcquisition: Math.round(metrics.followersGrowth * followerValue * 0.03), // 3% customer conversion
-    totalROI: "Calculated based on industry benchmarks and historical performance",
+    agency: {
+      name: string;
+      contact: string;
+    };
+    period: {
+      month: string;
+      start_date: string;
+      end_date: string;
+      generated_at: string;
+      report_version: string;
+    };
+  };
+  executive_summary: {
+    overview: string;
+    key_highlights: {
+      follower_growth_percentage: number;
+      engagement_rate: number;
+      content_volume: number;
+      content_performance_score: number;
+    };
+  };
+  performance_kpis: {
+    audience_growth: {
+      starting_followers: number;
+      ending_followers: number;
+      net_growth: number;
+      growth_percentage: number;
+      profile_visits: number;
+    };
+    content_performance: {
+      total_posts: number;
+      total_impressions: number;
+      total_reach: number;
+      total_engagement: number;
+      engagement_rate: number;
+      avg_impressions_per_post: number;
+      avg_reach_per_post: number;
+    };
+    engagement_breakdown: {
+      likes: number;
+      comments: number;
+      shares: number;
+      saves: number;
+    };
+    efficiency_metrics: {
+      engagement_per_post: number;
+      impressions_per_follower: number;
+    };
+  };
+  platform_analysis: Array<{
+    platform: string;
+    posts: number;
+    impressions: number;
+    reach: number;
+    engagement: number;
+    engagement_rate: number;
+    avg_impressions_per_post: number;
+  }>;
+  top_performing_content: {
+    posts: Array<{
+      rank: number;
+      platform: string;
+      date: string;
+      impressions: number;
+      reach: number;
+      engagement: number;
+      engagement_rate: number;
+      content_type: string;
+    }>;
+    campaigns: Array<{
+      title: string;
+      platforms: string[];
+      date: string;
+      thumbnail_url: string | null;
+    }>;
+  };
+  strategic_analysis: {
+    detailed_insights: string;
+    platform_recommendations: Array<{
+      platform: string;
+      recommendation: string;
+      priority: string;
+    }>;
+  };
+  recommendations: {
+    executive_summary: string;
+    timeline: {
+      immediate: string[];
+      short_term: string[];
+      long_term: string[];
+    };
+  };
+  estimated_value: {
+    brand_exposure_value: number;
+    lead_generation_value: number;
+    customer_acquisition_value: number;
+    total_estimated_roi: string;
+  };
+  appendix: {
+    methodology: string;
+    definitions: Record<string, string>;
   };
 }
 
-function generateFallbackExecutiveSummary(clientName, growthRate, engagementRate) {
-  return `${clientName} demonstrated strong performance this month with a ${growthRate.toFixed(1)}% increase in audience growth and an engagement rate of ${engagementRate.toFixed(2)}%, significantly exceeding the industry average of 2-3%. The strategic content initiatives implemented last quarter are yielding measurable results, particularly in audience quality and engagement depth.`;
-}
+export default function ReportDetail() {
+  const { clientId, reportId } = useParams();
+  const navigate = useNavigate();
 
-function generateFallbackAnalysis(platformPerformance, postCount) {
-  const platforms = Object.keys(platformPerformance);
-  if (platforms.length === 0) return "No platform data available for analysis.";
+  const { data: report, isLoading } = useQuery({
+    queryKey: ["client-report", reportId],
+    queryFn: async (): Promise<ClientReport & { data: ProfessionalReportData }> => {
+      const { data, error } = await supabase.from("client_reports").select("*").eq("id", reportId).single();
 
-  const bestPlatform = platforms.reduce((a, b) =>
-    platformPerformance[a].engagementRate > platformPerformance[b].engagementRate ? a : b,
+      if (error) throw error;
+      return data as ClientReport & { data: ProfessionalReportData };
+    },
+    enabled: !!reportId,
+  });
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const handleDownloadPDF = () => {
+    // In a real implementation, this would call your PDF generation endpoint
+    if (report?.data.metadata?.client) {
+      window.open(
+        `https://${import.meta.env.VITE_SUPABASE_URL?.replace("https://", "")}/storage/v1/object/public/reports/${reportId}.pdf`,
+        "_blank",
+      );
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-12 w-64" />
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Skeleton className="h-32" />
+          <Skeleton className="h-32" />
+          <Skeleton className="h-32" />
+          <Skeleton className="h-32" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!report) {
+    return (
+      <div className="space-y-6">
+        <Button variant="ghost" onClick={() => navigate(`/clients/${clientId}?tab=reports`)}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Reports
+        </Button>
+        <Card>
+          <CardContent className="py-12 text-center">
+            <p className="text-muted-foreground">Report not found</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const reportData = report.data;
+  const isLegacyFormat = !reportData.metadata;
+
+  // Legacy format fallback
+  if (isLegacyFormat) {
+    return (
+      <div className="space-y-6 report-detail">
+        <div className="flex items-center justify-between print:hidden">
+          <Button variant="ghost" onClick={() => navigate(`/clients/${clientId}?tab=reports`)}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Reports
+          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handlePrint}>
+              <Download className="mr-2 h-4 w-4" />
+              Print Report
+            </Button>
+            <Button onClick={handleDownloadPDF}>
+              <FileText className="mr-2 h-4 w-4" />
+              Download PDF
+            </Button>
+          </div>
+        </div>
+
+        {/* Legacy report display */}
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold">{format(new Date(report.month + "-01"), "MMMM yyyy")} Report</h1>
+          <p className="text-muted-foreground">
+            Generated on {format(new Date(report.created_at), "MMMM d, yyyy 'at' h:mm a")}
+          </p>
+        </div>
+
+        {/* ... rest of legacy display ... */}
+      </div>
+    );
+  }
+
+  // Professional report display
+  return (
+    <div className="space-y-8 report-detail">
+      {/* Header - hidden in print */}
+      <div className="flex items-center justify-between print:hidden">
+        <Button variant="ghost" onClick={() => navigate(`/clients/${clientId}?tab=reports`)}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Reports
+        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handlePrint}>
+            <Download className="mr-2 h-4 w-4" />
+            Print Report
+          </Button>
+          <Button onClick={handleDownloadPDF}>
+            <FileText className="mr-2 h-4 w-4" />
+            Download PDF
+          </Button>
+        </div>
+      </div>
+
+      {/* Agency Header - Visible in print */}
+      <div className="border-b pb-6 print:block">
+        <div className="flex justify-between items-start">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <Shield className="h-6 w-6 text-primary" />
+              <h1 className="text-2xl font-bold text-primary">{reportData.metadata.agency.name}</h1>
+            </div>
+            <p className="text-sm text-muted-foreground">Strategic Social Media Intelligence</p>
+          </div>
+          <Badge variant="outline" className="text-xs">
+            v{reportData.metadata.period.report_version}
+          </Badge>
+        </div>
+      </div>
+
+      {/* Client & Report Info */}
+      <Card className="border-l-4 border-l-primary">
+        <CardContent className="pt-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-2">
+              <div className="flex items-center gap-3">
+                {reportData.metadata.client.logo_url && (
+                  <img
+                    src={reportData.metadata.client.logo_url}
+                    alt={reportData.metadata.client.name}
+                    className="h-12 w-12 rounded-lg object-cover border"
+                  />
+                )}
+                <div>
+                  <h2 className="text-2xl font-bold">
+                    {reportData.metadata.client.company || reportData.metadata.client.name}
+                  </h2>
+                  <p className="text-muted-foreground">
+                    {reportData.metadata.client.niche || "Social Media Performance Report"}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-2 text-right">
+              <div className="flex items-center gap-2 justify-end">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <span className="font-semibold">
+                  {format(parseISO(reportData.metadata.period.start_date), "MMMM yyyy")}
+                </span>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Generated {format(parseISO(reportData.metadata.period.generated_at), "MMMM d, yyyy")}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Executive Summary */}
+      <Card className="bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-primary" />
+            <CardTitle>Executive Summary</CardTitle>
+          </div>
+          <CardDescription>Key highlights and strategic overview</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="prose prose-sm max-w-none text-foreground">
+            <p className="whitespace-pre-line text-base leading-relaxed">{reportData.executive_summary.overview}</p>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+            <div className="bg-background/50 p-4 rounded-lg border">
+              <div className="flex items-center gap-2 mb-2">
+                <TrendingUp className="h-4 w-4 text-green-600" />
+                <p className="text-sm text-muted-foreground">Follower Growth</p>
+              </div>
+              <p className="text-2xl font-bold">
+                {reportData.executive_summary.key_highlights.follower_growth_percentage > 0 ? "+" : ""}
+                {reportData.executive_summary.key_highlights.follower_growth_percentage.toFixed(1)}%
+              </p>
+            </div>
+
+            <div className="bg-background/50 p-4 rounded-lg border">
+              <div className="flex items-center gap-2 mb-2">
+                <Award className="h-4 w-4 text-orange-500" />
+                <p className="text-sm text-muted-foreground">Content Score</p>
+              </div>
+              <p className="text-2xl font-bold">
+                {reportData.executive_summary.key_highlights.content_performance_score}/100
+              </p>
+            </div>
+
+            <div className="bg-background/50 p-4 rounded-lg border">
+              <div className="flex items-center gap-2 mb-2">
+                <Zap className="h-4 w-4 text-blue-500" />
+                <p className="text-sm text-muted-foreground">Engagement Rate</p>
+              </div>
+              <p className="text-2xl font-bold">
+                {reportData.executive_summary.key_highlights.engagement_rate.toFixed(2)}%
+              </p>
+            </div>
+
+            <div className="bg-background/50 p-4 rounded-lg border">
+              <div className="flex items-center gap-2 mb-2">
+                <FileText className="h-4 w-4 text-purple-500" />
+                <p className="text-sm text-muted-foreground">Content Volume</p>
+              </div>
+              <p className="text-2xl font-bold">{reportData.executive_summary.key_highlights.content_volume}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Main Tabs */}
+      <Tabs defaultValue="performance" className="space-y-6">
+        <TabsList className="grid grid-cols-4 w-full">
+          <TabsTrigger value="performance">
+            <BarChart3 className="h-4 w-4 mr-2" />
+            Performance
+          </TabsTrigger>
+          <TabsTrigger value="platforms">
+            <PieChart className="h-4 w-4 mr-2" />
+            Platforms
+          </TabsTrigger>
+          <TabsTrigger value="content">
+            <FileText className="h-4 w-4 mr-2" />
+            Top Content
+          </TabsTrigger>
+          <TabsTrigger value="strategy">
+            <Target className="h-4 w-4 mr-2" />
+            Strategy
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Performance Tab */}
+        <TabsContent value="performance" className="space-y-6">
+          {/* Audience Growth */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Audience Growth
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="p-4 border rounded-lg">
+                  <p className="text-sm text-muted-foreground">Starting Followers</p>
+                  <p className="text-2xl font-bold">
+                    {reportData.performance_kpis.audience_growth.starting_followers.toLocaleString()}
+                  </p>
+                </div>
+                <div className="p-4 border rounded-lg">
+                  <p className="text-sm text-muted-foreground">Ending Followers</p>
+                  <p className="text-2xl font-bold">
+                    {reportData.performance_kpis.audience_growth.ending_followers.toLocaleString()}
+                  </p>
+                </div>
+                <div className="p-4 border rounded-lg">
+                  <p className="text-sm text-muted-foreground">Net Growth</p>
+                  <p
+                    className={cn(
+                      "text-2xl font-bold",
+                      reportData.performance_kpis.audience_growth.net_growth >= 0
+                        ? "text-green-600"
+                        : "text-destructive",
+                    )}
+                  >
+                    {reportData.performance_kpis.audience_growth.net_growth > 0 ? "+" : ""}
+                    {reportData.performance_kpis.audience_growth.net_growth.toLocaleString()}
+                  </p>
+                </div>
+                <div className="p-4 border rounded-lg">
+                  <p className="text-sm text-muted-foreground">Profile Visits</p>
+                  <p className="text-2xl font-bold">
+                    {reportData.performance_kpis.audience_growth.profile_visits.toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Content Performance */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Eye className="h-5 w-5" />
+                Content Performance
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+                <div className="p-4 border rounded-lg">
+                  <p className="text-sm text-muted-foreground">Total Posts</p>
+                  <p className="text-2xl font-bold">{reportData.performance_kpis.content_performance.total_posts}</p>
+                </div>
+                <div className="p-4 border rounded-lg">
+                  <p className="text-sm text-muted-foreground">Total Impressions</p>
+                  <p className="text-2xl font-bold">
+                    {reportData.performance_kpis.content_performance.total_impressions.toLocaleString()}
+                  </p>
+                </div>
+                <div className="p-4 border rounded-lg">
+                  <p className="text-sm text-muted-foreground">Total Reach</p>
+                  <p className="text-2xl font-bold">
+                    {reportData.performance_kpis.content_performance.total_reach.toLocaleString()}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="p-4 border rounded-lg">
+                  <p className="text-sm text-muted-foreground">Engagement Rate</p>
+                  <p className="text-2xl font-bold text-green-600">
+                    {reportData.performance_kpis.content_performance.engagement_rate.toFixed(2)}%
+                  </p>
+                </div>
+                <div className="p-4 border rounded-lg">
+                  <p className="text-sm text-muted-foreground">Avg Impressions/Post</p>
+                  <p className="text-2xl font-bold">
+                    {reportData.performance_kpis.content_performance.avg_impressions_per_post.toLocaleString()}
+                  </p>
+                </div>
+                <div className="p-4 border rounded-lg">
+                  <p className="text-sm text-muted-foreground">Avg Reach/Post</p>
+                  <p className="text-2xl font-bold">
+                    {reportData.performance_kpis.content_performance.avg_reach_per_post.toLocaleString()}
+                  </p>
+                </div>
+                <div className="p-4 border rounded-lg">
+                  <p className="text-sm text-muted-foreground">Engagement/Post</p>
+                  <p className="text-2xl font-bold">
+                    {reportData.performance_kpis.efficiency_metrics.engagement_per_post.toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Engagement Breakdown */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Heart className="h-5 w-5" />
+                Engagement Breakdown
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="p-4 border rounded-lg">
+                  <p className="text-sm text-muted-foreground">Likes</p>
+                  <p className="text-2xl font-bold">
+                    {reportData.performance_kpis.engagement_breakdown.likes.toLocaleString()}
+                  </p>
+                </div>
+                <div className="p-4 border rounded-lg">
+                  <p className="text-sm text-muted-foreground">Comments</p>
+                  <p className="text-2xl font-bold">
+                    {reportData.performance_kpis.engagement_breakdown.comments.toLocaleString()}
+                  </p>
+                </div>
+                <div className="p-4 border rounded-lg">
+                  <p className="text-sm text-muted-foreground">Shares</p>
+                  <p className="text-2xl font-bold">
+                    {reportData.performance_kpis.engagement_breakdown.shares.toLocaleString()}
+                  </p>
+                </div>
+                <div className="p-4 border rounded-lg">
+                  <p className="text-sm text-muted-foreground">Saves</p>
+                  <p className="text-2xl font-bold">
+                    {reportData.performance_kpis.engagement_breakdown.saves.toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Platforms Tab */}
+        <TabsContent value="platforms" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <PieChart className="h-5 w-5" />
+                Platform Performance
+              </CardTitle>
+              <CardDescription>Performance metrics by platform</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {reportData.platform_analysis.map((platform) => (
+                  <div key={platform.platform} className="p-4 border rounded-lg">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="font-medium">
+                          {platform.platform}
+                        </Badge>
+                        <span className="text-sm text-muted-foreground">{platform.posts} posts</span>
+                      </div>
+                      <Badge
+                        variant={platform.engagement_rate > 3 ? "default" : "secondary"}
+                        className={cn(platform.engagement_rate > 3 && "bg-green-100 text-green-800 hover:bg-green-100")}
+                      >
+                        {platform.engagement_rate.toFixed(2)}% engagement
+                      </Badge>
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Impressions</p>
+                        <p className="text-lg font-semibold">{platform.impressions.toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Reach</p>
+                        <p className="text-lg font-semibold">{platform.reach.toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Engagement</p>
+                        <p className="text-lg font-semibold">{platform.engagement.toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Avg/Post</p>
+                        <p className="text-lg font-semibold">{platform.avg_impressions_per_post.toLocaleString()}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Content Tab */}
+        <TabsContent value="content" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Top Performing Content
+              </CardTitle>
+              <CardDescription>Highest engagement rate posts</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {reportData.top_performing_content.posts.map((post) => (
+                  <div key={post.rank} className="p-4 border rounded-lg hover:border-primary/50 transition-colors">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={cn(
+                            "flex items-center justify-center w-8 h-8 rounded-full font-bold",
+                            post.rank <= 3 ? "bg-yellow-100 text-yellow-800" : "bg-muted text-muted-foreground",
+                          )}
+                        >
+                          #{post.rank}
+                        </div>
+                        <div>
+                          <p className="font-semibold capitalize">{post.platform}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {format(parseISO(post.date), "MMM d, yyyy")} • {post.content_type}
+                          </p>
+                        </div>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "font-semibold",
+                          post.engagement_rate > 5 && "bg-green-50 text-green-700 border-green-200",
+                        )}
+                      >
+                        {post.engagement_rate.toFixed(2)}% Engagement
+                      </Badge>
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Impressions</p>
+                        <p className="text-lg font-semibold">{post.impressions.toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Reach</p>
+                        <p className="text-lg font-semibold">{post.reach.toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Engagement</p>
+                        <p className="text-lg font-semibold">{post.engagement.toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Rate</p>
+                        <p
+                          className={cn(
+                            "text-lg font-semibold",
+                            post.engagement_rate > 5 ? "text-green-600" : "text-orange-600",
+                          )}
+                        >
+                          {post.engagement_rate.toFixed(2)}%
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Campaign Performance */}
+          {reportData.top_performing_content.campaigns.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Target className="h-5 w-5" />
+                  Campaign Highlights
+                </CardTitle>
+                <CardDescription>Top performing campaigns</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {reportData.top_performing_content.campaigns.map((campaign, index) => (
+                    <div key={index} className="flex items-center gap-4 p-3 border rounded-lg">
+                      {campaign.thumbnail_url && (
+                        <img
+                          src={campaign.thumbnail_url}
+                          alt={campaign.title}
+                          className="h-16 w-16 rounded-lg object-cover"
+                        />
+                      )}
+                      <div className="flex-1">
+                        <p className="font-semibold">{campaign.title}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Calendar className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-sm text-muted-foreground">
+                            {format(parseISO(campaign.date), "MMM d, yyyy")}
+                          </span>
+                          <span className="text-sm text-muted-foreground">•</span>
+                          <div className="flex gap-1">
+                            {campaign.platforms.map((platform) => (
+                              <Badge key={platform} variant="secondary" className="text-xs">
+                                {platform}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* Strategy Tab */}
+        <TabsContent value="strategy" className="space-y-6">
+          {/* Detailed Insights */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Lightbulb className="h-5 w-5 text-yellow-500" />
+                Detailed Analysis
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="prose prose-sm max-w-none text-foreground">
+                <p className="whitespace-pre-line">{reportData.strategic_analysis.detailed_insights}</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Platform Recommendations */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Target className="h-5 w-5 text-blue-500" />
+                Platform Recommendations
+              </CardTitle>
+              <CardDescription>Prioritized actions by platform</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {reportData.strategic_analysis.platform_recommendations.map((rec) => (
+                  <div key={rec.platform} className="flex items-start gap-3 p-3 border rounded-lg">
+                    <div className="flex-shrink-0">
+                      <Badge variant={rec.priority === "High" ? "destructive" : "secondary"} className="font-medium">
+                        {rec.priority}
+                      </Badge>
+                    </div>
+                    <div>
+                      <p className="font-semibold capitalize">{rec.platform}</p>
+                      <p className="text-sm text-muted-foreground mt-1">{rec.recommendation}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Strategic Recommendations */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-primary" />
+                Strategic Roadmap
+              </CardTitle>
+              <CardDescription>Prioritized timeline for implementation</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="prose prose-sm max-w-none text-foreground mb-6">
+                <p className="whitespace-pre-line">{reportData.recommendations.executive_summary}</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Immediate Actions */}
+                <div className="space-y-3 p-4 border rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <Zap className="h-4 w-4 text-red-500" />
+                    <h3 className="font-semibold">Immediate Actions</h3>
+                  </div>
+                  <div className="space-y-2">
+                    {reportData.recommendations.timeline.immediate.map((action, index) => (
+                      <div key={index} className="flex items-start gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                        <span className="text-sm">{action}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Short-term Initiatives */}
+                <div className="space-y-3 p-4 border rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-orange-500" />
+                    <h3 className="font-semibold">Short-term Initiatives</h3>
+                  </div>
+                  <div className="space-y-2">
+                    {reportData.recommendations.timeline.short_term.map((action, index) => (
+                      <div key={index} className="flex items-start gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                        <span className="text-sm">{action}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Long-term Opportunities */}
+                <div className="space-y-3 p-4 border rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-purple-500" />
+                    <h3 className="font-semibold">Long-term Opportunities</h3>
+                  </div>
+                  <div className="space-y-2">
+                    {reportData.recommendations.timeline.long_term.map((action, index) => (
+                      <div key={index} className="flex items-start gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-purple-600 mt-0.5 flex-shrink-0" />
+                        <span className="text-sm">{action}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Estimated Value */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <DollarSign className="h-5 w-5 text-green-600" />
+                Estimated Value
+              </CardTitle>
+              <CardDescription>Calculated ROI and business impact</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="p-4 border rounded-lg">
+                  <p className="text-sm text-muted-foreground">Brand Exposure</p>
+                  <p className="text-xl font-bold">
+                    ${reportData.estimated_value.brand_exposure_value.toLocaleString()}
+                  </p>
+                </div>
+                <div className="p-4 border rounded-lg">
+                  <p className="text-sm text-muted-foreground">Lead Generation</p>
+                  <p className="text-xl font-bold">
+                    ${reportData.estimated_value.lead_generation_value.toLocaleString()}
+                  </p>
+                </div>
+                <div className="p-4 border rounded-lg">
+                  <p className="text-sm text-muted-foreground">Customer Acquisition</p>
+                  <p className="text-xl font-bold">
+                    ${reportData.estimated_value.customer_acquisition_value.toLocaleString()}
+                  </p>
+                </div>
+                <div className="p-4 border rounded-lg">
+                  <p className="text-sm text-muted-foreground">Total Estimated ROI</p>
+                  <p className="text-xl font-bold text-green-600">{reportData.estimated_value.total_estimated_roi}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Appendix */}
+      <Card className="mt-8 border-dashed">
+        <CardHeader>
+          <CardTitle className="text-sm font-medium text-muted-foreground">Appendix</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div>
+              <p className="text-sm font-medium mb-2">Methodology</p>
+              <p className="text-sm text-muted-foreground">{reportData.appendix.methodology}</p>
+            </div>
+            <div>
+              <p className="text-sm font-medium mb-2">Definitions</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {Object.entries(reportData.appendix.definitions).map(([term, definition]) => (
+                  <div key={term} className="text-sm">
+                    <span className="font-medium">{term}:</span>
+                    <span className="text-muted-foreground ml-2">{definition}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Agency Footer */}
+      <div className="border-t pt-6 text-center text-sm text-muted-foreground">
+        <p>
+          <strong>{reportData.metadata.agency.name}</strong> • {reportData.metadata.agency.contact}
+        </p>
+        <p className="mt-1">This report contains confidential information. Unauthorized distribution is prohibited.</p>
+      </div>
+
+      {/* Print Styles */}
+      <style>{`
+        @media print {
+          .print\\:hidden {
+            display: none !important;
+          }
+          
+          .report-detail {
+            max-width: 100% !important;
+            padding: 0 !important;
+          }
+          
+          body {
+            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact;
+            font-size: 12px;
+          }
+          
+          .card {
+            page-break-inside: avoid;
+            break-inside: avoid;
+            border: 1px solid #e5e7eb !important;
+            margin-bottom: 16px !important;
+          }
+          
+          .tabs-list,
+          .tabs-trigger {
+            display: none !important;
+          }
+          
+          .tabs-content {
+            display: block !important;
+          }
+          
+          .border-primary {
+            border-color: #3b82f6 !important;
+          }
+          
+          h1, h2, h3, h4 {
+            color: #111827 !important;
+          }
+          
+          @page {
+            margin: 20mm;
+          }
+        }
+      `}</style>
+    </div>
   );
-
-  return `• Published ${postCount} posts across ${platforms.length} platforms
-• ${bestPlatform} emerged as the highest-performing platform with ${platformPerformance[bestPlatform].engagementRate.toFixed(2)}% engagement
-• Content consistency maintained with average post frequency meeting strategic targets
-• Audience engagement patterns indicate strong resonance with educational and value-driven content`;
-}
-
-function generateFallbackRecommendations(topPosts, platformPerformance) {
-  return `IMMEDIATE ACTIONS (30 Days):
-1. Double down on content formats performing at >${topPosts[0]?.engagementRate.toFixed(2) || 5}% engagement
-2. Reallocate 20% of resources to the highest-performing platform
-
-STRATEGIC INITIATIVES (60-90 Days):
-1. Implement A/B testing framework for content optimization
-2. Develop audience segmentation strategy for personalized content
-
-LONG-TERM OPPORTUNITIES:
-1. Explore emerging platform opportunities based on audience migration trends
-2. Develop integrated cross-platform content strategy`;
 }
