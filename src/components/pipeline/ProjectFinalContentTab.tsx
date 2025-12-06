@@ -20,6 +20,8 @@ import {
   Info,
   Globe,
   ExternalLink,
+  Sparkles,
+  Wand2,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
@@ -32,6 +34,9 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { convertToUTC, convertToLocal } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import { logActivity } from "@/hooks/useActivityLog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AIGenerateModal } from "./AIGenerateModal";
 
 interface Project {
   id: string;
@@ -60,6 +65,14 @@ const PLATFORMS = [
   { id: "linkedin", label: "LinkedIn", enabled: false },
 ];
 
+const PLATFORM_LIMITS = {
+  tiktok: 2200,
+  instagram: 2200,
+  youtube: 5000,
+  facebook: 63206,
+  linkedin: 3000,
+};
+
 interface ProjectFinalContentTabProps {
   project: Project;
   onUpdate: () => void;
@@ -81,6 +94,10 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
   const [scheduledTime, setScheduledTime] = useState<string>(
     project.scheduled_time ? format(new Date(project.scheduled_time), "HH:mm") : "12:00",
   );
+  const [activeAIModal, setActiveAIModal] = useState<string | null>(null);
+  const [aiVariants, setAiVariants] = useState<Array<{ caption: string; length: string; platform?: string }>>([]);
+  const [showVariants, setShowVariants] = useState(false);
+  const [generatingAI, setGeneratingAI] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     fetchFinalAssets();
@@ -88,7 +105,6 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
   }, [project.id]);
 
   useEffect(() => {
-    // Convert UTC scheduled time to user's local timezone for display
     if (project.scheduled_time && userTimezone !== "UTC") {
       const localDate = convertToLocal(project.scheduled_time, userTimezone);
       setScheduledDate(localDate);
@@ -185,13 +201,12 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
         description: "Final content uploaded successfully",
       });
 
-      // Log activity
       await logActivity({
         projectId: project.id,
-        actionType: 'final_asset_uploaded',
+        actionType: "final_asset_uploaded",
         details: {
-          file_count: files.length
-        }
+          file_count: files.length,
+        },
       });
 
       fetchFinalAssets();
@@ -241,6 +256,139 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
     );
   };
 
+  const handleGenerateCaption = async (platformId?: string) => {
+    if (selectedPlatforms.length === 0) {
+      toast({
+        title: "Select platforms first",
+        description: "Please select at least one platform",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const platformsToGenerate = platformId ? [platformId] : selectedPlatforms;
+
+    setGeneratingAI((prev) => ({
+      ...prev,
+      [platformId || "all"]: true,
+    }));
+
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-ai-content", {
+        body: {
+          type: "caption_variants",
+          platforms: platformsToGenerate,
+          clientId: project.client_id,
+        },
+      });
+
+      if (error) throw error;
+
+      if (platformId) {
+        // If generating for a specific platform, show variants for that platform
+        setAiVariants(
+          data.content.map((variant: any) => ({
+            ...variant,
+            platform: platformId,
+          })),
+        );
+        setShowVariants(true);
+      } else {
+        // If generating for all platforms, apply the first variant to each platform
+        const variantsByPlatform: Record<string, string> = {};
+
+        selectedPlatforms.forEach((platform, index) => {
+          if (data.content[index]) {
+            variantsByPlatform[platform] = data.content[index].caption;
+          }
+        });
+
+        setCaptions((prev) => ({
+          ...prev,
+          ...variantsByPlatform,
+        }));
+
+        toast({
+          title: "Captions generated",
+          description: `AI captions applied to ${selectedPlatforms.length} platform(s)`,
+        });
+      }
+    } catch (error: any) {
+      console.error("AI generation error:", error);
+      toast({
+        title: "Error generating captions",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingAI((prev) => ({
+        ...prev,
+        [platformId || "all"]: false,
+      }));
+    }
+  };
+
+  const applyAIVariant = (variant: { caption: string; length: string; platform?: string }) => {
+    if (variant.platform) {
+      // Apply to specific platform
+      setCaptions((prev) => ({
+        ...prev,
+        [variant.platform]: variant.caption,
+      }));
+      toast({
+        title: "Caption applied",
+        description: `AI-generated caption applied to ${variant.platform}`,
+      });
+    } else {
+      // Apply to all selected platforms
+      const updatedCaptions = { ...captions };
+      selectedPlatforms.forEach((platform) => {
+        updatedCaptions[platform] = variant.caption;
+      });
+      setCaptions(updatedCaptions);
+      toast({
+        title: "Caption applied",
+        description: `AI-generated caption applied to all platforms`,
+      });
+    }
+    setShowVariants(false);
+  };
+
+  const handleAIGenerateComplete = (type: string, result: any) => {
+    switch (type) {
+      case "captions":
+      case "improve-caption":
+        if (result && typeof result === "object") {
+          setCaptions((prev) => ({
+            ...prev,
+            ...result,
+          }));
+          toast({
+            title: "Captions updated",
+            description: "AI-generated captions have been applied",
+          });
+        }
+        break;
+      case "ideas":
+        // Handle ideas generation if needed
+        break;
+      case "hooks":
+        // Handle hooks generation if needed
+        break;
+      case "script":
+        // Handle script generation if needed
+        break;
+      case "improve-script":
+        // Handle script improvement if needed
+        break;
+    }
+    setActiveAIModal(null);
+  };
+
+  const getCharacterLimit = (platformId: string) => {
+    return PLATFORM_LIMITS[platformId as keyof typeof PLATFORM_LIMITS] || 2200;
+  };
+
   const handleSchedulePost = async () => {
     if (!scheduledDate) {
       toast({
@@ -274,10 +422,8 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
       const scheduleDateTime = new Date(scheduledDate);
       scheduleDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
 
-      // Convert local time to UTC before saving
       const utcDateTime = convertToUTC(scheduleDateTime, userTimezone);
 
-      // Filter platforms to only supported ones (Instagram, Facebook)
       const supportedPlatforms = selectedPlatforms.filter((p) => p === "instagram" || p === "facebook");
 
       if (supportedPlatforms.length === 0) {
@@ -289,7 +435,6 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
         return;
       }
 
-      // Fetch agency id for scheduled_posts
       const { data: projectRow, error: projectError } = await supabase
         .from("projects")
         .select("agency_id")
@@ -300,7 +445,6 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
 
       const agencyId = projectRow?.agency_id as string | undefined;
 
-      // Fetch social connections for this client to map platform -> connection id
       const { data: connectionsData, error: connectionsError } = await supabase
         .from("social_connections")
         .select("id, platform, status")
@@ -315,7 +459,6 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
         connectionMap[platform] = match ? match.id : null;
       });
 
-      // Create scheduled_posts rows per platform (normalized model for calendars + autoposting)
       const insertPromises = supportedPlatforms.map((platform) =>
         supabase.from("scheduled_posts").insert({
           project_id: project.id,
@@ -326,14 +469,13 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
           scheduled_for: utcDateTime,
           status: "pending",
           caption: captions[platform] || null,
-        })
+        }),
       );
 
       const insertResults = await Promise.all(insertPromises);
       const insertError = insertResults.find((r) => r.error)?.error;
       if (insertError) throw insertError;
 
-      // Also update the project for backward compatibility / diagnostics
       const { error } = await supabase
         .from("projects")
         .update({
@@ -362,9 +504,9 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
       });
     }
   };
+
   const handleSaveSettings = async () => {
     try {
-      // Filter platforms to only supported ones (Instagram, Facebook)
       const supportedPlatforms = selectedPlatforms.filter((p) => p === "instagram" || p === "facebook");
 
       const updateData: any = {
@@ -377,7 +519,6 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
         const [hours, minutes] = scheduledTime.split(":");
         const scheduleDateTime = new Date(scheduledDate);
         scheduleDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-        // Convert local time to UTC before saving
         updateData.scheduled_time = convertToUTC(scheduleDateTime, userTimezone);
       }
 
@@ -400,6 +541,51 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
       });
     }
   };
+
+  const aiActions = [
+    {
+      id: "ideas",
+      label: "Generate Ideas",
+      icon: Lightbulb,
+      description: "Get content ideas based on niche and trends",
+      color: "text-yellow-500",
+    },
+    {
+      id: "hooks",
+      label: "Generate Hooks",
+      icon: PenTool,
+      description: "Create attention-grabbing opening hooks",
+      color: "text-purple-500",
+    },
+    {
+      id: "script",
+      label: "Write Script",
+      icon: FileText,
+      description: "Generate complete video scripts",
+      color: "text-blue-500",
+    },
+    {
+      id: "improve-script",
+      label: "Improve Script",
+      icon: RefreshCw,
+      description: "Enhance existing script content",
+      color: "text-green-500",
+    },
+    {
+      id: "captions",
+      label: "Generate Captions",
+      icon: MessageSquare,
+      description: "Create platform-specific captions",
+      color: "text-pink-500",
+    },
+    {
+      id: "improve-caption",
+      label: "Improve Captions",
+      icon: RefreshCw,
+      description: "Enhance existing caption text",
+      color: "text-orange-500",
+    },
+  ];
 
   if (loading) {
     return (
@@ -425,6 +611,45 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
           </CardContent>
         </Card>
       )}
+
+      {/* AI Assistant Button */}
+      <div className="flex justify-end">
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-2">
+              <Sparkles className="h-4 w-4" />
+              AI Assist
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="right" className="w-full sm:w-96 overflow-y-auto">
+            <SheetHeader>
+              <SheetTitle className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-primary" />
+                AI Content Assistant
+              </SheetTitle>
+            </SheetHeader>
+
+            <div className="mt-6 space-y-3">
+              {aiActions.map((action) => (
+                <Button
+                  key={action.id}
+                  variant="outline"
+                  className="w-full justify-start h-auto py-4 px-4 hover:bg-accent"
+                  onClick={() => setActiveAIModal(action.id)}
+                >
+                  <div className="flex items-start gap-3 text-left w-full">
+                    <action.icon className={`h-5 w-5 mt-0.5 ${action.color}`} />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm">{action.label}</div>
+                      <div className="text-xs text-muted-foreground mt-1">{action.description}</div>
+                    </div>
+                  </div>
+                </Button>
+              ))}
+            </div>
+          </SheetContent>
+        </Sheet>
+      </div>
 
       {/* Upload Final Content */}
       <div>
@@ -514,19 +739,63 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
         </div>
       </div>
 
-      {/* Platform-Specific Captions */}
+      {/* Platform-Specific Captions with AI Integration */}
       {selectedPlatforms.length > 0 && (
         <div className="space-y-4">
-          <Label className="text-base font-semibold">Platform Captions</Label>
+          <div className="flex items-center justify-between">
+            <Label className="text-base font-semibold">Platform Captions</Label>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => handleGenerateCaption()}
+              disabled={generatingAI["all"] || selectedPlatforms.length === 0}
+            >
+              {generatingAI["all"] ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Wand2 className="mr-2 h-4 w-4" />
+              )}
+              Generate All Captions
+            </Button>
+          </div>
+
           {selectedPlatforms.map((platformId) => {
             const platform = PLATFORMS.find((p) => p.id === platformId);
+            const charLimit = getCharacterLimit(platformId);
+            const currentCaption = captions[platformId] || "";
+            const isOverLimit = charLimit && currentCaption.length > charLimit;
+
             return (
-              <div key={platformId} className="space-y-2">
-                <Label htmlFor={`caption-${platformId}`}>{platform?.label}</Label>
+              <div key={platformId} className="space-y-2 p-4 border rounded-lg">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor={`caption-${platformId}`} className="flex items-center gap-2">
+                    {platform?.label}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleGenerateCaption(platformId)}
+                      disabled={generatingAI[platformId]}
+                      className="h-6 px-2"
+                    >
+                      {generatingAI[platformId] ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Wand2 className="h-3 w-3" />
+                      )}
+                    </Button>
+                  </Label>
+                  {charLimit && (
+                    <span className={`text-xs ${isOverLimit ? "text-destructive" : "text-muted-foreground"}`}>
+                      {currentCaption.length} / {charLimit} characters
+                    </span>
+                  )}
+                </div>
                 <Textarea
                   id={`caption-${platformId}`}
                   placeholder={`Write caption for ${platform?.label}...`}
-                  value={captions[platformId] || ""}
+                  value={currentCaption}
                   onChange={(e) =>
                     setCaptions((prev) => ({
                       ...prev,
@@ -534,10 +803,46 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
                     }))
                   }
                   rows={4}
+                  className={isOverLimit ? "border-destructive" : ""}
                 />
+                {isOverLimit && (
+                  <Badge variant="destructive" className="mt-1">
+                    Over limit by {currentCaption.length - charLimit} characters
+                  </Badge>
+                )}
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* AI Variants Selection */}
+      {showVariants && aiVariants.length > 0 && (
+        <div className="space-y-2 p-4 rounded-lg border border-border bg-accent/20">
+          <Label>AI-Generated Variants</Label>
+          <p className="text-sm text-muted-foreground mb-2">Select a variant to apply:</p>
+          {aiVariants.map((variant, index) => (
+            <div
+              key={index}
+              className="p-3 rounded border border-border bg-background hover:bg-accent/50 cursor-pointer transition-colors"
+              onClick={() => applyAIVariant(variant)}
+            >
+              <div className="flex items-start justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  {variant.platform && (
+                    <Badge variant="outline" className="capitalize">
+                      {variant.platform}
+                    </Badge>
+                  )}
+                  <Badge variant="secondary">{variant.length}</Badge>
+                </div>
+                <Button size="sm" variant="ghost">
+                  Apply
+                </Button>
+              </div>
+              <p className="text-sm">{variant.caption}</p>
+            </div>
+          ))}
         </div>
       )}
 
@@ -607,10 +912,21 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
             <Input id="time" type="time" value={scheduledTime} onChange={(e) => setScheduledTime(e.target.value)} />
             {scheduledDate && scheduledTime && (
               <p className="text-xs text-muted-foreground mt-1">
-                Will be saved as: {format(convertToUTC(
-                  new Date(scheduledDate.getFullYear(), scheduledDate.getMonth(), scheduledDate.getDate(), parseInt(scheduledTime.split(':')[0]), parseInt(scheduledTime.split(':')[1])),
-                  userTimezone
-                ), "HH:mm")} UTC (server time)
+                Will be saved as:{" "}
+                {format(
+                  convertToUTC(
+                    new Date(
+                      scheduledDate.getFullYear(),
+                      scheduledDate.getMonth(),
+                      scheduledDate.getDate(),
+                      parseInt(scheduledTime.split(":")[0]),
+                      parseInt(scheduledTime.split(":")[1]),
+                    ),
+                    userTimezone,
+                  ),
+                  "HH:mm",
+                )}{" "}
+                UTC (server time)
               </p>
             )}
           </div>
@@ -731,6 +1047,56 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
       <div className="flex justify-end pt-4 border-t">
         <Button onClick={handleSaveSettings}>Save Settings</Button>
       </div>
+
+      {/* AI Generation Modals */}
+      <AIGenerateModal
+        open={activeAIModal === "ideas"}
+        onOpenChange={(open) => !open && setActiveAIModal(null)}
+        type="ideas"
+        clientId={project.client_id}
+        projectId={project.id}
+        onUse={(result) => handleAIGenerateComplete("ideas", result)}
+      />
+      <AIGenerateModal
+        open={activeAIModal === "hooks"}
+        onOpenChange={(open) => !open && setActiveAIModal(null)}
+        type="hooks"
+        clientId={project.client_id}
+        projectId={project.id}
+        onUse={(result) => handleAIGenerateComplete("hooks", result)}
+      />
+      <AIGenerateModal
+        open={activeAIModal === "script"}
+        onOpenChange={(open) => !open && setActiveAIModal(null)}
+        type="script"
+        clientId={project.client_id}
+        projectId={project.id}
+        onUse={(result) => handleAIGenerateComplete("script", result)}
+      />
+      <AIGenerateModal
+        open={activeAIModal === "improve-script"}
+        onOpenChange={(open) => !open && setActiveAIModal(null)}
+        type="improve-script"
+        clientId={project.client_id}
+        projectId={project.id}
+        onUse={(result) => handleAIGenerateComplete("improve-script", result)}
+      />
+      <AIGenerateModal
+        open={activeAIModal === "captions"}
+        onOpenChange={(open) => !open && setActiveAIModal(null)}
+        type="captions"
+        clientId={project.client_id}
+        projectId={project.id}
+        onUse={(result) => handleAIGenerateComplete("captions", result)}
+      />
+      <AIGenerateModal
+        open={activeAIModal === "improve-caption"}
+        onOpenChange={(open) => !open && setActiveAIModal(null)}
+        type="improve-caption"
+        clientId={project.client_id}
+        projectId={project.id}
+        onUse={(result) => handleAIGenerateComplete("improve-caption", result)}
+      />
     </div>
   );
 }
