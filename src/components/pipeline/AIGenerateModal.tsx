@@ -9,7 +9,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Sparkles, Check } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 
 interface AIGenerateModalProps {
   open: boolean;
@@ -24,7 +23,7 @@ export function AIGenerateModal({ open, onOpenChange, type, clientId, projectId,
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<any[]>([]);
-  
+
   // Form fields
   const [platform, setPlatform] = useState("instagram");
   const [keywords, setKeywords] = useState("");
@@ -39,7 +38,7 @@ export function AIGenerateModal({ open, onOpenChange, type, clientId, projectId,
     setSuggestions([]);
 
     try {
-      // Map UI type to backend mode
+      // Map UI type to backend mode (based on edge function expectations)
       let mode: string;
       let input_text: string | undefined;
       let brand_context = "";
@@ -50,7 +49,7 @@ export function AIGenerateModal({ open, onOpenChange, type, clientId, projectId,
           brand_context = `Niche: ${niche || "general"}. Content Pillars: ${pillars || "education, entertainment, inspiration"}. ${trends ? `Trends: ${trends}` : ""}`;
           break;
         case "hooks":
-          mode = "hook";
+          mode = "hook"; // Edge function expects 'hook' (singular)
           brand_context = `Tone: ${tone}. Topic: ${keywords || "engaging content"}`;
           break;
         case "script":
@@ -58,31 +57,45 @@ export function AIGenerateModal({ open, onOpenChange, type, clientId, projectId,
           brand_context = `Tone: ${tone}. Topic: ${keywords || "video content"}`;
           break;
         case "improve-script":
-          mode = "rewrite";
+          mode = "rewrite"; // Edge function expects 'rewrite' for improvements
           input_text = currentText;
           brand_context = `Tone: ${tone}. Improve this script for ${platform}`;
           break;
         case "captions":
-          mode = "caption";
-          brand_context = `Keywords: ${keywords || "engaging post"}`;
+          mode = "caption"; // Edge function expects 'caption' (singular)
+          brand_context = `Keywords: ${keywords || "engaging post"}. Platform: ${platform}`;
           break;
         case "improve-caption":
-          mode = "rewrite";
+          mode = "rewrite"; // Edge function expects 'rewrite' for improvements
           input_text = currentText;
-          brand_context = `Improve this caption for social media`;
+          brand_context = `Improve this caption for ${platform}`;
           break;
         default:
           mode = "caption";
       }
 
-      const requestBody = {
+      const requestBody: any = {
         mode,
         client_id: clientId,
-        project_id: projectId || null,
-        platform: platform || null,
-        brand_context,
-        input_text,
+        platform: type === "captions" || type === "improve-caption" ? platform : null,
       };
+
+      // Only include project_id if provided
+      if (projectId) {
+        requestBody.project_id = projectId;
+      }
+
+      // Only include brand_context if it has content
+      if (brand_context.trim()) {
+        requestBody.brand_context = brand_context;
+      }
+
+      // Only include input_text if it's a rewrite/improvement type
+      if (input_text && (type === "improve-script" || type === "improve-caption")) {
+        requestBody.input_text = input_text;
+      }
+
+      console.log("Calling AI edge function with:", requestBody);
 
       const { data, error } = await supabase.functions.invoke("generate-ai-content", {
         body: requestBody,
@@ -99,7 +112,32 @@ export function AIGenerateModal({ open, onOpenChange, type, clientId, projectId,
         return;
       }
 
-      setSuggestions(data.suggestions || []);
+      // Handle the response format from the edge function
+      if (data.suggestions) {
+        setSuggestions(data.suggestions);
+
+        // For captions, the edge function might return simple strings or objects
+        if (type === "captions" && data.suggestions.length > 0) {
+          // Format the suggestions if they're simple strings
+          const formattedSuggestions = data.suggestions.map((suggestion: any, index: number) => {
+            if (typeof suggestion === "string") {
+              return {
+                text: suggestion,
+                platform: platform,
+                id: index,
+              };
+            } else if (suggestion.text) {
+              return {
+                ...suggestion,
+                platform: suggestion.platform || platform,
+                id: index,
+              };
+            }
+            return suggestion;
+          });
+          setSuggestions(formattedSuggestions);
+        }
+      }
 
       toast({
         title: "Generated!",
@@ -118,7 +156,24 @@ export function AIGenerateModal({ open, onOpenChange, type, clientId, projectId,
   };
 
   const handleUse = (suggestion: any) => {
-    onUse(suggestion);
+    // For captions, we need to format the data differently
+    if (type === "captions") {
+      // Return an object with platform mapping for captions
+      const captionData: Record<string, string> = {};
+      const captionText = suggestion.text || suggestion;
+      captionData[platform] = captionText;
+      onUse(captionData);
+    } else if (type === "improve-caption") {
+      // For improved captions, return as platform mapping
+      const captionData: Record<string, string> = {};
+      const captionText = suggestion.text || suggestion;
+      captionData[platform] = captionText;
+      onUse(captionData);
+    } else {
+      // For other types, pass the suggestion directly
+      onUse(suggestion);
+    }
+
     toast({
       title: "Applied",
       description: "Content has been added to your project",
@@ -153,6 +208,9 @@ export function AIGenerateModal({ open, onOpenChange, type, clientId, projectId,
     },
   };
 
+  // Show platform selection for relevant types
+  const showPlatformSelect = ["captions", "improve-caption", "hooks", "script", "improve-script"].includes(type);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -165,6 +223,25 @@ export function AIGenerateModal({ open, onOpenChange, type, clientId, projectId,
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Platform Selection for relevant types */}
+          {showPlatformSelect && (
+            <div className="space-y-2">
+              <Label>Platform</Label>
+              <Select value={platform} onValueChange={setPlatform}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="instagram">Instagram</SelectItem>
+                  <SelectItem value="facebook">Facebook</SelectItem>
+                  <SelectItem value="linkedin">LinkedIn</SelectItem>
+                  <SelectItem value="tiktok">TikTok</SelectItem>
+                  <SelectItem value="youtube">YouTube</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           {/* Input Fields Based on Type */}
           {type === "ideas" && (
             <>
@@ -198,19 +275,6 @@ export function AIGenerateModal({ open, onOpenChange, type, clientId, projectId,
 
           {(type === "hooks" || type === "script") && (
             <>
-              <div className="space-y-2">
-                <Label>Platform</Label>
-                <Select value={platform} onValueChange={setPlatform}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="instagram">Instagram</SelectItem>
-                    <SelectItem value="facebook">Facebook</SelectItem>
-                    <SelectItem value="linkedin">LinkedIn</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
               <div className="space-y-2">
                 <Label>Keywords / Topic</Label>
                 <Input
@@ -251,7 +315,7 @@ export function AIGenerateModal({ open, onOpenChange, type, clientId, projectId,
 
           {type === "captions" && (
             <div className="space-y-2">
-              <Label>Keywords / Topic</Label>
+              <Label>Keywords / Topic (optional)</Label>
               <Input
                 placeholder="e.g., summer collection, product launch"
                 value={keywords}
@@ -275,7 +339,11 @@ export function AIGenerateModal({ open, onOpenChange, type, clientId, projectId,
           {/* Generate Button */}
           <Button
             onClick={handleGenerate}
-            disabled={loading}
+            disabled={
+              loading ||
+              (type === "improve-script" && !currentText.trim()) ||
+              (type === "improve-caption" && !currentText.trim())
+            }
             className="w-full"
             size="lg"
           >
@@ -295,30 +363,32 @@ export function AIGenerateModal({ open, onOpenChange, type, clientId, projectId,
           {/* Suggestions Display */}
           {suggestions.length > 0 && (
             <div className="space-y-3 pt-4 border-t">
-              <h4 className="font-medium text-sm">Suggestions</h4>
+              <h4 className="font-medium text-sm">Suggestions ({suggestions.length})</h4>
               {suggestions.map((suggestion, idx) => (
                 <Card key={idx} className="hover:shadow-md transition-shadow">
                   <CardContent className="p-4">
                     {type === "ideas" && suggestion.title && (
                       <>
                         <div className="font-medium mb-2">{suggestion.title}</div>
-                        <p className="text-sm text-muted-foreground mb-3">
-                          {suggestion.description}
-                        </p>
+                        <p className="text-sm text-muted-foreground mb-3">{suggestion.description}</p>
                       </>
+                    )}
+
+                    {/* For captions, show platform badge if available */}
+                    {(type === "captions" || type === "improve-caption") && suggestion.platform && (
+                      <div className="mb-2">
+                        <span className="inline-block px-2 py-1 text-xs bg-primary/10 text-primary rounded">
+                          {suggestion.platform}
+                        </span>
+                      </div>
                     )}
 
                     {/* All other types use text field */}
                     {(!suggestion.title || type !== "ideas") && (
-                      <p className="text-sm mb-3 whitespace-pre-wrap">{suggestion.text}</p>
+                      <p className="text-sm mb-3 whitespace-pre-wrap">{suggestion.text || suggestion}</p>
                     )}
 
-                    <Button
-                      variant="default"
-                      size="sm"
-                      className="w-full mt-3"
-                      onClick={() => handleUse(suggestion)}
-                    >
+                    <Button variant="default" size="sm" className="w-full mt-3" onClick={() => handleUse(suggestion)}>
                       <Check className="h-4 w-4 mr-2" />
                       Use This
                     </Button>
@@ -331,7 +401,9 @@ export function AIGenerateModal({ open, onOpenChange, type, clientId, projectId,
           {/* Empty State */}
           {!loading && suggestions.length === 0 && (
             <div className="text-center py-8 text-muted-foreground text-sm">
-              Fill in the fields above and click Generate to get AI suggestions
+              {type === "improve-script" || type === "improve-caption"
+                ? "Paste your existing content and click Generate to get improvements"
+                : "Fill in the fields above and click Generate to get AI suggestions"}
             </div>
           )}
         </div>
