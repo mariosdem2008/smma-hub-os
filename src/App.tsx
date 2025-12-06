@@ -155,7 +155,7 @@ export default function ReportDetail() {
       const { data, error } = await supabase.from("client_reports").select("*").eq("id", reportId).single();
 
       if (error) throw error;
-      return data as ClientReport & { data: ProfessionalReportData };
+      return data as unknown as ClientReport & { data: ProfessionalReportData };
     },
     enabled: !!reportId,
   });
