@@ -24,19 +24,6 @@ function corsHeaders(request: Request): Record<string, string> {
   };
 }
 
-// Helper to extract cookie value
-function getCookie(header: string | null, name: string): string | null {
-  if (!header) return null;
-  const cookies = header.split(";").map((c) => c.trim());
-  for (const cookie of cookies) {
-    const [cookieName, ...rest] = cookie.split("=");
-    if (cookieName === name) {
-      return rest.join("=");
-    }
-  }
-  return null;
-}
-
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const CLIENT_PORTAL_JWT_SECRET = Deno.env.get("CLIENT_PORTAL_JWT_SECRET");
@@ -124,29 +111,6 @@ Deno.serve(async (req) => {
 
   console.log(`[${new Date().toISOString()}] File upload request from: ${req.headers.get("origin")}`);
 
-  // Debug: Log all headers
-  console.log("=== ALL REQUEST HEADERS ===");
-  const headersArray: Array<[string, string]> = [];
-  for (const [key, value] of req.headers.entries()) {
-    headersArray.push([key, value]);
-    console.log(`${key}: ${value}`);
-  }
-
-  // Log cookies separately
-  const cookieHeader = req.headers.get("Cookie");
-  console.log("=== COOKIE DETAILS ===");
-  console.log("Raw Cookie header:", cookieHeader);
-
-  if (cookieHeader) {
-    const cookies = cookieHeader.split(";").map((c) => c.trim());
-    console.log("Parsed cookies:");
-    for (const cookie of cookies) {
-      console.log(`  "${cookie}"`);
-    }
-  } else {
-    console.log("No Cookie header found");
-  }
-
   // Only allow POST requests
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
@@ -156,86 +120,15 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Verify authentication - try Authorization header first, then cookie
+    // Get Supabase auth token from Authorization header
     const authHeader = req.headers.get("Authorization");
-    const cookieHeaderValue = req.headers.get("Cookie");
 
-    let token: string | null = null;
-
-    if (authHeader?.startsWith("Bearer ")) {
-      token = authHeader.replace("Bearer ", "");
-      console.log("Token from Authorization header:", token.substring(0, 20) + "...");
-    } else if (cookieHeaderValue) {
-      // Debug all cookies
-      const cookies = cookieHeaderValue.split(";").map((c) => c.trim());
-      console.log("Searching for token in cookies...");
-
-      // Check for various possible cookie names
-      const possibleCookieNames = [
-        "cp_access_token",
-        "client_portal_token",
-        "access_token",
-        "token",
-        "supabase-auth-token",
-        "sb-access-token",
-        "sb-dzyhrzdwwuaorruscxcn-auth-token", // Supabase project-specific cookie
-        "sb-dzyhrzdwwuaorruscxcn-client-portal-token",
-      ];
-
-      for (const cookieName of possibleCookieNames) {
-        token = getCookie(cookieHeaderValue, cookieName);
-        if (token) {
-          console.log(`Token found in cookie "${cookieName}": ${token.substring(0, 20)}...`);
-          break;
-        }
-      }
-
-      if (!token) {
-        console.log("No token found in any known cookie. All cookies:");
-        for (const cookie of cookies) {
-          console.log(`  ${cookie}`);
-        }
-      }
-    } else {
-      console.log("No Cookie header at all");
-    }
-
-    if (!token) {
-      console.log("No token provided in header or cookie");
-
-      // Special case: Check if this is a test/debug request
-      const url = new URL(req.url);
-      if (url.searchParams.get("debug") === "true") {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: "No authorization token provided",
-            debug: {
-              headers: headersArray,
-              hasAuthHeader: !!authHeader,
-              hasCookies: !!cookieHeaderValue,
-              cookieHeader: cookieHeaderValue || "none",
-              possibleCookieNames: [
-                "cp_access_token",
-                "client_portal_token",
-                "access_token",
-                "token",
-                "supabase-auth-token",
-                "sb-access-token",
-              ],
-            },
-          }),
-          {
-            status: 200,
-            headers: { ...corsHeaders(req), "Content-Type": "application/json" },
-          },
-        );
-      }
-
+    if (!authHeader?.startsWith("Bearer ")) {
+      console.log("No Authorization header found");
       return new Response(
         JSON.stringify({
-          error: "No authorization token provided. Please log in again.",
-          hint: "Make sure you are logged into the client portal",
+          error: "No authorization token provided",
+          hint: "Please make sure you're logged in and the token is included in the Authorization header",
         }),
         {
           status: 401,
@@ -244,14 +137,50 @@ Deno.serve(async (req) => {
       );
     }
 
-    const clientPortalUser = await verifyClientPortalToken(token);
+    const token = authHeader.replace("Bearer ", "");
+    console.log("Token received (first 50 chars):", token.substring(0, 50) + "...");
+
+    // Try client portal JWT verification first
+    console.log("Attempting client portal token verification...");
+    let clientPortalUser = await verifyClientPortalToken(token);
 
     if (!clientPortalUser) {
-      console.log("Invalid or expired token");
-      return new Response(JSON.stringify({ error: "Invalid or expired token" }), {
-        status: 401,
-        headers: { ...corsHeaders(req), "Content-Type": "application/json" },
+      console.log("Client portal token verification failed, trying Supabase auth...");
+
+      // Try Supabase auth
+      const supabaseClientWithAuth = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY") || "", {
+        auth: {
+          persistSession: false,
+        },
       });
+
+      const {
+        data: { user },
+        error: authError,
+      } = await supabaseClientWithAuth.auth.getUser(token);
+
+      if (user && !authError) {
+        console.log("Supabase auth successful for user:", user.email);
+
+        // For Supabase auth users (agency members), we need to get client info differently
+        // For now, reject since this is client portal uploads only
+        return new Response(
+          JSON.stringify({
+            error: "This endpoint is for client portal users only",
+            hint: "Agency members should use a different upload method",
+          }),
+          {
+            status: 403,
+            headers: { ...corsHeaders(req), "Content-Type": "application/json" },
+          },
+        );
+      } else {
+        console.log("Supabase auth also failed");
+        return new Response(JSON.stringify({ error: "Invalid or expired token" }), {
+          status: 401,
+          headers: { ...corsHeaders(req), "Content-Type": "application/json" },
+        });
+      }
     }
 
     console.log(`Authenticated as client_user.id: ${clientPortalUser.sub}, client_id: ${clientPortalUser.client_id}`);
