@@ -22,6 +22,10 @@ import {
   ExternalLink,
   Sparkles,
   Wand2,
+  PenTool,
+  FileText,
+  RefreshCw,
+  MessageSquare,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
