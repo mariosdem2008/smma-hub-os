@@ -81,6 +81,8 @@ export default function PortalUploads() {
 
     setUploading(true);
     try {
+      console.log("Starting file upload:", file.name, file.size, file.type);
+
       // Upload through Edge Function - cookies are sent automatically
       const formData = new FormData();
       formData.append("file", file);
@@ -90,16 +92,32 @@ export default function PortalUploads() {
         {
           method: "POST",
           credentials: "include", // This sends HTTP-only cookies
+          headers: {
+            // Add debug header
+            "x-debug-info": "client-portal-upload",
+          },
           body: formData,
         },
       );
 
+      console.log("Upload response status:", response.status);
+
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Upload failed");
+        const errorText = await response.text();
+        console.error("Upload error response:", errorText);
+        let errorMessage = "Upload failed";
+        try {
+          const errorJson = JSON.parse(errorText);
+          errorMessage = errorJson.error || errorMessage;
+          console.log("Debug info:", errorJson.debug);
+        } catch (e) {
+          errorMessage = errorText || errorMessage;
+        }
+        throw new Error(errorMessage);
       }
 
       const result = await response.json();
+      console.log("Upload successful:", result);
 
       toast({
         title: "File uploaded successfully",
