@@ -191,33 +191,65 @@ export default function Clients() {
     setSubmitting(true);
 
     try {
-      // Get agency
-      const { data: agency } = await supabase.from("agencies").select("id").eq("user_id", user?.id).single();
+      // Get user's agency relationship
+      const { data: agencyData } = await supabase.from("agencies").select("id").eq("user_id", user?.id).maybeSingle();
 
-      if (!agency) {
+      let agencyId = agencyData?.id;
+
+      // If user is not an agency owner, check if they're an agency member
+      if (!agencyId) {
+        const { data: memberData } = await supabase
+          .from("agency_members")
+          .select("agency_id")
+          .eq("user_id", user?.id)
+          .maybeSingle();
+
+        if (!memberData) {
+          toast({
+            title: "Error",
+            description: "You are not associated with any agency",
+            variant: "destructive",
+          });
+          return;
+        }
+        agencyId = memberData.agency_id;
+      }
+
+      if (!agencyId) {
         toast({
           title: "Error",
-          description: "Agency not found",
+          description: "Could not determine agency. Please contact support.",
           variant: "destructive",
         });
         return;
       }
 
-      // Create client
-      const { data: newClient, error } = await supabase
-        .from("clients")
-        .insert({
-          agency_id: agency.id,
-          name: formData.name,
-          email: formData.email || null,
-          phone: formData.phone || null,
-          company: formData.company || null,
-          status: formData.status,
-        } as any)
-        .select()
-        .single();
+      // Generate a UUID for the client ID
+      const clientId = crypto.randomUUID();
 
-      if (error) throw error;
+      // Create client with proper data - wrapped in array
+      const clientData = [
+        {
+          id: clientId,
+          agency_id: agencyId,
+          name: formData.name.trim(),
+          email: formData.email.trim() || null,
+          phone: formData.phone.trim() || null,
+          company: formData.company.trim() || null,
+          status: formData.status,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+      ];
+
+      console.log("Creating client with data:", clientData);
+
+      const { data: newClient, error } = await supabase.from("clients").insert(clientData).select().single();
+
+      if (error) {
+        console.error("Supabase error details:", error);
+        throw error;
+      }
 
       toast({
         title: "Success",
@@ -229,11 +261,21 @@ export default function Clients() {
 
       // Navigate to new client
       navigate(`/clients/${newClient.id}`);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating client:", error);
+
+      let errorMessage = "Failed to create client";
+      if (error.message) {
+        errorMessage = error.message;
+      } else if (error.details) {
+        errorMessage = error.details;
+      } else if (error.hint) {
+        errorMessage = error.hint;
+      }
+
       toast({
         title: "Error",
-        description: "Failed to create client",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
