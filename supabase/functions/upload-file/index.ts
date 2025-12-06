@@ -125,15 +125,26 @@ Deno.serve(async (req) => {
   console.log(`[${new Date().toISOString()}] File upload request from: ${req.headers.get("origin")}`);
 
   // Debug: Log all headers
-  console.log("All request headers:");
+  console.log("=== ALL REQUEST HEADERS ===");
+  const headersArray: Array<[string, string]> = [];
   for (const [key, value] of req.headers.entries()) {
-    if (key.toLowerCase() === "cookie") {
-      console.log(`${key}: ${value}`);
-    } else if (key.toLowerCase() === "authorization") {
-      console.log(`${key}: ${value.substring(0, 20)}...`); // Log partial auth header
-    } else {
-      console.log(`${key}: ${value}`);
+    headersArray.push([key, value]);
+    console.log(`${key}: ${value}`);
+  }
+
+  // Log cookies separately
+  const cookieHeader = req.headers.get("Cookie");
+  console.log("=== COOKIE DETAILS ===");
+  console.log("Raw Cookie header:", cookieHeader);
+
+  if (cookieHeader) {
+    const cookies = cookieHeader.split(";").map((c) => c.trim());
+    console.log("Parsed cookies:");
+    for (const cookie of cookies) {
+      console.log(`  "${cookie}"`);
     }
+  } else {
+    console.log("No Cookie header found");
   }
 
   // Only allow POST requests
@@ -147,23 +158,17 @@ Deno.serve(async (req) => {
   try {
     // Verify authentication - try Authorization header first, then cookie
     const authHeader = req.headers.get("Authorization");
-    const cookieHeader = req.headers.get("Cookie");
-
-    console.log("Cookie header raw:", cookieHeader);
+    const cookieHeaderValue = req.headers.get("Cookie");
 
     let token: string | null = null;
 
     if (authHeader?.startsWith("Bearer ")) {
       token = authHeader.replace("Bearer ", "");
-      console.log("Token from Authorization header");
-    } else if (cookieHeader) {
+      console.log("Token from Authorization header:", token.substring(0, 20) + "...");
+    } else if (cookieHeaderValue) {
       // Debug all cookies
-      const cookies = cookieHeader.split(";").map((c) => c.trim());
-      console.log("All cookies found:");
-      for (const cookie of cookies) {
-        const [name, value] = cookie.split("=");
-        console.log(`  ${name}: ${value?.substring(0, 20)}...`);
-      }
+      const cookies = cookieHeaderValue.split(";").map((c) => c.trim());
+      console.log("Searching for token in cookies...");
 
       // Check for various possible cookie names
       const possibleCookieNames = [
@@ -173,31 +178,64 @@ Deno.serve(async (req) => {
         "token",
         "supabase-auth-token",
         "sb-access-token",
+        "sb-dzyhrzdwwuaorruscxcn-auth-token", // Supabase project-specific cookie
+        "sb-dzyhrzdwwuaorruscxcn-client-portal-token",
       ];
 
       for (const cookieName of possibleCookieNames) {
-        token = getCookie(cookieHeader, cookieName);
+        token = getCookie(cookieHeaderValue, cookieName);
         if (token) {
-          console.log(`Token found in cookie: ${cookieName}`);
+          console.log(`Token found in cookie "${cookieName}": ${token.substring(0, 20)}...`);
           break;
         }
       }
 
       if (!token) {
-        console.log("No token found in any known cookie");
+        console.log("No token found in any known cookie. All cookies:");
+        for (const cookie of cookies) {
+          console.log(`  ${cookie}`);
+        }
       }
+    } else {
+      console.log("No Cookie header at all");
     }
 
     if (!token) {
       console.log("No token provided in header or cookie");
+
+      // Special case: Check if this is a test/debug request
+      const url = new URL(req.url);
+      if (url.searchParams.get("debug") === "true") {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "No authorization token provided",
+            debug: {
+              headers: headersArray,
+              hasAuthHeader: !!authHeader,
+              hasCookies: !!cookieHeaderValue,
+              cookieHeader: cookieHeaderValue || "none",
+              possibleCookieNames: [
+                "cp_access_token",
+                "client_portal_token",
+                "access_token",
+                "token",
+                "supabase-auth-token",
+                "sb-access-token",
+              ],
+            },
+          }),
+          {
+            status: 200,
+            headers: { ...corsHeaders(req), "Content-Type": "application/json" },
+          },
+        );
+      }
+
       return new Response(
         JSON.stringify({
           error: "No authorization token provided. Please log in again.",
-          debug: {
-            hasAuthHeader: !!authHeader,
-            hasCookies: !!cookieHeader,
-            cookieHeader: cookieHeader || "none",
-          },
+          hint: "Make sure you are logged into the client portal",
         }),
         {
           status: 401,
