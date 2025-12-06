@@ -12,7 +12,7 @@ const allowedOrigins = [
 function corsHeaders(request: Request): Record<string, string> {
   const origin = request.headers.get("origin") ?? "";
   const isAllowed = allowedOrigins.includes(origin);
-  
+
   return {
     "Access-Control-Allow-Origin": isAllowed ? origin : allowedOrigins[0],
     "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -21,6 +21,19 @@ function corsHeaders(request: Request): Record<string, string> {
     "Access-Control-Max-Age": "86400",
     Vary: "Origin",
   };
+}
+
+// Helper to extract cookie value
+function getCookie(header: string | null, name: string): string | null {
+  if (!header) return null;
+  const cookies = header.split(";").map((c) => c.trim());
+  for (const cookie of cookies) {
+    const [cookieName, ...rest] = cookie.split("=");
+    if (cookieName === name) {
+      return rest.join("=");
+    }
+  }
+  return null;
 }
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -119,19 +132,45 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Verify authentication
+    // Verify authentication - try Authorization header first, then cookie
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      console.log("No authorization header found");
-      return new Response(JSON.stringify({ error: "No authorization token provided" }), {
+    const cookieHeader = req.headers.get("Cookie");
+
+    let token: string | null = null;
+
+    if (authHeader?.startsWith("Bearer ")) {
+      token = authHeader.replace("Bearer ", "");
+      console.log("Token from Authorization header");
+    } else {
+      // Try to get token from cookie
+      token = getCookie(cookieHeader, "cp_access_token");
+      if (token) {
+        console.log("Token from cookie");
+      } else {
+        console.log("Checking for other cookie names...");
+        // Try other possible cookie names
+        const possibleCookieNames = ["cp_token", "client_portal_token", "access_token"];
+        for (const cookieName of possibleCookieNames) {
+          token = getCookie(cookieHeader, cookieName);
+          if (token) {
+            console.log(`Token found in cookie: ${cookieName}`);
+            break;
+          }
+        }
+      }
+    }
+
+    if (!token) {
+      console.log("No token provided in header or cookie");
+      console.log("Cookies present:", cookieHeader);
+      return new Response(JSON.stringify({ error: "No authorization token provided. Please log in again." }), {
         status: 401,
         headers: { ...corsHeaders(req), "Content-Type": "application/json" },
       });
     }
 
-    const token = authHeader.replace("Bearer ", "");
     const clientPortalUser = await verifyClientPortalToken(token);
-    
+
     if (!clientPortalUser) {
       console.log("Invalid or expired token");
       return new Response(JSON.stringify({ error: "Invalid or expired token" }), {
@@ -147,7 +186,7 @@ Deno.serve(async (req) => {
     // Parse form data
     const formData = await req.formData();
     const file = formData.get("file") as File;
-    
+
     if (!file) {
       console.log("No file in form data");
       return new Response(JSON.stringify({ error: "No file provided" }), {
@@ -168,17 +207,24 @@ Deno.serve(async (req) => {
 
     // Validate file type
     const allowedTypes = [
-      'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp',
-      'video/mp4', 'video/quicktime', 'video/webm', 'video/mpeg',
-      'application/pdf',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/vnd.ms-excel',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'text/plain',
-      'text/csv'
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+      "video/mp4",
+      "video/quicktime",
+      "video/webm",
+      "video/mpeg",
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "text/plain",
+      "text/csv",
     ];
-    
+
     if (!allowedTypes.includes(file.type.toLowerCase())) {
       console.log(`Invalid file type: ${file.type}`);
       return new Response(JSON.stringify({ error: "File type not allowed" }), {
@@ -188,20 +234,19 @@ Deno.serve(async (req) => {
     }
 
     // Create unique filename
-    const fileExt = file.name.split('.').pop();
+    const fileExt = file.name.split(".").pop();
     const timestamp = Date.now();
     const randomId = Math.random().toString(36).substring(2, 10);
     const fileName = `${clientPortalUser.client_id}/${clientPortalUser.sub}/${timestamp}_${randomId}.${fileExt}`;
-    
+
     console.log(`Uploading file: ${fileName} (${file.size} bytes)`);
 
     // Upload to storage
-    const { data: uploadData, error: uploadError } = await supabaseClient
-      .storage
+    const { data: uploadData, error: uploadError } = await supabaseClient.storage
       .from("client-uploads")
       .upload(fileName, file, {
-        cacheControl: '3600',
-        upsert: false
+        cacheControl: "3600",
+        upsert: false,
       });
 
     if (uploadError) {
@@ -215,9 +260,9 @@ Deno.serve(async (req) => {
     console.log(`File uploaded to storage: ${uploadData.path}`);
 
     // Get public URL
-    const { data: { publicUrl } } = supabaseClient.storage
-      .from("client-uploads")
-      .getPublicUrl(uploadData.path);
+    const {
+      data: { publicUrl },
+    } = supabaseClient.storage.from("client-uploads").getPublicUrl(uploadData.path);
 
     // Insert into client_uploads table
     const { data: dbData, error: dbError } = await supabaseClient
@@ -230,6 +275,7 @@ Deno.serve(async (req) => {
         file_url: publicUrl,
         file_type: file.type,
         file_size: file.size,
+        file_path: uploadData.path,
         status: "pending",
       })
       .select()
@@ -239,7 +285,7 @@ Deno.serve(async (req) => {
       console.error("Database insert error:", dbError);
       // Clean up storage if DB insert fails
       await supabaseClient.storage.from("client-uploads").remove([uploadData.path]);
-      
+
       return new Response(JSON.stringify({ error: `Database error: ${dbError.message}` }), {
         status: 500,
         headers: { ...corsHeaders(req), "Content-Type": "application/json" },
@@ -248,16 +294,18 @@ Deno.serve(async (req) => {
 
     console.log(`File record created: ${dbData.id}`);
 
-    return new Response(JSON.stringify({ 
-      success: true, 
-      upload: dbData,
-      url: publicUrl,
-      message: "File uploaded successfully"
-    }), {
-      status: 200,
-      headers: { ...corsHeaders(req), "Content-Type": "application/json" },
-    });
-
+    return new Response(
+      JSON.stringify({
+        success: true,
+        upload: dbData,
+        url: publicUrl,
+        message: "File uploaded successfully",
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders(req), "Content-Type": "application/json" },
+      },
+    );
   } catch (error) {
     console.error("Unexpected error in upload-file:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
