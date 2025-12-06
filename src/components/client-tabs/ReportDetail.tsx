@@ -282,16 +282,14 @@ export default function ReportDetail() {
               value={`${kpis.followersGrowth > 0 ? "+" : ""}${kpis.followersGrowth.toFixed(1)}%`}
               icon={TrendingUp}
               description={`${kpis.followersStart.toLocaleString()} → ${kpis.followersEnd.toLocaleString()}`}
-              variant={kpis.followersGrowth >= 5 ? "green" : kpis.followersGrowth >= 0 ? "default" : "destructive"}
-              trend={kpis.followersGrowth}
+              variant={kpis.followersGrowth >= 5 ? "green" : kpis.followersGrowth >= 0 ? "default" : "orange"}
             />
             <StatCard
               title="Engagement Rate"
               value={`${kpis.avgEngagementRate.toFixed(2)}%`}
               icon={Heart}
               description="Above industry average"
-              variant={kpis.avgEngagementRate >= 3 ? "green" : kpis.avgEngagementRate >= 1 ? "default" : "destructive"}
-              trend={kpis.avgEngagementRate}
+              variant={kpis.avgEngagementRate >= 3 ? "green" : kpis.avgEngagementRate >= 1 ? "default" : "orange"}
             />
             <StatCard
               title="Total Reach"
