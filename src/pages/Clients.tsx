@@ -221,7 +221,7 @@ export default function Clients() {
         return;
       }
 
-      // Create client with proper data - let Supabase generate the ID
+      // Create client with proper data
       const clientData = {
         agency_id: agencyId,
         name: formData.name.trim(),
@@ -233,49 +233,10 @@ export default function Clients() {
         updated_at: new Date().toISOString(),
       };
 
-      console.log("Creating client with data:", clientData);
-
       const { data: newClient, error } = await supabase.from("clients").insert(clientData).select().single();
 
       if (error) {
         console.error("Supabase error details:", error);
-
-        // Try alternative approach if the first one fails
-        if (error.code === "23502") {
-          // NOT NULL constraint violation
-          // Generate a UUID for the client
-          const clientId = crypto.randomUUID();
-          const clientDataWithId = {
-            id: clientId,
-            ...clientData,
-          };
-
-          console.log("Retrying with generated ID:", clientId);
-
-          const { data: retryClient, error: retryError } = await supabase
-            .from("clients")
-            .insert(clientDataWithId)
-            .select()
-            .single();
-
-          if (retryError) {
-            console.error("Retry error:", retryError);
-            throw retryError;
-          }
-
-          toast({
-            title: "Success",
-            description: "Client created successfully",
-          });
-
-          setShowDialog(false);
-          setFormData({ name: "", email: "", phone: "", company: "", status: "active" });
-
-          // Navigate to new client
-          navigate(`/clients/${retryClient.id}`);
-          return;
-        }
-
         throw error;
       }
 
