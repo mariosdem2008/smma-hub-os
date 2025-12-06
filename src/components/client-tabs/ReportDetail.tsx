@@ -3,7 +3,17 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatCard } from "@/components/ui/stat-card";
-import { ArrowLeft, Download, TrendingUp, Users, Eye, Heart, FileText, Lightbulb, Target } from "lucide-react";
+import { 
+  ArrowLeft, 
+  Download, 
+  TrendingUp, 
+  Users, 
+  Eye, 
+  Heart,
+  FileText,
+  Lightbulb,
+  Target
+} from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -16,7 +26,11 @@ export default function ReportDetail() {
   const { data: report, isLoading } = useQuery({
     queryKey: ["client-report", reportId],
     queryFn: async (): Promise<ClientReport> => {
-      const { data, error } = await supabase.from("client_reports").select("*").eq("id", reportId).single();
+      const { data, error } = await supabase
+        .from("client_reports")
+        .select("*")
+        .eq("id", reportId)
+        .single();
 
       if (error) throw error;
       return data as ClientReport;
@@ -76,7 +90,9 @@ export default function ReportDetail() {
 
       {/* Report Title */}
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold">{format(new Date(report.month + "-01"), "MMMM yyyy")} Report</h1>
+        <h1 className="text-3xl font-bold">
+          {format(new Date(report.month + "-01"), "MMMM yyyy")} Report
+        </h1>
         <p className="text-muted-foreground">
           Generated on {format(new Date(report.created_at), "MMMM d, yyyy 'at' h:mm a")}
         </p>
@@ -86,7 +102,7 @@ export default function ReportDetail() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <StatCard
           title="Follower Growth"
-          value={`${kpis.followersGrowth > 0 ? "+" : ""}${kpis.followersGrowth}%`}
+          value={`${kpis.followersGrowth > 0 ? '+' : ''}${kpis.followersGrowth}%`}
           icon={Users}
           description={`${kpis.followersStart.toLocaleString()} → ${kpis.followersEnd.toLocaleString()}`}
           variant={kpis.followersGrowth >= 0 ? "green" : "default"}
@@ -160,14 +176,19 @@ export default function ReportDetail() {
           <CardContent>
             <div className="space-y-4">
               {topPosts.map((post, index) => (
-                <div key={post.platform_post_id} className="flex items-center justify-between p-4 border rounded-lg">
+                <div 
+                  key={post.platform_post_id}
+                  className="flex items-center justify-between p-4 border rounded-lg"
+                >
                   <div className="flex items-center gap-4">
                     <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold">
                       #{index + 1}
                     </div>
                     <div>
                       <p className="font-semibold capitalize">{post.platform}</p>
-                      <p className="text-sm text-muted-foreground">{format(new Date(post.date), "MMM d, yyyy")}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {format(new Date(post.date), "MMM d, yyyy")}
+                      </p>
                     </div>
                   </div>
                   <div className="flex gap-6 text-sm">
