@@ -85,12 +85,11 @@ Deno.serve(async (req) => {
       body: msg.body,
       created_at: msg.created_at,
       sender_type: msg.sender_type,
-      sender_agency_member_id: msg.agency_member_id,
-      sender_client_user_id: msg.client_user_id,
+      sender_agency_member_id: msg.sender_agency_member_id,
+      sender_client_user_id: msg.sender_client_user_id,
       conversation_id: msg.conversation_id,
       attachment_url: msg.attachment_url,
       related_project_id: msg.related_project_id,
-      // Leave sender as null - we'll get it on the client side
       sender: null,
     }));
 
