@@ -1,4 +1,12 @@
-import { LayoutDashboard, Users, UsersRound, Settings, LogOut, CreditCard, ArrowUpCircle, MessageSquare } from "lucide-react";
+import {
+  LayoutDashboard,
+  Users,
+  UsersRound,
+  Settings,
+  LogOut,
+  CreditCard,
+  ArrowUpCircle /*MessageSquare*/,
+} from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import {
@@ -39,20 +47,20 @@ export function AppSidebar() {
   const isCollapsed = state === "collapsed";
 
   // Show upgrade button for free, starter, and LTD starter users
-  const showUpgradeButton = subscription && ['free', 'starter', 'ltd_starter'].includes(subscription.plan_type);
+  const showUpgradeButton = subscription && ["free", "starter", "ltd_starter"].includes(subscription.plan_type);
 
   // Dynamic navigation items based on role
   const navigationItems = [
     { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
     { title: "Clients", url: "/clients", icon: Users },
-    { title: "Messages", url: "/messages", icon: MessageSquare },
+    //    { title: "Messages", url: "/messages", icon: MessageSquare },
     { title: "Team", url: "/team", icon: UsersRound },
     // Billing: Show different links based on role
     ...(isOwner
       ? [{ title: "Billing", url: "/billing", icon: CreditCard }]
       : isAdmin
-      ? [{ title: "Billing", url: "/billing/overview", icon: CreditCard }]
-      : []),
+        ? [{ title: "Billing", url: "/billing/overview", icon: CreditCard }]
+        : []),
     { title: "Settings", url: "/settings", icon: Settings },
   ];
 
@@ -72,17 +80,17 @@ export function AppSidebar() {
                         to={item.url}
                         className={`
                           relative transition-all duration-200 hover:bg-[#2A2F46]
-                          ${active ? 'bg-[#2A2F46] text-white' : ''}
+                          ${active ? "bg-[#2A2F46] text-white" : ""}
                         `}
                         activeClassName="bg-[#2A2F46] text-white font-medium"
                       >
-                        {active && (
-                          <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#4E5DFF] rounded-full" />
-                        )}
-                        <item.icon className={`
+                        {active && <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#4E5DFF] rounded-full" />}
+                        <item.icon
+                          className={`
                           h-4 w-4 ml-1 transition-all duration-200
-                          ${active ? 'text-[#4E5DFF]' : 'text-slate-400 hover:text-[#4E5DFF] hover:scale-[1.03]'}
-                        `} />
+                          ${active ? "text-[#4E5DFF]" : "text-slate-400 hover:text-[#4E5DFF] hover:scale-[1.03]"}
+                        `}
+                        />
                         {!isCollapsed && <span className="ml-2">{item.title}</span>}
                       </NavLink>
                     </SidebarMenuButton>
@@ -111,11 +119,7 @@ export function AppSidebar() {
       <SidebarFooter>
         <div className="flex items-center gap-2 px-2 py-1">
           <ThemeToggle />
-          <Button
-            variant="ghost"
-            className="flex-1 justify-start hover:bg-sidebar-accent"
-            onClick={signOut}
-          >
+          <Button variant="ghost" className="flex-1 justify-start hover:bg-sidebar-accent" onClick={signOut}>
             <LogOut className="h-4 w-4" />
             {!isCollapsed && <span className="ml-2">Sign Out</span>}
           </Button>
