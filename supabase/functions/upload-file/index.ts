@@ -24,7 +24,7 @@ function corsHeaders(request: Request): Record<string, string> {
   };
 }
 
-// Helper to extract cookie value
+// Helper to extract cookie value (SAME AS list-conversations.ts)
 function getCookie(header: string | null, name: string): string | null {
   if (!header) return null;
   const cookies = header.split(";").map((c) => c.trim());
@@ -50,6 +50,7 @@ interface ClientPortalJwtPayload {
   exp: number;
 }
 
+// SAME verifyClientPortalToken function as list-conversations.ts
 async function verifyClientPortalToken(token: string): Promise<ClientPortalJwtPayload | null> {
   if (!CLIENT_PORTAL_JWT_SECRET) {
     console.error("CLIENT_PORTAL_JWT_SECRET not configured");
@@ -124,29 +125,6 @@ Deno.serve(async (req) => {
 
   console.log(`[${new Date().toISOString()}] File upload request from: ${req.headers.get("origin")}`);
 
-  // Debug: Log all headers
-  console.log("=== ALL REQUEST HEADERS ===");
-  const headersArray: Array<[string, string]> = [];
-  for (const [key, value] of req.headers.entries()) {
-    headersArray.push([key, value]);
-    console.log(`${key}: ${value}`);
-  }
-
-  // Log cookies separately
-  const cookieHeader = req.headers.get("Cookie");
-  console.log("=== COOKIE DETAILS ===");
-  console.log("Raw Cookie header:", cookieHeader);
-
-  if (cookieHeader) {
-    const cookies = cookieHeader.split(";").map((c) => c.trim());
-    console.log("Parsed cookies:");
-    for (const cookie of cookies) {
-      console.log(`  "${cookie}"`);
-    }
-  } else {
-    console.log("No Cookie header found");
-  }
-
   // Only allow POST requests
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
@@ -156,107 +134,52 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Verify authentication - try Authorization header first, then cookie
+    // IMPORTANT: Use SAME authentication logic as list-conversations.ts
     const authHeader = req.headers.get("Authorization");
-    const cookieHeaderValue = req.headers.get("Cookie");
+    const cookieHeader = req.headers.get("Cookie");
 
     let token: string | null = null;
 
     if (authHeader?.startsWith("Bearer ")) {
       token = authHeader.replace("Bearer ", "");
-      console.log("Token from Authorization header:", token.substring(0, 20) + "...");
-    } else if (cookieHeaderValue) {
-      // Debug all cookies
-      const cookies = cookieHeaderValue.split(";").map((c) => c.trim());
-      console.log("Searching for token in cookies...");
-
-      // Check for various possible cookie names
-      const possibleCookieNames = [
-        "cp_access_token",
-        "client_portal_token",
-        "access_token",
-        "token",
-        "supabase-auth-token",
-        "sb-access-token",
-        "sb-dzyhrzdwwuaorruscxcn-auth-token", // Supabase project-specific cookie
-        "sb-dzyhrzdwwuaorruscxcn-client-portal-token",
-      ];
-
-      for (const cookieName of possibleCookieNames) {
-        token = getCookie(cookieHeaderValue, cookieName);
-        if (token) {
-          console.log(`Token found in cookie "${cookieName}": ${token.substring(0, 20)}...`);
-          break;
-        }
-      }
-
-      if (!token) {
-        console.log("No token found in any known cookie. All cookies:");
-        for (const cookie of cookies) {
-          console.log(`  ${cookie}`);
-        }
-      }
+      console.log("Token from Authorization header");
     } else {
-      console.log("No Cookie header at all");
+      // Check for cp_access_token cookie (SAME AS list-conversations)
+      token = getCookie(cookieHeader, "cp_access_token");
+      if (token) {
+        console.log("Token from cp_access_token cookie");
+      } else {
+        console.log("No cp_access_token cookie found");
+      }
     }
 
     if (!token) {
-      console.log("No token provided in header or cookie");
-
-      // Special case: Check if this is a test/debug request
-      const url = new URL(req.url);
-      if (url.searchParams.get("debug") === "true") {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: "No authorization token provided",
-            debug: {
-              headers: headersArray,
-              hasAuthHeader: !!authHeader,
-              hasCookies: !!cookieHeaderValue,
-              cookieHeader: cookieHeaderValue || "none",
-              possibleCookieNames: [
-                "cp_access_token",
-                "client_portal_token",
-                "access_token",
-                "token",
-                "supabase-auth-token",
-                "sb-access-token",
-              ],
-            },
-          }),
-          {
-            status: 200,
-            headers: { ...corsHeaders(req), "Content-Type": "application/json" },
-          },
-        );
-      }
-
-      return new Response(
-        JSON.stringify({
-          error: "No authorization token provided. Please log in again.",
-          hint: "Make sure you are logged into the client portal",
-        }),
-        {
-          status: 401,
-          headers: { ...corsHeaders(req), "Content-Type": "application/json" },
-        },
-      );
-    }
-
-    const clientPortalUser = await verifyClientPortalToken(token);
-
-    if (!clientPortalUser) {
-      console.log("Invalid or expired token");
-      return new Response(JSON.stringify({ error: "Invalid or expired token" }), {
+      console.log("No token provided");
+      return new Response(JSON.stringify({ error: "Unauthorized - No token provided" }), {
         status: 401,
         headers: { ...corsHeaders(req), "Content-Type": "application/json" },
       });
     }
 
-    console.log(`Authenticated as client_user.id: ${clientPortalUser.sub}, client_id: ${clientPortalUser.client_id}`);
-
     const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
+
+    let clientPortalUser: ClientPortalJwtPayload | null = null;
+
+    // Try client portal JWT (SAME AS list-conversations)
+    console.log("Verifying client portal token...");
+    clientPortalUser = await verifyClientPortalToken(token);
+
+    if (!clientPortalUser) {
+      console.log("Client portal token verification failed");
+      return new Response(JSON.stringify({ error: "Unauthorized - Invalid token" }), {
+        status: 401,
+        headers: { ...corsHeaders(req), "Content-Type": "application/json" },
+      });
+    }
+
+    console.log(
+      `Client portal auth successful for client_user.id: ${clientPortalUser.sub}, client_id: ${clientPortalUser.client_id}`,
+    );
 
     // Parse form data
     const formData = await req.formData();
