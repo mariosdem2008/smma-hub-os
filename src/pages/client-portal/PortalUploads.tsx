@@ -75,41 +75,13 @@ export default function PortalUploads() {
     };
   };
 
-  const getClientPortalToken = () => {
-    // Try localStorage first
-    const token = localStorage.getItem("cp_access_token");
-    if (token) return token;
-
-    // Try cookies
-    const cookies = document.cookie.split("; ");
-    for (const cookie of cookies) {
-      const [name, value] = cookie.split("=");
-      if (name === "cp_access_token") {
-        return value;
-      }
-    }
-
-    // Try sessionStorage
-    const sessionToken = sessionStorage.getItem("cp_access_token");
-    if (sessionToken) return sessionToken;
-
-    return null;
-  };
-
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !clientUser) return;
 
     setUploading(true);
     try {
-      // Get the client portal JWT token
-      const token = getClientPortalToken();
-
-      if (!token) {
-        throw new Error("Authentication token not found. Please log in again.");
-      }
-
-      // Upload through Edge Function
+      // Upload through Edge Function - cookies are sent automatically
       const formData = new FormData();
       formData.append("file", file);
 
@@ -117,9 +89,7 @@ export default function PortalUploads() {
         `${import.meta.env.VITE_SUPABASE_URL || "https://dzyhrzdwwuaorruscxcn.supabase.co"}/functions/v1/upload-file`,
         {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          credentials: "include", // This sends HTTP-only cookies
           body: formData,
         },
       );
@@ -204,7 +174,7 @@ export default function PortalUploads() {
               </label>
             </Button>
             <p className="text-xs text-muted-foreground mt-2">
-              Max file size: 50MB. Allowed types: images, PDFs, documents
+              Max file size: 50MB. Allowed types: images, videos, PDFs, documents
             </p>
           </div>
         </CardContent>
