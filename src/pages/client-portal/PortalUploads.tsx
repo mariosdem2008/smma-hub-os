@@ -97,19 +97,68 @@ export default function PortalUploads() {
     ];
 
     for (const key of possibleStorageKeys) {
-      const token = localStorage.getItem(key);
-      if (token) {
-        console.log(`Found token in localStorage key: ${key}`);
-        return token;
+      const storedValue = localStorage.getItem(key);
+      if (storedValue) {
+        console.log(`Found value in localStorage key: ${key}`, storedValue.substring(0, 50) + "...");
+
+        try {
+          // Try to parse as JSON (might be a Supabase auth session object)
+          const parsed = JSON.parse(storedValue);
+
+          // Check if it's a Supabase auth session object
+          if (parsed.access_token) {
+            console.log(`Extracted access_token from JSON object`);
+            return parsed.access_token;
+          }
+
+          // Check if it's a client portal token object
+          if (parsed.token) {
+            console.log(`Extracted token from JSON object`);
+            return parsed.token;
+          }
+
+          // If it's a string that looks like a JWT (has 3 parts separated by dots)
+          if (typeof parsed === "string" && parsed.split(".").length === 3) {
+            console.log(`Value appears to be a JWT token`);
+            return parsed;
+          }
+        } catch (e) {
+          // Not JSON, check if it's a plain JWT token
+          if (storedValue.split(".").length === 3) {
+            console.log(`Value appears to be a plain JWT token`);
+            return storedValue;
+          }
+
+          // Might be a JSON string that failed to parse
+          console.log(`Could not parse value from key ${key} as JSON or JWT`);
+        }
       }
     }
 
     // Check sessionStorage
     for (const key of possibleStorageKeys) {
-      const token = sessionStorage.getItem(key);
-      if (token) {
-        console.log(`Found token in sessionStorage key: ${key}`);
-        return token;
+      const storedValue = sessionStorage.getItem(key);
+      if (storedValue) {
+        console.log(`Found value in sessionStorage key: ${key}`, storedValue.substring(0, 50) + "...");
+
+        try {
+          const parsed = JSON.parse(storedValue);
+          if (parsed.access_token) {
+            console.log(`Extracted access_token from JSON object`);
+            return parsed.access_token;
+          }
+          if (parsed.token) {
+            console.log(`Extracted token from JSON object`);
+            return parsed.token;
+          }
+          if (typeof parsed === "string" && parsed.split(".").length === 3) {
+            return parsed;
+          }
+        } catch (e) {
+          if (storedValue.split(".").length === 3) {
+            return storedValue;
+          }
+        }
       }
     }
 
@@ -119,21 +168,23 @@ export default function PortalUploads() {
       for (const cookie of cookies) {
         const [name, value] = cookie.trim().split("=");
         if (possibleStorageKeys.includes(name)) {
-          console.log(`Found token in cookie: ${name}`);
-          return value;
+          console.log(`Found value in cookie: ${name}`, value.substring(0, 50) + "...");
+
+          try {
+            const parsed = JSON.parse(value);
+            if (parsed.access_token) return parsed.access_token;
+            if (parsed.token) return parsed.token;
+            if (typeof parsed === "string" && parsed.split(".").length === 3) return parsed;
+          } catch (e) {
+            if (value.split(".").length === 3) return value;
+          }
         }
       }
     } catch (error) {
       console.error("Error reading cookies:", error);
     }
 
-    // Last resort: Check if useClientAuth provides a token
-    // We can't access it directly, but we can check if clientUser has any token info
-    console.log("clientUser object:", clientUser);
-
-    // If clientUser exists but we can't find a token, the auth system might not expose it
-    // We need to look at how useConversations.ts gets the token
-    console.log("No token found in any storage location");
+    console.log("No valid token found in any storage location");
     return null;
   };
 
@@ -149,59 +200,12 @@ export default function PortalUploads() {
       const token = getClientPortalToken();
 
       if (!token) {
-        // If no token found, check if we should use the client auth system differently
-        console.log("No token found. Checking auth method...");
-
-        // Try a different approach: Maybe the auth is handled by cookies automatically
-        // Let's try uploading without Authorization header but with credentials
-        console.log("Attempting upload with credentials only...");
-
-        const formData = new FormData();
-        formData.append("file", file);
-
-        const response = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL || "https://dzyhrzdwwuaorruscxcn.supabase.co"}/functions/v1/upload-file`,
-          {
-            method: "POST",
-            credentials: "include", // Send cookies
-            body: formData,
-          },
-        );
-
-        if (!response.ok) {
-          // If that fails, try with debug parameter to get more info
-          const debugResponse = await fetch(
-            `${import.meta.env.VITE_SUPABASE_URL || "https://dzyhrzdwwuaorruscxcn.supabase.co"}/functions/v1/upload-file?debug=true`,
-            {
-              method: "POST",
-              credentials: "include",
-              body: formData,
-            },
-          );
-
-          if (debugResponse.ok) {
-            const debugData = await debugResponse.json();
-            console.log("Debug response:", debugData);
-            throw new Error("Authentication issue. Debug info: " + JSON.stringify(debugData.debug));
-          }
-
-          const errorText = await response.text();
-          throw new Error(errorText || "Upload failed - no authentication token found");
-        }
-
-        const result = await response.json();
-        console.log("Upload successful (with credentials):", result);
-
-        toast({
-          title: "File uploaded successfully",
-          description: "Your file is pending review by the agency team",
-        });
-
-        fetchUploads();
-        return;
+        throw new Error("Authentication token not found. Please log in again.");
       }
 
-      console.log("Using token for upload:", token.substring(0, 20) + "...");
+      console.log("Using token for upload (first 50 chars):", token.substring(0, 50) + "...");
+      console.log("Token length:", token.length);
+      console.log("Token parts:", token.split(".").length);
 
       // Upload through Edge Function with token in Authorization header
       const formData = new FormData();
@@ -227,6 +231,9 @@ export default function PortalUploads() {
         try {
           const errorJson = JSON.parse(errorText);
           errorMessage = errorJson.error || errorMessage;
+          if (errorJson.hint) {
+            errorMessage += `. ${errorJson.hint}`;
+          }
         } catch (e) {
           errorMessage = errorText || errorMessage;
         }
