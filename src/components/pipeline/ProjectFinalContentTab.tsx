@@ -278,32 +278,40 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
     }));
 
     try {
+      const platform = platformId || selectedPlatforms[0];
+
       const { data, error } = await supabase.functions.invoke("generate-ai-content", {
         body: {
-          type: "caption_variants",
-          platforms: platformsToGenerate,
-          clientId: project.client_id,
+          mode: "caption", // Use 'caption' mode (matches edge function)
+          project_id: project.id,
+          client_id: project.client_id,
+          platform: platform,
         },
       });
 
       if (error) throw error;
 
-      if (platformId) {
+      if (!data.success) {
+        throw new Error(data.error || "Failed to generate captions");
+      }
+
+      if (platformId && data.suggestions && data.suggestions.length > 0) {
         // If generating for a specific platform, show variants for that platform
-        setAiVariants(
-          data.content.map((variant: any) => ({
-            ...variant,
-            platform: platformId,
-          })),
-        );
+        const variants = data.suggestions.map((suggestion: any) => ({
+          caption: suggestion.text || suggestion,
+          length: suggestion.text ? `~${suggestion.text.length} chars` : "~200 chars",
+          platform: platformId,
+        }));
+        setAiVariants(variants);
         setShowVariants(true);
-      } else {
-        // If generating for all platforms, apply the first variant to each platform
+      } else if (data.suggestions && data.suggestions.length > 0) {
+        // If generating for all platforms, apply the first suggestion to each platform
         const variantsByPlatform: Record<string, string> = {};
 
         selectedPlatforms.forEach((platform, index) => {
-          if (data.content[index]) {
-            variantsByPlatform[platform] = data.content[index].caption;
+          const suggestion = data.suggestions[index] || data.suggestions[0];
+          if (suggestion) {
+            variantsByPlatform[platform] = suggestion.text || suggestion;
           }
         });
 
@@ -321,7 +329,7 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
       console.error("AI generation error:", error);
       toast({
         title: "Error generating captions",
-        description: error.message,
+        description: error.message || "Failed to generate captions",
         variant: "destructive",
       });
     } finally {
@@ -337,7 +345,7 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
       // Apply to specific platform
       setCaptions((prev) => ({
         ...prev,
-        [variant.platform]: variant.caption,
+        [variant.platform!]: variant.caption,
       }));
       toast({
         title: "Caption applied",
