@@ -15,8 +15,9 @@ function corsHeaders(request: Request): Record<string, string> {
 
   return {
     "Access-Control-Allow-Origin": isAllowed ? origin : allowedOrigins[0],
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization, x-client-info, apikey",
+    "Access-Control-Allow-Methods": "POST, PUT, GET, DELETE, OPTIONS",
+    "Access-Control-Allow-Headers":
+      request.headers.get("Access-Control-Request-Headers") || "Content-Type, Authorization, apikey, x-client-info, *",
     "Access-Control-Allow-Credentials": "true",
     "Access-Control-Max-Age": "86400",
     Vary: "Origin",
