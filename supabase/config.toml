@@ -89,3 +89,15 @@ verify_jwt = false
 
 [functions.sync-meta-ads]
 verify_jwt = false
+
+[functions.upload-file]
+verify_jwt = false
+
+[functions.client-auth-logout]
+verify_jwt = false
+
+[functions.client-refresh-token]
+verify_jwt = false
+
+[functions.add-client-user-to-conversation]
+verify_jwt = false
