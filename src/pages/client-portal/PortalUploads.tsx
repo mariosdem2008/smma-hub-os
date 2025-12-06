@@ -75,47 +75,51 @@ export default function PortalUploads() {
     };
   };
 
-  const getClientPortalToken = async (): Promise<string | null> => {
-    try {
-      // Try to get token from auth refresh endpoint
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/client-refresh-token`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-        },
-        credentials: "include",
-      });
+  const getClientPortalToken = (): string | null => {
+    console.log("Looking for client portal token...");
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.token) {
-          console.log("Got token from refresh endpoint");
-          return data.token;
-        }
+    // First, check if there's a token in the URL (for invite flows)
+    const urlParams = new URLSearchParams(window.location.search);
+    const tokenFromUrl = urlParams.get("token");
+    if (tokenFromUrl) {
+      console.log("Found token in URL");
+      return tokenFromUrl;
+    }
+
+    // Check localStorage for various possible token names
+    const possibleStorageKeys = [
+      "cp_access_token",
+      "client_portal_token",
+      "sb-access-token",
+      "sb-dzyhrzdwwuaorruscxcn-auth-token",
+      "access_token",
+      "token",
+    ];
+
+    for (const key of possibleStorageKeys) {
+      const token = localStorage.getItem(key);
+      if (token) {
+        console.log(`Found token in localStorage key: ${key}`);
+        return token;
       }
-    } catch (error) {
-      console.error("Error getting token from refresh endpoint:", error);
     }
 
-    // Fallback: Check localStorage for token from other auth flows
-    const tokenFromStorage =
-      localStorage.getItem("client_portal_token") ||
-      localStorage.getItem("cp_access_token") ||
-      localStorage.getItem("sb-access-token");
-
-    if (tokenFromStorage) {
-      console.log("Got token from localStorage");
-      return tokenFromStorage;
+    // Check sessionStorage
+    for (const key of possibleStorageKeys) {
+      const token = sessionStorage.getItem(key);
+      if (token) {
+        console.log(`Found token in sessionStorage key: ${key}`);
+        return token;
+      }
     }
 
-    // Fallback: Check cookies
+    // Check cookies
     try {
       const cookies = document.cookie.split(";");
       for (const cookie of cookies) {
         const [name, value] = cookie.trim().split("=");
-        if (name === "cp_access_token" || name === "client_portal_token" || name.includes("auth-token")) {
-          console.log(`Got token from cookie: ${name}`);
+        if (possibleStorageKeys.includes(name)) {
+          console.log(`Found token in cookie: ${name}`);
           return value;
         }
       }
@@ -123,7 +127,13 @@ export default function PortalUploads() {
       console.error("Error reading cookies:", error);
     }
 
-    console.log("No token found");
+    // Last resort: Check if useClientAuth provides a token
+    // We can't access it directly, but we can check if clientUser has any token info
+    console.log("clientUser object:", clientUser);
+
+    // If clientUser exists but we can't find a token, the auth system might not expose it
+    // We need to look at how useConversations.ts gets the token
+    console.log("No token found in any storage location");
     return null;
   };
 
@@ -136,10 +146,59 @@ export default function PortalUploads() {
       console.log("Starting file upload:", file.name, file.size, file.type);
 
       // Get the client portal token
-      const token = await getClientPortalToken();
+      const token = getClientPortalToken();
 
       if (!token) {
-        throw new Error("Authentication token not found. Please log in again.");
+        // If no token found, check if we should use the client auth system differently
+        console.log("No token found. Checking auth method...");
+
+        // Try a different approach: Maybe the auth is handled by cookies automatically
+        // Let's try uploading without Authorization header but with credentials
+        console.log("Attempting upload with credentials only...");
+
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const response = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL || "https://dzyhrzdwwuaorruscxcn.supabase.co"}/functions/v1/upload-file`,
+          {
+            method: "POST",
+            credentials: "include", // Send cookies
+            body: formData,
+          },
+        );
+
+        if (!response.ok) {
+          // If that fails, try with debug parameter to get more info
+          const debugResponse = await fetch(
+            `${import.meta.env.VITE_SUPABASE_URL || "https://dzyhrzdwwuaorruscxcn.supabase.co"}/functions/v1/upload-file?debug=true`,
+            {
+              method: "POST",
+              credentials: "include",
+              body: formData,
+            },
+          );
+
+          if (debugResponse.ok) {
+            const debugData = await debugResponse.json();
+            console.log("Debug response:", debugData);
+            throw new Error("Authentication issue. Debug info: " + JSON.stringify(debugData.debug));
+          }
+
+          const errorText = await response.text();
+          throw new Error(errorText || "Upload failed - no authentication token found");
+        }
+
+        const result = await response.json();
+        console.log("Upload successful (with credentials):", result);
+
+        toast({
+          title: "File uploaded successfully",
+          description: "Your file is pending review by the agency team",
+        });
+
+        fetchUploads();
+        return;
       }
 
       console.log("Using token for upload:", token.substring(0, 20) + "...");
