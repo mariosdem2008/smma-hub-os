@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
 
 function corsHeaders(request: Request): Record<string, string> {
   const origin = request.headers.get("Origin");
@@ -11,8 +12,6 @@ function corsHeaders(request: Request): Record<string, string> {
 }
 
 const JWT_SECRET = Deno.env.get("CLIENT_PORTAL_JWT_SECRET");
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
 const ACCESS_TOKEN_TTL_SECONDS = 20 * 60; // 20 minutes
 const REFRESH_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60; // 30 days

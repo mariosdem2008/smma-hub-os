@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { SUPABASE_URL, PUBLIC_URL } from "../_shared/env.ts";
 
 interface OAuthRequest {
   platform: string;
@@ -29,7 +30,7 @@ serve(async (req) => {
     }
 
     const META_APP_ID = Deno.env.get('META_APP_ID');
-    const META_REDIRECT_URI = Deno.env.get('META_REDIRECT_URI');
+    const META_REDIRECT_URI = Deno.env.get('META_REDIRECT_URI') || `${SUPABASE_URL}/functions/v1/social-oauth-callback`;
     const GRAPH_API_VERSION = Deno.env.get('GRAPH_API_VERSION') || 'v21.0';
 
     if (!META_APP_ID) {
@@ -39,14 +40,8 @@ serve(async (req) => {
         { headers: { ...headers, 'Content-Type': 'application/json' }, status: 500 }
       );
     }
-    
-    if (!META_REDIRECT_URI) {
-      console.error('[OAUTH] Missing META_REDIRECT_URI');
-      return new Response(
-        JSON.stringify({ error: 'Missing META_REDIRECT_URI environment variable' }),
-        { headers: { ...headers, 'Content-Type': 'application/json' }, status: 500 }
-      );
-    }
+
+    console.log('[OAUTH] Using redirect URI:', META_REDIRECT_URI);
 
     const statePayload = { clientId, platform, source };
     const state = btoa(JSON.stringify(statePayload));

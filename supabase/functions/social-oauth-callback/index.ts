@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 import { corsHeaders } from "../_shared/cors.ts";
+import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
 
 serve(async (req) => {
   const origin = req.headers.get("Origin");
@@ -42,14 +43,11 @@ serve(async (req) => {
 
     const META_APP_ID = Deno.env.get('META_APP_ID');
     const META_APP_SECRET = Deno.env.get('META_APP_SECRET');
-    const META_REDIRECT_URI = Deno.env.get('META_REDIRECT_URI');
+    const META_REDIRECT_URI = Deno.env.get('META_REDIRECT_URI') || `${SUPABASE_URL}/functions/v1/social-oauth-callback`;
     const GRAPH_API_VERSION = Deno.env.get('GRAPH_API_VERSION') || 'v21.0';
-    const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
-    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
     if (!META_APP_ID) throw new Error('Missing META_APP_ID');
     if (!META_APP_SECRET) throw new Error('Missing META_APP_SECRET');
-    if (!META_REDIRECT_URI) throw new Error('Missing META_REDIRECT_URI');
     if (!SUPABASE_URL) throw new Error('Missing SUPABASE_URL');
     if (!SUPABASE_SERVICE_ROLE_KEY) throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY');
 
