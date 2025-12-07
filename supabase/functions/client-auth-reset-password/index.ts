@@ -1,7 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
 
 const allowedOrigins = [
   "http://localhost:8080",
+  "http://localhost:5173",
+  "http://localhost:3000",
   "https://smmahub.net",
   "https://73a2983b-0136-47d2-9a1f-01fe580ac593.lovableproject.com",
   "https://id-preview--73a2983b-0136-47d2-9a1f-01fe580ac593.lovable.app",
@@ -21,10 +24,7 @@ function corsHeaders(request: Request): Record<string, string> {
   };
 }
 
-
 const JWT_SECRET = Deno.env.get("CLIENT_PORTAL_JWT_SECRET");
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
 const ACCESS_TOKEN_TTL_SECONDS = 20 * 60; // 20 minutes
 const REFRESH_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60; // 30 days
