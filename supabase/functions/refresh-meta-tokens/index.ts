@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 import { corsHeaders } from "../_shared/cors.ts";
+import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
 
 serve(async (req) => {
   const origin = req.headers.get("Origin");
@@ -13,10 +14,7 @@ serve(async (req) => {
   try {
     console.log('[TOKEN-REFRESH] Starting Meta token refresh process');
 
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     const metaAppId = Deno.env.get('META_APP_ID');
     const metaAppSecret = Deno.env.get('META_APP_SECRET');

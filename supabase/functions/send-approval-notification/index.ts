@@ -1,9 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
-const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -149,7 +148,7 @@ serve(async (req: Request) => {
   }
 
   try {
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     const request: NotificationRequest = await req.json();
     const { contentType, contentId, contentTitle, clientId, action, comment, asset_id, approver_id, project_id } = request;
 

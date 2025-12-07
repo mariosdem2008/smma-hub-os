@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.84.0';
+import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -7,19 +8,6 @@ const corsHeaders = {
 
 // CRON SCHEDULE:
 // This function should be scheduled to run every 6 hours via pg_cron
-// 
-// SQL to schedule:
-// SELECT cron.schedule(
-//   'sync-social-metrics',
-//   '0 */6 * * *',
-//   $$
-//   SELECT net.http_post(
-//     url:='https://PROJECT_REF.supabase.co/functions/v1/sync-social-metrics',
-//     headers:='{"Content-Type": "application/json", "Authorization": "Bearer YOUR_ANON_KEY"}'::jsonb,
-//     body:='{}'::jsonb
-//   ) as request_id;
-//   $$
-// );
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -28,11 +16,8 @@ Deno.serve(async (req) => {
 
   console.log('[METRICS-SYNC] Starting social metrics sync');
 
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const graphApiVersion = Deno.env.get('GRAPH_API_VERSION') || 'v21.0';
-
-  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
   try {
     // Fetch all active social connections

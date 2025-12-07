@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.84.0";
+import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
 
 const allowedOrigins = [
   "http://localhost:8080",
@@ -24,7 +25,7 @@ function corsHeaders(request: Request): Record<string, string> {
   };
 }
 
-// Helper to extract cookie value (SAME AS list-conversations.ts)
+// Helper to extract cookie value
 function getCookie(header: string | null, name: string): string | null {
   if (!header) return null;
   const cookies = header.split(";").map((c) => c.trim());
@@ -37,8 +38,6 @@ function getCookie(header: string | null, name: string): string | null {
   return null;
 }
 
-const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const CLIENT_PORTAL_JWT_SECRET = Deno.env.get("CLIENT_PORTAL_JWT_SECRET");
 
 interface ClientPortalJwtPayload {
@@ -161,7 +160,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
+    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     let clientPortalUser: ClientPortalJwtPayload | null = null;
 

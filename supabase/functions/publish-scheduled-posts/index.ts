@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 import { publishToInstagram, publishToFacebook } from "../_utils/instagram-publish.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
 
 serve(async (req) => {
   const origin = req.headers.get("Origin");
@@ -15,10 +16,7 @@ serve(async (req) => {
     const startTime = Date.now();
     console.log('[AUTOPUBLISH] Starting scheduled posts check');
 
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     // Query scheduled posts ready to publish (with 1 minute buffer and retry limit)
     const now = new Date();

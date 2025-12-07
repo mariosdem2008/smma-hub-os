@@ -1,7 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.84.0";
+import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
 
 const allowedOrigins = [
   "http://localhost:8080",
+  "http://localhost:5173",
+  "http://localhost:3000",
   "https://smmahub.net",
   "https://73a2983b-0136-47d2-9a1f-01fe580ac593.lovableproject.com",
   "https://id-preview--73a2983b-0136-47d2-9a1f-01fe580ac593.lovable.app",
@@ -20,9 +23,6 @@ function corsHeaders(request: Request): Record<string, string> {
     "Access-Control-Max-Age": "86400",
   };
 }
-
-const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 Deno.serve(async (req) => {
   // Handle OPTIONS request
@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
+    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     const token = authHeader.replace("Bearer ", "");
     const {
       data: { user },

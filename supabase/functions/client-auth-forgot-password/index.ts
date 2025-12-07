@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
+import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, PUBLIC_URL } from "../_shared/env.ts";
 
 Deno.serve(async (req) => {
   const origin = req.headers.get("Origin");
@@ -19,10 +20,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
+    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     // Find user
     const { data: user, error: userError } = await supabaseAdmin
@@ -61,7 +59,7 @@ Deno.serve(async (req) => {
 
     // Send reset email
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-    const resetUrl = `${req.headers.get("origin")}/client/reset-password?token=${reset_token}`;
+    const resetUrl = `${PUBLIC_URL}/client/reset-password?token=${reset_token}`;
 
     await fetch("https://api.resend.com/emails", {
       method: "POST",

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@4.0.0";
+import { PUBLIC_URL } from "../_shared/env.ts";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -42,16 +43,7 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Extract JWT token and get agency_id from agency_invites to check rate limiting
-    // (Note: In production, you'd decode the JWT to get user_id, then lookup their agency_id)
-    // For now, we'll do a simple time-based rate limit per function invocation
-    
-    // Simple rate limiting: max 10 invites per hour per agency
-    // This would require a proper implementation with a database table to track invite counts
-    // For this implementation, we'll rely on client-side validation and database constraints
-
-    const appUrl = Deno.env.get("SUPABASE_URL")?.replace(".supabase.co", ".lovableproject.com") || "http://localhost:5173";
-    const inviteUrl = `${appUrl}/invite/${inviteToken}`;
+    const inviteUrl = `${PUBLIC_URL}/invite/${inviteToken}`;
 
     const emailResponse = await resend.emails.send({
       from: "SMMAHUB <invites@smmahub.net>",

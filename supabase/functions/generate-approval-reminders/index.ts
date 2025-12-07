@@ -1,8 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.84.0';
 import { corsHeaders } from '../_shared/cors.ts';
-
-const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
 
 Deno.serve(async (req) => {
   const origin = req.headers.get("Origin");
@@ -13,7 +11,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
+    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     // Find projects stuck in client_review for more than 48 hours
     const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
