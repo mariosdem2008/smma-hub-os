@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.84.0";
+import { createClient } from "@supabase/supabase-js";
 import { corsHeaders } from "../_shared/cors.ts";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
 
@@ -12,8 +12,7 @@ interface CreateConversationPayload {
 
 Deno.serve(async (req) => {
   const origin = req.headers.get("Origin");
-  const headers = corsHeaders(origin);
-
+  const headers = corsHeaders(req)
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers });
   }

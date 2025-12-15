@@ -4,9 +4,10 @@
  */
 
 // Environment detection
-export const ENV = Deno.env.get("SUPABASE_URL")?.includes("localhost") ? "local" : "prod";
+export const ENV = (Deno.env.get("ENV") ?? "local") as "local" | "prod";
 export const IS_LOCAL = ENV === "local";
 export const IS_PROD = ENV === "prod";
+
 
 // Supabase configuration (from environment variables)
 export const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";

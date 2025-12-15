@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "@supabase/supabase-js";
 import { corsHeaders } from "../_shared/cors.ts";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
 
@@ -12,9 +12,9 @@ interface AdAccount {
   meta_ad_account_id: string;
 }
 
-serve(async (req) => {
-  const origin = req.headers.get("Origin");
-  const headers = corsHeaders(origin);
+serve(async (req: Request) => {
+  const origin = req.headers.get("origin");
+  const headers = corsHeaders(req)
 
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers });
@@ -181,7 +181,7 @@ serve(async (req) => {
     console.error("[SYNC-ADS] Error:", error);
     return new Response(
       JSON.stringify({ error: String(error) }),
-      { headers: { ...corsHeaders(req.headers.get("Origin")), "Content-Type": "application/json" }, status: 500 }
-    );
+      { headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
+ status: 500 }    );
   }
 });

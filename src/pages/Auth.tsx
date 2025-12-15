@@ -61,16 +61,18 @@ export default function Auth() {
 
     const redirectUrl = `${window.location.origin}/onboarding`;
 
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email: formData.email,
       password: formData.password,
       options: {
-        emailRedirectTo: redirectUrl,
-        data: {
-          full_name: formData.fullName,
-        },
+        emailRedirectTo: `${window.location.origin}/onboarding`,
+        data: { full_name: formData.fullName },
       },
     });
+
+    console.log("SIGNUP data:", data);
+    console.log("SIGNUP error:", error);
+
 
     if (error) {
       toast({

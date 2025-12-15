@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.84.0';
+import { createClient } from "@supabase/supabase-js";
 import { corsHeaders } from '../_shared/cors.ts';
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from '../_shared/env.ts';
 
@@ -7,9 +7,8 @@ interface MarkReadPayload {
   conversation_id: string;
 }
 
-Deno.serve(async (req) => {
-  const origin = req.headers.get("Origin");
-  const headers = corsHeaders(origin);
+Deno.serve(async (req: Request) => {
+const headers = corsHeaders(req);
 
   if (req.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers });
@@ -101,7 +100,7 @@ Deno.serve(async (req) => {
     const message = error instanceof Error ? error.message : 'Unknown error';
     return new Response(JSON.stringify({ error: message }), {
       status: 500,
-      headers: { ...corsHeaders(req.headers.get("Origin")), 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
     });
   }
 });

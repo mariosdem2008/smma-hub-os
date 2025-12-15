@@ -1,6 +1,6 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { serve } from "std/http/server";
 import Stripe from "https://esm.sh/stripe@18.5.0";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
 
 const corsHeaders = {
@@ -16,14 +16,14 @@ const logStep = (step: string, details?: any) => {
 // Map Stripe price IDs to plan types
 const PRICE_TO_PLAN_MAP: { [key: string]: string } = {
   // Starter plan
-  "price_1SWbiSQsImWyBLnG44NzwvMS": "starter", // monthly
-  "price_1SWbjjQsImWyBLnGnYhllBID": "starter", // yearly
-  // Pro plan
-  "price_1SWbipQsImWyBLnGyitLXEpL": "pro", // monthly
-  "price_1SWbk4QsImWyBLnG2l13pz4N": "pro", // yearly
+  "price_1Sef4fEcpqMQq8izNGWUTkjA": "starter", // monthly
+  "price_1Sef79EcpqMQq8izlqzHKPMX": "starter", // yearly
+  // Growth plan
+  "price_1Sef5DEcpqMQq8izTmThqQ8F": "pro", // monthly
+  "price_1Sef9EEcpqMQq8iz0jUcmPiI": "pro", // yearly
   // Agency Plus plan
-  "price_1SWbjIQsImWyBLnGPSGxm4Uj": "agency_plus", // monthly
-  "price_1SWblxQsImWyBLnGu2BOdFwR": "agency_plus", // yearly
+  "price_1Sef5dEcpqMQq8iz5R8HWXKv": "agency_plus", // monthly
+  "price_1Sef8WEcpqMQq8izdydF10wI": "agency_plus", // yearly
 };
 
 serve(async (req) => {

@@ -8,9 +8,8 @@ interface OAuthRequest {
   source?: string;
 }
 
-serve(async (req) => {
-  const origin = req.headers.get("Origin");
-  const headers = corsHeaders(origin);
+serve(async (req: Request) => {
+const headers = corsHeaders(req);
 
   if (req.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers });
@@ -84,7 +83,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ error: errorMessage }),
       { 
-        headers: { ...corsHeaders(req.headers.get("Origin")), 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
         status: 500 
       }
     );

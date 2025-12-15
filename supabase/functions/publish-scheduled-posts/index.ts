@@ -1,16 +1,16 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
+import { createClient } from "@supabase/supabase-js";
 import { publishToInstagram, publishToFacebook } from "../_utils/instagram-publish.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
 
-serve(async (req) => {
-  const origin = req.headers.get("Origin");
-  const headers = corsHeaders(origin);
+serve(async (req: Request) => {
+const headers = corsHeaders(req);
 
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers });
-  }
+if (req.method === "OPTIONS") {
+  return new Response(null, { status: 204, headers });
+}
+
 
   try {
     const startTime = Date.now();
@@ -89,7 +89,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
       {
-        headers: { ...corsHeaders(req.headers.get("Origin")), 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
         status: 500
       }
     );

@@ -1,6 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
 
 const corsHeaders = {
@@ -16,7 +16,7 @@ const PLAN_QUOTAS: Record<string, number> = {
   agency_plus: 1500,
 };
 
-serve(async (req) => {
+serve(async (req: { method: string; headers: { get: (arg0: string) => any; }; json: () => PromiseLike<{ mode: any; project_id: any; client_id: any; platform: any; brand_context: any; input_text: any; }> | { mode: any; project_id: any; client_id: any; platform: any; brand_context: any; input_text: any; }; }) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }

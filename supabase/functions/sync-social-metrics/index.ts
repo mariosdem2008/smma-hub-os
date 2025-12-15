@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.84.0';
+import { createClient } from '@supabase/supabase-js';
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
 
 const corsHeaders = {
@@ -9,7 +9,7 @@ const corsHeaders = {
 // CRON SCHEDULE:
 // This function should be scheduled to run every 6 hours via pg_cron
 
-Deno.serve(async (req) => {
+Deno.serve(async (req: { method: string; }) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }

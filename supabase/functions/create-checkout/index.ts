@@ -1,6 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import Stripe from 'https://esm.sh/stripe@14.21.0';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from '../_shared/env.ts';
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
@@ -58,16 +58,16 @@ serve(async (req) => {
     // Map plan types to Stripe price IDs
     const priceMap: Record<string, { monthly?: string; yearly?: string }> = {
       starter: {
-        monthly: 'price_1SWbiSQsImWyBLnG44NzwvMS',
-        yearly: 'price_1SWbjjQsImWyBLnGnYhllBID',
+        monthly: 'price_1Sef4fEcpqMQq8izNGWUTkjA',
+        yearly: 'price_1Sef79EcpqMQq8izlqzHKPMX',
       },
       pro: {
-        monthly: 'price_1SWbipQsImWyBLnGyitLXEpL',
-        yearly: 'price_1SWbk4QsImWyBLnG2l13pz4N',
+        monthly: 'price_1Sef5DEcpqMQq8izTmThqQ8F',
+        yearly: 'price_1Sef9EEcpqMQq8iz0jUcmPiI',
       },
       agency_plus: {
-        monthly: 'price_1SWbjIQsImWyBLnGPSGxm4Uj',
-        yearly: 'price_1SWblxQsImWyBLnGu2BOdFwR',
+        monthly: 'price_1Sef5dEcpqMQq8iz5R8HWXKv',
+        yearly: 'price_1Sef8WEcpqMQq8izdydF10wI',
       },
     };
 
