@@ -3,11 +3,11 @@ import type { PostgrestError, SupabaseClient, User } from "@supabase/supabase-js
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 
-// 1) Re-export your generated client, but from a single stable entry-point
+// Re-export db from the existing Supabase client
 export const db = supabase as SupabaseClient<Database>;
 export type { Database };
 
-// 2) Normalized error (so UI can show 1 clean message)
+// Normalized error type for UI
 export type DbError = {
   code?: string;
   message: string;
@@ -23,11 +23,11 @@ export function toDbError(err: unknown, fallback = "Database error"): DbError {
   const e = err as Partial<PostgrestError> & { status?: number; message?: string };
   if (typeof e.message === "string") {
     return {
-      code: (e as any).code,
+      code: (e as { code?: string }).code,
       message: e.message || fallback,
-      details: (e as any).details ?? null,
-      hint: (e as any).hint ?? null,
-      status: (e as any).status,
+      details: (e as { details?: string }).details ?? null,
+      hint: (e as { hint?: string }).hint ?? null,
+      status: (e as { status?: number }).status,
     };
   }
 
@@ -42,13 +42,38 @@ export function isPermissionError(err: unknown): boolean {
   return e.code === "42501" || e.status === 403 || /permission denied/i.test(e.message);
 }
 
+/**
+ * Supabase PostgREST builders are "thenables" (awaitable) but not typed as Promise.
+ * So wrappers must accept PromiseLike.
+ */
+export type SupaThenable<T> = PromiseLike<{ data: T | null; error: PostgrestError | null }>;
+
+export async function safeSingle<T>(q: SupaThenable<T>, msg?: string): Promise<T> {
+  const { data, error } = await q;
+  if (error) throw toDbError(error, msg ?? "Request failed");
+  if (data === null || data === undefined) throw { message: msg ?? "Record not found" } satisfies DbError;
+  return data;
+}
+
+export async function safeMaybeSingle<T>(q: SupaThenable<T>, msg?: string): Promise<T | null> {
+  const { data, error } = await q;
+  if (error) throw toDbError(error, msg ?? "Request failed");
+  return data ?? null;
+}
+
+export async function safeList<T>(q: SupaThenable<T[]>, msg?: string): Promise<T[]> {
+  const { data, error } = await q;
+  if (error) throw toDbError(error, msg ?? "Request failed");
+  return data ?? [];
+}
+
 export async function requireUser(): Promise<User> {
   const { data, error } = await db.auth.getUser();
   if (error || !data.user) throw toDbError(error ?? new Error("Not authenticated"), "Not authenticated");
   return data.user;
 }
 
-// 3) Agency context (owner or member) – cached in-memory per session
+// Agency context (owner or member) with caching
 type AgencyContext = {
   agencyId: string;
   isOwner: boolean;
@@ -104,21 +129,4 @@ export async function getMyAgencyContext(): Promise<AgencyContext> {
 
 export function clearAgencyContextCache() {
   cachedAgencyCtx = null;
-}
-
-// 4) Small helpers for common patterns
-export async function safeSingle<T>(p: Promise<{ data: T | null; error: any }>, msg?: string): Promise<T> {
-  const { data, error } = await p;
-  if (error) throw toDbError(error, msg);
-  if (!data) throw { message: msg ?? "Record not found" } satisfies DbError;
-  return data;
-}
-
-export async function safeMaybeSingle<T>(
-  p: Promise<{ data: T | null; error: any }>,
-  msg?: string
-): Promise<T | null> {
-  const { data, error } = await p;
-  if (error) throw toDbError(error, msg);
-  return data ?? null;
 }
