@@ -68,7 +68,7 @@ async function hmacSha256Verify(secret: string, data: string, signatureB64Url: s
   return await crypto.subtle.verify(
     "HMAC",
     key,
-    sigBytes, // now clean BufferSource
+    new Uint8Array(sigBytes).buffer as ArrayBuffer,
     new TextEncoder().encode(data),
   );
 }
