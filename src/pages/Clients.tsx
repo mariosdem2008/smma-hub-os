@@ -32,7 +32,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useRole } from "@/hooks/useRole";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
@@ -43,6 +42,15 @@ import { hapticButton } from "@/lib/haptics";
 import { Plus, Users, AlertCircle, ArrowRight, FileText, Video, MoreVertical, Edit, Trash2 } from "lucide-react";
 import { PlanGuard } from "@/components/PlanGuard";
 import { useToast } from "@/hooks/use-toast";
+import {
+  ensureAgencyExists,
+  listClientsForMyAgency,
+  createClientForMyAgency,
+  updateClient,
+  deleteClientCascade,
+  getClientAssetCount,
+  getClientPublishedVideoCount,
+} from "@/data";
 
 interface Client {
   id: string;
@@ -95,76 +103,37 @@ export default function Clients() {
   const fetchClients = async () => {
     if (!user) return;
 
-    // Get agency
-    const { data: agency } = await supabase.from("agencies").select("id").eq("user_id", user.id).single();
+    try {
+      // Ensure agency exists
+      await ensureAgencyExists();
 
-    if (!agency) {
-      // Create agency if it doesn't exist
-      const { data: newAgency, error } = await supabase
-        .from("agencies")
-        .insert({
-          user_id: user.id,
-          name: "My Agency",
-        } as any)
-        .select()
-        .single();
+      // Get clients using data layer
+      const clientsData = await listClientsForMyAgency();
 
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to create agency",
-          variant: "destructive",
-        });
-        setLoading(false);
-        return;
-      }
-
-      setLoading(false);
-      return;
-    }
-
-    // Get clients with counts
-    const { data, error } = await supabase
-      .from("clients")
-      .select("id, name, email, phone, company, status, created_at, logo_url")
-      .eq("agency_id", agency.id)
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to fetch clients",
-        variant: "destructive",
-      });
-    } else {
       // Get asset counts for each client
       const clientsWithCounts = await Promise.all(
-        (data || []).map(async (client) => {
-          // Total assets count
-          const { count: assetCount } = await supabase
-            .from("assets")
-            .select("*", { count: "exact", head: true })
-            .eq("client_id", client.id);
-
-          // Published videos count
-          const { count: publishedVideoCount } = await supabase
-            .from("assets")
-            .select("*", { count: "exact", head: true })
-            .eq("client_id", client.id)
-            .eq("status", "published")
-            .like("file_type", "video%");
+        clientsData.map(async (client) => {
+          const assetCount = await getClientAssetCount(client.id);
+          const publishedVideoCount = await getClientPublishedVideoCount(client.id);
 
           return {
             ...client,
-            assetCount: assetCount || 0,
-            publishedVideoCount: publishedVideoCount || 0,
+            status: client.status || "active",
+            assetCount,
+            publishedVideoCount,
           };
         }),
       );
       setClients(clientsWithCounts);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to fetch clients",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   // Pull-to-refresh
@@ -191,65 +160,12 @@ export default function Clients() {
     setSubmitting(true);
 
     try {
-      // Get user's agency relationship
-      const { data: agencyData } = await supabase.from("agencies").select("id").eq("user_id", user?.id).maybeSingle();
-
-      let agencyId = agencyData?.id;
-
-      // If user is not an agency owner, check if they're an agency member
-      if (!agencyId) {
-        const { data: memberData } = await supabase
-          .from("agency_members")
-          .select("agency_id")
-          .eq("user_id", user?.id)
-          .maybeSingle();
-
-        if (!memberData) {
-          toast({
-            title: "Error",
-            description: "You are not associated with any agency",
-            variant: "destructive",
-          });
-          return;
-        }
-        agencyId = memberData.agency_id;
-      }
-
-      if (!agencyId) {
-        toast({
-          title: "Error",
-          description: "Could not determine agency. Please contact support.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Generate a UUID for the client ID
-      const clientId = crypto.randomUUID();
-
-      // Create client with proper data - wrapped in array
-      const clientData = [
-        {
-          id: clientId,
-          agency_id: agencyId,
-          name: formData.name.trim(),
-          email: formData.email.trim() || null,
-          phone: formData.phone.trim() || null,
-          company: formData.company.trim() || null,
-          status: formData.status,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-      ];
-
-      console.log("Creating client with data:", clientData);
-
-      const { data: newClient, error } = await supabase.from("clients").insert(clientData).select().single();
-
-      if (error) {
-        console.error("Supabase error details:", error);
-        throw error;
-      }
+      const newClient = await createClientForMyAgency({
+        name: formData.name.trim(),
+        email: formData.email.trim() || undefined,
+        phone: formData.phone.trim() || undefined,
+        company: formData.company.trim() || undefined,
+      });
 
       toast({
         title: "Success",
@@ -263,19 +179,9 @@ export default function Clients() {
       navigate(`/clients/${newClient.id}`);
     } catch (error: any) {
       console.error("Error creating client:", error);
-
-      let errorMessage = "Failed to create client";
-      if (error.message) {
-        errorMessage = error.message;
-      } else if (error.details) {
-        errorMessage = error.details;
-      } else if (error.hint) {
-        errorMessage = error.hint;
-      }
-
       toast({
         title: "Error",
-        description: errorMessage,
+        description: error.message || "Failed to create client",
         variant: "destructive",
       });
     } finally {
@@ -308,18 +214,13 @@ export default function Clients() {
     setSavingChanges(true);
 
     try {
-      const updates = {
+      await updateClient(editFormData.id, {
         name: editFormData.name.trim(),
         email: editFormData.email.trim() || null,
         phone: editFormData.phone.trim() || null,
         company: editFormData.company.trim() || null,
         status: editFormData.status,
-        updated_at: new Date().toISOString(),
-      };
-
-      const { error } = await supabase.from("clients").update(updates).eq("id", editFormData.id);
-
-      if (error) throw error;
+      });
 
       toast({
         title: "Success",
@@ -355,12 +256,7 @@ export default function Clients() {
   const handleDeleteClient = async () => {
     setDeleting(true);
     try {
-      // Use the delete_client_cascade function to delete client and all related data
-      const { error } = await supabase.rpc("delete_client_cascade", {
-        p_client_id: editFormData.id,
-      });
-
-      if (error) throw error;
+      await deleteClientCascade(editFormData.id);
 
       toast({
         title: "Client deleted",
@@ -368,7 +264,7 @@ export default function Clients() {
       });
 
       setShowDeleteDialog(false);
-      await fetchClients(); // Refresh the list
+      await fetchClients();
     } catch (error: any) {
       console.error("Delete client error:", error);
       toast({
@@ -725,7 +621,7 @@ export default function Clients() {
               <Input
                 id="edit-company"
                 value={editFormData.company}
-                onChange={(e) => setEditFormData({ ...editFormData, company: e.target.value })}
+                onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
                 placeholder="Company name"
                 style={{ minHeight: isMobile ? "44px" : undefined }}
                 className="touch-manipulation"

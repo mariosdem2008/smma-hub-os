@@ -4,11 +4,18 @@ import { useAuth } from "@/lib/auth";
 import { useRole } from "@/hooks/useRole";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useUpgradeModal } from "@/contexts/UpgradeModalContext";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useCreateConversation } from "@/hooks/useCreateConversation";
 import { PlanGuard } from "@/components/PlanGuard";
-import { sendTeamInviteEmail } from "@/lib/invitations";
+import {
+  db,
+  getMyAgency,
+  listAgencyMembersWithProfiles,
+  listPendingAgencyInvites,
+  createAgencyInvite,
+  cancelAgencyInvite,
+  sendTeamInviteEmail,
+} from "@/data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -98,21 +105,15 @@ export default function Team() {
 
     setLoading(true);
     try {
-      // Get agency
-      const { data: agency, error: agencyError } = await supabase
-        .from("agencies")
-        .select("id, user_id, name")
-        .eq("user_id", user.id)
-        .single();
-
-      if (agencyError) throw agencyError;
+      // Get agency using data layer
+      const agency = await getMyAgency();
 
       setAgencyId(agency.id);
       setAgencyName(agency.name);
-      setIsOwner(true); // User who owns the agency is the owner
+      setIsOwner(true);
       
       // Get owner's subscription plan
-      const { data: subscription } = await supabase
+      const { data: subscription } = await db
         .from("subscriptions")
         .select("plan_type")
         .eq("user_id", agency.user_id)
@@ -120,45 +121,13 @@ export default function Team() {
       
       setCurrentUserPlan(subscription?.plan_type || 'free');
 
-      // Fetch team members
-      const { data: members, error: membersError } = await supabase
-        .from("agency_members")
-        .select("*")
-        .eq("agency_id", agency.id)
-        .order("created_at", { ascending: true });
+      // Fetch team members using data layer
+      const membersWithProfiles = await listAgencyMembersWithProfiles();
+      setTeamMembers(membersWithProfiles as TeamMember[]);
 
-      if (membersError) throw membersError;
-
-      // Fetch profiles for all members
-      const userIds = members?.map((m) => m.user_id) || [];
-      if (userIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from("profiles")
-          .select("id, email, full_name")
-          .in("id", userIds);
-
-        const profileMap = new Map(profiles?.map((p) => [p.id, p]));
-
-        const membersWithProfiles = members?.map((member) => ({
-          ...member,
-          profile: profileMap.get(member.user_id) || null,
-        }));
-
-        setTeamMembers(membersWithProfiles || []);
-      } else {
-        setTeamMembers([]);
-      }
-
-      // Fetch pending invites
-      const { data: invites, error: invitesError } = await supabase
-        .from("agency_invites")
-        .select("*")
-        .eq("agency_id", agency.id)
-        .eq("accepted", false)
-        .order("created_at", { ascending: false });
-
-      if (invitesError) throw invitesError;
-      setPendingInvites(invites || []);
+      // Fetch pending invites using data layer
+      const invites = await listPendingAgencyInvites();
+      setPendingInvites(invites as PendingInvite[]);
     } catch (error: any) {
       console.error("Error fetching team data:", error);
       toast({
@@ -195,14 +164,14 @@ export default function Team() {
     setSubmitting(true);
     try {
       // Check if user is already a member by looking up email in profiles
-      const { data: existingProfile } = await supabase
+      const { data: existingProfile } = await db
         .from("profiles")
         .select("id")
         .eq("email", inviteEmail)
         .maybeSingle();
 
       if (existingProfile) {
-        const { data: existingMember } = await supabase
+        const { data: existingMember } = await db
           .from("agency_members")
           .select("id")
           .eq("agency_id", agencyId)
@@ -220,8 +189,8 @@ export default function Team() {
         }
       }
 
-      // Check for pending invites (unique constraint will also prevent this)
-      const { data: pendingInvite } = await supabase
+      // Check for pending invites
+      const { data: pendingInvite } = await db
         .from("agency_invites")
         .select("id")
         .eq("agency_id", agencyId)
@@ -239,30 +208,34 @@ export default function Team() {
         return;
       }
 
-      const { data: invite, error } = await supabase
+      // Create invite using data layer
+      await createAgencyInvite(inviteEmail, inviteRole);
+
+      // Get the created invite to get the token
+      const { data: invite } = await db
         .from("agency_invites")
-        .insert({
-          agency_id: agencyId,
-          email: inviteEmail,
-          role: inviteRole,
-        })
-        .select()
+        .select("token")
+        .eq("agency_id", agencyId)
+        .eq("email", inviteEmail.toLowerCase())
+        .eq("accepted", false)
+        .order("created_at", { ascending: false })
+        .limit(1)
         .single();
 
-      if (error) throw error;
+      if (!invite) throw new Error("Failed to get invite token");
 
       const link = `${window.location.origin}/invite/${invite.token}`;
       setInviteLink(link);
       setShowInviteLink(true);
 
       // Get user's profile for name
-      const { data: profile } = await supabase
+      const { data: profile } = await db
         .from("profiles")
         .select("full_name")
         .eq("id", user?.id)
         .single();
 
-      // Send email invitation
+      // Send email invitation using data layer
       const emailResult = await sendTeamInviteEmail({
         email: inviteEmail,
         inviteToken: invite.token,
@@ -285,7 +258,7 @@ export default function Team() {
 
       setInviteEmail("");
       setInviteRole("member");
-      fetchTeamData(); // Refresh to show new invite in pending list
+      fetchTeamData();
     } catch (error: any) {
       toast({
         title: "Error",
@@ -316,12 +289,7 @@ export default function Team() {
 
   const handleCancelInvite = async (inviteId: string) => {
     try {
-      const { error } = await supabase
-        .from("agency_invites")
-        .delete()
-        .eq("id", inviteId);
-
-      if (error) throw error;
+      await cancelAgencyInvite(inviteId);
 
       toast({
         title: "Success",
@@ -358,13 +326,12 @@ export default function Team() {
     }
 
     try {
-      const { error } = await supabase
+      const { error } = await db
         .from("agency_members")
         .update({ role: newRole })
         .eq("id", memberId);
 
       if (error) {
-        // Check if it's the multi-admin limit error
         if (error.message.includes('Multi-admin feature requires Agency Plus plan')) {
           toast({
             title: "Upgrade Required",
@@ -394,7 +361,7 @@ export default function Team() {
 
   const handleRemoveMember = async (memberId: string) => {
     try {
-      const { error } = await supabase
+      const { error } = await db
         .from("agency_members")
         .delete()
         .eq("id", memberId);
@@ -422,7 +389,7 @@ export default function Team() {
       case "owner":
         return "default";
       case "admin":
-        return "default"; // Same as owner
+        return "default";
       case "manager":
         return "secondary";
       case "creator":
@@ -550,7 +517,7 @@ export default function Team() {
                                 if (!agencyId || isCurrentUser) return;
 
                                 try {
-                                  const { data: agencyMembers } = await supabase
+                                  const { data: agencyMembers } = await db
                                     .from("agency_members")
                                     .select("id")
                                     .eq("agency_id", agencyId)
