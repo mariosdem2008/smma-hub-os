@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useClientFonts } from "@/hooks/useClientFonts";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { hapticSelection } from "@/lib/haptics";
+import { getClientById, getClientBrandingPrimaryColor } from "@/data";
 import ClientHeader from "@/components/ClientHeader";
 import OverviewTab from "@/components/client-tabs/OverviewTab";
 import AnalyticsTab from "@/components/client-tabs/AnalyticsTab";
@@ -54,10 +54,7 @@ interface Client {
   notes: string | null;
   primary_font: string | null;
   secondary_font: string | null;
-}
-
-interface ClientBranding {
-  primary_color: string | null;
+  agency_id: string;
 }
 
 const tabs = [
@@ -82,7 +79,7 @@ export default function ClientDetail() {
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const [client, setClient] = useState<Client | null>(null);
-  const [branding, setBranding] = useState<ClientBranding | null>(null);
+  const [primaryColor, setPrimaryColor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
   const [agencyId, setAgencyId] = useState<string>("");
@@ -100,39 +97,32 @@ export default function ClientDetail() {
   const fetchClient = async () => {
     if (!clientId) return;
 
-    const { data, error } = await supabase.from("clients").select("*").eq("id", clientId).single();
-
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to fetch client details",
-        variant: "destructive",
-      });
-    } else {
+    try {
+      const data = await getClientById(clientId);
       setClient({
         ...data,
+        status: data.status || "active",
         brand_colors: Array.isArray(data.brand_colors) ? (data.brand_colors as string[]) : null,
       });
       setAgencyId(data.agency_id);
+
+      // Fetch branding primary color
+      const color = await getClientBrandingPrimaryColor(clientId);
+      setPrimaryColor(color);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to fetch client details",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
-
-    // Fetch branding data with clean client ID
-    const { data: brandingData } = await supabase
-      .from("client_branding")
-      .select("primary_color")
-      .eq("client_id", clientId)
-      .maybeSingle();
-
-    if (brandingData) {
-      setBranding(brandingData);
-    }
-
-    setLoading(false);
   };
 
   // Add this function to handle client updates
   const handleClientUpdate = async () => {
-    await fetchClient(); // This will refetch the client data
+    await fetchClient();
   };
 
   // Load client fonts dynamically
@@ -249,9 +239,9 @@ export default function ClientDetail() {
               logoUrl={client.logo_url}
               niche={client.niche}
               website={client.website}
-              primaryColor={branding?.primary_color}
+              primaryColor={primaryColor}
               compact
-              onClientUpdate={handleClientUpdate} // Add this line
+              onClientUpdate={handleClientUpdate}
             />
           </div>
           <nav className="p-2">
@@ -312,8 +302,8 @@ export default function ClientDetail() {
               logoUrl={client.logo_url}
               niche={client.niche}
               website={client.website}
-              primaryColor={branding?.primary_color}
-              onClientUpdate={handleClientUpdate} // Add this line
+              primaryColor={primaryColor}
+              onClientUpdate={handleClientUpdate}
             />
           </div>
         )}
