@@ -243,6 +243,91 @@ export async function cancelAgencyInvite(inviteId: string) {
   if (error) throw toDbError(error, "Failed to cancel invite");
 }
 
+export async function getOwnerSubscriptionPlan(userId: string): Promise<string> {
+  const { data } = await db
+    .from("subscriptions")
+    .select("plan_type")
+    .eq("user_id", userId)
+    .maybeSingle();
+  return data?.plan_type || "free";
+}
+
+export async function getProfileByEmail(email: string) {
+  return safeMaybeSingle(
+    db.from("profiles").select("id, email, full_name").eq("email", email).maybeSingle(),
+    "Failed to check profile"
+  );
+}
+
+export async function isUserAgencyMember(agencyId: string, userId: string): Promise<boolean> {
+  const { data } = await db
+    .from("agency_members")
+    .select("id")
+    .eq("agency_id", agencyId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  return !!data;
+}
+
+export async function hasPendingInvite(agencyId: string, email: string): Promise<boolean> {
+  const { data } = await db
+    .from("agency_invites")
+    .select("id")
+    .eq("agency_id", agencyId)
+    .eq("email", email.toLowerCase())
+    .eq("accepted", false)
+    .maybeSingle();
+  return !!data;
+}
+
+export async function getLatestInviteToken(agencyId: string, email: string): Promise<string | null> {
+  const { data } = await db
+    .from("agency_invites")
+    .select("token")
+    .eq("agency_id", agencyId)
+    .eq("email", email.toLowerCase())
+    .eq("accepted", false)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data?.token ?? null;
+}
+
+export async function getUserFullName(userId: string): Promise<string | null> {
+  const { data } = await db
+    .from("profiles")
+    .select("full_name")
+    .eq("id", userId)
+    .maybeSingle();
+  return data?.full_name ?? null;
+}
+
+export async function updateAgencyMemberRole(memberId: string, newRole: string) {
+  const { error } = await db
+    .from("agency_members")
+    .update({ role: newRole })
+    .eq("id", memberId);
+  if (error) throw toDbError(error, "Failed to update member role");
+}
+
+export async function removeAgencyMember(memberId: string) {
+  const { error } = await db
+    .from("agency_members")
+    .delete()
+    .eq("id", memberId);
+  if (error) throw toDbError(error, "Failed to remove member");
+}
+
+export async function getAgencyMemberIdsByUserIds(agencyId: string, userIds: string[]): Promise<string[]> {
+  const { data, error } = await db
+    .from("agency_members")
+    .select("id")
+    .eq("agency_id", agencyId)
+    .in("user_id", userIds);
+  if (error) throw toDbError(error, "Failed to get agency member IDs");
+  return (data || []).map((m) => m.id);
+}
+
 // ============== Email Functions (via Edge Functions) ==============
 
 export async function sendTeamInviteEmail(params: {

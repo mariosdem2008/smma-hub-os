@@ -8,13 +8,21 @@ import { useToast } from "@/hooks/use-toast";
 import { useCreateConversation } from "@/hooks/useCreateConversation";
 import { PlanGuard } from "@/components/PlanGuard";
 import {
-  db,
   getMyAgency,
   listAgencyMembersWithProfiles,
   listPendingAgencyInvites,
   createAgencyInvite,
   cancelAgencyInvite,
   sendTeamInviteEmail,
+  getOwnerSubscriptionPlan,
+  getProfileByEmail,
+  isUserAgencyMember,
+  hasPendingInvite,
+  getLatestInviteToken,
+  getUserFullName,
+  updateAgencyMemberRole,
+  removeAgencyMember,
+  getAgencyMemberIdsByUserIds,
 } from "@/data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -113,13 +121,8 @@ export default function Team() {
       setIsOwner(true);
       
       // Get owner's subscription plan
-      const { data: subscription } = await db
-        .from("subscriptions")
-        .select("plan_type")
-        .eq("user_id", agency.user_id)
-        .single();
-      
-      setCurrentUserPlan(subscription?.plan_type || 'free');
+      const plan = await getOwnerSubscriptionPlan(agency.user_id);
+      setCurrentUserPlan(plan);
 
       // Fetch team members using data layer
       const membersWithProfiles = await listAgencyMembersWithProfiles();
@@ -164,21 +167,12 @@ export default function Team() {
     setSubmitting(true);
     try {
       // Check if user is already a member by looking up email in profiles
-      const { data: existingProfile } = await db
-        .from("profiles")
-        .select("id")
-        .eq("email", inviteEmail)
-        .maybeSingle();
+      const existingProfile = await getProfileByEmail(inviteEmail);
 
       if (existingProfile) {
-        const { data: existingMember } = await db
-          .from("agency_members")
-          .select("id")
-          .eq("agency_id", agencyId)
-          .eq("user_id", existingProfile.id)
-          .maybeSingle();
+        const isMember = await isUserAgencyMember(agencyId, existingProfile.id);
 
-        if (existingMember) {
+        if (isMember) {
           toast({
             title: "Already a Member",
             description: "This user is already part of your agency",
@@ -190,15 +184,9 @@ export default function Team() {
       }
 
       // Check for pending invites
-      const { data: pendingInvite } = await db
-        .from("agency_invites")
-        .select("id")
-        .eq("agency_id", agencyId)
-        .eq("email", inviteEmail)
-        .eq("accepted", false)
-        .maybeSingle();
+      const hasPending = await hasPendingInvite(agencyId, inviteEmail);
 
-      if (pendingInvite) {
+      if (hasPending) {
         toast({
           title: "Invite Already Sent",
           description: "This email already has a pending invitation",
@@ -212,36 +200,24 @@ export default function Team() {
       await createAgencyInvite(inviteEmail, inviteRole);
 
       // Get the created invite to get the token
-      const { data: invite } = await db
-        .from("agency_invites")
-        .select("token")
-        .eq("agency_id", agencyId)
-        .eq("email", inviteEmail.toLowerCase())
-        .eq("accepted", false)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .single();
+      const token = await getLatestInviteToken(agencyId, inviteEmail);
 
-      if (!invite) throw new Error("Failed to get invite token");
+      if (!token) throw new Error("Failed to get invite token");
 
-      const link = `${window.location.origin}/invite/${invite.token}`;
+      const link = `${window.location.origin}/invite/${token}`;
       setInviteLink(link);
       setShowInviteLink(true);
 
       // Get user's profile for name
-      const { data: profile } = await db
-        .from("profiles")
-        .select("full_name")
-        .eq("id", user?.id)
-        .single();
+      const fullName = await getUserFullName(user?.id || "");
 
       // Send email invitation using data layer
       const emailResult = await sendTeamInviteEmail({
         email: inviteEmail,
-        inviteToken: invite.token,
+        inviteToken: token,
         agencyName: agencyName,
         role: inviteRole,
-        inviterName: profile?.full_name || user?.email || "Your Team",
+        inviterName: fullName || user?.email || "Your Team",
       });
 
       if (emailResult.success) {
@@ -326,23 +302,7 @@ export default function Team() {
     }
 
     try {
-      const { error } = await db
-        .from("agency_members")
-        .update({ role: newRole })
-        .eq("id", memberId);
-
-      if (error) {
-        if (error.message.includes('Multi-admin feature requires Agency Plus plan')) {
-          toast({
-            title: "Upgrade Required",
-            description: "Multi-admin feature requires Agency Plus plan",
-            variant: "destructive",
-          });
-          openUpgradeModal({ feature: 'Multi-admin', suggestedPlan: 'agency_plus' });
-          return;
-        }
-        throw error;
-      }
+      await updateAgencyMemberRole(memberId, newRole);
 
       toast({
         title: "Success",
@@ -351,6 +311,15 @@ export default function Team() {
 
       fetchTeamData();
     } catch (error: any) {
+      if (error.message?.includes('Multi-admin feature requires Agency Plus plan')) {
+        toast({
+          title: "Upgrade Required",
+          description: "Multi-admin feature requires Agency Plus plan",
+          variant: "destructive",
+        });
+        openUpgradeModal({ feature: 'Multi-admin', suggestedPlan: 'agency_plus' });
+        return;
+      }
       toast({
         title: "Error",
         description: error.message || "Failed to update role",
@@ -361,12 +330,7 @@ export default function Team() {
 
   const handleRemoveMember = async (memberId: string) => {
     try {
-      const { error } = await db
-        .from("agency_members")
-        .delete()
-        .eq("id", memberId);
-
-      if (error) throw error;
+      await removeAgencyMember(memberId);
 
       toast({
         title: "Success",
@@ -517,13 +481,12 @@ export default function Team() {
                                 if (!agencyId || isCurrentUser) return;
 
                                 try {
-                                  const { data: agencyMembers } = await db
-                                    .from("agency_members")
-                                    .select("id")
-                                    .eq("agency_id", agencyId)
-                                    .in("user_id", [user!.id, member.user_id]);
+                                  const memberIds = await getAgencyMemberIdsByUserIds(
+                                    agencyId,
+                                    [user!.id, member.user_id]
+                                  );
 
-                                  if (!agencyMembers || agencyMembers.length !== 2) {
+                                  if (memberIds.length !== 2) {
                                     toast({
                                       title: "Error",
                                       description: "Failed to find agency member records",
@@ -534,7 +497,7 @@ export default function Team() {
 
                                   await createConversation.mutateAsync({
                                     type: "direct",
-                                    member_ids: agencyMembers.map((m) => m.id),
+                                    member_ids: memberIds,
                                   });
 
                                   navigate("/messages");
