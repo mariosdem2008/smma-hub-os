@@ -19,6 +19,8 @@ import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 
+const DEBUG_RELOAD = true;
+
 interface ClientUpload {
   id: string;
   file_name: string;
@@ -51,7 +53,8 @@ export default function ClientUploadsTab({ clientId, agencyId }: ClientUploadsTa
 
   useEffect(() => {
     fetchUploads();
-    subscribeToUploads();
+    if (DEBUG_RELOAD) console.log("[ClientUploadsTab] subscribeToUploads mount for client", clientId);
+    return subscribeToUploads();
   }, [clientId]);
 
   const fetchUploads = async () => {
@@ -74,6 +77,7 @@ export default function ClientUploadsTab({ clientId, agencyId }: ClientUploadsTa
   };
 
   const subscribeToUploads = () => {
+    if (DEBUG_RELOAD) console.log("[ClientUploadsTab] creating channel for client", clientId);
     const channel = supabase
       .channel("client_uploads_agency_changes")
       .on(
@@ -85,12 +89,14 @@ export default function ClientUploadsTab({ clientId, agencyId }: ClientUploadsTa
           filter: `client_id=eq.${clientId}`,
         },
         () => {
+          if (DEBUG_RELOAD) console.log("[ClientUploadsTab] change received, refetching uploads");
           fetchUploads();
         }
       )
       .subscribe();
 
     return () => {
+      if (DEBUG_RELOAD) console.log("[ClientUploadsTab] cleanup channel for client", clientId);
       supabase.removeChannel(channel);
     };
   };

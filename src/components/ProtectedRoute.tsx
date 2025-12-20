@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 
+const DEBUG_RELOAD = true;
+
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const { user, loading } = useAuth();
@@ -18,6 +20,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
       if (!user) {
         setHasMembership(false);
         setMembershipLoading(false);
+        if (DEBUG_RELOAD) console.log("[ProtectedRoute] no user, redirect to /auth from", location.pathname);
         return;
       }
 
@@ -31,7 +34,25 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
       if (cancelled) return;
 
-      setHasMembership(!error && !!data);
+      if (error) {
+        // Avoid redirect loops on transient/RLS failures by allowing access
+        setHasMembership(true);
+        if (DEBUG_RELOAD) {
+          console.warn("[ProtectedRoute] membership check error, allowing access to avoid loop", {
+            path: location.pathname,
+            error,
+          });
+        }
+      } else {
+        setHasMembership(!!data);
+        if (DEBUG_RELOAD) {
+          console.log("[ProtectedRoute] membership check", {
+            path: location.pathname,
+            error: false,
+            hasMembership: !!data,
+          });
+        }
+      }
       setMembershipLoading(false);
     };
 

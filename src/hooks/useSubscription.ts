@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import type { PlanType } from '@/lib/plan-limits';
@@ -22,7 +22,7 @@ export function useSubscription() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const refreshSubscription = async () => {
+  const refreshSubscription = useCallback(async () => {
     if (!user) return;
 
     setRefreshing(true);
@@ -64,7 +64,7 @@ export function useSubscription() {
     } finally {
       setRefreshing(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     if (!user) {
@@ -138,7 +138,7 @@ export function useSubscription() {
     return () => {
       channel.unsubscribe();
     };
-  }, [user]);
+  }, [user, refreshSubscription]);
 
   return { subscription, loading, refreshing, refreshSubscription };
 }

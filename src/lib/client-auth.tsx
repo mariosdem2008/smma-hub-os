@@ -193,7 +193,21 @@ export function ClientAuthProvider({ children }: { children: React.ReactNode }) 
 export function useClientAuth() {
   const context = useContext(ClientAuthContext);
   if (context === undefined) {
-    throw new Error("useClientAuth must be used within a ClientAuthProvider");
+    if (typeof window !== "undefined") {
+      console.warn("[ClientAuth] used without provider; returning fallback (may limit functionality)");
+    }
+    return {
+      clientUser: null,
+      loading: false,
+      login: async () => {
+        throw new Error("Client auth not available");
+      },
+      signup: async () => {
+        throw new Error("Client auth not available");
+      },
+      logout: async () => {},
+      isAuthenticated: false,
+    };
   }
   return context;
 }

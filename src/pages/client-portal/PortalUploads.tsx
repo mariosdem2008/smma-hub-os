@@ -9,6 +9,8 @@ import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useClientAuth } from "@/lib/client-auth";
 
+const DEBUG_RELOAD = true;
+
 interface ClientUpload {
   id: string;
   file_name: string;
@@ -30,7 +32,8 @@ export default function PortalUploads() {
 
   useEffect(() => {
     fetchUploads();
-    subscribeToUploads();
+    if (DEBUG_RELOAD) console.log("[PortalUploads] subscribeToUploads mount for client", clientId);
+    return subscribeToUploads();
   }, [clientId]);
 
   const fetchUploads = async () => {
@@ -54,6 +57,7 @@ export default function PortalUploads() {
   };
 
   const subscribeToUploads = () => {
+    if (DEBUG_RELOAD) console.log("[PortalUploads] creating channel for client", clientId);
     const channel = supabase
       .channel("client_uploads_changes")
       .on(
@@ -65,12 +69,14 @@ export default function PortalUploads() {
           filter: `client_id=eq.${clientId}`,
         },
         () => {
+          if (DEBUG_RELOAD) console.log("[PortalUploads] change received, refetching uploads");
           fetchUploads();
         },
       )
       .subscribe();
 
     return () => {
+      if (DEBUG_RELOAD) console.log("[PortalUploads] cleanup channel for client", clientId);
       supabase.removeChannel(channel);
     };
   };

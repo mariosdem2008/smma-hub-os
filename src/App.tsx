@@ -106,10 +106,38 @@ const App = () => {
               <Route path="/invite/:token" element={<InviteAccept />} />
 
               {/* Client Portal Auth Routes (public) */}
-              <Route path="/client/login/:portalSlug" element={<ClientLogin />} />
-              <Route path="/client/accept-invite" element={<ClientAcceptInvite />} />
-              <Route path="/client/forgot-password/:portalSlug" element={<ClientForgotPassword />} />
-              <Route path="/client/reset-password" element={<ClientResetPassword />} />
+              <Route
+                path="/client/login/:portalSlug"
+                element={
+                  <ClientAuthProvider>
+                    <ClientLogin />
+                  </ClientAuthProvider>
+                }
+              />
+              <Route
+                path="/client/accept-invite"
+                element={
+                  <ClientAuthProvider>
+                    <ClientAcceptInvite />
+                  </ClientAuthProvider>
+                }
+              />
+              <Route
+                path="/client/forgot-password/:portalSlug"
+                element={
+                  <ClientAuthProvider>
+                    <ClientForgotPassword />
+                  </ClientAuthProvider>
+                }
+              />
+              <Route
+                path="/client/reset-password"
+                element={
+                  <ClientAuthProvider>
+                    <ClientResetPassword />
+                  </ClientAuthProvider>
+                }
+              />
 
               {/* Client Portal Protected Routes (scoped provider) */}
               <Route path="/client/portal/:portalSlug" element={<ClientPortalShell />}>

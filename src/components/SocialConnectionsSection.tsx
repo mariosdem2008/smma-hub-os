@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/useRole";
 import { Button } from "@/components/ui/button";
@@ -50,6 +50,8 @@ interface SocialConnectionsSectionProps {
   clientId: string;
   isClientPortal?: boolean;
 }
+
+const DEBUG_RELOAD = true;
 
 const PLATFORMS = [
   {
@@ -111,10 +113,21 @@ export default function SocialConnectionsSection({ clientId, isClientPortal = fa
   // In client portal: all users can manage
   // In main app: only owners and managers
   const canManageConnections = isClientPortal || isOwner || isAdmin || isManager;
+  const pollIntervalRef = useRef<number | null>(null);
 
   useEffect(() => {
     fetchConnections();
   }, [clientId]);
+
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+        if (DEBUG_RELOAD) console.log("[SocialConnections] cleared poll interval on unmount");
+      }
+    };
+  }, []);
 
   const fetchConnections = async () => {
     setLoading(true);
@@ -221,9 +234,17 @@ export default function SocialConnectionsSection({ clientId, isClientPortal = fa
         }
 
         // Poll for connection success
-        const pollInterval = setInterval(async () => {
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+        }
+
+        pollIntervalRef.current = window.setInterval(async () => {
           if (popup.closed) {
-            clearInterval(pollInterval);
+            if (pollIntervalRef.current) {
+              clearInterval(pollIntervalRef.current);
+              pollIntervalRef.current = null;
+              if (DEBUG_RELOAD) console.log("[SocialConnections] popup closed, cleared poll interval");
+            }
             await fetchConnections();
 
             // Check if Instagram connection explicitly failed (not just missing)
