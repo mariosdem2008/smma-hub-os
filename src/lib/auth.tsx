@@ -36,6 +36,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     const initAuth = async () => {
+      // Timeout fallback - unblock UI after 8 seconds max
+      const authTimeout = setTimeout(() => {
+        if (mounted && loading) {
+          console.warn("[AuthProvider] Auth initialization timed out");
+          setLoading(false);
+        }
+      }, 8000);
+
       try {
         // 1) Exchange email link code -> session (if present)
         const url = new URL(window.location.href);
@@ -43,7 +51,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (code) {
           try {
-            // IMPORTANT: exchangeCodeForSession expects the code, not the whole URL
             await supabase.auth.exchangeCodeForSession(code);
           } catch (e) {
             console.warn("[AuthProvider] exchangeCodeForSession error:", e);
@@ -54,15 +61,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         // 2) Read cached session (fast)
-        const { data: sessData } = await supabase.auth.getSession();
-        const sess = sessData.session ?? null;
+        const { data: sessData, error: sessError } = await supabase.auth.getSession();
+        
+        if (sessError) {
+          console.warn("[AuthProvider] getSession error:", sessError);
+        }
 
-        if (!mounted) return;
+        const sess = sessData?.session ?? null;
+
+        if (!mounted) {
+          clearTimeout(authTimeout);
+          return;
+        }
 
         // ✅ UNBLOCK UI IMMEDIATELY
         setSession(sess);
         setUser(sess?.user ?? null);
         setLoading(false);
+        clearTimeout(authTimeout);
 
         // 3) Validate in background (never block render)
         if (sess) {
