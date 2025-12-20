@@ -2,8 +2,10 @@ import { Navigate, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
 
 const DEBUG_RELOAD = true;
+const MEMBERSHIP_TIMEOUT_MS = 10000;
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const location = useLocation();
@@ -11,6 +13,25 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   const [membershipLoading, setMembershipLoading] = useState(true);
   const [hasMembership, setHasMembership] = useState<boolean>(false);
+  const [timedOut, setTimedOut] = useState(false);
+
+  // Timeout fallback for the entire loading state
+  useEffect(() => {
+    if (!loading && !membershipLoading) {
+      setTimedOut(false);
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      if (loading || membershipLoading) {
+        console.warn("[ProtectedRoute] Timed out waiting for auth/membership");
+        setTimedOut(true);
+        setMembershipLoading(false);
+      }
+    }, MEMBERSHIP_TIMEOUT_MS);
+
+    return () => clearTimeout(timeout);
+  }, [loading, membershipLoading]);
 
   useEffect(() => {
     let cancelled = false;
@@ -26,34 +47,44 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
       setMembershipLoading(true);
 
-      const { data, error } = await supabase
-        .from("agency_members")
-        .select("agency_id")
-        .eq("user_id", user.id)
-        .maybeSingle();
+      try {
+        const { data, error } = await supabase
+          .from("agency_members")
+          .select("agency_id")
+          .eq("user_id", user.id)
+          .maybeSingle();
 
-      if (cancelled) return;
+        if (cancelled) return;
 
-      if (error) {
-        // Avoid redirect loops on transient/RLS failures by allowing access
-        setHasMembership(true);
-        if (DEBUG_RELOAD) {
-          console.warn("[ProtectedRoute] membership check error, allowing access to avoid loop", {
-            path: location.pathname,
-            error,
-          });
+        if (error) {
+          // Avoid redirect loops on transient/RLS failures by allowing access
+          setHasMembership(true);
+          if (DEBUG_RELOAD) {
+            console.warn("[ProtectedRoute] membership check error, allowing access to avoid loop", {
+              path: location.pathname,
+              error,
+            });
+          }
+        } else {
+          setHasMembership(!!data);
+          if (DEBUG_RELOAD) {
+            console.log("[ProtectedRoute] membership check", {
+              path: location.pathname,
+              error: false,
+              hasMembership: !!data,
+            });
+          }
         }
-      } else {
-        setHasMembership(!!data);
-        if (DEBUG_RELOAD) {
-          console.log("[ProtectedRoute] membership check", {
-            path: location.pathname,
-            error: false,
-            hasMembership: !!data,
-          });
+      } catch (err) {
+        console.warn("[ProtectedRoute] membership check exception:", err);
+        if (!cancelled) {
+          setHasMembership(true); // Allow access on error to avoid loops
         }
       }
-      setMembershipLoading(false);
+      
+      if (!cancelled) {
+        setMembershipLoading(false);
+      }
     };
 
     checkMembership();
@@ -61,9 +92,19 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [user?.id, location.pathname]); // pathname ensures it re-checks after invite/onboarding flows
+  }, [user?.id, location.pathname]);
 
-  // 2) Don’t redirect while auth is unresolved
+  // Show timeout error with retry button
+  if (timedOut) {
+    return (
+      <div className="flex min-h-screen items-center justify-center flex-col gap-4">
+        <p className="text-muted-foreground">Connection timed out. Please check your network.</p>
+        <Button onClick={() => window.location.reload()}>Retry</Button>
+      </div>
+    );
+  }
+
+  // Don't redirect while auth is unresolved
   if (loading || membershipLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -72,7 +113,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // 3) HARD RULE: not logged in => always /auth
+  // HARD RULE: not logged in => always /auth
   if (!user) {
     if (location.pathname !== "/auth") {
       sessionStorage.setItem("redirectUrl", location.pathname);
@@ -80,7 +121,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/auth" replace />;
   }
 
-  // 4) Membership routing rules
+  // Membership routing rules
   if (!hasMembership && location.pathname !== "/onboarding") {
     return <Navigate to="/onboarding" replace />;
   }
