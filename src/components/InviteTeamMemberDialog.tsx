@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useUpgradeModal } from "@/contexts/UpgradeModalContext";
 import { Button } from "@/components/ui/button";
@@ -22,6 +21,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Copy, UserPlus } from "lucide-react";
+import { createAgencyInvite, sendTeamInviteEmail, getMyAgency, getUserFullName } from "@/data";
 
 const ROLES = ["admin", "manager", "creator", "viewer"];
 
@@ -93,81 +93,24 @@ export function InviteTeamMemberDialog({ open, onOpenChange }: InviteTeamMemberD
 
     setSubmitting(true);
     try {
-      // Get agency ID
-      const { data: agency } = await supabase
-        .from("agencies")
-        .select("id")
-        .eq("user_id", user.id)
-        .single();
+      const agency = await getMyAgency();
 
-      if (!agency) {
-        throw new Error("Agency not found");
-      }
+      const inviteRow = await createAgencyInvite(inviteEmail, inviteRole);
 
-      // Check if user is already a member by looking up email in profiles
-      const { data: existingProfile } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("email", inviteEmail)
-        .maybeSingle();
-
-      if (existingProfile) {
-        const { data: existingMember } = await supabase
-          .from("agency_members")
-          .select("id")
-          .eq("agency_id", agency.id)
-          .eq("user_id", existingProfile.id)
-          .maybeSingle();
-
-        if (existingMember) {
-          toast({
-            title: "Already a Member",
-            description: "This user is already part of your agency",
-            variant: "destructive",
-          });
-          setSubmitting(false);
-          return;
-        }
-      }
-
-      // Check for pending invites (unique constraint will also prevent this)
-      const { data: pendingInvite } = await supabase
-        .from("agency_invites")
-        .select("id")
-        .eq("agency_id", agency.id)
-        .eq("email", inviteEmail)
-        .eq("accepted", false)
-        .maybeSingle();
-
-      if (pendingInvite) {
-        toast({
-          title: "Invite Already Sent",
-          description: "This email already has a pending invitation",
-          variant: "destructive",
-        });
-        setSubmitting(false);
-        return;
-      }
-
-      const { data: invite, error } = await supabase
-        .from("agency_invites")
-        .insert({
-          agency_id: agency.id,
-          email: inviteEmail,
-          role: inviteRole,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      const link = `${window.location.origin}/invite/${invite.token}`;
+      const link = `${window.location.origin}/invite/${inviteRow.token}`;
       setInviteLink(link);
       setShowInviteLink(true);
 
+      const fullName = await getUserFullName(user?.id || "");
+      const emailResult = await sendTeamInviteEmail({
+        inviteToken: inviteRow.token,
+      });
+
       toast({
         title: "Success",
-        description: "Invitation created successfully",
+        description: emailResult?.success === false
+          ? "Invitation created, but email could not be sent. Share the link manually."
+          : "Invitation created and email sent successfully",
       });
 
       setInviteEmail("");

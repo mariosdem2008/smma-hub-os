@@ -18,7 +18,6 @@ import {
   getProfileByEmail,
   isUserAgencyMember,
   hasPendingInvite,
-  getLatestInviteToken,
   getUserFullName,
   updateAgencyMemberRole,
   removeAgencyMember,
@@ -96,7 +95,7 @@ export default function Team() {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState("member");
+  const [inviteRole, setInviteRole] = useState("manager");
   const [inviteLink, setInviteLink] = useState("");
   const [showInviteLink, setShowInviteLink] = useState(false);
   const [memberToRemove, setMemberToRemove] = useState<string | null>(null);
@@ -197,14 +196,9 @@ export default function Team() {
       }
 
       // Create invite using data layer
-      await createAgencyInvite(inviteEmail, inviteRole);
+      const inviteRow = await createAgencyInvite(inviteEmail, inviteRole);
 
-      // Get the created invite to get the token
-      const token = await getLatestInviteToken(agencyId, inviteEmail);
-
-      if (!token) throw new Error("Failed to get invite token");
-
-      const link = `${window.location.origin}/invite/${token}`;
+      const link = `${window.location.origin}/invite/${inviteRow.token}`;
       setInviteLink(link);
       setShowInviteLink(true);
 
@@ -213,11 +207,7 @@ export default function Team() {
 
       // Send email invitation using data layer
       const emailResult = await sendTeamInviteEmail({
-        email: inviteEmail,
-        inviteToken: token,
-        agencyName: agencyName,
-        role: inviteRole,
-        inviterName: fullName || user?.email || "Your Team",
+        inviteToken: inviteRow.token,
       });
 
       if (emailResult.success) {
@@ -233,7 +223,7 @@ export default function Team() {
       }
 
       setInviteEmail("");
-      setInviteRole("member");
+      setInviteRole("manager");
       fetchTeamData();
     } catch (error: any) {
       toast({

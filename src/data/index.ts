@@ -242,13 +242,18 @@ export async function listPendingAgencyInvites() {
 export async function createAgencyInvite(email: string, role: string) {
   const { agencyId } = await getMyAgencyContext();
 
-  const { error } = await db.from("agency_invites").insert({
-    agency_id: agencyId,
-    email: email.toLowerCase(),
-    role,
-  });
+  const { data, error } = await db
+    .from("agency_invites")
+    .insert({
+      agency_id: agencyId,
+      email: email.toLowerCase(),
+      role,
+    })
+    .select("id, token, expires_at, email, role, agency_id")
+    .single();
 
   if (error) throw toDbError(error, "Failed to create invite");
+  return data;
 }
 
 export async function cancelAgencyInvite(inviteId: string) {
@@ -293,19 +298,6 @@ export async function hasPendingInvite(agencyId: string, email: string): Promise
   return !!data;
 }
 
-export async function getLatestInviteToken(agencyId: string, email: string): Promise<string | null> {
-  const { data } = await db
-    .from("agency_invites")
-    .select("token")
-    .eq("agency_id", agencyId)
-    .eq("email", email.toLowerCase())
-    .eq("accepted", false)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  return data?.token ?? null;
-}
-
 export async function getUserFullName(userId: string): Promise<string | null> {
   const { data } = await db
     .from("profiles")
@@ -343,13 +335,7 @@ export async function getAgencyMemberIdsByUserIds(agencyId: string, userIds: str
 
 // ============== Email Functions (via Edge Functions) ==============
 
-export async function sendTeamInviteEmail(params: {
-  email: string;
-  inviteToken: string;
-  agencyName: string;
-  inviterName: string;
-  role: string;
-}) {
+export async function sendTeamInviteEmail(params: { inviteToken: string; resend?: boolean }) {
   const accessToken = await getAccessToken();
   const { data, error } = await db.functions.invoke("send-team-invite", {
     body: params,

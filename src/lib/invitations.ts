@@ -2,11 +2,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { FunctionsHttpError } from "@supabase/supabase-js";
 
 interface SendTeamInviteParams {
-  email: string;
   inviteToken: string;
-  agencyName: string;
-  role: string;
-  inviterName: string;
+  resend?: boolean;
 }
 
 interface SendPortalInviteParams {
@@ -58,7 +55,6 @@ export async function sendTeamInviteEmail(params: SendTeamInviteParams) {
 export async function sendPortalInviteEmail(params: SendPortalInviteParams) {
   const accessToken = await getAccessToken();
 
-<<<<<<< HEAD
   const { data, error } = await supabase.functions.invoke("send-portal-invite", {
     body: params,
     headers: {
@@ -66,10 +62,7 @@ export async function sendPortalInviteEmail(params: SendPortalInviteParams) {
     },
   });
 
-  if (error) {
-    console.error("Error sending portal invite email:", error);
-    throw error;
-=======
+  try {
     if (error) {
       if (error instanceof FunctionsHttpError) {
         const ctx = (error as any)?.context;
@@ -82,7 +75,7 @@ export async function sendPortalInviteEmail(params: SendPortalInviteParams) {
           // ignore parse errors
         }
 
-        console.error('Error sending portal invite email:', {
+        console.error("Error sending portal invite email:", {
           message: (error as any)?.message,
           status: ctx?.status,
           bodyText,
@@ -93,16 +86,13 @@ export async function sendPortalInviteEmail(params: SendPortalInviteParams) {
           throw new Error(`${bodyObj.code}: ${bodyObj.error}`);
         }
       } else {
-        console.error('Error sending portal invite email (non-http):', error);
+        console.error("Error sending portal invite email (non-http):", error);
       }
       throw error;
     }
     return { success: true, data };
-  } catch (error) {
-    console.error('Error sending portal invite email:', error);
-    return { success: false, error };
->>>>>>> 9fb552e (Client Portal fixes)
+  } catch (err) {
+    console.error("Error sending portal invite email:", err);
+    return { success: false, error: err };
   }
-
-  return { success: true, data };
 }

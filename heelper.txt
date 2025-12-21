@@ -1,4 +1,4 @@
-supabase migration new delete_portal_user
+supabase migration new team_invite_hardening
 
 git add .
 git commit -m "Client Portal fixes"

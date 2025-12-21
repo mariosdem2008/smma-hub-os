@@ -16,9 +16,7 @@ interface Invite {
   token: string;
   expires_at: string;
   accepted: boolean;
-  agency: {
-    name: string;
-  } | null;
+  agency_name: string | null;
 }
 
 export default function InviteAccept() {
@@ -54,20 +52,20 @@ export default function InviteAccept() {
         return;
       }
 
-      const inviteData = data[0];
+      const inviteData = (data as any)[0] as Invite;
 
-      // Fetch agency name separately
-      const { data: agencyData } = await supabase
-        .from("agencies")
-        .select("name")
-        .eq("id", inviteData.agency_id)
-        .single();
-
-      setInvite({
-        ...inviteData,
-        token: token,
-        agency: agencyData ? { name: agencyData.name } : null
-      });
+      const expired = new Date(inviteData.expires_at) <= new Date();
+      if (inviteData.accepted) {
+        setError("accepted");
+      } else if (expired) {
+        setError("expired");
+      } else {
+        setInvite({
+          ...inviteData,
+          token: token,
+          agency_name: inviteData.agency_name || null
+        });
+      }
     } catch (err: any) {
       console.error("Error fetching invite:", err);
       setError("Failed to load invite");
@@ -92,6 +90,10 @@ export default function InviteAccept() {
       const result = data as { success: boolean; error?: string; agency_id?: string };
 
       if (!result.success) {
+        if (result.error === "email_mismatch") {
+          setError("email_mismatch");
+          return;
+        }
         throw new Error(result.error || "Failed to join agency");
       }
 
@@ -190,6 +192,35 @@ export default function InviteAccept() {
     );
   }
 
+  if (error === "email_mismatch" && invite && user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl">Email Mismatch</CardTitle>
+            <CardDescription>
+              You must sign in with the invited email ({invite.email}). You are currently signed in as ({user.email}).
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Button
+              className="w-full"
+              onClick={async () => {
+                await supabase.auth.signOut();
+                navigate(`/auth?redirect=/invite/${token}`);
+              }}
+            >
+              Sign out and sign in with {invite.email}
+            </Button>
+            <Button variant="outline" className="w-full" onClick={() => navigate("/dashboard")}>
+              Cancel
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   if (error) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background p-4">
@@ -226,7 +257,7 @@ export default function InviteAccept() {
             </div>
             <CardTitle className="text-2xl">You're Invited!</CardTitle>
             <CardDescription>
-              Join {invite.agency?.name || "the agency"} as a {invite.role}
+              Join {invite.agency_name || "the agency"} as a {invite.role}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -234,7 +265,7 @@ export default function InviteAccept() {
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Agency</span>
                 <span className="text-sm text-muted-foreground">
-                  {invite.agency?.name || "Unknown"}
+                  {invite.agency_name || "Unknown"}
                 </span>
               </div>
               <div className="flex items-center justify-between">
@@ -283,7 +314,7 @@ export default function InviteAccept() {
           </div>
           <CardTitle className="text-2xl">Join Agency</CardTitle>
           <CardDescription>
-            You've been invited to join {invite.agency?.name || "this agency"}
+            You've been invited to join {invite.agency_name || "this agency"}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -291,7 +322,7 @@ export default function InviteAccept() {
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Agency Name</span>
               <span className="text-sm text-muted-foreground">
-                {invite.agency?.name || "Unknown"}
+                {invite.agency_name || "Unknown"}
               </span>
             </div>
             <div className="flex items-center justify-between">
@@ -309,14 +340,6 @@ export default function InviteAccept() {
               <span className="text-sm text-muted-foreground">{user.email}</span>
             </div>
           </div>
-
-          {invite.email.toLowerCase() !== user.email?.toLowerCase() && (
-            <div className="rounded-lg bg-yellow-500/10 border border-yellow-500/20 p-3">
-              <p className="text-xs text-yellow-700 dark:text-yellow-500">
-                Note: This invite was sent to {invite.email}, but you're signed in as {user.email}.
-              </p>
-            </div>
-          )}
 
           <Button
             className="w-full"
