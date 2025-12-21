@@ -2,10 +2,11 @@ import { Resend } from "https://esm.sh/resend@4.0.0";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
-// Prefer custom secrets (e.g., SERVICE_ROLE_KEY) if set, otherwise fall back to reserved defaults.
+
+// These must be configured in the target backend environment.
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-const SUPABASE_ANON_KEY = Deno.env.get("ANON_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 
 const ALLOWED_ROLES = new Set(["owner", "admin", "manager"]);
 const ALLOWED_ORIGINS = [
@@ -143,21 +144,37 @@ Deno.serve(async (req) => {
     }
 
     const accessToken = authHeader.replace(/bearer\s+/i, "");
-    // Use service-role client for both auth check and data access
-    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !SUPABASE_ANON_KEY) {
+      console.error("Missing backend env vars", {
+        hasUrl: Boolean(SUPABASE_URL),
+        hasServiceRole: Boolean(SUPABASE_SERVICE_ROLE_KEY),
+        hasAnon: Boolean(SUPABASE_ANON_KEY),
+      });
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error:
+            "Server is missing SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY / SUPABASE_ANON_KEY.",
+        }),
+        { status: 500, headers },
+      );
+    }
+
+    // Auth client uses user's access token; admin client bypasses RLS for privileged reads/writes.
+    const supabaseAuth = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: { persistSession: false, autoRefreshToken: false },
-      global: {
-        headers: {
-          // Force service role on PostgREST calls even if auth calls occur separately
-          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-        },
-      },
+      global: { headers: { Authorization: `Bearer ${accessToken}` } },
+    });
+
+    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false },
     });
 
     const {
       data: { user },
       error: userError,
-    } = await supabaseClient.auth.getUser(accessToken);
+    } = await supabaseAuth.auth.getUser();
 
     if (userError || !user) {
       return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), {
@@ -166,10 +183,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { 
-      email, 
-      clientName, 
-      portalUrl, 
+    const {
+      email,
+      clientName,
+      portalUrl,
       agencyName,
       agencyId,
       inviterName,
@@ -178,7 +195,7 @@ Deno.serve(async (req) => {
       role = "client",
       inviteToken,
       portalBaseUrl,
-      temporaryPassword 
+      temporaryPassword,
     }: PortalInviteRequest = await req.json();
 
     if (!agencyId) {
@@ -188,27 +205,20 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Fetch membership via REST with explicit service-role headers to avoid RLS
-    const membershipResp = await fetch(
-      `${SUPABASE_URL}/rest/v1/agency_members?agency_id=eq.${agencyId}&user_id=eq.${user.id}&select=id,role,agency_id&limit=1`,
-      {
-        headers: {
-          apikey: SUPABASE_SERVICE_ROLE_KEY,
-          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-        },
-      },
-    );
+    const { data: membership, error: membershipError } = await supabaseAdmin
+      .from("agency_members")
+      .select("id, role, agency_id")
+      .eq("agency_id", agencyId)
+      .eq("user_id", user.id)
+      .maybeSingle();
 
-    if (!membershipResp.ok) {
-      console.error("Error fetching membership:", await membershipResp.text());
+    if (membershipError) {
+      console.error("Error fetching membership:", membershipError);
       return new Response(JSON.stringify({ success: false, error: "Failed to verify membership" }), {
         status: 500,
         headers,
       });
     }
-
-    const membershipJson = await membershipResp.json();
-    const membership = Array.isArray(membershipJson) ? membershipJson[0] : null;
 
     if (!membership || !ALLOWED_ROLES.has(membership.role)) {
       return new Response(JSON.stringify({ success: false, error: "Forbidden" }), {
@@ -240,7 +250,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { error: inviteError } = await supabaseClient.from("client_invites").insert({
+    const { error: inviteError } = await supabaseAdmin.from("client_invites").insert({
       agency_id: agencyId,
       client_id: clientId,
       email,
@@ -257,10 +267,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { data: branding } = await supabaseClient
-      .from('agency_branding')
-      .select('logo_url, email_sender_name, primary_color, email_footer')
-      .eq('agency_id', agencyId)
+    const { data: branding } = await supabaseAdmin
+      .from("agency_branding")
+      .select("logo_url, email_sender_name, primary_color, email_footer")
+      .eq("agency_id", agencyId)
       .maybeSingle();
 
     const senderName = branding?.email_sender_name || 'SMMAHUB';
