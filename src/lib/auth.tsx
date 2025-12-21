@@ -1,8 +1,7 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, useRef } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { useToast } from "@/hooks/use-toast";
 
 interface AuthContextType {
   user: User | null;
@@ -19,33 +18,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const initialized = useRef(false);
 
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   useEffect(() => {
+    // Prevent double initialization in StrictMode
+    if (initialized.current) return;
+    initialized.current = true;
+
     let mounted = true;
 
-    const forceLocalSignOut = async () => {
-      try {
-        await supabase.auth.signOut({ scope: "local" });
-      } catch {}
+    // Setup auth state listener FIRST (before getSession)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, sess) => {
       if (!mounted) return;
-      setSession(null);
-      setUser(null);
-    };
 
-    const initAuth = async () => {
-      // Timeout fallback - unblock UI after 8 seconds max
-      const authTimeout = setTimeout(() => {
-        if (mounted && loading) {
-          console.warn("[AuthProvider] Auth initialization timed out");
-          setLoading(false);
-        }
-      }, 8000);
+      // Synchronous state updates only - no async calls here
+      setSession(sess);
+      setUser(sess?.user ?? null);
+      setLoading(false);
+    });
 
+    // Then check for existing session
+    const initSession = async () => {
       try {
-        // 1) Exchange email link code -> session (if present)
+        // Handle OAuth code exchange if present
         const url = new URL(window.location.href);
         const code = url.searchParams.get("code");
 
@@ -53,85 +50,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           try {
             await supabase.auth.exchangeCodeForSession(code);
           } catch (e) {
-            console.warn("[AuthProvider] exchangeCodeForSession error:", e);
+            console.warn("[Auth] Code exchange failed:", e);
           } finally {
             url.searchParams.delete("code");
             window.history.replaceState({}, document.title, url.toString());
           }
         }
 
-        // 2) Read cached session (fast)
-        const { data: sessData, error: sessError } = await supabase.auth.getSession();
+        // Get cached session
+        const { data, error } = await supabase.auth.getSession();
         
-        if (sessError) {
-          console.warn("[AuthProvider] getSession error:", sessError);
-        }
+        if (!mounted) return;
 
-        const sess = sessData?.session ?? null;
-
-        if (!mounted) {
-          clearTimeout(authTimeout);
+        if (error) {
+          console.warn("[Auth] getSession error:", error.message);
+          setLoading(false);
           return;
         }
 
-        // ✅ UNBLOCK UI IMMEDIATELY
-        setSession(sess);
-        setUser(sess?.user ?? null);
-        setLoading(false);
-        clearTimeout(authTimeout);
-
-        // 3) Validate in background (never block render)
-        if (sess) {
-          supabase.auth.getUser().then(async ({ data, error }) => {
-            if (!mounted) return;
-            if (error || !data.user) {
-              await forceLocalSignOut();
-            } else {
-              setUser(data.user);
-            }
-          });
+        // Set session from storage (onAuthStateChange will also fire)
+        if (data.session) {
+          setSession(data.session);
+          setUser(data.session.user);
         }
+        
+        setLoading(false);
       } catch (e) {
-        console.warn("[AuthProvider] initAuth error:", e);
+        console.warn("[Auth] Init error:", e);
         if (mounted) setLoading(false);
       }
     };
 
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, sess) => {
-      if (!mounted) return;
-
-      // If signed out, clear immediately
-      if (!sess) {
-        setSession(null);
-        setUser(null);
-        setLoading(false);
-        return;
-      }
-
-      // Validate on important events (prevents “phantom login”)
-      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
-        const { data: userData, error: userErr } = await supabase.auth.getUser();
-        if (userErr || !userData.user) {
-          await forceLocalSignOut();
-          setLoading(false);
-          return;
-        }
-        setSession(sess);
-        setUser(userData.user);
-        setLoading(false);
-        return;
-      }
-
-      // Default fallback
-      setSession(sess);
-      setUser(sess.user ?? null);
-      setLoading(false);
-    });
-
-    initAuth();
+    initSession();
 
     return () => {
       mounted = false;

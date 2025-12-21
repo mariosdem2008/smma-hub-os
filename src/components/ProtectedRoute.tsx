@@ -1,119 +1,115 @@
 import { Navigate, useLocation } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useAuth } from "@/lib/auth";
-import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/data";
 import { Button } from "@/components/ui/button";
 
-const DEBUG_RELOAD = true;
-const MEMBERSHIP_TIMEOUT_MS = 10000;
+const DEBUG = false;
+const TIMEOUT_MS = 12000;
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const location = useLocation();
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
-  const [membershipLoading, setMembershipLoading] = useState(true);
-  const [hasMembership, setHasMembership] = useState<boolean>(false);
+  const [membershipStatus, setMembershipStatus] = useState<"loading" | "has" | "none">("loading");
   const [timedOut, setTimedOut] = useState(false);
+  const checkedUserRef = useRef<string | null>(null);
 
-  // Timeout fallback for the entire loading state
+  // Reset timeout when loading completes
   useEffect(() => {
-    if (!loading && !membershipLoading) {
+    if (!authLoading && membershipStatus !== "loading") {
       setTimedOut(false);
+    }
+  }, [authLoading, membershipStatus]);
+
+  // Global timeout - prevents infinite loading
+  useEffect(() => {
+    if (!authLoading && membershipStatus !== "loading") return;
+
+    const timeout = setTimeout(() => {
+      if (authLoading || membershipStatus === "loading") {
+        if (DEBUG) console.warn("[ProtectedRoute] Timeout - forcing resolution");
+        setTimedOut(true);
+        setMembershipStatus("none");
+      }
+    }, TIMEOUT_MS);
+
+    return () => clearTimeout(timeout);
+  }, [authLoading, membershipStatus]);
+
+  // Check membership ONLY when user.id changes (not on every route)
+  useEffect(() => {
+    // No user = no membership
+    if (!user) {
+      setMembershipStatus("none");
+      checkedUserRef.current = null;
       return;
     }
 
-    const timeout = setTimeout(() => {
-      if (loading || membershipLoading) {
-        console.warn("[ProtectedRoute] Timed out waiting for auth/membership");
-        setTimedOut(true);
-        setMembershipLoading(false);
-      }
-    }, MEMBERSHIP_TIMEOUT_MS);
+    // Already checked this user
+    if (checkedUserRef.current === user.id) {
+      return;
+    }
 
-    return () => clearTimeout(timeout);
-  }, [loading, membershipLoading]);
-
-  useEffect(() => {
     let cancelled = false;
+    setMembershipStatus("loading");
 
     const checkMembership = async () => {
-      // 1) If not logged in, no membership
-      if (!user) {
-        setHasMembership(false);
-        setMembershipLoading(false);
-        if (DEBUG_RELOAD) console.log("[ProtectedRoute] no user, redirect to /auth from", location.pathname);
-        return;
-      }
-
-      setMembershipLoading(true);
-
       try {
-        const { data, error } = await supabase
-          .from("agency_members")
+        const membership = await db.from("agency_members")
           .select("agency_id")
           .eq("user_id", user.id)
           .maybeSingle();
 
         if (cancelled) return;
 
-        if (error) {
-          // Avoid redirect loops on transient/RLS failures by allowing access
-          setHasMembership(true);
-          if (DEBUG_RELOAD) {
-            console.warn("[ProtectedRoute] membership check error, allowing access to avoid loop", {
-              path: location.pathname,
-              error,
-            });
-          }
+        if (membership.error) {
+          if (DEBUG) console.warn("[ProtectedRoute] Membership check error:", membership.error);
+          // On error, allow access to prevent loops
+          setMembershipStatus("has");
         } else {
-          setHasMembership(!!data);
-          if (DEBUG_RELOAD) {
-            console.log("[ProtectedRoute] membership check", {
-              path: location.pathname,
-              error: false,
-              hasMembership: !!data,
-            });
-          }
+          setMembershipStatus(membership.data ? "has" : "none");
         }
+        
+        checkedUserRef.current = user.id;
       } catch (err) {
-        console.warn("[ProtectedRoute] membership check exception:", err);
+        if (DEBUG) console.warn("[ProtectedRoute] Exception:", err);
         if (!cancelled) {
-          setHasMembership(true); // Allow access on error to avoid loops
+          setMembershipStatus("has"); // Allow on error
+          checkedUserRef.current = user.id;
         }
-      }
-      
-      if (!cancelled) {
-        setMembershipLoading(false);
       }
     };
 
     checkMembership();
+    return () => { cancelled = true; };
+  }, [user?.id]);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.id, location.pathname]);
+  // === RENDER LOGIC ===
 
-  // Show timeout error with retry button
+  // Timeout state - show retry
   if (timedOut) {
     return (
-      <div className="flex min-h-screen items-center justify-center flex-col gap-4">
+      <div className="flex min-h-screen items-center justify-center flex-col gap-4 bg-background">
         <p className="text-muted-foreground">Connection timed out. Please check your network.</p>
         <Button onClick={() => window.location.reload()}>Retry</Button>
       </div>
     );
   }
 
-  // Don't redirect while auth is unresolved
-  if (loading || membershipLoading) {
+  // Still loading auth or membership
+  if (authLoading || membershipStatus === "loading") {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="animate-pulse text-muted-foreground">Loading...</div>
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          <p className="text-sm text-muted-foreground">Loading...</p>
+        </div>
       </div>
     );
   }
 
-  // HARD RULE: not logged in => always /auth
+  // Not logged in → redirect to auth
   if (!user) {
     if (location.pathname !== "/auth") {
       sessionStorage.setItem("redirectUrl", location.pathname);
@@ -121,12 +117,13 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/auth" replace />;
   }
 
-  // Membership routing rules
-  if (!hasMembership && location.pathname !== "/onboarding") {
+  // Logged in but no membership → onboarding
+  if (membershipStatus === "none" && location.pathname !== "/onboarding") {
     return <Navigate to="/onboarding" replace />;
   }
 
-  if (hasMembership && location.pathname === "/onboarding") {
+  // Has membership but on onboarding → dashboard
+  if (membershipStatus === "has" && location.pathname === "/onboarding") {
     return <Navigate to="/dashboard" replace />;
   }
 
