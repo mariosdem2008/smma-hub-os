@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ClientPortalMobileBottomNav } from "@/components/ClientPortalMobileBottomNav";
 import { ClientPortalNotificationCenter } from "@/components/notifications/ClientPortalNotificationCenter";
+import { Card } from "@/components/ui/card";
 import {
   FolderOpen,
   LogOut,
@@ -54,8 +55,11 @@ const navItems = [
 function ClientPortalLayoutContent() {
   const { portalSlug } = useParams();
   const navigate = useNavigate();
-  const { clientUser, logout, loading, isAuthenticated } = useClientAuth();
+  const { logout } = useClientAuth();
   const [client, setClient] = useState<Client | null>(null);
+  const [portalLoading, setPortalLoading] = useState(true);
+  const [notLinked, setNotLinked] = useState(false);
+  const [resolvedPortalSlug, setResolvedPortalSlug] = useState<string | null>(portalSlug || null);
   const isMobile = useIsMobile();
 
   // Load fonts dynamically
@@ -65,36 +69,57 @@ function ClientPortalLayoutContent() {
   });
 
   useEffect(() => {
-    if (!loading && !isAuthenticated) {
-      navigate(`/client/login/${portalSlug}`);
-    }
-  }, [loading, isAuthenticated, navigate, portalSlug]);
-
-  useEffect(() => {
-    if (clientUser?.client_id) {
-      fetchClient();
-    }
-  }, [clientUser]);
-
-  const fetchClient = async () => {
-    if (!clientUser?.client_id) return;
-
-    const { data } = await supabase.from("client_portal_view").select("*").eq("id", clientUser.client_id).maybeSingle();
-
-    if (data) {
-      setClient({
-        ...data,
-        brand_colors: Array.isArray(data.brand_colors) ? data.brand_colors : data.brand_colors,
+    const bootstrap = async () => {
+      const { data: authUser } = await supabase.auth.getUser();
+      console.log("[client-portal] mount", {
+        hasSession: !!authUser?.user,
+        lookup: authUser?.user ? "portal_user_id" : "slug",
       });
+
+      if (!authUser?.user) {
+        navigate(portalSlug ? `/client/login/${portalSlug}` : "/client/login");
+        setPortalLoading(false);
+        return;
+      }
+
+      const { data, error } = await (supabase.from("clients") as any)
+        .select(
+          "id,name,logo_url,primary_font,secondary_font,brand_colors,website,notes,niche,tone_of_voice,agency_id,portal_slug",
+        )
+        .eq("portal_user_id", authUser.user.id)
+        .single();
+
+      if (error) {
+        console.error("[client-portal] portal_user_id lookup failed", error);
+      }
+
+      if (data) {
+        setResolvedPortalSlug(data.portal_slug || null);
+        setClient({
+          ...data,
+          brand_colors: Array.isArray(data.brand_colors) ? data.brand_colors : data.brand_colors,
+        });
+      } else {
+        setNotLinked(true);
+      }
+
+      setPortalLoading(false);
+    };
+
+    bootstrap();
+  }, [portalSlug, navigate]);
+
+  const handleSignOut = async () => {
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.error("[client-portal] supabase signOut failed", err);
     }
-  };
-
-  const handleSignOut = () => {
     logout();
-    navigate(`/client/login/${portalSlug}`);
+    navigate(resolvedPortalSlug ? `/client/login/${resolvedPortalSlug}` : "/client/login");
   };
 
-  if (loading) {
+  if (portalLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-pulse text-muted-foreground">Loading portal...</div>
@@ -102,9 +127,22 @@ function ClientPortalLayoutContent() {
     );
   }
 
-  if (!isAuthenticated || !clientUser || !client) {
+  if (notLinked) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Card className="w-full max-w-md p-8 text-center">
+          <h1 className="text-2xl font-bold mb-4">Account not linked to a portal</h1>
+          <p className="text-muted-foreground">Please contact your agency for assistance.</p>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!client) {
     return null;
   }
+
+  const basePortalPath = resolvedPortalSlug ? `/client/portal/${resolvedPortalSlug}` : "/client/portal";
 
   return (
     <div className="min-h-screen bg-background">
@@ -120,9 +158,7 @@ function ClientPortalLayoutContent() {
           </div>
           <div className="flex items-center gap-2 md:gap-4">
             <ClientPortalNotificationCenter />
-            {!isMobile && (
-              <span className="text-sm text-muted-foreground">{clientUser.full_name || clientUser.email}</span>
-            )}
+            {!isMobile && <span className="text-sm text-muted-foreground">{client.name}</span>}
             <Button variant="ghost" size="sm" onClick={handleSignOut}>
               <LogOut className="h-4 w-4 md:mr-2" />
               <span className="hidden md:inline">Sign Out</span>
@@ -138,13 +174,13 @@ function ClientPortalLayoutContent() {
             <nav className="space-y-1">
               {navItems.map((item) => {
                 const Icon = item.icon;
-                const isActive =
-                  window.location.pathname === `/client/portal/${portalSlug}${item.path ? `/${item.path}` : ""}`;
+                const targetPath = `${basePortalPath}${item.path ? `/${item.path}` : ""}`;
+                const isActive = window.location.pathname === targetPath;
 
                 return (
                   <Link
                     key={item.path}
-                    to={`/client/portal/${portalSlug}${item.path ? `/${item.path}` : ""}`}
+                    to={targetPath}
                     className={cn(
                       "flex items-center gap-3 px-4 py-2 text-sm font-medium rounded-md transition-colors",
                       isActive
@@ -163,7 +199,7 @@ function ClientPortalLayoutContent() {
 
         {/* Main Content */}
         <main className="flex-1 min-w-0">
-          <Outlet context={{ client, clientId: clientUser.client_id, clientUser }} />
+          <Outlet context={{ client, clientId: client.id, clientUser: null }} />
         </main>
       </div>
 

@@ -6,6 +6,7 @@ import { hapticSelection } from "@/lib/haptics";
 export function ClientPortalMobileBottomNav() {
   const location = useLocation();
   const { portalSlug } = useParams();
+  const basePortalPath = portalSlug ? `/client/portal/${portalSlug}` : "/client/portal";
 
   const navItems = [
     { path: "approvals", label: "Approve", icon: CheckCircle },
@@ -29,7 +30,7 @@ export function ClientPortalMobileBottomNav() {
           return (
             <Link
               key={item.path}
-              to={`/client/portal/${portalSlug}/${item.path}`}
+              to={`${basePortalPath}/${item.path}`}
               onClick={() => hapticSelection()}
               className={cn(
                 "flex flex-col items-center justify-center gap-1 transition-colors touch-manipulation",

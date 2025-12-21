@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { FunctionsHttpError } from "@supabase/supabase-js";
 
 interface SendTeamInviteParams {
   email: string;
@@ -57,6 +58,7 @@ export async function sendTeamInviteEmail(params: SendTeamInviteParams) {
 export async function sendPortalInviteEmail(params: SendPortalInviteParams) {
   const accessToken = await getAccessToken();
 
+<<<<<<< HEAD
   const { data, error } = await supabase.functions.invoke("send-portal-invite", {
     body: params,
     headers: {
@@ -67,6 +69,39 @@ export async function sendPortalInviteEmail(params: SendPortalInviteParams) {
   if (error) {
     console.error("Error sending portal invite email:", error);
     throw error;
+=======
+    if (error) {
+      if (error instanceof FunctionsHttpError) {
+        const ctx = (error as any)?.context;
+        let bodyText = "";
+        let bodyObj: any = null;
+        try {
+          if (ctx?.body) bodyText = await new Response(ctx.body).text();
+          if (bodyText) bodyObj = JSON.parse(bodyText);
+        } catch (_) {
+          // ignore parse errors
+        }
+
+        console.error('Error sending portal invite email:', {
+          message: (error as any)?.message,
+          status: ctx?.status,
+          bodyText,
+          bodyObj,
+        });
+
+        if (bodyObj?.code && bodyObj?.error) {
+          throw new Error(`${bodyObj.code}: ${bodyObj.error}`);
+        }
+      } else {
+        console.error('Error sending portal invite email (non-http):', error);
+      }
+      throw error;
+    }
+    return { success: true, data };
+  } catch (error) {
+    console.error('Error sending portal invite email:', error);
+    return { success: false, error };
+>>>>>>> 9fb552e (Client Portal fixes)
   }
 
   return { success: true, data };

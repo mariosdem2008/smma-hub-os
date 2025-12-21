@@ -1,30 +1,9 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
-
-const allowedOrigins = [
-  "http://localhost:8080",
-  "http://localhost:5173",
-  "http://localhost:3000",
-  "https://smmahub.net",
-  "https://73a2983b-0136-47d2-9a1f-01fe580ac593.lovableproject.com",
-  "https://id-preview--73a2983b-0136-47d2-9a1f-01fe580ac593.lovable.app",
-];
-
-function corsHeaders(request: Request): Record<string, string> {
-  const origin = request.headers.get("origin") ?? "";
-  if (!allowedOrigins.includes(origin)) {
-    return {};
-  }
-
-  return {
-    "Access-Control-Allow-Origin": origin,
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    "Access-Control-Allow-Credentials": "true",
-  };
-}
+import { portalCors } from "../_shared/cors_portal.ts";
 
 const JWT_SECRET = Deno.env.get("CLIENT_PORTAL_JWT_SECRET");
+const FN_VERSION = "client-auth-reset-password_2025-12-21_3";
 
 const ACCESS_TOKEN_TTL_SECONDS = 20 * 60; // 20 minutes
 const REFRESH_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60; // 30 days
@@ -105,29 +84,55 @@ function createAuthCookies(accessToken: string, refreshToken: string): string[] 
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", {
-      status: 200,
-      headers: {
-        ...corsHeaders(req),
-      },
+  const { allowed, headers: cors } = portalCors(req);
+  const headers = { ...cors, "Content-Type": "application/json", "X-FN-VERSION": FN_VERSION };
+
+  if (!allowed) {
+    return new Response(JSON.stringify({ success: false, code: "E403_ORIGIN", error: "Origin not allowed", v: FN_VERSION }), {
+      status: 403,
+      headers,
     });
+  }
+
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: { ...cors, "X-FN-VERSION": FN_VERSION } });
   }
 
   try {
     const { reset_token, new_password } = await req.json();
 
     if (!reset_token || !new_password) {
+      return new Response(JSON.stringify({ success: false, code: "E400_FIELDS", error: "Missing required fields", v: FN_VERSION }), {
+        status: 400,
+        headers,
+      });
+    }
+
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
       return new Response(
-        JSON.stringify({ error: "Missing required fields" }),
-        {
-          status: 400,
-          headers: { ...corsHeaders(req), "Content-Type": "application/json" },
-        },
+        JSON.stringify({
+          success: false,
+          code: "E00_ENV",
+          error: "Missing env vars",
+          missingEnv: [
+            ...(SUPABASE_URL ? [] : ["SUPABASE_URL"]),
+            ...(SUPABASE_SERVICE_ROLE_KEY ? [] : ["SUPABASE_SERVICE_ROLE_KEY"]),
+          ],
+          v: FN_VERSION,
+        }),
+        { status: 500, headers },
       );
     }
 
-    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false },
+      global: {
+        headers: {
+          apikey: SUPABASE_SERVICE_ROLE_KEY,
+          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        },
+      },
+    });
 
     // Find user with valid reset token
     const { data: user, error: userError } = await supabaseAdmin
@@ -138,13 +143,10 @@ Deno.serve(async (req) => {
       .single();
 
     if (userError || !user) {
-      return new Response(
-        JSON.stringify({ error: "Invalid or expired reset token" }),
-        {
-          status: 400,
-          headers: { ...corsHeaders(req), "Content-Type": "application/json" },
-        },
-      );
+      return new Response(JSON.stringify({ success: false, code: "E400_TOKEN", error: "Invalid or expired reset token", v: FN_VERSION }), {
+        status: 400,
+        headers,
+      });
     }
 
     // Hash new password
@@ -186,24 +188,23 @@ Deno.serve(async (req) => {
     const { token: accessToken, exp } = await generateAccessToken(clientUser);
 
     const cookies = createAuthCookies(accessToken, refreshToken);
-    const headers = new Headers({
-      ...corsHeaders(req),
-      "Content-Type": "application/json",
-    });
-    cookies.forEach((cookie) => headers.append("Set-Cookie", cookie));
+    const respHeaders = new Headers(headers);
+    cookies.forEach((cookie) => respHeaders.append("Set-Cookie", cookie));
 
     return new Response(
       JSON.stringify({
+        success: true,
         user: clientUser,
         exp,
+        v: FN_VERSION,
       }),
-      { status: 200, headers },
+      { status: 200, headers: respHeaders },
     );
   } catch (error) {
     console.error("Reset password error:", error);
-    return new Response(
-      JSON.stringify({ error: "Internal server error" }),
-      { status: 500, headers: { ...corsHeaders(req), "Content-Type": "application/json" } },
-    );
+    return new Response(JSON.stringify({ success: false, code: "E99_UNKNOWN", error: "Internal server error", v: FN_VERSION }), {
+      status: 500,
+      headers,
+    });
   }
 });

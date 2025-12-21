@@ -20,43 +20,76 @@ export default function ClientLogin() {
   const [loading, setLoading] = useState(false);
   const [clientId, setClientId] = useState<string | null>(null);
   const [clientName, setClientName] = useState("");
+  const [portalLookupComplete, setPortalLookupComplete] = useState(false);
+  const [portalError, setPortalError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isAuthenticated && portalSlug) {
-      navigate(`/client/portal/${portalSlug}`);
-    }
-  }, [isAuthenticated, portalSlug, navigate]);
+    const bootstrapPortal = async () => {
+      const { data: authUser } = await supabase.auth.getUser();
+      console.log("[client-login] mount", {
+        hasSession: !!authUser?.user,
+        lookup: authUser?.user ? "portal_user_id" : "slug",
+      });
 
-  useEffect(() => {
-    const fetchClient = async () => {
-      if (!portalSlug) return;
-      
-      const { data } = await supabase
-        .from("clients")
-        .select("id, name")
-        .eq("portal_slug", portalSlug)
-        .eq("portal_enabled", true)
-        .single();
+      if (authUser?.user?.id) {
+        const { data: client, error } = await supabase
+          .from("clients")
+          .select("id, name, portal_slug")
+          .eq("portal_user_id", authUser.user.id)
+          .single();
 
-      if (data) {
-        setClientId(data.id);
-        setClientName(data.name);
-      } else {
-        toast({
-          title: "Portal Not Found",
-          description: "This client portal does not exist.",
-          variant: "destructive",
-        });
+        if (client) {
+          const destination = client.portal_slug ? `/client/portal/${client.portal_slug}` : "/client/portal";
+          console.log("[client-login] authed client found, navigating:", destination);
+          navigate(destination);
+          return;
+        }
+
+        if (error) {
+          console.error("[client-login] portal_user_id lookup failed", error);
+        }
+
+        setPortalError("Account not linked to a portal");
       }
+
+      if (portalSlug) {
+        const { data, error } = await supabase
+          .from("portal_public_clients" as any)
+          .select("id, name, portal_slug")
+          .eq("portal_slug", portalSlug)
+          .maybeSingle();
+
+        if (error) {
+          console.error("[client-login] public portal lookup failed", error);
+        }
+
+        if (data) {
+          setClientId(data.id);
+          setClientName(data.name);
+        } else {
+          toast({
+            title: "Portal Not Found",
+            description: "This client portal does not exist.",
+            variant: "destructive",
+          });
+          setPortalError("Portal Not Found");
+        }
+      }
+
+      setPortalLookupComplete(true);
     };
 
-    fetchClient();
-  }, [portalSlug, toast]);
+    bootstrapPortal();
+  }, [isAuthenticated, portalSlug, navigate, toast]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!clientId) {
+    const { data: authUser } = await supabase.auth.getUser();
+    if (authUser?.user?.id) {
+      console.log("[client-login] existing session, using portal_user_id flow");
+    }
+
+    if (!clientId && !authUser?.user) {
       toast({
         title: "Error",
         description: "Client portal not found",
@@ -68,8 +101,31 @@ export default function ClientLogin() {
     setLoading(true);
 
     try {
-      await login(email, password, clientId);
-      navigate(`/client/portal/${portalSlug}`);
+      await login(email, password, clientId || "");
+
+      const { data: userSession } = await supabase.auth.getUser();
+      let destination = "/client/portal";
+
+      if (userSession?.user?.id) {
+        const { data: client, error } = await supabase
+          .from("clients")
+          .select("portal_slug")
+          .eq("portal_user_id", userSession.user.id)
+          .single();
+
+        if (error) {
+          console.error("[client-login] portal_user_id lookup after login failed", error);
+        }
+
+        if (client?.portal_slug) {
+          destination = `/client/portal/${client.portal_slug}`;
+        }
+      } else if (portalSlug) {
+        destination = `/client/portal/${portalSlug}`;
+      }
+
+      console.log("[client-login] navigating to portal:", destination);
+      navigate(destination);
     } catch (error: any) {
       toast({
         title: "Login Failed",
@@ -81,10 +137,21 @@ export default function ClientLogin() {
     }
   };
 
-  if (!clientId) {
+  if (!portalLookupComplete && !clientId && !portalError) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (portalError && !clientId) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Card className="w-full max-w-md p-8 text-center">
+          <h1 className="text-2xl font-bold mb-4">{portalError}</h1>
+          <p className="text-muted-foreground">Please contact your agency for assistance.</p>
+        </Card>
       </div>
     );
   }

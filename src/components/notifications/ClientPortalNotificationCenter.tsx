@@ -24,6 +24,7 @@ export function ClientPortalNotificationCenter() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const { portalSlug } = useParams();
+  const basePortalPath = portalSlug ? `/client/portal/${portalSlug}` : "/client/portal";
   const { data: notifications, isLoading } = useNotifications();
   const { data: unreadCount } = useUnreadNotificationsCount();
   const { mutate: markRead } = useMarkNotificationRead();
@@ -62,9 +63,9 @@ export function ClientPortalNotificationCenter() {
     markRead(notification.id);
     
     if (notification.type === 'new_message' && notification.conversation_id) {
-      navigate(`/client/portal/${portalSlug}/messages`);
+      navigate(`${basePortalPath}/messages`);
     } else if (notification.type === 'approval_reminder') {
-      navigate(`/client/portal/${portalSlug}/approvals`);
+      navigate(`${basePortalPath}/approvals`);
     }
     
     setOpen(false);

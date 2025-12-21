@@ -1,30 +1,11 @@
-const allowedOrigins = [
-  "http://localhost:8080",
-  "http://localhost:5173",
-  "http://localhost:3000",
-  "https://smmahub.net",
-  "https://73a2983b-0136-47d2-9a1f-01fe580ac593.lovableproject.com",
-  "https://id-preview--73a2983b-0136-47d2-9a1f-01fe580ac593.lovable.app",
-];
+import { portalCors } from "../_shared/cors_portal.ts";
 
-function corsHeaders(request: Request): Record<string, string> {
-  const origin = request.headers.get("origin") ?? "";
-  if (!allowedOrigins.includes(origin)) {
-    return {};
-  }
+const FN_VERSION = "client-auth-logout_2025-12-21_3";
 
-  return {
-    "Access-Control-Allow-Origin": origin,
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    "Access-Control-Allow-Credentials": "true",
-  };
-}
-
-function clearAuthCookiesHeaders(req: Request): Headers {
+function clearAuthCookiesHeaders(base: Record<string, string>): Headers {
   const headers = new Headers({
     "Content-Type": "application/json",
-    ...corsHeaders(req),
+    ...base,
   });
 
   headers.append(
@@ -41,19 +22,22 @@ function clearAuthCookiesHeaders(req: Request): Headers {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", {
-      status: 200,
-      headers: {
-        ...corsHeaders(req),
-      },
+  const { allowed, headers: cors } = portalCors(req);
+  if (!allowed) {
+    return new Response(JSON.stringify({ success: false, code: "E403_ORIGIN", error: "Origin not allowed", v: FN_VERSION }), {
+      status: 403,
+      headers: { ...cors, "X-FN-VERSION": FN_VERSION },
     });
   }
 
-  // Simply clear cookies; refresh tokens are revoked by client-refresh-token when used
-  const headers = clearAuthCookiesHeaders(req);
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: { ...cors, "X-FN-VERSION": FN_VERSION } });
+  }
 
-  return new Response(JSON.stringify({ success: true }), {
+  // Simply clear cookies; refresh tokens are revoked by client-refresh-token when used
+  const headers = clearAuthCookiesHeaders({ ...cors, "X-FN-VERSION": FN_VERSION });
+
+  return new Response(JSON.stringify({ success: true, v: FN_VERSION }), {
     status: 200,
     headers,
   });

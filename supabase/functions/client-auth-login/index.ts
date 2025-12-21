@@ -1,17 +1,9 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
-
-function corsHeaders(request: Request): Record<string, string> {
-  const origin = request.headers.get("Origin");
-  return {
-    "Access-Control-Allow-Origin": origin ?? "*",
-    "Access-Control-Allow-Headers": "apikey, Authorization, Content-Type, X-Client-Info",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Credentials": "true",
-  };
-}
+import { portalCors } from "../_shared/cors_portal.ts";
 
 const JWT_SECRET = Deno.env.get("CLIENT_PORTAL_JWT_SECRET");
+const FN_VERSION = "client-auth-login_2025-12-21_3";
 
 const ACCESS_TOKEN_TTL_SECONDS = 20 * 60; // 20 minutes
 const REFRESH_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60; // 30 days
@@ -92,32 +84,55 @@ function createAuthCookies(accessToken: string, refreshToken: string): string[] 
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", {
-      status: 200,
-      headers: {
-        ...corsHeaders(req),
-      },
+  const { allowed, headers: cors } = portalCors(req);
+  const headers = { ...cors, "Content-Type": "application/json", "X-FN-VERSION": FN_VERSION };
+
+  if (!allowed) {
+    return new Response(JSON.stringify({ success: false, code: "E403_ORIGIN", error: "Origin not allowed", v: FN_VERSION }), {
+      status: 403,
+      headers,
     });
+  }
+
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: { ...cors, "X-FN-VERSION": FN_VERSION } });
   }
 
   try {
     const { email, password, client_id } = await req.json();
 
     if (!email || !password || !client_id) {
+      return new Response(JSON.stringify({ success: false, code: "E400_FIELDS", error: "Missing required fields", v: FN_VERSION }), {
+        status: 400,
+        headers,
+      });
+    }
+
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
       return new Response(
-        JSON.stringify({ error: "Missing required fields" }),
-        {
-          status: 400,
-          headers: {
-            "Content-Type": "application/json",
-            ...corsHeaders(req),
-          },
-        },
+        JSON.stringify({
+          success: false,
+          code: "E00_ENV",
+          error: "Missing env vars",
+          missingEnv: [
+            ...(SUPABASE_URL ? [] : ["SUPABASE_URL"]),
+            ...(SUPABASE_SERVICE_ROLE_KEY ? [] : ["SUPABASE_SERVICE_ROLE_KEY"]),
+          ],
+          v: FN_VERSION,
+        }),
+        { status: 500, headers },
       );
     }
 
-    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false },
+      global: {
+        headers: {
+          apikey: SUPABASE_SERVICE_ROLE_KEY,
+          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        },
+      },
+    });
 
     // Find user
     const { data: user, error: userError } = await supabaseAdmin
@@ -128,16 +143,10 @@ Deno.serve(async (req) => {
       .single();
 
     if (userError || !user) {
-      return new Response(
-        JSON.stringify({ error: "Invalid email or password" }),
-        {
-          status: 401,
-          headers: {
-            "Content-Type": "application/json",
-            ...corsHeaders(req),
-          },
-        },
-      );
+      return new Response(JSON.stringify({ success: false, code: "E401_INVALID", error: "Invalid email or password", v: FN_VERSION }), {
+        status: 401,
+        headers,
+      });
     }
 
     // Verify password
@@ -148,16 +157,10 @@ Deno.serve(async (req) => {
     const password_hash = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 
     if (password_hash !== user.password_hash) {
-      return new Response(
-        JSON.stringify({ error: "Invalid email or password" }),
-        {
-          status: 401,
-          headers: {
-            "Content-Type": "application/json",
-            ...corsHeaders(req),
-          },
-        },
-      );
+      return new Response(JSON.stringify({ success: false, code: "E401_INVALID", error: "Invalid email or password", v: FN_VERSION }), {
+        status: 401,
+        headers,
+      });
     }
 
     // Update last login
@@ -189,30 +192,23 @@ Deno.serve(async (req) => {
     const { token: accessToken, exp } = await generateAccessToken(clientUser);
 
     const cookies = createAuthCookies(accessToken, refreshToken);
-    const headers = new Headers({
-      "Content-Type": "application/json",
-      ...corsHeaders(req),
-    });
-    cookies.forEach((cookie) => headers.append("Set-Cookie", cookie));
+    const respHeaders = new Headers(headers);
+    cookies.forEach((cookie) => respHeaders.append("Set-Cookie", cookie));
 
     return new Response(
       JSON.stringify({
+        success: true,
         user: clientUser,
         exp,
+        v: FN_VERSION,
       }),
-      { status: 200, headers },
+      { status: 200, headers: respHeaders },
     );
   } catch (error) {
     console.error("Login error:", error);
-    return new Response(
-      JSON.stringify({ error: "Internal server error" }),
-      {
-        status: 500,
-        headers: {
-          "Content-Type": "application/json",
-          ...corsHeaders(req),
-        },
-      },
-    );
+    return new Response(JSON.stringify({ success: false, code: "E99_UNKNOWN", error: "Internal server error", v: FN_VERSION }), {
+      status: 500,
+      headers,
+    });
   }
 });

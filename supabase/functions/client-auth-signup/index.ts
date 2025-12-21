@@ -1,17 +1,9 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
-
-function corsHeaders(request: Request): Record<string, string> {
-  const origin = request.headers.get("Origin");
-  return {
-    "Access-Control-Allow-Origin": origin ?? "*",
-    "Access-Control-Allow-Headers": "apikey, Authorization, Content-Type, X-Client-Info",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Credentials": "true",
-  };
-}
+import { portalCors } from "../_shared/cors_portal.ts";
 
 const JWT_SECRET = Deno.env.get("CLIENT_PORTAL_JWT_SECRET");
+const FN_VERSION = "client-auth-signup_2025-12-21_5";
 
 const ACCESS_TOKEN_TTL_SECONDS = 20 * 60; // 20 minutes
 const REFRESH_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60; // 30 days
@@ -82,6 +74,14 @@ async function generateRefreshToken(): Promise<{ token: string; hash: string; ex
   return { token, hash, expiresAt };
 }
 
+async function hashPassword(password: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 function createAuthCookies(accessToken: string, refreshToken: string): string[] {
   const accessCookie =
     `cp_access_token=${accessToken}; Max-Age=${ACCESS_TOKEN_TTL_SECONDS}; Path=/; HttpOnly; Secure; SameSite=Lax`;
@@ -91,14 +91,122 @@ function createAuthCookies(accessToken: string, refreshToken: string): string[] 
   return [accessCookie, refreshCookie];
 }
 
+async function ensurePortalSlugAndLink(params: {
+  supabaseAdmin: any; // loosen typing for Edge function supabase client
+  clientId: string;
+  authUserId: string;
+  fallbackSlug: string;
+}): Promise<string> {
+  const { supabaseAdmin, clientId, authUserId, fallbackSlug } = params;
+
+  let finalSlug = fallbackSlug;
+  const { data: existingClient } = await supabaseAdmin
+    .from("clients")
+    .select("portal_slug")
+    .eq("id", clientId)
+    .single();
+
+  if (!existingClient?.portal_slug) {
+    const { data: generatedSlug, error: slugError } = await supabaseAdmin.rpc("generate_portal_slug");
+
+    if (slugError) {
+      console.error("E06_SLUG_RPC error:", slugError);
+      throw new Error("E06_SLUG_RPC");
+    }
+
+    if (typeof generatedSlug === "string" && generatedSlug.length > 0) {
+      finalSlug = generatedSlug;
+    }
+  } else {
+    finalSlug = existingClient.portal_slug;
+  }
+
+  const { data: clientRow, error: clientUpdateError } = await supabaseAdmin
+    .from("clients")
+    .update({
+      portal_enabled: true,
+      portal_slug: finalSlug,
+      portal_user_id: authUserId,
+    })
+    .eq("id", clientId)
+    .select("id, portal_slug, portal_user_id")
+    .single();
+
+  if (clientUpdateError || !clientRow || clientRow.portal_user_id !== authUserId) {
+    console.error("E07_CLIENT_UPDATE error:", clientUpdateError);
+    throw new Error("E07_CLIENT_UPDATE");
+  }
+
+  return clientRow.portal_slug;
+}
+
+async function getOrCreateAuthUserId(params: {
+  supabaseAdmin: any;
+  email: string;
+  password: string;
+  clientId: string;
+  agencyId: string;
+  role: string;
+}): Promise<string> {
+  const { supabaseAdmin, email, password, clientId, agencyId, role } = params;
+
+  // Try to create first
+  const { data: createdAuth, error: authCreateError } = await supabaseAdmin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: { client_id: clientId, agency_id: agencyId, role },
+  });
+
+  if (createdAuth?.user?.id) {
+    return createdAuth.user.id;
+  }
+
+  // If already exists, fetch by email
+  const status = (authCreateError as any)?.status;
+  const message = (authCreateError as any)?.message || authCreateError?.message;
+  if (status === 409 || message?.toLowerCase().includes("already")) {
+    const { data: existingAuth, error: authLookupError } = await supabaseAdmin.auth.admin.getUserByEmail(email);
+
+    if (authLookupError) {
+      console.error("E04_AUTH_LOOKUP auth user lookup failed:", authLookupError);
+      throw new Error(
+        JSON.stringify({
+          code: "E04_AUTH_LOOKUP",
+          error: "Failed to lookup auth user",
+          detail: { status: (authLookupError as any)?.status, message: (authLookupError as any)?.message || authLookupError?.message },
+        }),
+      );
+    }
+
+    if (existingAuth?.user?.id) {
+      return existingAuth.user.id;
+    }
+  }
+
+  console.error("E04_AUTH_CREATE auth user creation failed:", authCreateError);
+  throw new Error(
+    JSON.stringify({
+      code: "E04_AUTH_CREATE",
+      error: "Failed to create auth user",
+      detail: { status, message },
+    }),
+  );
+}
+
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", {
-      status: 200,
-      headers: {
-        ...corsHeaders(req),
-      },
+  const { allowed, headers: cors } = portalCors(req);
+  const headers = { ...cors, "Content-Type": "application/json", "X-FN-VERSION": FN_VERSION };
+
+  if (!allowed) {
+    return new Response(JSON.stringify({ success: false, code: "E403_ORIGIN", error: "Origin not allowed", v: FN_VERSION }), {
+      status: 403,
+      headers,
     });
+  }
+
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: { ...cors, "X-FN-VERSION": FN_VERSION } });
   }
 
   try {
@@ -111,20 +219,51 @@ Deno.serve(async (req) => {
     });
 
     if (!invite_token || !password) {
-      console.error("Missing required fields");
+      return new Response(JSON.stringify({ success: false, code: "E400_FIELDS", error: "Missing required fields", v: FN_VERSION }), {
+        status: 400,
+        headers,
+      });
+    }
+
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+      console.error("E00_ENV", { hasUrl: !!SUPABASE_URL, hasServiceRole: !!SUPABASE_SERVICE_ROLE_KEY });
       return new Response(
-        JSON.stringify({ error: "Missing required fields" }),
-        {
-          status: 400,
-          headers: {
-            "Content-Type": "application/json",
-            ...corsHeaders(req),
-          },
-        },
+        JSON.stringify({
+          success: false,
+          code: "E00_ENV",
+          error: "Missing env vars",
+          missingEnv: [
+            ...(SUPABASE_URL ? [] : ["SUPABASE_URL"]),
+            ...(SUPABASE_SERVICE_ROLE_KEY ? [] : ["SUPABASE_SERVICE_ROLE_KEY"]),
+          ],
+          v: FN_VERSION,
+        }),
+        { status: 500, headers },
       );
     }
 
-    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    if (!SUPABASE_SERVICE_ROLE_KEY || SUPABASE_SERVICE_ROLE_KEY.length < 20) {
+      console.error("E00_SERVICE_ROLE_MISSING", { hasServiceRole: !!SUPABASE_SERVICE_ROLE_KEY, length: SUPABASE_SERVICE_ROLE_KEY?.length });
+      return new Response(
+        JSON.stringify({
+          success: false,
+          code: "E00_SERVICE_ROLE_MISSING",
+          error: "Service role key missing or invalid length",
+          v: FN_VERSION,
+        }),
+        { status: 500, headers },
+      );
+    }
+
+    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false },
+      global: {
+        headers: {
+          apikey: SUPABASE_SERVICE_ROLE_KEY,
+          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        },
+      },
+    });
 
     // Validate invite token
     console.log("Validating invite token");
@@ -137,50 +276,163 @@ Deno.serve(async (req) => {
       .single();
 
     if (inviteError || !invite) {
-      console.error("Invalid invite:", inviteError);
-      return new Response(
-        JSON.stringify({ error: "Invalid or expired invitation" }),
-        {
-          status: 400,
-          headers: {
-            "Content-Type": "application/json",
-            ...corsHeaders(req),
-          },
-        },
-      );
+      console.error("E400_INVITE invalid invite:", inviteError);
+      return new Response(JSON.stringify({ success: false, code: "E400_INVITE", error: "Invalid or expired invitation", v: FN_VERSION }), {
+        status: 400,
+        headers,
+      });
     }
     console.log("Invite validated for email:", invite.email);
 
-    // Check if user already exists
+    // Check if client portal user already exists (idempotent accept)
     console.log("Checking for existing user");
-    const { data: existingUser } = await supabaseAdmin
+    const { data: existingClientUser } = await supabaseAdmin
       .from("client_users")
-      .select("id")
+      .select("id, email, password_hash, full_name, client_id, agency_id, role")
       .eq("email", invite.email)
       .eq("client_id", invite.client_id)
-      .single();
+      .maybeSingle();
 
-    if (existingUser) {
-      console.error("User already exists");
+    // Resolve auth user id if present
+    let authUserId: string | null = null;
+    // Resolve or create auth user id
+    try {
+      authUserId = await getOrCreateAuthUserId({
+        supabaseAdmin,
+        email: invite.email,
+        password,
+        clientId: invite.client_id,
+        agencyId: invite.agency_id,
+        role: invite.role,
+      });
+    } catch (authErr: any) {
+      const parsed = (() => {
+        try {
+          return authErr?.message ? JSON.parse(authErr.message) : {};
+        } catch {
+          return {};
+        }
+      })();
+
+      if (parsed.code === "E04_AUTH_LOOKUP") {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            code: parsed.code,
+            error: parsed.error,
+            detail: parsed.detail,
+            v: FN_VERSION,
+          }),
+          { status: 500, headers },
+        );
+      }
+
+      if (parsed.code === "E04_AUTH_CREATE") {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            code: parsed.code,
+            error: parsed.error,
+            detail: parsed.detail,
+            v: FN_VERSION,
+          }),
+          { status: 500, headers },
+        );
+      }
+
+      console.error("E04_AUTH_CREATE unknown auth error:", authErr);
       return new Response(
-        JSON.stringify({ error: "User already exists" }),
-        {
-          status: 400,
-          headers: {
-            "Content-Type": "application/json",
-            ...corsHeaders(req),
-          },
-        },
+        JSON.stringify({
+          success: false,
+          code: "E04_AUTH_CREATE",
+          error: "Failed to create auth user",
+          detail: authErr?.message,
+          v: FN_VERSION,
+        }),
+        { status: 500, headers },
+      );
+    }
+
+    if (existingClientUser) {
+      console.log("Existing client user found, performing idempotent accept");
+
+      const incomingHash = await hashPassword(password);
+      if (incomingHash !== existingClientUser.password_hash) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            code: "E409_EXISTS",
+            error: "User already exists. Use login (password mismatch).",
+            client_id: invite.client_id,
+            portal_slug: null,
+            v: FN_VERSION,
+          }),
+          { status: 409, headers },
+        );
+      }
+
+      // authUserId already ensured by getOrCreateAuthUserId above
+
+      if (!authUserId) {
+        console.error("E04_AUTH_CREATE auth user id missing after creation");
+        return new Response(
+          JSON.stringify({ success: false, code: "E04_AUTH_ID_MISSING", error: "Failed to resolve auth user id", v: FN_VERSION }),
+          { status: 500, headers },
+        );
+      }
+
+      const finalSlug = await ensurePortalSlugAndLink({
+        supabaseAdmin,
+        clientId: invite.client_id,
+        authUserId,
+        fallbackSlug: (invite.invite_token || invite.client_id || "").replace(/-/g, "").slice(0, 8),
+      });
+
+      await supabaseAdmin
+        .from("client_invites")
+        .update({ accepted: true })
+        .eq("invite_token", invite.invite_token);
+
+      const clientUser: ClientUser = {
+        id: existingClientUser.id,
+        email: existingClientUser.email,
+        full_name: existingClientUser.full_name,
+        client_id: existingClientUser.client_id,
+        agency_id: existingClientUser.agency_id,
+        role: existingClientUser.role,
+      };
+
+      const { token: refreshToken, hash: refreshHash, expiresAt } = await generateRefreshToken();
+
+      await supabaseAdmin.from("client_refresh_tokens").insert({
+        client_user_id: clientUser.id,
+        token_hash: refreshHash,
+        expires_at: expiresAt.toISOString(),
+      });
+
+      const { token: accessToken, exp } = await generateAccessToken(clientUser);
+
+      const cookies = createAuthCookies(accessToken, refreshToken);
+      const respHeaders = new Headers(headers);
+      cookies.forEach((cookie) => respHeaders.append("Set-Cookie", cookie));
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          user: clientUser,
+          client_id: invite.client_id,
+          portal_slug: finalSlug,
+          portal_user_id: authUserId,
+          exp,
+          v: FN_VERSION,
+        }),
+        { status: 200, headers: respHeaders },
       );
     }
     console.log("No existing user found");
 
     // Hash password using Web Crypto API
-    const encoder = new TextEncoder();
-    const data = encoder.encode(password);
-    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const password_hash = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+    const password_hash = await hashPassword(password);
 
     // Create client user
     console.log("Creating client user");
@@ -199,19 +451,25 @@ Deno.serve(async (req) => {
       .single();
 
     if (createError) {
-      console.error("Error creating user:", createError);
+      console.error("E03_CREATE_USER Error creating user:", createError);
       return new Response(
-        JSON.stringify({ error: "Failed to create user", details: createError.message }),
+        JSON.stringify({ success: false, code: "E03_CREATE_USER", error: "Failed to create user", details: createError.message, v: FN_VERSION }),
         {
           status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            ...corsHeaders(req),
-          },
+          headers,
         },
       );
     }
     console.log("User created successfully:", newUser.id);
+
+    // authUserId already ensured by getOrCreateAuthUserId above; sanity check
+    if (!authUserId) {
+      console.error("E04_AUTH_ID_MISSING auth user id missing after creation");
+      return new Response(
+        JSON.stringify({ success: false, code: "E04_AUTH_ID_MISSING", error: "Failed to resolve auth user id", v: FN_VERSION }),
+        { status: 500, headers },
+      );
+    }
 
     // Mark invite as accepted
     await supabaseAdmin
@@ -238,34 +496,37 @@ Deno.serve(async (req) => {
       expires_at: expiresAt.toISOString(),
     });
 
+    const finalSlug = await ensurePortalSlugAndLink({
+      supabaseAdmin,
+      clientId: invite.client_id,
+      authUserId,
+      fallbackSlug: (invite.invite_token || invite.client_id || "").replace(/-/g, "").slice(0, 8),
+    });
+
     // Generate access token
     const { token: accessToken, exp } = await generateAccessToken(clientUser);
 
     const cookies = createAuthCookies(accessToken, refreshToken);
-    const headers = new Headers({
-      "Content-Type": "application/json",
-      ...corsHeaders(req),
-    });
-    cookies.forEach((cookie) => headers.append("Set-Cookie", cookie));
+    const respHeaders = new Headers(headers);
+    cookies.forEach((cookie) => respHeaders.append("Set-Cookie", cookie));
 
     return new Response(
       JSON.stringify({
+        success: true,
         user: clientUser,
+        client_id: invite.client_id,
+        portal_slug: finalSlug,
+        portal_user_id: authUserId,
         exp,
+        v: FN_VERSION,
       }),
-      { status: 200, headers },
+      { status: 200, headers: respHeaders },
     );
   } catch (error) {
-    console.error("Signup error:", error);
-    return new Response(
-      JSON.stringify({ error: "Internal server error" }),
-      {
-        status: 500,
-        headers: {
-          "Content-Type": "application/json",
-          ...corsHeaders(req),
-        },
-      },
-    );
+    console.error("E99_UNKNOWN Signup error:", error);
+    return new Response(JSON.stringify({ success: false, code: "E99_UNKNOWN", error: "Internal server error", v: FN_VERSION }), {
+      status: 500,
+      headers,
+    });
   }
 });

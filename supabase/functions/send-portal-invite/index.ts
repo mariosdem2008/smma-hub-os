@@ -1,14 +1,26 @@
 import { Resend } from "https://esm.sh/resend@4.0.0";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+<<<<<<< HEAD
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
 // These must be configured in the target backend environment.
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+=======
+const resendApiKey = Deno.env.get("RESEND_API_KEY") || "";
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
+const SUPABASE_SERVICE_ROLE_KEY =
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SERVICE_ROLE_KEY") || "";
+const SUPABASE_ANON_KEY = Deno.env.get("ANON_KEY") || Deno.env.get("SUPABASE_ANON_KEY") || "";
+const FN_VERSION = "send-portal-invite_2025-12-21_1";
+
+const resend = new Resend(resendApiKey);
+>>>>>>> 9fb552e (Client Portal fixes)
 
 const ALLOWED_ROLES = new Set(["owner", "admin", "manager"]);
+const ALLOWED_INVITE_ROLES = new Set(["client", "approver", "viewer"]);
 const ALLOWED_ORIGINS = [
   "http://localhost:8080",
   "http://localhost:3000",
@@ -18,6 +30,18 @@ const ALLOWED_ORIGINS = [
   "https://app.smmahub.com",
   "https://smmahub.com",
 ];
+
+function decodeRoleFromJwt(jwt: string | null | undefined): string | null {
+  if (!jwt) return null;
+  const parts = jwt.split(".");
+  if (parts.length < 2) return null;
+  try {
+    const payload = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")), c => c.charCodeAt(0))));
+    return payload?.role || null;
+  } catch {
+    return null;
+  }
+}
 
 function buildCorsHeaders(req: Request): { allowed: boolean; headers: Record<string, string> } {
   const origin = req.headers.get("origin") ?? "";
@@ -30,7 +54,6 @@ function buildCorsHeaders(req: Request): { allowed: boolean; headers: Record<str
     headers: {
       ...(allowOrigin ? { "Access-Control-Allow-Origin": allowOrigin } : {}),
       "Access-Control-Allow-Headers": requestedHeaders || "authorization, content-type, apikey, x-client-info",
-      // Keep methods explicit
       "Access-Control-Allow-Methods": "POST, OPTIONS",
       "Access-Control-Max-Age": "86400",
       Vary: "Origin, Access-Control-Request-Headers",
@@ -43,12 +66,12 @@ function generateWhiteLabelEmail(
   heading: string,
   body: string,
   ctaText: string,
-  ctaUrl: string
+  ctaUrl: string,
 ): string {
-  const primaryColor = branding?.primary_color || '#4E5DFF';
-  const logo = branding?.logo_url || '';
-  const senderName = branding?.email_sender_name || 'SMMAHUB';
-  const footer = branding?.email_footer || '';
+  const primaryColor = branding?.primary_color || "#4E5DFF";
+  const logo = branding?.logo_url || "";
+  const senderName = branding?.email_sender_name || "SMMAHUB";
+  const footer = branding?.email_footer || "";
 
   return `
     <!DOCTYPE html>
@@ -59,7 +82,7 @@ function generateWhiteLabelEmail(
     <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0;">
       <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="background: ${primaryColor}; padding: 40px 20px; border-radius: 12px 12px 0 0; text-align: center;">
-          ${logo ? `<img src="${logo}" alt="${senderName}" style="max-width: 150px; height: auto; margin-bottom: 20px;">` : ''}
+          ${logo ? `<img src="${logo}" alt="${senderName}" style="max-width: 150px; height: auto; margin-bottom: 20px;">` : ""}
           <h1 style="color: white; margin: 0; font-size: 28px;">${heading}</h1>
         </div>
         
@@ -92,7 +115,7 @@ function generateWhiteLabelEmail(
             <div style="font-size: 14px; color: #666; margin-bottom: 20px;">
               ${footer}
             </div>
-          ` : ''}
+          ` : ""}
           
           <p style="font-size: 12px; color: #999; text-align: center; margin: 0;">
             © ${new Date().getFullYear()} ${senderName}. All rights reserved.
@@ -123,8 +146,34 @@ Deno.serve(async (req) => {
   const { allowed, headers: baseCors } = buildCorsHeaders(req);
   const headers = { ...baseCors, "Content-Type": "application/json" };
 
+  // Env validation
+  const missingEnv: string[] = [];
+  if (!SUPABASE_URL) missingEnv.push("SUPABASE_URL");
+  if (!SUPABASE_SERVICE_ROLE_KEY) missingEnv.push("SUPABASE_SERVICE_ROLE_KEY");
+  if (!SUPABASE_ANON_KEY) missingEnv.push("SUPABASE_ANON_KEY");
+  if (!resendApiKey) missingEnv.push("RESEND_API_KEY");
+
+  if (missingEnv.length > 0) {
+    console.error("E00_ENV missing env vars:", missingEnv);
+    return new Response(
+      JSON.stringify({ success: false, code: "E00_ENV", error: "Missing env vars", missingEnv, v: FN_VERSION }),
+      { status: 500, headers },
+    );
+  }
+
+  const anonRole = decodeRoleFromJwt(SUPABASE_ANON_KEY);
+  const serviceRole = decodeRoleFromJwt(SUPABASE_SERVICE_ROLE_KEY);
+
+  console.log("send-portal-invite env:", {
+    hasSupabaseUrl: !!SUPABASE_URL,
+    usingReservedServiceKey: !!Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),
+    usingCustomServiceKey: !!Deno.env.get("SERVICE_ROLE_KEY"),
+    anonRole,
+    serviceRole,
+  });
+
   if (!allowed) {
-    return new Response(JSON.stringify({ success: false, error: "Origin not allowed" }), {
+    return new Response(JSON.stringify({ success: false, code: "E403_ORIGIN", error: "Origin not allowed", v: FN_VERSION }), {
       status: 403,
       headers,
     });
@@ -137,13 +186,14 @@ Deno.serve(async (req) => {
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.toLowerCase().startsWith("bearer ")) {
-      return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), {
+      return new Response(JSON.stringify({ success: false, code: "E01_AUTH", error: "Unauthorized", v: FN_VERSION }), {
         status: 401,
         headers,
       });
     }
 
     const accessToken = authHeader.replace(/bearer\s+/i, "");
+<<<<<<< HEAD
 
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !SUPABASE_ANON_KEY) {
       console.error("Missing backend env vars", {
@@ -169,15 +219,33 @@ Deno.serve(async (req) => {
 
     const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
       auth: { persistSession: false, autoRefreshToken: false },
+=======
+    const supabaseAuthClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const supabaseServiceClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false },
+      global: {
+        headers: {
+          apikey: SUPABASE_SERVICE_ROLE_KEY,
+          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        },
+      },
+>>>>>>> 9fb552e (Client Portal fixes)
     });
 
     const {
       data: { user },
       error: userError,
+<<<<<<< HEAD
     } = await supabaseAuth.auth.getUser();
+=======
+    } = await supabaseAuthClient.auth.getUser(accessToken);
+>>>>>>> 9fb552e (Client Portal fixes)
 
     if (userError || !user) {
-      return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), {
+      console.error("E01_AUTH getUser error:", userError);
+      return new Response(JSON.stringify({ success: false, code: "E01_AUTH", error: "Unauthorized", v: FN_VERSION }), {
         status: 401,
         headers,
       });
@@ -198,18 +266,31 @@ Deno.serve(async (req) => {
       temporaryPassword,
     }: PortalInviteRequest = await req.json();
 
-    if (!agencyId) {
-      return new Response(JSON.stringify({ success: false, error: "agencyId is required" }), {
-        status: 400,
-        headers,
-      });
+    const normalizedEmail = String(email ?? "").toLowerCase().trim();
+    if (!normalizedEmail) {
+      return new Response(
+        JSON.stringify({ success: false, code: "E400_EMAIL", error: "email is required", v: FN_VERSION }),
+        { status: 400, headers },
+      );
     }
 
+    if (!agencyId) {
+      return new Response(
+        JSON.stringify({ success: false, code: "E400_AGENCY_ID", error: "agencyId is required", v: FN_VERSION }),
+        { status: 400, headers },
+      );
+    }
+
+<<<<<<< HEAD
     const { data: membership, error: membershipError } = await supabaseAdmin
+=======
+    const { data: membership, error: membershipError } = await supabaseServiceClient
+>>>>>>> 9fb552e (Client Portal fixes)
       .from("agency_members")
       .select("id, role, agency_id")
       .eq("agency_id", agencyId)
       .eq("user_id", user.id)
+<<<<<<< HEAD
       .maybeSingle();
 
     if (membershipError) {
@@ -217,72 +298,134 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ success: false, error: "Failed to verify membership" }), {
         status: 500,
         headers,
+=======
+      .limit(1)
+      .maybeSingle();
+
+    if (membershipError) {
+      console.error("E02_MEMBERSHIP supabase error:", {
+        message: membershipError.message,
+        code: (membershipError as any).code,
+        details: (membershipError as any).details,
+        hint: (membershipError as any).hint,
+>>>>>>> 9fb552e (Client Portal fixes)
       });
+      return new Response(
+        JSON.stringify({
+          success: false,
+          code: "E02_MEMBERSHIP",
+          error: "Failed to verify membership",
+          debug: {
+            message: (membershipError as any)?.message,
+            code: (membershipError as any)?.code,
+            details: (membershipError as any)?.details,
+            hint: (membershipError as any)?.hint,
+          },
+          v: FN_VERSION,
+        }),
+        { status: 500, headers },
+      );
     }
 
     if (!membership || !ALLOWED_ROLES.has(membership.role)) {
-      return new Response(JSON.stringify({ success: false, error: "Forbidden" }), {
+      return new Response(JSON.stringify({ success: false, code: "E403_ROLE", error: "Forbidden", v: FN_VERSION }), {
         status: 403,
         headers,
       });
     }
 
     if (!clientId) {
-      return new Response(JSON.stringify({ success: false, error: "clientId is required" }), {
-        status: 400,
-        headers,
-      });
+      return new Response(
+        JSON.stringify({ success: false, code: "E400_CLIENT_ID", error: "clientId is required", v: FN_VERSION }),
+        { status: 400, headers },
+      );
     }
 
-    const allowedRoles = ["client", "approver", "viewer"];
-    const inviteRole = allowedRoles.includes(role) ? role : "client";
+    const inviteRole = ALLOWED_INVITE_ROLES.has(role) ? role : "client";
 
     const token = inviteToken || crypto.randomUUID().replace(/-/g, "");
     const invitePortalUrl =
-      portalBaseUrl
+      portalBaseUrl && portalBaseUrl.length > 0
         ? `${portalBaseUrl}${portalBaseUrl.includes("?") ? "&" : "?"}token=${token}`
         : portalUrl || "";
 
     if (!invitePortalUrl) {
-      return new Response(JSON.stringify({ success: false, error: "portalUrl is required" }), {
-        status: 400,
+      return new Response(
+        JSON.stringify({ success: false, code: "E400_PORTAL_URL", error: "portalUrl is required", v: FN_VERSION }),
+        { status: 400, headers },
+      );
+    }
+
+    // Duplicate check: pending, unexpired
+    const { data: existingInvite, error: dupError } = await supabaseServiceClient
+      .from("client_invites")
+      .select("id, expires_at, accepted")
+      .eq("client_id", clientId)
+      .eq("email", normalizedEmail)
+      .eq("accepted", false)
+      .gt("expires_at", new Date().toISOString())
+      .maybeSingle();
+
+    if (dupError) {
+      console.error("E03_DUP_CHECK error:", dupError);
+      return new Response(JSON.stringify({ success: false, code: "E03_DUP_CHECK", error: "Failed duplicate check", v: FN_VERSION }), {
+        status: 500,
         headers,
       });
     }
 
+<<<<<<< HEAD
     const { error: inviteError } = await supabaseAdmin.from("client_invites").insert({
+=======
+    if (existingInvite) {
+      return new Response(
+        JSON.stringify({ success: false, code: "E05_DUPLICATE", error: "Pending invite already exists", v: FN_VERSION }),
+        { status: 409, headers },
+      );
+    }
+
+    const { error: inviteError } = await supabaseServiceClient.from("client_invites").insert({
+>>>>>>> 9fb552e (Client Portal fixes)
       agency_id: agencyId,
       client_id: clientId,
-      email,
+      email: normalizedEmail,
       full_name: fullName || null,
       role: inviteRole,
       invite_token: token,
     });
 
     if (inviteError) {
-      console.error("Error creating client invite:", inviteError);
-      return new Response(JSON.stringify({ success: false, error: "Failed to create invite" }), {
-        status: 500,
-        headers,
-      });
+      console.error("E03_INVITE_INSERT error:", inviteError);
+      return new Response(
+        JSON.stringify({ success: false, code: "E03_INVITE_INSERT", error: "Failed to create invite", v: FN_VERSION }),
+        { status: 500, headers },
+      );
     }
 
+<<<<<<< HEAD
     const { data: branding } = await supabaseAdmin
+=======
+    const { data: branding, error: brandingError } = await supabaseServiceClient
+>>>>>>> 9fb552e (Client Portal fixes)
       .from("agency_branding")
       .select("logo_url, email_sender_name, primary_color, email_footer")
       .eq("agency_id", agencyId)
       .maybeSingle();
 
-    const senderName = branding?.email_sender_name || 'SMMAHUB';
+    if (brandingError) {
+      console.error("E06_BRANDING error:", brandingError);
+    }
 
-    const passwordSection = temporaryPassword 
+    const senderName = branding?.email_sender_name || "SMMAHUB";
+
+    const passwordSection = temporaryPassword
       ? `
         <div style="background: #fff3cd; padding: 20px; border-radius: 8px; margin: 30px 0; border-left: 4px solid #ffc107;">
           <p style="font-size: 14px; color: #856404; margin: 0 0 10px 0; font-weight: 600;">
             Your temporary login credentials:
           </p>
           <p style="font-size: 14px; color: #856404; margin: 0;">
-            <strong>Email:</strong> ${email}<br>
+            <strong>Email:</strong> ${normalizedEmail}<br>
             <strong>Password:</strong> <code style="background: #ffe69c; padding: 4px 8px; border-radius: 4px;">${temporaryPassword}</code>
           </p>
           <p style="font-size: 12px; color: #856404; margin: 10px 0 0 0;">
@@ -290,11 +433,11 @@ Deno.serve(async (req) => {
           </p>
         </div>
       `
-      : '';
+      : "";
 
     const emailHtml = generateWhiteLabelEmail(
       branding,
-      'Welcome to Your Client Portal',
+      "Welcome to Your Client Portal",
       `
         <p style="font-size: 16px; color: #333; margin-bottom: 20px;">Hi there! 👋</p>
         <p style="font-size: 16px; color: #333; margin-bottom: 20px;">
@@ -312,27 +455,41 @@ Deno.serve(async (req) => {
         </ul>
         ${passwordSection}
       `,
-      'Access Your Portal',
-      invitePortalUrl
+      "Access Your Portal",
+      invitePortalUrl,
     );
 
-    const emailResponse = await resend.emails.send({
-      from: `${senderName} <invites@smmahub.net>`,
-      to: [email],
-      subject: `Access Your Client Portal - ${clientName}`,
-      html: emailHtml,
-    });
+    try {
+      const emailResponse = await resend.emails.send({
+        from: `${senderName} <invites@smmahub.net>`,
+        to: [normalizedEmail],
+        subject: `Access Your Client Portal - ${clientName}`,
+        html: emailHtml,
+      });
 
-    console.log("Client portal invitation email sent successfully:", emailResponse);
+      console.log("Client portal invitation email sent successfully:", emailResponse);
 
-    return new Response(JSON.stringify({ success: true, data: emailResponse }), {
-      status: 200,
-      headers,
-    });
+      return new Response(JSON.stringify({ success: true, data: emailResponse, invite_token: token, v: FN_VERSION }), {
+        status: 200,
+        headers,
+      });
+    } catch (emailError: any) {
+      console.error("E04_RESEND error:", emailError);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          code: "E04_RESEND",
+          error: emailError?.message ?? "Failed to send email",
+          invite_token: token,
+          v: FN_VERSION,
+        }),
+        { status: 502, headers },
+      );
+    }
   } catch (error: any) {
-    console.error("Error sending client portal invitation email:", error);
+    console.error("E99_UNKNOWN error:", error);
     const message = error?.message ?? "Unknown error";
-    return new Response(JSON.stringify({ success: false, error: message }), {
+    return new Response(JSON.stringify({ success: false, code: "E99_UNKNOWN", error: message, v: FN_VERSION }), {
       status: 500,
       headers,
     });

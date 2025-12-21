@@ -140,6 +140,19 @@ const App = () => {
               />
 
               {/* Client Portal Protected Routes (scoped provider) */}
+              <Route path="/client/portal" element={<ClientPortalShell />}>
+                <Route index element={<PortalOverview />} />
+                <Route path="approvals" element={<PortalApprovals />} />
+                <Route path="content-calendar" element={<PortalContentCalendar />} />
+                <Route path="performance" element={<PortalPerformance />} />
+                <Route path="ideas" element={<PortalIdeas />} />
+                <Route path="assets" element={<PortalAssets />} />
+                <Route path="branding" element={<PortalBranding />} />
+                <Route path="social" element={<PortalSocial />} />
+                <Route path="social-profiles" element={<PortalSocialProfiles />} />
+                <Route path="uploads" element={<PortalUploads />} />
+                <Route path="messages" element={<PortalMessages />} />
+              </Route>
               <Route path="/client/portal/:portalSlug" element={<ClientPortalShell />}>
                 <Route index element={<PortalOverview />} />
                 <Route path="approvals" element={<PortalApprovals />} />

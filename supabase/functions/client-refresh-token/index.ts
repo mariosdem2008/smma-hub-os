@@ -1,7 +1,9 @@
 // supabase/functions/client-refresh-token/index.ts
-import { createClient } from "@supabase/supabase-js";
-import { corsHeaders } from "../_shared/cors.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { portalCors } from "../_shared/cors_portal.ts";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
+
+const FN_VERSION = "client-refresh-token_2025-12-21_3";
 
 const CLIENT_PORTAL_JWT_SECRET = Deno.env.get("CLIENT_PORTAL_JWT_SECRET");
 const CLIENT_PORTAL_JWT_REFRESH_SECRET = Deno.env.get("CLIENT_PORTAL_JWT_REFRESH_SECRET");
@@ -134,17 +136,25 @@ async function generateAccessToken(payload: ClientPortalJwtPayload): Promise<{ t
 }
 
 Deno.serve(async (req: Request) => {
-  const headers = corsHeaders(req);
+  const { allowed, headers: cors } = portalCors(req);
+  const headers = { ...cors, "Content-Type": "application/json", "X-FN-VERSION": FN_VERSION };
+
+  if (!allowed) {
+    return new Response(JSON.stringify({ success: false, code: "E403_ORIGIN", error: "Origin not allowed", v: FN_VERSION }), {
+      status: 403,
+      headers,
+    });
+  }
 
   // Preflight
   if (req.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers });
+    return new Response(null, { status: 204, headers: { ...cors, "X-FN-VERSION": FN_VERSION } });
   }
 
   if (req.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Method not allowed" }), {
+    return new Response(JSON.stringify({ success: false, error: "Method not allowed", v: FN_VERSION }), {
       status: 405,
-      headers: { ...headers, "Content-Type": "application/json" },
+      headers,
     });
   }
 
@@ -153,17 +163,17 @@ Deno.serve(async (req: Request) => {
     const refreshToken = getCookie(cookieHeader, "cp_refresh_token");
 
     if (!refreshToken) {
-      return new Response(JSON.stringify({ error: "No refresh token" }), {
+      return new Response(JSON.stringify({ success: false, error: "No refresh token", v: FN_VERSION }), {
         status: 401,
-        headers: { ...headers, "Content-Type": "application/json" },
+        headers,
       });
     }
 
     const payload = await verifyRefreshToken(refreshToken);
     if (!payload) {
-      return new Response(JSON.stringify({ error: "Invalid refresh token" }), {
+      return new Response(JSON.stringify({ success: false, error: "Invalid refresh token", v: FN_VERSION }), {
         status: 401,
-        headers: { ...headers, "Content-Type": "application/json" },
+        headers,
       });
     }
 
@@ -171,6 +181,12 @@ Deno.serve(async (req: Request) => {
 
     const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
       auth: { persistSession: false },
+      global: {
+        headers: {
+          apikey: SUPABASE_SERVICE_ROLE_KEY,
+          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        },
+      },
     });
 
     const { data: clientUser, error: userErr } = await supabaseAdmin
@@ -180,9 +196,9 @@ Deno.serve(async (req: Request) => {
       .single();
 
     if (userErr || !clientUser) {
-      return new Response(JSON.stringify({ error: "User not found" }), {
+      return new Response(JSON.stringify({ success: false, error: "User not found", v: FN_VERSION }), {
         status: 404,
-        headers: { ...headers, "Content-Type": "application/json" },
+        headers,
       });
     }
 
@@ -195,10 +211,7 @@ Deno.serve(async (req: Request) => {
       role: clientUser.role,
     };
 
-    const resHeaders = new Headers({
-      ...headers,
-      "Content-Type": "application/json",
-    });
+    const resHeaders = new Headers(headers);
 
     // IMPORTANT:
     // - SameSite=None requires Secure (true) in browsers.
@@ -212,16 +225,16 @@ Deno.serve(async (req: Request) => {
       `cp_access_token=${accessToken}; HttpOnly;${secureAttr} SameSite=None; Path=/; Max-Age=3600`,
     );
 
-    return new Response(JSON.stringify({ user: userData, exp }), {
+    return new Response(JSON.stringify({ success: true, user: userData, exp, v: FN_VERSION }), {
       status: 200,
       headers: resHeaders,
     });
   } catch (error) {
     console.error("[client-refresh-token] Error:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
-    return new Response(JSON.stringify({ error: message }), {
+    return new Response(JSON.stringify({ success: false, error: message, v: FN_VERSION }), {
       status: 500,
-      headers: { ...headers, "Content-Type": "application/json" },
+      headers,
     });
   }
 });

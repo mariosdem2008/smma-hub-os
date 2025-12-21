@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface ClientUser {
   id: string;
@@ -13,7 +14,11 @@ interface ClientAuthContextType {
   clientUser: ClientUser | null;
   loading: boolean;
   login: (email: string, password: string, clientId: string) => Promise<void>;
-  signup: (token: string, password: string, fullName?: string) => Promise<void>;
+  signup: (
+    token: string,
+    password: string,
+    fullName?: string,
+  ) => Promise<{ portalSlug: string | null; clientId: string | null }>;
   logout: () => Promise<void>;
   isAuthenticated: boolean;
 }
@@ -65,6 +70,10 @@ export function ClientAuthProvider({ children }: { children: React.ReactNode }) 
 
   const refreshSession = useCallback(async () => {
     try {
+      if (typeof document !== "undefined" && !document.cookie.includes("cp_refresh_token=")) {
+        return;
+      }
+
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/client-refresh-token`, {
         method: "POST",
         headers: {
@@ -74,18 +83,25 @@ export function ClientAuthProvider({ children }: { children: React.ReactNode }) 
         credentials: "include",
       });
 
-      if (!response.ok) {
+      const text = await response.text();
+      let data: any = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch (_) {
+        data = {};
+      }
+
+      if (!response.ok || !data.user || !data.exp) {
+        console.error("Failed to refresh client portal session", {
+          status: response.status,
+          bodyText: text,
+          bodyObj: data,
+        });
         clearSession();
         return;
       }
 
-      const data = await response.json();
-      if (!data.user || !data.exp) {
-        clearSession();
-        return;
-      }
-
-      handleAuthResponse(data);
+      handleAuthResponse(data as any);
     } catch (error) {
       console.error("Failed to refresh client portal session", error);
       clearSession();
@@ -119,20 +135,34 @@ export function ClientAuthProvider({ children }: { children: React.ReactNode }) 
       body: JSON.stringify({ email, password, client_id: clientId }),
     });
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.error || "Login failed");
+    const bodyText = await response.text();
+    let bodyObj: any = {};
+    try {
+      bodyObj = bodyText ? JSON.parse(bodyText) : {};
+    } catch (_) {
+      bodyObj = {};
     }
 
-    const data = await response.json();
-    if (!data.user || !data.exp) {
-      throw new Error("Invalid login response");
+    if (!response.ok || !bodyObj.user || !bodyObj.exp) {
+      console.error("Login failed", { status: response.status, bodyText, bodyObj });
+      const errMsg = bodyObj?.error || bodyObj?.message || bodyText || "Login failed";
+      throw new Error(errMsg);
     }
 
-    handleAuthResponse(data);
+    handleAuthResponse(bodyObj);
+
+    try {
+      await supabase.auth.signInWithPassword({ email, password });
+    } catch (authErr) {
+      console.error("[client-auth] supabase auth sign-in failed", authErr);
+    }
   };
 
-  const signup = async (inviteToken: string, password: string, fullName?: string) => {
+  const signup = async (
+    inviteToken: string,
+    password: string,
+    fullName?: string,
+  ): Promise<{ portalSlug: string | null; clientId: string | null }> => {
     const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/client-auth-signup`, {
       method: "POST",
       headers: {
@@ -143,18 +173,38 @@ export function ClientAuthProvider({ children }: { children: React.ReactNode }) 
       body: JSON.stringify({ invite_token: inviteToken, password, full_name: fullName }),
     });
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      console.error("Signup error response:", error);
-      throw new Error(error.error || "Signup failed");
+    const bodyText = await response.text();
+    let bodyObj: any = {};
+    try {
+      bodyObj = bodyText ? JSON.parse(bodyText) : {};
+    } catch (_) {
+      bodyObj = {};
     }
 
-    const data = await response.json();
-    if (!data.user || !data.exp) {
-      throw new Error("Invalid signup response");
+    if (!response.ok || !bodyObj.user || !bodyObj.exp) {
+      console.error("Signup error response:", { status: response.status, bodyText, bodyObj });
+      const errMsg = bodyObj?.error || bodyObj?.message || bodyText || "Signup failed";
+      throw new Error(errMsg);
     }
 
-    handleAuthResponse(data);
+    handleAuthResponse(bodyObj);
+
+    const portalSlug = bodyObj.portal_slug ?? bodyObj.portalSlug ?? null;
+    const clientId = bodyObj?.client_id ?? bodyObj?.user?.client_id ?? null;
+
+    if (portalSlug) {
+      console.log("[client-auth] signup returned portal_slug:", portalSlug);
+    }
+
+    if (bodyObj?.user?.email) {
+      try {
+        await supabase.auth.signInWithPassword({ email: bodyObj.user.email, password });
+      } catch (authErr) {
+        console.error("[client-auth] supabase auth sign-in after signup failed", authErr);
+      }
+    }
+
+    return { portalSlug, clientId };
   };
 
   const logout = async () => {
@@ -202,7 +252,7 @@ export function useClientAuth() {
       login: async () => {
         throw new Error("Client auth not available");
       },
-      signup: async () => {
+      signup: async (): Promise<{ portalSlug: string | null; clientId: string | null }> => {
         throw new Error("Client auth not available");
       },
       logout: async () => {},

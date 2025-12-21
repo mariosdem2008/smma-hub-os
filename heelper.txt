@@ -1,2 +1,5 @@
-supabase migration new grant_changes
+supabase migration new delete_portal_user
 
+git add .
+git commit -m "Client Portal fixes"
+git push

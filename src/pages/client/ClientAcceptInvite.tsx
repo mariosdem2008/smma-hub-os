@@ -24,6 +24,7 @@ export default function ClientAcceptInvite() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [clientName, setClientName] = useState("");
   const [portalSlug, setPortalSlug] = useState("");
+  const [clientId, setClientId] = useState<string | null>(null);
 
   const token = searchParams.get("token");
 
@@ -51,7 +52,9 @@ export default function ClientAcceptInvite() {
 
         // Check if invite was already accepted
         if (data.already_accepted) {
-          setPortalSlug(data.portal_slug);
+          if (data.portal_slug) {
+            setPortalSlug(data.portal_slug);
+          }
           setInviteValid(false);
           toast({
             title: "Invitation Already Used",
@@ -63,7 +66,10 @@ export default function ClientAcceptInvite() {
         setInviteValid(true);
         setInviteEmail(data.email);
         setClientName(data.client_name);
-        setPortalSlug(data.portal_slug);
+        setClientId(data.client_id || null);
+        if (data.portal_slug) {
+          setPortalSlug(data.portal_slug);
+        }
         setFullName(data.full_name || "");
       } catch (err) {
         console.error("Invite validation failed", err);
@@ -106,15 +112,47 @@ export default function ClientAcceptInvite() {
 
     try {
       console.log("Calling signup function");
-      await signup(token, password, fullName);
+      const signupResult = await signup(token, password, fullName);
       console.log("Signup successful");
+      console.log("[client-accept] signup returned portal_slug:", signupResult.portalSlug);
+
+      let finalSlug = signupResult.portalSlug || "";
+
+      if (!finalSlug && signupResult.clientId) {
+        const { data: client, error } = await supabase
+          .from("clients")
+          .select("portal_slug")
+          .eq("id", signupResult.clientId)
+          .single();
+
+        if (error) {
+          throw error;
+        }
+
+        finalSlug = client?.portal_slug || "";
+      }
+
       toast({
         title: "Welcome!",
         description: "Your account has been created successfully",
       });
-      navigate(`/client/portal/${portalSlug}`);
+
+      const destinationPath = finalSlug ? `/client/portal/${finalSlug}` : "/client/portal";
+      console.log("[client-accept] navigating to portal:", destinationPath);
+      navigate(destinationPath);
     } catch (error: any) {
       console.error("Signup error:", error);
+
+      const message = error?.message || "";
+      if (message.includes("User already exists")) {
+        toast({
+          title: "Account already exists",
+          description: "Please log in with your existing account.",
+        });
+        navigate(portalSlug ? `/client/login/${portalSlug}` : "/client/login");
+        return;
+      }
+
       toast({
         title: "Signup Failed",
         description: error.message || "Failed to create account",
@@ -148,7 +186,6 @@ export default function ClientAcceptInvite() {
             onClick={() => navigate(portalSlug ? `/client/login/${portalSlug}` : "/client/login")}
             variant="default"
             className="w-full"
-            disabled={!portalSlug}
           >
             {portalSlug ? "Go to Login" : "Contact your agency"}
           </Button>
