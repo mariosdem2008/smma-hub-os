@@ -11,17 +11,39 @@ interface SendTeamInviteParams {
 interface SendPortalInviteParams {
   email: string;
   clientName: string;
-  portalUrl: string;
+  portalBaseUrl: string;
   agencyName: string;
   inviterName: string;
-  agencyId?: string;
+  agencyId: string;
+  clientId: string;
+  fullName?: string;
+  role?: "client" | "approver" | "viewer";
+  inviteToken?: string;
+  portalUrl?: string;
   temporaryPassword?: string;
+}
+
+async function getAccessToken() {
+  const {
+    data: { session },
+    error,
+  } = await supabase.auth.getSession();
+
+  if (error) throw error;
+  const token = session?.access_token;
+  if (!token) throw new Error("No active session");
+
+  return token;
 }
 
 export async function sendTeamInviteEmail(params: SendTeamInviteParams) {
   try {
+    const accessToken = await getAccessToken();
     const { data, error } = await supabase.functions.invoke('send-team-invite', {
-      body: params
+      body: params,
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
     });
 
     if (error) throw error;
@@ -34,8 +56,12 @@ export async function sendTeamInviteEmail(params: SendTeamInviteParams) {
 
 export async function sendPortalInviteEmail(params: SendPortalInviteParams) {
   try {
+    const accessToken = await getAccessToken();
     const { data, error } = await supabase.functions.invoke('send-portal-invite', {
-      body: params
+      body: params,
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
     });
 
     if (error) throw error;

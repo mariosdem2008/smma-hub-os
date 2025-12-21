@@ -111,33 +111,16 @@ export function PortalInviteDialog({
         return;
       }
 
-      // Generate secure invite token
-      const tokenArray = new Uint8Array(48);
-      crypto.getRandomValues(tokenArray);
-      const invite_token = Array.from(tokenArray)
-        .map(b => b.toString(16).padStart(2, '0'))
-        .join('');
-
-      // Create invitation
-      await supabase
-        .from("client_invites")
-        .insert({
-          agency_id: agencyId,
-          client_id: clientId,
-          email: normalizedEmail,
-          full_name: fullName || null,
-          role,
-          invite_token,
-        });
-
-      // Send invitation email
       await sendPortalInviteEmail({
         email: normalizedEmail,
         clientName,
-        portalUrl: `${window.location.origin}/client/accept-invite?token=${invite_token}`,
+        portalBaseUrl: `${window.location.origin}/client/accept-invite`,
         agencyName,
         inviterName: user.email || "Your Agency",
         agencyId,
+        clientId,
+        fullName: fullName || undefined,
+        role,
       });
 
       toast({

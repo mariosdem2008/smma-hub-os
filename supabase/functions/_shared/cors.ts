@@ -1,7 +1,10 @@
 const ALLOWED_ORIGINS = [
   "http://localhost:8080",
   "http://localhost:3000",
+  "http://localhost:5173",
   // add your production domains here:
+  "https://smmahub.net",
+  "https://app.smmahub.net",
   "https://app.smmahub.com",
   "https://smmahub.com",
 ];

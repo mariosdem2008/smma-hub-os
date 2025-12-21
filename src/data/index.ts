@@ -24,6 +24,19 @@ export {
   type DbError,
 } from "./supabase";
 
+async function getAccessToken(): Promise<string> {
+  const {
+    data: { session },
+    error,
+  } = await db.auth.getSession();
+
+  if (error) throw toDbError(error, "Not authenticated");
+  const token = session?.access_token;
+  if (!token) throw { message: "Not authenticated" } satisfies DbError;
+
+  return token;
+}
+
 // ============== Agency ==============
 
 export async function getMyAgency() {
@@ -337,8 +350,12 @@ export async function sendTeamInviteEmail(params: {
   inviterName: string;
   role: string;
 }) {
+  const accessToken = await getAccessToken();
   const { data, error } = await db.functions.invoke("send-team-invite", {
     body: params,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
   });
 
   if (error) throw toDbError(error, "Failed to send team invite email");
@@ -347,13 +364,22 @@ export async function sendTeamInviteEmail(params: {
 
 export async function sendPortalInviteEmail(params: {
   email: string;
-  inviteToken: string;
   clientName: string;
   agencyName: string;
+  agencyId: string;
+  clientId: string;
+  portalBaseUrl: string;
+  portalUrl?: string;
   fullName?: string;
+  role?: "client" | "approver" | "viewer";
+  inviteToken?: string;
 }) {
+  const accessToken = await getAccessToken();
   const { data, error } = await db.functions.invoke("send-portal-invite", {
     body: params,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
   });
 
   if (error) throw toDbError(error, "Failed to send portal invite email");

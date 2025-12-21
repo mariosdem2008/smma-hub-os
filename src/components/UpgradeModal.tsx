@@ -93,14 +93,14 @@ export function UpgradeModal({ open, onOpenChange, feature, suggestedPlan }: Upg
     },
     {
       name: 'Starter',
-      price: billingInterval === 'monthly' ? '€29' : '€290',
+      price: billingInterval === 'monthly' ? '€199' : '€1990',
       interval: billingInterval === 'monthly' ? '/mo' : '/yr',
       type: 'starter' as const,
       features: ['3 clients', '5 team members', '100GB storage', 'Full analytics', 'Bulk scheduling', 'Templates'],
     },
     {
       name: 'Pro',
-      price: billingInterval === 'monthly' ? '€59' : '€590',
+      price: billingInterval === 'monthly' ? '€399' : '€3990',
       interval: billingInterval === 'monthly' ? '/mo' : '/yr',
       type: 'pro' as const,
       popular: true,
@@ -108,7 +108,7 @@ export function UpgradeModal({ open, onOpenChange, feature, suggestedPlan }: Upg
     },
     {
       name: 'Agency Plus',
-      price: billingInterval === 'monthly' ? '€129' : '€1290',
+      price: billingInterval === 'monthly' ? '€799' : '€7990',
       interval: billingInterval === 'monthly' ? '/mo' : '/yr',
       type: 'agency_plus' as const,
       features: ['Unlimited clients', 'Unlimited members', '2TB storage', 'Advanced automation', 'Multi-admin', 'Dedicated support'],

@@ -212,7 +212,6 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchDashboardData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   // Helper: fetch team members with profiles

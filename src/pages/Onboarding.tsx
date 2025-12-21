@@ -57,7 +57,6 @@ export default function Onboarding() {
       const { data, error } = await supabase.from("profiles").select("full_name").eq("id", userId).maybeSingle();
       if (!error && data?.full_name && !fullName) setFullName(data.full_name);
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
   const canCreateAgency = useMemo(() => isOwner === "yes" && userRole === "owner", [isOwner, userRole]);

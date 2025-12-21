@@ -46,7 +46,7 @@ verify_jwt = false
 verify_jwt = true
 
 [functions.send-portal-invite]
-verify_jwt = true
+verify_jwt = false
 
 [functions.generate-ai-content]
 verify_jwt = true

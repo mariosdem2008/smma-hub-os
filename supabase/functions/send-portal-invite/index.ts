@@ -1,14 +1,41 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@4.0.0";
-import { createClient } from "@supabase/supabase-js";
-import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+// Prefer custom secrets (e.g., SERVICE_ROLE_KEY) if set, otherwise fall back to reserved defaults.
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+const SUPABASE_ANON_KEY = Deno.env.get("ANON_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+const ALLOWED_ROLES = new Set(["owner", "admin", "manager"]);
+const ALLOWED_ORIGINS = [
+  "http://localhost:8080",
+  "http://localhost:3000",
+  "http://localhost:5173",
+  "https://smmahub.net",
+  "https://app.smmahub.net",
+  "https://app.smmahub.com",
+  "https://smmahub.com",
+];
+
+function buildCorsHeaders(req: Request): { allowed: boolean; headers: Record<string, string> } {
+  const origin = req.headers.get("origin") ?? "";
+  const requestedHeaders = req.headers.get("access-control-request-headers") ?? "";
+  const allowed = ALLOWED_ORIGINS.includes(origin);
+  const allowOrigin = allowed ? origin : "";
+
+  return {
+    allowed,
+    headers: {
+      ...(allowOrigin ? { "Access-Control-Allow-Origin": allowOrigin } : {}),
+      "Access-Control-Allow-Headers": requestedHeaders || "authorization, content-type, apikey, x-client-info",
+      // Keep methods explicit
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Max-Age": "86400",
+      Vary: "Origin, Access-Control-Request-Headers",
+    },
+  };
+}
 
 function generateWhiteLabelEmail(
   branding: any,
@@ -79,19 +106,66 @@ function generateWhiteLabelEmail(
 interface PortalInviteRequest {
   email: string;
   clientName: string;
-  portalUrl: string;
+  portalUrl?: string;
   agencyName: string;
   agencyId: string;
   inviterName: string;
+  clientId?: string;
+  fullName?: string;
+  role?: "client" | "approver" | "viewer";
+  inviteToken?: string;
+  portalBaseUrl?: string;
   temporaryPassword?: string;
 }
 
-const handler = async (req: Request): Promise<Response> => {
+Deno.serve(async (req) => {
+  const { allowed, headers: baseCors } = buildCorsHeaders(req);
+  const headers = { ...baseCors, "Content-Type": "application/json" };
+
+  if (!allowed) {
+    return new Response(JSON.stringify({ success: false, error: "Origin not allowed" }), {
+      status: 403,
+      headers,
+    });
+  }
+
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { status: 204, headers });
   }
 
   try {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.toLowerCase().startsWith("bearer ")) {
+      return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), {
+        status: 401,
+        headers,
+      });
+    }
+
+    const accessToken = authHeader.replace(/bearer\s+/i, "");
+    // Use service-role client for both auth check and data access
+    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false },
+      global: {
+        headers: {
+          // Force service role on PostgREST calls even if auth calls occur separately
+          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        },
+      },
+    });
+
+    const {
+      data: { user },
+      error: userError,
+    } = await supabaseClient.auth.getUser(accessToken);
+
+    if (userError || !user) {
+      return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), {
+        status: 401,
+        headers,
+      });
+    }
+
     const { 
       email, 
       clientName, 
@@ -99,13 +173,89 @@ const handler = async (req: Request): Promise<Response> => {
       agencyName,
       agencyId,
       inviterName,
+      clientId,
+      fullName,
+      role = "client",
+      inviteToken,
+      portalBaseUrl,
       temporaryPassword 
     }: PortalInviteRequest = await req.json();
 
-    // Fetch agency branding
-    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-      auth: { persistSession: false }
+    if (!agencyId) {
+      return new Response(JSON.stringify({ success: false, error: "agencyId is required" }), {
+        status: 400,
+        headers,
+      });
+    }
+
+    // Fetch membership via REST with explicit service-role headers to avoid RLS
+    const membershipResp = await fetch(
+      `${SUPABASE_URL}/rest/v1/agency_members?agency_id=eq.${agencyId}&user_id=eq.${user.id}&select=id,role,agency_id&limit=1`,
+      {
+        headers: {
+          apikey: SUPABASE_SERVICE_ROLE_KEY,
+          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        },
+      },
+    );
+
+    if (!membershipResp.ok) {
+      console.error("Error fetching membership:", await membershipResp.text());
+      return new Response(JSON.stringify({ success: false, error: "Failed to verify membership" }), {
+        status: 500,
+        headers,
+      });
+    }
+
+    const membershipJson = await membershipResp.json();
+    const membership = Array.isArray(membershipJson) ? membershipJson[0] : null;
+
+    if (!membership || !ALLOWED_ROLES.has(membership.role)) {
+      return new Response(JSON.stringify({ success: false, error: "Forbidden" }), {
+        status: 403,
+        headers,
+      });
+    }
+
+    if (!clientId) {
+      return new Response(JSON.stringify({ success: false, error: "clientId is required" }), {
+        status: 400,
+        headers,
+      });
+    }
+
+    const allowedRoles = ["client", "approver", "viewer"];
+    const inviteRole = allowedRoles.includes(role) ? role : "client";
+
+    const token = inviteToken || crypto.randomUUID().replace(/-/g, "");
+    const invitePortalUrl =
+      portalBaseUrl
+        ? `${portalBaseUrl}${portalBaseUrl.includes("?") ? "&" : "?"}token=${token}`
+        : portalUrl || "";
+
+    if (!invitePortalUrl) {
+      return new Response(JSON.stringify({ success: false, error: "portalUrl is required" }), {
+        status: 400,
+        headers,
+      });
+    }
+
+    const { error: inviteError } = await supabaseClient.from("client_invites").insert({
+      agency_id: agencyId,
+      client_id: clientId,
+      email,
+      full_name: fullName || null,
+      role: inviteRole,
+      invite_token: token,
     });
+
+    if (inviteError) {
+      console.error("Error creating client invite:", inviteError);
+      return new Response(JSON.stringify({ success: false, error: "Failed to create invite" }), {
+        status: 500,
+        headers,
+      });
+    }
 
     const { data: branding } = await supabaseClient
       .from('agency_branding')
@@ -153,7 +303,7 @@ const handler = async (req: Request): Promise<Response> => {
         ${passwordSection}
       `,
       'Access Your Portal',
-      portalUrl
+      invitePortalUrl
     );
 
     const emailResponse = await resend.emails.send({
@@ -167,21 +317,14 @@ const handler = async (req: Request): Promise<Response> => {
 
     return new Response(JSON.stringify({ success: true, data: emailResponse }), {
       status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        ...corsHeaders,
-      },
+      headers,
     });
   } catch (error: any) {
     console.error("Error sending client portal invitation email:", error);
-    return new Response(
-      JSON.stringify({ success: false, error: error.message }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
-    );
+    const message = error?.message ?? "Unknown error";
+    return new Response(JSON.stringify({ success: false, error: message }), {
+      status: 500,
+      headers,
+    });
   }
-};
-
-serve(handler);
+});
