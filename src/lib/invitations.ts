@@ -55,19 +55,19 @@ export async function sendTeamInviteEmail(params: SendTeamInviteParams) {
 }
 
 export async function sendPortalInviteEmail(params: SendPortalInviteParams) {
-  try {
-    const accessToken = await getAccessToken();
-    const { data, error } = await supabase.functions.invoke('send-portal-invite', {
-      body: params,
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    });
+  const accessToken = await getAccessToken();
 
-    if (error) throw error;
-    return { success: true, data };
-  } catch (error) {
-    console.error('Error sending portal invite email:', error);
-    return { success: false, error };
+  const { data, error } = await supabase.functions.invoke("send-portal-invite", {
+    body: params,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (error) {
+    console.error("Error sending portal invite email:", error);
+    throw error;
   }
+
+  return { success: true, data };
 }
