@@ -52,6 +52,17 @@ supabase start
 
 Evidence: supabase/migrations/20251222090000_restore_client_member_access.sql:1-43
 
+## 4b) Remote apply (manual, do not run here)
+If you need to apply pending migrations to the linked project:
+```sh
+supabase db push
+```
+
+Expected success output:
+```
+Applied <N> migrations
+```
+
 ## 5) Verify client member access (RLS)
 Run in Supabase SQL editor:
 ```sql
