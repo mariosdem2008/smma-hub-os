@@ -99,6 +99,10 @@ npx tsc -p .
 npm run build
 ```
 
+## CI / branch protection
+Enable branch protection on `main` and require the CI workflow checks to pass before merge.
+Evidence: .github/workflows/ci.yml:1-32
+
 ## Known issues (top 10)
 1) Stripe webhook secret is marked required but not yet set in checklist (evidence: PRODUCTION_CHECKLIST.md:5-23)
 2) No test script defined (evidence: package.json:6-11)
