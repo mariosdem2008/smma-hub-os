@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
+import { verifyCronSecret } from "../_shared/cron.ts";
 
 serve(async (req: Request) => {
 const headers = corsHeaders(req);
@@ -9,6 +10,9 @@ const headers = corsHeaders(req);
   if (req.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers });
   }
+
+  const cronAuth = verifyCronSecret(req, headers);
+  if (cronAuth) return cronAuth;
 
   try {
     console.log('[TOKEN-REFRESH] Starting Meta token refresh process');
