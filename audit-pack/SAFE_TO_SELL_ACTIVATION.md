@@ -60,14 +60,12 @@ Evidence: README.md:85-92, supabase/functions/stripe-webhook/index.ts:12-33
 Verification status:
 - Stripe CLI listen configured for local webhook (see output below).
 - Stripe CLI trigger executed (see output below).
-- Webhook requests returned 400 in local `stripe listen` session; root cause is Stripe SDK sync verify incompatibility in Deno (`constructEvent` vs `constructEventAsync`).
-- Local fix applied: switched to `constructEventAsync` in `supabase/functions/stripe-webhook/index.ts`.
-- Re-run `stripe listen` + `stripe trigger` to confirm 200 responses.
+- Webhook requests returned 200 in local `stripe listen` session; signature verification is working.
 
 Evidence (Stripe CLI):
 - `audit-pack/outputs/stripe_trigger_checkout_session_completed.txt`
 - `audit-pack/outputs/stripe_listen_forward_to_webhook.txt`
-- `audit-pack/outputs/stripe_listen_webhook_400.txt`
+- `audit-pack/outputs/stripe_listen_webhook_200.txt`
 
 Evidence (local edge logs):
 - `audit-pack/outputs/edge_runtime_logs_last_10m.txt`
