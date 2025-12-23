@@ -1,10 +1,11 @@
 -- AI Employee v1 Sprint 1 tables + RLS
 
 create extension if not exists "uuid-ossp";
+create extension if not exists "pgcrypto";
 create extension if not exists "vector";
 
 create table if not exists public.agency_brains (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   agency_id uuid not null references public.agencies(id) on delete cascade,
   version integer not null,
   status text not null check (status in ('draft', 'usable', 'complete', 'locked')),
@@ -17,7 +18,7 @@ create table if not exists public.agency_brains (
 );
 
 create table if not exists public.client_brains (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   agency_id uuid not null references public.agencies(id) on delete cascade,
   client_id uuid not null references public.clients(id) on delete cascade,
   version integer not null,
@@ -31,7 +32,7 @@ create table if not exists public.client_brains (
 );
 
 create table if not exists public.ai_documents (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   agency_id uuid not null references public.agencies(id) on delete cascade,
   client_id uuid references public.clients(id) on delete set null,
   doc_type text not null,
@@ -58,7 +59,7 @@ create table if not exists public.ai_documents (
 );
 
 create table if not exists public.ai_document_chunks (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   document_id uuid not null references public.ai_documents(id) on delete cascade,
   chunk_index integer not null,
   chunk_text text not null,
@@ -68,7 +69,7 @@ create table if not exists public.ai_document_chunks (
 );
 
 create table if not exists public.ai_embeddings (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   agency_id uuid not null references public.agencies(id) on delete cascade,
   client_id uuid references public.clients(id) on delete set null,
   doc_type text not null,
@@ -81,7 +82,7 @@ create table if not exists public.ai_embeddings (
 );
 
 create table if not exists public.ai_prompt_registry (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   name text not null,
   version integer not null,
   status text not null check (status in ('draft', 'active', 'deprecated')),
@@ -94,7 +95,7 @@ create table if not exists public.ai_prompt_registry (
 );
 
 create table if not exists public.ai_runs (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   agency_id uuid not null references public.agencies(id) on delete cascade,
   client_id uuid references public.clients(id) on delete set null,
   user_id uuid references auth.users(id) on delete set null,
@@ -114,7 +115,7 @@ create table if not exists public.ai_runs (
 );
 
 create table if not exists public.ai_budgets (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   agency_id uuid not null references public.agencies(id) on delete cascade,
   month_yyyy_mm text not null,
   budget_usd numeric(10,2) not null default 50.00,
@@ -128,7 +129,7 @@ create table if not exists public.ai_budgets (
 );
 
 create table if not exists public.ai_rate_limits (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   agency_id uuid not null references public.agencies(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
   day_yyyy_mm_dd text not null,
@@ -141,7 +142,7 @@ create table if not exists public.ai_rate_limits (
 );
 
 create table if not exists public.ai_escalations (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   agency_id uuid not null references public.agencies(id) on delete cascade,
   client_id uuid references public.clients(id) on delete set null,
   user_id uuid references auth.users(id) on delete set null,
