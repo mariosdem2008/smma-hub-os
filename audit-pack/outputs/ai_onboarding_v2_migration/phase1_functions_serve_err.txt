@@ -1,0 +1,9 @@
+Setting up Edge Functions runtime...
+2025-12-23T12:49:33.141020900Z serving the request with supabase/functions/ai-answer-quality-check
+2025-12-23T12:49:33.402611919Z [Info] Listening on http://localhost:9999/
+2025-12-23T12:49:33.402655426Z 
+2025-12-23T12:49:33.469614085Z serving the request with supabase/functions/ai-brains-agency
+2025-12-23T12:49:33.560530464Z [Info] Listening on http://localhost:9999/
+2025-12-23T12:49:33.560560854Z 
+2025-12-23T12:49:33.615893294Z serving the request with supabase/functions/ai-brains-agency
+2025-12-23T12:49:33.665233162Z serving the request with supabase/functions/ai-brains-agency

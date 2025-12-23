@@ -1,0 +1,10 @@
+Phase 0 audit summary:
+- Legacy onboarding route: /onboarding -> src/pages/Onboarding.tsx
+- Existing AI onboarding demo routes: /ai/onboarding/agency and /ai/onboarding/client
+- Legacy onboarding writes:
+  - profiles.full_name
+  - agencies (name, website, niche)
+  - agency_members (agency_id, user_id, role)
+  - clients (name, website, logo_url, brand_colors, notes, status)
+  - storage bucket client-logos (logo upload)
+- Mapping doc created: docs/migration/ONBOARDING_V2_MAPPING.md

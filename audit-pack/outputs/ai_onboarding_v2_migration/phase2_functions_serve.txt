@@ -1,0 +1,8 @@
+2025-12-23T12:52:30.319167363Z Serving functions on http://127.0.0.1:54321/functions/v1/<function-name>
+2025-12-23T12:52:30.319216939Z  - http://127.0.0.1:54321/functions/v1/add-client-user-to-conversation
+2025-12-23T12:52:30.319218930Z  - http://127.0.0.1:54321/functions/v1/ai-answer-quality-check
+2025-12-23T12:52:30.319219854Z  - http://127.0.0.1:54321/functions/v1/ai-ask
+2025-12-23T12:52:30.319220630Z  - http://127.0.0.1:54321/functions/v1/ai-backfill-brains
+2025-12-23T12:52:30.319221347Z  - http://127.0.0.1:54321/functions/v1/ai-brains-agency
+2025-12-23T12:52:30.319222154Z ... and 33 more functions
+2025-12-23T12:52:30.319222951Z Using supabase-edge-runtime-1.69.28 (compatible with Deno v2.1.4)
