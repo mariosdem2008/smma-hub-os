@@ -60,12 +60,17 @@ Evidence: README.md:85-92, supabase/functions/stripe-webhook/index.ts:12-33
 Verification status:
 - Stripe CLI listen configured for local webhook (see output below).
 - Stripe CLI trigger executed (see output below).
-- Webhook requests returned 400 in local `stripe listen` session; webhook verification is NOT complete.
+- Webhook requests returned 400 in local `stripe listen` session; root cause is missing `STRIPE_WEBHOOK_SECRET` in local env (see edge runtime logs).
+- Local fix applied: `STRIPE_WEBHOOK_SECRET` set in `supabase/.env.local` (not committed).
+- Re-run `stripe listen` + `stripe trigger` to confirm 200 responses.
 
 Evidence (Stripe CLI):
 - `audit-pack/outputs/stripe_trigger_checkout_session_completed.txt`
 - `audit-pack/outputs/stripe_listen_forward_to_webhook.txt`
 - `audit-pack/outputs/stripe_listen_webhook_400.txt`
+
+Evidence (local edge logs):
+- `audit-pack/outputs/edge_runtime_logs_last_45m.txt`
 
 ## 4) Apply migrations (local)
 Run local migration apply:
