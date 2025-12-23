@@ -36,6 +36,8 @@ import NotFound from "./pages/NotFound";
 import AiOnboardingAgency from "./pages/ai/AiOnboardingAgency";
 import AiOnboardingClient from "./pages/ai/AiOnboardingClient";
 import AiFieldDemo from "./pages/ai/AiFieldDemo";
+import AiOnboardingV2Agency from "./pages/ai/AiOnboardingV2Agency";
+import AiOnboardingV2Client from "./pages/ai/AiOnboardingV2Client";
 
 import { ClientPortalLayout } from "./pages/ClientPortalLayout";
 import ClientLogin from "./pages/client/ClientLogin";
@@ -192,6 +194,8 @@ const App = () => {
                 <Route path="/ai/onboarding/agency" element={<AiOnboardingAgency />} />
                 <Route path="/ai/onboarding/client" element={<AiOnboardingClient />} />
                 <Route path="/ai/field-demo" element={<AiFieldDemo />} />
+                <Route path="/onboarding/ai/agency" element={<AiOnboardingV2Agency />} />
+                <Route path="/onboarding/ai/client/:clientId" element={<AiOnboardingV2Client />} />
               </Route>
 
               {/* Client Detail Routes - No Sidebar */}
