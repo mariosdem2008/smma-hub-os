@@ -58,6 +58,10 @@ Commands:
 - `supabase functions deploy ai-retrieve-context`
 
 Each returned `Deployed Functions` for project `dbclmdeowohzmwtkktsa`.
+Example output:
+```
+Deployed Functions on project dbclmdeowohzmwtkktsa: ai-documents-ingest
+```
 
 ## Secrets
 `OPENAI_API_KEY` not present in `supabase/.env`.
