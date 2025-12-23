@@ -1,0 +1,15 @@
+Setting up Edge Functions runtime...
+2025-12-23T12:03:29.091427854Z serving the request with supabase/functions/ai-brains-agency
+2025-12-23T12:03:29.380380132Z [Info] Listening on http://localhost:9999/
+2025-12-23T12:03:29.380440403Z 
+2025-12-23T12:03:29.480475434Z serving the request with supabase/functions/ai-brains-agency
+2025-12-23T12:03:29.536696451Z serving the request with supabase/functions/ai-brains-agency
+2025-12-23T12:03:29.588869641Z serving the request with supabase/functions/ai-brains-client
+2025-12-23T12:03:29.690593368Z [Info] Listening on http://localhost:9999/
+2025-12-23T12:03:29.690645326Z 
+2025-12-23T12:03:29.750681422Z serving the request with supabase/functions/ai-documents-ingest
+2025-12-23T12:03:29.842658015Z [Info] Listening on http://localhost:9999/
+2025-12-23T12:03:29.842690374Z 
+2025-12-23T12:03:29.907955871Z serving the request with supabase/functions/ai-ask
+2025-12-23T12:03:30.003996106Z [Info] Listening on http://localhost:9999/
+2025-12-23T12:03:30.004067971Z 

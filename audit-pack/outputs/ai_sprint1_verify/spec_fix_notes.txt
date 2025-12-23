@@ -1,0 +1,3 @@
+Spec consistency check:
+- docs/ai/ui_ai_fields_spec.md already uses doc_type ai_artifact for memory writeback.
+- No code change required for this item.

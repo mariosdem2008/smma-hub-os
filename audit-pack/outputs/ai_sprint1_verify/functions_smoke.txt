@@ -1,0 +1,75 @@
+﻿ai-brains-agency create:
+{
+    "success":  true,
+    "brain":  {
+                  "id":  "7682a601-c5e5-4142-9e25-32d29d32f1c5",
+                  "agency_id":  "7e106d72-ac98-4ae8-9ef6-93e46fa7484d",
+                  "version":  1,
+                  "status":  "draft",
+                  "locked":  false
+              }
+}
+ai-brains-agency update:
+{
+    "success":  true,
+    "brain":  {
+                  "id":  "7682a601-c5e5-4142-9e25-32d29d32f1c5",
+                  "agency_id":  "7e106d72-ac98-4ae8-9ef6-93e46fa7484d",
+                  "version":  1,
+                  "status":  "draft",
+                  "locked":  false
+              }
+}
+ai-brains-agency lock:
+{
+    "success":  true,
+    "brain":  {
+                  "id":  "7682a601-c5e5-4142-9e25-32d29d32f1c5",
+                  "agency_id":  "7e106d72-ac98-4ae8-9ef6-93e46fa7484d",
+                  "version":  1,
+                  "status":  "locked",
+                  "locked":  true
+              }
+}
+ai-brains-client create:
+{
+    "success":  true,
+    "brain":  {
+                  "id":  "02c76a41-3323-456a-9734-c240628f9439",
+                  "agency_id":  "7e106d72-ac98-4ae8-9ef6-93e46fa7484d",
+                  "client_id":  "3537a686-82fe-441d-89f6-e73bd8f602f7",
+                  "version":  1,
+                  "status":  "draft",
+                  "locked":  false
+              }
+}
+ai-documents-ingest:
+{
+    "success":  true,
+    "document_id":  "a8006998-f573-457e-9137-275c86471acc",
+    "chunks_created":  1,
+    "token_count":  4
+}
+ai-ask:
+{
+    "answer":  "UNKNOWN",
+    "unknown":  true,
+    "questions":  [
+                      "What platform is this for?",
+                      "What is the primary goal of this request?"
+                  ],
+    "confidence":  0,
+    "sources":  {
+                    "agency_brain_fields":  [
+
+                                            ],
+                    "client_brain_fields":  [
+
+                                            ],
+                    "memory_citations":  [
+
+                                         ]
+                },
+    "escalate_to_human":  false,
+    "escalation_reason":  null
+}

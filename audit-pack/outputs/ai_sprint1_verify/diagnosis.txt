@@ -1,0 +1,5 @@
+Diagnosis summary (2025-12-23):
+- Migration list shows local migration 20251223150000 exists but is not present on remote.
+- Previous supabase db push output referenced missing remote migration versions: 20251221133917, 20251221133944, 20251223053114 (not in local repo).
+- Local Supabase services are running; no evidence of active docker container conflicts from CLI output.
+- Root cause: migration history mismatch between local repo and local/remote schema history.
