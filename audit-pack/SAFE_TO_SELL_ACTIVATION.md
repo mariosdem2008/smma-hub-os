@@ -70,6 +70,9 @@ Evidence (Stripe CLI):
 Evidence (local edge logs):
 - `audit-pack/outputs/edge_runtime_logs_last_10m.txt`
 
+Remote deploy evidence:
+- `audit-pack/outputs/functions_deploy_stripe_webhook_remote.txt`
+
 ## 4) Apply migrations (local)
 Run local migration apply:
 ```sh

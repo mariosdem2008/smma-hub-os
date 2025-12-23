@@ -1,0 +1,8 @@
+supabase functions deploy stripe-webhook --project-ref dbclmdeowohzmwtkktsa
+Bundling Function: stripe-webhook
+Specifying decorator through flags is no longer supported. Please use deno.json instead.
+No change found in Function: stripe-webhook
+Deployed Functions on project dbclmdeowohzmwtkktsa: stripe-webhook
+You can inspect your deployment in the Dashboard: https://supabase.com/dashboard/project/dbclmdeowohzmwtkktsa/functions
+A new version of Supabase CLI is available: v2.67.1 (currently installed v2.65.5)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
