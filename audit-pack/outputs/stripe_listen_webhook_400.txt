@@ -1,0 +1,16 @@
+stripe listen --forward-to http://localhost:54321/functions/v1/stripe-webhook
+> Ready! You are using Stripe API Version [2025-11-17.clover]. Your webhook signing secret is whsec_REDACTED (^C to quit)
+2025-12-23 08:31:00   --> product.created [evt_1ShP84EcpqMQq8izbnL6ljwV]
+2025-12-23 08:31:01   --> price.created [evt_1ShP84EcpqMQq8izz9shq7El]
+2025-12-23 08:31:05   --> charge.succeeded [evt_3ShP88EcpqMQq8iz0kYCORCo]
+2025-12-23 08:31:05  <--  [400] POST http://localhost:54321/functions/v1/stripe-webhook [evt_1ShP84EcpqMQq8izz9shq7El]
+2025-12-23 08:31:05  <--  [400] POST http://localhost:54321/functions/v1/stripe-webhook [evt_1ShP84EcpqMQq8izbnL6ljwV]
+2025-12-23 08:31:05  <--  [400] POST http://localhost:54321/functions/v1/stripe-webhook [evt_3ShP88EcpqMQq8iz0kYCORCo]
+2025-12-23 08:31:05   --> payment_intent.succeeded [evt_3ShP88EcpqMQq8iz00bZHoNI]
+2025-12-23 08:31:05  <--  [400] POST http://localhost:54321/functions/v1/stripe-webhook [evt_3ShP88EcpqMQq8iz00bZHoNI]
+2025-12-23 08:31:05   --> payment_intent.created [evt_3ShP88EcpqMQq8iz0NDnd89u]
+2025-12-23 08:31:05  <--  [400] POST http://localhost:54321/functions/v1/stripe-webhook [evt_3ShP88EcpqMQq8iz0NDnd89u]
+2025-12-23 08:31:07   --> checkout.session.completed [evt_1ShP89EcpqMQq8iz69kDv98a]
+2025-12-23 08:31:07  <--  [400] POST http://localhost:54321/functions/v1/stripe-webhook [evt_1ShP89EcpqMQq8iz69kDv98a]
+2025-12-23 08:31:08   --> charge.updated [evt_3ShP88EcpqMQq8iz0yEDyQrP]
+2025-12-23 08:31:08  <--  [400] POST http://localhost:54321/functions/v1/stripe-webhook [evt_3ShP88EcpqMQq8iz0yEDyQrP]
