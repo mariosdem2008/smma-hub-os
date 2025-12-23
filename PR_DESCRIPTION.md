@@ -35,6 +35,12 @@ Applying migration 20251224103000_strategy_docs_and_embeddings.sql...
 Applying migration 20251224110000_expand_ai_usage_logs.sql...
 Finished supabase db push.
 ```
+Note: Initial push failed due to parameter default ordering in `match_ai_embeddings`; fixed by reordering parameters.
+
+Local DB status:
+```
+supabase status -> failed to inspect container health (Docker not running)
+```
 
 Verification queries (remote):
 - Q1: `client_brains.usable` exists
