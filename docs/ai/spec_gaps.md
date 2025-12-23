@@ -16,3 +16,11 @@
 
 ## Remaining Decisions (with options)
 - None for v1 Sprint 1.
+
+## TODOs
+1) Client list onboarding status source: expose client_brains status/usable flag in client list API or a lightweight view. Until then the Clients list badge is a proxy based on {contact, assets, published} signals.
+2) Verify RLS coverage for the `public.client_asset_counts` view (ensure clients/assets are scoped to agency_id); avoid cross-agency leakage if policies are relaxed.
+3) Decide where to surface `client_brains.usable` in Dashboard/Clients readiness summaries once Brain Spine v1 is live.
+4) Confirm where client onboarding "platforms" should be stored in ClientBrain (needs a dedicated field).
+5) Define the actual Strategy generation endpoint implementation (currently gate-only).
+6) Confirm strategy generation prompt + model ID for production (currently defaulting to gpt-4o-mini).
