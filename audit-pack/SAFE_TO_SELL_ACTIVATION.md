@@ -61,11 +61,13 @@ Verification status:
 - Stripe CLI listen configured for local webhook (see output below).
 - Stripe CLI trigger executed (see output below).
 - Webhook requests returned 200 in local `stripe listen` session; signature verification is working.
+- Remote webhook requests returned 200; production verification complete.
 
 Evidence (Stripe CLI):
 - `audit-pack/outputs/stripe_trigger_checkout_session_completed.txt`
 - `audit-pack/outputs/stripe_listen_forward_to_webhook.txt`
 - `audit-pack/outputs/stripe_listen_webhook_200.txt`
+- `audit-pack/outputs/stripe_listen_webhook_remote_200.txt`
 
 Evidence (local edge logs):
 - `audit-pack/outputs/edge_runtime_logs_last_10m.txt`

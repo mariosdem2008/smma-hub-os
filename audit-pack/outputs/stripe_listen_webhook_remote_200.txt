@@ -1,0 +1,16 @@
+stripe listen --forward-to https://dbclmdeowohzmwtkktsa.supabase.co/functions/v1/stripe-webhook
+> Ready! You are using Stripe API Version [2025-11-17.clover]. Your webhook signing secret is whsec_REDACTED (^C to quit)
+2025-12-23 08:59:09   --> product.created [evt_1ShPZIEcpqMQq8izJlreQESS]
+2025-12-23 08:59:09   --> price.created [evt_1ShPZJEcpqMQq8iz57TvtJHJ]
+2025-12-23 08:59:11  <--  [200] POST https://dbclmdeowohzmwtkktsa.supabase.co/functions/v1/stripe-webhook [evt_1ShPZIEcpqMQq8izJlreQESS]
+2025-12-23 08:59:12  <--  [200] POST https://dbclmdeowohzmwtkktsa.supabase.co/functions/v1/stripe-webhook [evt_1ShPZJEcpqMQq8iz57TvtJHJ]
+2025-12-23 08:59:13   --> charge.succeeded [evt_3ShPZLEcpqMQq8iz0hKZOsGP]
+2025-12-23 08:59:13   --> payment_intent.succeeded [evt_3ShPZLEcpqMQq8iz0avF8ecu]
+2025-12-23 08:59:13   --> checkout.session.completed [evt_1ShPZMEcpqMQq8izsJ0qIuZ7]
+2025-12-23 08:59:13   --> payment_intent.created [evt_3ShPZLEcpqMQq8iz0MDj6vXd]
+2025-12-23 08:59:13  <--  [200] POST https://dbclmdeowohzmwtkktsa.supabase.co/functions/v1/stripe-webhook [evt_3ShPZLEcpqMQq8iz0hKZOsGP]
+2025-12-23 08:59:13  <--  [200] POST https://dbclmdeowohzmwtkktsa.supabase.co/functions/v1/stripe-webhook [evt_3ShPZLEcpqMQq8iz0avF8ecu]
+2025-12-23 08:59:13  <--  [200] POST https://dbclmdeowohzmwtkktsa.supabase.co/functions/v1/stripe-webhook [evt_1ShPZMEcpqMQq8izsJ0qIuZ7]
+2025-12-23 08:59:13  <--  [200] POST https://dbclmdeowohzmwtkktsa.supabase.co/functions/v1/stripe-webhook [evt_3ShPZLEcpqMQq8iz0MDj6vXd]
+2025-12-23 08:59:15   --> charge.updated [evt_3ShPZLEcpqMQq8iz0sFhUTmt]
+2025-12-23 08:59:16  <--  [200] POST https://dbclmdeowohzmwtkktsa.supabase.co/functions/v1/stripe-webhook [evt_3ShPZLEcpqMQq8iz0sFhUTmt]
