@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
+import { verifyCronSecret } from "../_shared/cron.ts";
 
 const GRAPH_API_VERSION = Deno.env.get("GRAPH_API_VERSION") || "v21.0";
 
@@ -19,6 +20,9 @@ serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers });
   }
+
+  const cronAuth = verifyCronSecret(req, headers);
+  if (cronAuth) return cronAuth;
 
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);

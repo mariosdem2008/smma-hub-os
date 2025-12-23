@@ -1,0 +1,27 @@
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100    62    0    62    0     0    133      0 --:--:-- --:--:-- --:--:--   133
+HTTP/1.1 200 OK
+Date: Tue, 23 Dec 2025 06:20:06 GMT
+Content-Type: application/json
+Transfer-Encoding: chunked
+Connection: keep-alive
+Server: cloudflare
+CF-Ray: 9b25c0490a3f6ada-LCA
+CF-Cache-Status: DYNAMIC
+Access-Control-Allow-Origin: http://localhost:8080
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+Vary: Accept-Encoding, Origin, Access-Control-Request-Headers
+X-Content-Type-Options: nosniff
+access-control-allow-credentials: true
+access-control-allow-headers: apikey, authorization, content-type, x-client-info
+access-control-allow-methods: GET, POST, PUT, PATCH, DELETE, OPTIONS
+sb-project-ref: dbclmdeowohzmwtkktsa
+sb-request-id: 019b49dd-69b2-71bf-94eb-d690f819a86e
+x-deno-execution-id: 993309ea-0e6c-4fd7-bfa7-b4b9b17f633c
+x-sb-edge-region: eu-central-1
+x-served-by: supabase-edge-runtime
+Set-Cookie: __cf_bm=.IVws2dv_dOCCvurkKgb0M52gDMXnu9pZs2SrYYRXC4-1766470806-1.0.1.1-suxzacDiFRszowGZk5Y0zHl6aAApYQlBTiFln7tMzOxaWqItyKeh0PL2M_.SI8Hpp.wKabiKJ345IhqQZVKwMFmMeODkCpY.oPOYtSgEUUY; path=/; expires=Tue, 23-Dec-25 06:50:06 GMT; domain=.supabase.co; HttpOnly; Secure; SameSite=None
+alt-svc: h3=":443"; ma=86400
+
+{"success":true,"message":"No ad accounts to sync","synced":0}

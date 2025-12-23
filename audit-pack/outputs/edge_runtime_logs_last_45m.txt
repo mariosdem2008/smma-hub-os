@@ -1,0 +1,29 @@
+serving the request with supabase/functions/stripe-webhook
+serving the request with supabase/functions/stripe-webhook
+[Info] Listening on http://localhost:9999/
+System.Management.Automation.RemoteException
+[Info] Listening on http://localhost:9999/
+System.Management.Automation.RemoteException
+[Error] Missing signature or webhook secret
+System.Management.Automation.RemoteException
+[Error] Missing signature or webhook secret
+System.Management.Automation.RemoteException
+serving the request with supabase/functions/stripe-webhook
+[Error] Missing signature or webhook secret
+System.Management.Automation.RemoteException
+serving the request with supabase/functions/stripe-webhook
+[Error] Missing signature or webhook secret
+System.Management.Automation.RemoteException
+serving the request with supabase/functions/stripe-webhook
+[Error] Missing signature or webhook secret
+System.Management.Automation.RemoteException
+serving the request with supabase/functions/stripe-webhook
+[Error] Missing signature or webhook secret
+System.Management.Automation.RemoteException
+serving the request with supabase/functions/stripe-webhook
+[Error] Missing signature or webhook secret
+System.Management.Automation.RemoteException
+wall clock duration warning: isolate: b8c8528b-8aae-485c-b308-b08d363ad98e
+wall clock duration warning: isolate: a01946c7-804a-47ff-ace0-36a5c47dacc8
+early termination has been triggered: isolate: b8c8528b-8aae-485c-b308-b08d363ad98e
+early termination has been triggered: isolate: a01946c7-804a-47ff-ace0-36a5c47dacc8

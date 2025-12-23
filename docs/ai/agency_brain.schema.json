@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "docs/ai/agency_brain.schema.json",
+  "title": "AgencyBrain",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "identity",
+    "icp",
+    "voice_tone",
+    "strategy_defaults",
+    "safety_policy",
+    "process_rules",
+    "faq",
+    "gold_examples"
+  ],
+  "properties": {
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "niches", "offers", "geo", "languages"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "niches": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "offers": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "geo": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "languages": { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+      }
+    },
+    "icp": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["industries", "size", "personas", "pains", "objections"],
+      "properties": {
+        "industries": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "size": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "personas": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "pains": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "objections": { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+      }
+    },
+    "voice_tone": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["adjectives", "banned_words", "preferred_vocab", "writing_rules"],
+      "properties": {
+        "adjectives": { "type": "array", "items": { "type": "string" }, "minItems": 5, "maxItems": 5 },
+        "banned_words": { "type": "array", "items": { "type": "string" }, "minItems": 0 },
+        "preferred_vocab": { "type": "array", "items": { "type": "string" }, "minItems": 0 },
+        "writing_rules": { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+      }
+    },
+    "strategy_defaults": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pillars", "hook_styles", "cta_styles", "platform_formats"],
+      "properties": {
+        "pillars": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "hook_styles": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "cta_styles": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "platform_formats": { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+      }
+    },
+    "safety_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allowed", "avoid", "compliance_notes"],
+      "properties": {
+        "allowed": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "avoid": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "compliance_notes": { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+      }
+    },
+    "process_rules": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["revisions", "approvals", "escalation_rules"],
+      "properties": {
+        "revisions": { "type": "string", "minLength": 1 },
+        "approvals": { "type": "string", "minLength": 1 },
+        "escalation_rules": { "type": "string", "minLength": 1 }
+      }
+    },
+    "faq": {
+      "type": "array",
+      "minItems": 10,
+      "maxItems": 30,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["question", "answer"],
+        "properties": {
+          "question": { "type": "string", "minLength": 1 },
+          "answer": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "gold_examples": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 20,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["title", "content", "why_good"],
+        "properties": {
+          "title": { "type": "string", "minLength": 1 },
+          "content": { "type": "string", "minLength": 1 },
+          "why_good": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

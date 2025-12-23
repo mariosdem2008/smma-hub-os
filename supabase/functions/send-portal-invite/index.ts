@@ -1,14 +1,6 @@
 import { Resend } from "https://esm.sh/resend@4.0.0";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-<<<<<<< HEAD
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
-
-// These must be configured in the target backend environment.
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
-=======
 const resendApiKey = Deno.env.get("RESEND_API_KEY") || "";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_SERVICE_ROLE_KEY =
@@ -17,7 +9,6 @@ const SUPABASE_ANON_KEY = Deno.env.get("ANON_KEY") || Deno.env.get("SUPABASE_ANO
 const FN_VERSION = "send-portal-invite_2025-12-21_1";
 
 const resend = new Resend(resendApiKey);
->>>>>>> 9fb552e (Client Portal fixes)
 
 const ALLOWED_ROLES = new Set(["owner", "admin", "manager"]);
 const ALLOWED_INVITE_ROLES = new Set(["client", "approver", "viewer"]);
@@ -193,33 +184,6 @@ Deno.serve(async (req) => {
     }
 
     const accessToken = authHeader.replace(/bearer\s+/i, "");
-<<<<<<< HEAD
-
-    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !SUPABASE_ANON_KEY) {
-      console.error("Missing backend env vars", {
-        hasUrl: Boolean(SUPABASE_URL),
-        hasServiceRole: Boolean(SUPABASE_SERVICE_ROLE_KEY),
-        hasAnon: Boolean(SUPABASE_ANON_KEY),
-      });
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error:
-            "Server is missing SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY / SUPABASE_ANON_KEY.",
-        }),
-        { status: 500, headers },
-      );
-    }
-
-    // Auth client uses user's access token; admin client bypasses RLS for privileged reads/writes.
-    const supabaseAuth = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: { persistSession: false, autoRefreshToken: false },
-      global: { headers: { Authorization: `Bearer ${accessToken}` } },
-    });
-
-    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-      auth: { persistSession: false, autoRefreshToken: false },
-=======
     const supabaseAuthClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
@@ -231,17 +195,12 @@ Deno.serve(async (req) => {
           Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
         },
       },
->>>>>>> 9fb552e (Client Portal fixes)
     });
 
     const {
       data: { user },
       error: userError,
-<<<<<<< HEAD
-    } = await supabaseAuth.auth.getUser();
-=======
     } = await supabaseAuthClient.auth.getUser(accessToken);
->>>>>>> 9fb552e (Client Portal fixes)
 
     if (userError || !user) {
       console.error("E01_AUTH getUser error:", userError);
@@ -281,24 +240,11 @@ Deno.serve(async (req) => {
       );
     }
 
-<<<<<<< HEAD
-    const { data: membership, error: membershipError } = await supabaseAdmin
-=======
     const { data: membership, error: membershipError } = await supabaseServiceClient
->>>>>>> 9fb552e (Client Portal fixes)
       .from("agency_members")
       .select("id, role, agency_id")
       .eq("agency_id", agencyId)
       .eq("user_id", user.id)
-<<<<<<< HEAD
-      .maybeSingle();
-
-    if (membershipError) {
-      console.error("Error fetching membership:", membershipError);
-      return new Response(JSON.stringify({ success: false, error: "Failed to verify membership" }), {
-        status: 500,
-        headers,
-=======
       .limit(1)
       .maybeSingle();
 
@@ -308,7 +254,6 @@ Deno.serve(async (req) => {
         code: (membershipError as any).code,
         details: (membershipError as any).details,
         hint: (membershipError as any).hint,
->>>>>>> 9fb552e (Client Portal fixes)
       });
       return new Response(
         JSON.stringify({
@@ -374,9 +319,6 @@ Deno.serve(async (req) => {
       });
     }
 
-<<<<<<< HEAD
-    const { error: inviteError } = await supabaseAdmin.from("client_invites").insert({
-=======
     if (existingInvite) {
       return new Response(
         JSON.stringify({ success: false, code: "E05_DUPLICATE", error: "Pending invite already exists", v: FN_VERSION }),
@@ -385,7 +327,6 @@ Deno.serve(async (req) => {
     }
 
     const { error: inviteError } = await supabaseServiceClient.from("client_invites").insert({
->>>>>>> 9fb552e (Client Portal fixes)
       agency_id: agencyId,
       client_id: clientId,
       email: normalizedEmail,
@@ -402,11 +343,7 @@ Deno.serve(async (req) => {
       );
     }
 
-<<<<<<< HEAD
-    const { data: branding } = await supabaseAdmin
-=======
     const { data: branding, error: brandingError } = await supabaseServiceClient
->>>>>>> 9fb552e (Client Portal fixes)
       .from("agency_branding")
       .select("logo_url, email_sender_name, primary_color, email_footer")
       .eq("agency_id", agencyId)

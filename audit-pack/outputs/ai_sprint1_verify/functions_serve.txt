@@ -1,0 +1,23 @@
+2025-12-23T12:02:47.544801810Z Serving functions on http://127.0.0.1:54321/functions/v1/<function-name>
+2025-12-23T12:02:47.544849449Z  - http://127.0.0.1:54321/functions/v1/add-client-user-to-conversation
+2025-12-23T12:02:47.544851397Z  - http://127.0.0.1:54321/functions/v1/ai-ask
+2025-12-23T12:02:47.544852300Z  - http://127.0.0.1:54321/functions/v1/ai-brains-agency
+2025-12-23T12:02:47.544853071Z  - http://127.0.0.1:54321/functions/v1/ai-brains-client
+2025-12-23T12:02:47.544853757Z  - http://127.0.0.1:54321/functions/v1/ai-documents-ingest
+2025-12-23T12:02:47.544854538Z ... and 31 more functions
+2025-12-23T12:02:47.544855257Z Using supabase-edge-runtime-1.69.28 (compatible with Deno v2.1.4)
+Setting up Edge Functions runtime...
+2025-12-23T12:03:29.091427854Z serving the request with supabase/functions/ai-brains-agency
+2025-12-23T12:03:29.380380132Z [Info] Listening on http://localhost:9999/
+2025-12-23T12:03:29.380440403Z 
+2025-12-23T12:03:29.480475434Z serving the request with supabase/functions/ai-brains-agency
+2025-12-23T12:03:29.536696451Z serving the request with supabase/functions/ai-brains-agency
+2025-12-23T12:03:29.588869641Z serving the request with supabase/functions/ai-brains-client
+2025-12-23T12:03:29.690593368Z [Info] Listening on http://localhost:9999/
+2025-12-23T12:03:29.690645326Z 
+2025-12-23T12:03:29.750681422Z serving the request with supabase/functions/ai-documents-ingest
+2025-12-23T12:03:29.842658015Z [Info] Listening on http://localhost:9999/
+2025-12-23T12:03:29.842690374Z 
+2025-12-23T12:03:29.907955871Z serving the request with supabase/functions/ai-ask
+2025-12-23T12:03:30.003996106Z [Info] Listening on http://localhost:9999/
+2025-12-23T12:03:30.004067971Z 

@@ -1,0 +1,4 @@
+DB check skipped: AI tables not present in local schema cache because migrations failed to apply.
+Run `supabase db push --local` after resolving migration history mismatch, then rerun checks:
+- select count(*) from public.ai_runs;
+- select count(*) from public.ai_escalations;

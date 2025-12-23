@@ -3,13 +3,17 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { publishToInstagram, publishToFacebook } from "../_utils/instagram-publish.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
+import { verifyCronSecret } from "../_shared/cron.ts";
 
 serve(async (req: Request) => {
 const headers = corsHeaders(req);
 
-if (req.method === "OPTIONS") {
-  return new Response(null, { status: 204, headers });
-}
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers });
+  }
+
+  const cronAuth = verifyCronSecret(req, headers);
+  if (cronAuth) return cronAuth;
 
 
   try {

@@ -1,0 +1,32 @@
+stripe listen --forward-to http://localhost:54321/functions/v1/stripe-webhook
+>>
+> Ready! You are using Stripe API Version [2025-11-17.clover]. Your webhook signing secret is whsec_REDACTED (^C to quit)
+2025-12-23 08:48:58   --> product.created [evt_1ShPPREcpqMQq8iz3VmPj7J3]
+2025-12-23 08:48:58  <--  [200] POST http://localhost:54321/functions/v1/stripe-webhook [evt_1ShPPREcpqMQq8iz3VmPj7J3]
+2025-12-23 08:48:59   --> price.created [evt_1ShPPSEcpqMQq8izRvxKRNqz]
+2025-12-23 08:48:59  <--  [200] POST http://localhost:54321/functions/v1/stripe-webhook [evt_1ShPPSEcpqMQq8izRvxKRNqz]
+2025-12-23 08:49:02   --> charge.succeeded [evt_3ShPPUEcpqMQq8iz1Pvw9FSV]
+2025-12-23 08:49:02  <--  [200] POST http://localhost:54321/functions/v1/stripe-webhook [evt_3ShPPUEcpqMQq8iz1Pvw9FSV]
+2025-12-23 08:49:02   --> payment_intent.succeeded [evt_3ShPPUEcpqMQq8iz1IBlOOSB]
+2025-12-23 08:49:02  <--  [200] POST http://localhost:54321/functions/v1/stripe-webhook [evt_3ShPPUEcpqMQq8iz1IBlOOSB]
+2025-12-23 08:49:02   --> checkout.session.completed [evt_1ShPPVEcpqMQq8izCaMU6BwO]
+2025-12-23 08:49:02  <--  [200] POST http://localhost:54321/functions/v1/stripe-webhook [evt_1ShPPVEcpqMQq8izCaMU6BwO]
+2025-12-23 08:49:02   --> payment_intent.created [evt_3ShPPUEcpqMQq8iz1SwRmy5S]
+2025-12-23 08:49:02  <--  [200] POST http://localhost:54321/functions/v1/stripe-webhook [evt_3ShPPUEcpqMQq8iz1SwRmy5S]
+2025-12-23 08:49:04   --> charge.updated [evt_3ShPPUEcpqMQq8iz1Ut0bAcS]
+2025-12-23 08:49:04  <--  [200] POST http://localhost:54321/functions/v1/stripe-webhook [evt_3ShPPUEcpqMQq8iz1Ut0bAcS]
+
+stripe trigger checkout.session.completed
+Setting up fixture for: product
+Running fixture for: product
+Setting up fixture for: price
+Running fixture for: price
+Setting up fixture for: checkout_session
+Running fixture for: checkout_session
+Setting up fixture for: payment_page
+Running fixture for: payment_page
+Setting up fixture for: payment_method
+Running fixture for: payment_method
+Setting up fixture for: payment_page_confirm
+Running fixture for: payment_page_confirm
+Trigger succeeded! Check dashboard for event details.
