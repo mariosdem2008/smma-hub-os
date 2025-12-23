@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "docs/ai/prompt_registry.schema.json",
+  "title": "PromptRegistry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "prompt_id",
+    "name",
+    "version",
+    "status",
+    "task_type",
+    "model",
+    "max_tokens",
+    "template",
+    "created_at"
+  ],
+  "properties": {
+    "prompt_id": { "type": "string" },
+    "name": { "type": "string", "minLength": 1 },
+    "version": { "type": "integer", "minimum": 1 },
+    "status": { "type": "string", "enum": ["draft", "active", "deprecated"] },
+    "task_type": { "type": "string", "enum": ["answer_quality_check", "rag_ask"] },
+    "model": { "type": "string", "minLength": 1 },
+    "max_tokens": { "type": "integer", "minimum": 1, "maximum": 6000 },
+    "template": { "type": "string", "minLength": 1 },
+    "created_at": { "type": "string", "format": "date-time" },
+    "notes": { "type": "string" }
+  }
+}

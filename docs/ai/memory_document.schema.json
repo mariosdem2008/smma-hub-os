@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "docs/ai/memory_document.schema.json",
+  "title": "MemoryDocument",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "doc_id",
+    "agency_id",
+    "doc_type",
+    "title",
+    "content",
+    "source",
+    "created_at"
+  ],
+  "properties": {
+    "doc_id": { "type": "string" },
+    "agency_id": { "type": "string" },
+    "client_id": { "type": ["string", "null"] },
+    "doc_type": {
+      "type": "string",
+      "description": "ai_artifact is used for locked AI Field outputs.",
+      "enum": [
+        "agency_exemplar_strategy",
+        "agency_sop",
+        "client_guidelines",
+        "client_notes",
+        "approved_posts",
+        "ai_artifact"
+      ]
+    },
+    "title": { "type": "string", "minLength": 1 },
+    "content": { "type": "string", "minLength": 1 },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_type", "source_ref"],
+      "properties": {
+        "source_type": { "type": "string", "enum": ["file", "url", "manual", "system"] },
+        "source_ref": { "type": "string", "minLength": 1 }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "created_at": { "type": "string", "format": "date-time" }
+  }
+}
