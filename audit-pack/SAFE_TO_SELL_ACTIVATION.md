@@ -58,7 +58,11 @@ Expected: webhook accepted, `subscriptions` updated.
 Evidence: README.md:85-92, supabase/functions/stripe-webhook/index.ts:12-33
 
 Verification status:
-- PENDING (Stripe CLI not executed in this session).
+- Stripe CLI trigger executed (see output below).
+- Webhook acceptance not yet confirmed (requires `stripe listen --forward-to ...` output).
+
+Evidence (Stripe CLI):
+- `audit-pack/outputs/stripe_trigger_checkout_session_completed.txt`
 
 ## 4) Apply migrations (local)
 Run local migration apply:
