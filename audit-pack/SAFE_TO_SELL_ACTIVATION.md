@@ -31,7 +31,7 @@ Evidence: README.md:65-83, audit-pack/SECURITY_PATCH_NOTES.md:3-26
 
 Verification status (this repo):
 - 401 confirmed for all listed functions on `dbclmdeowohzmwtkktsa` without header.
-- 200 pending (requires `CRON_SECRET` at execution time).
+- 200 confirmed with `x-cron-secret` on `dbclmdeowohzmwtkktsa` (see outputs below).
 
 Evidence (401 outputs):
 - `audit-pack/outputs/cron_publish_scheduled_posts_401.txt`
@@ -39,6 +39,13 @@ Evidence (401 outputs):
 - `audit-pack/outputs/cron_sync_social_metrics_401.txt`
 - `audit-pack/outputs/cron_generate_approval_reminders_401.txt`
 - `audit-pack/outputs/cron_sync_meta_ads_401.txt`
+
+Evidence (200 outputs):
+- `audit-pack/outputs/cron_publish_scheduled_posts_200.txt`
+- `audit-pack/outputs/cron_refresh_meta_tokens_200.txt`
+- `audit-pack/outputs/cron_sync_social_metrics_200.txt`
+- `audit-pack/outputs/cron_generate_approval_reminders_200.txt`
+- `audit-pack/outputs/cron_sync_meta_ads_200.txt`
 
 ## 3) Verify Stripe webhook signature (local)
 ```sh
