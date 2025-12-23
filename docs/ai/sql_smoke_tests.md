@@ -46,3 +46,6 @@ select id, 'sql_smoke_test', 'test', 1
 from public.agencies
 limit 1;
 ```
+
+## Remote Verification (pending)
+TODO: Run Q1/Q2/Q3 in Supabase SQL editor. CLI lacks a remote query command and no DB URL is configured locally.

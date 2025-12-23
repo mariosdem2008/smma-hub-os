@@ -24,3 +24,4 @@
 4) Confirm where client onboarding "platforms" should be stored in ClientBrain (needs a dedicated field).
 5) Define the actual Strategy generation endpoint implementation (currently gate-only).
 6) Confirm strategy generation prompt + model ID for production (currently defaulting to gpt-4o-mini).
+7) Provide OPENAI_API_KEY in Supabase secrets to enable real embeddings + strategy generation.

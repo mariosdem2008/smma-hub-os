@@ -17,16 +17,16 @@ alter table public.ai_documents
 
 drop function if exists public.match_ai_embeddings(
   uuid,
-  uuid,
   vector(1536),
+  uuid,
   int,
   text[]
 );
 
 create or replace function public.match_ai_embeddings(
   p_agency_id uuid,
-  p_client_id uuid default null,
   p_query_embedding vector(1536),
+  p_client_id uuid default null,
   p_match_count int default 8,
   p_doc_types text[] default null
 )
