@@ -58,11 +58,13 @@ Expected: webhook accepted, `subscriptions` updated.
 Evidence: README.md:85-92, supabase/functions/stripe-webhook/index.ts:12-33
 
 Verification status:
+- Stripe CLI listen configured for local webhook (see output below).
 - Stripe CLI trigger executed (see output below).
-- Webhook acceptance not yet confirmed (requires `stripe listen --forward-to ...` output).
+- Webhook acceptance should now be verified locally by watching for the incoming event in the `stripe listen` session.
 
 Evidence (Stripe CLI):
 - `audit-pack/outputs/stripe_trigger_checkout_session_completed.txt`
+- `audit-pack/outputs/stripe_listen_forward_to_webhook.txt`
 
 ## 4) Apply migrations (local)
 Run local migration apply:
