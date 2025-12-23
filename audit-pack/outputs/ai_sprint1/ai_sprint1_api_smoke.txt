@@ -1,0 +1,2 @@
+﻿Supabase status loaded
+API smoke tests skipped: migrations not applied (tables missing).

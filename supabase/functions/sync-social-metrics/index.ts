@@ -1,5 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
+import { verifyCronSecret } from "../_shared/cron.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,6 +14,9 @@ Deno.serve(async (req: { method: string; }) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const cronAuth = verifyCronSecret(req, corsHeaders);
+  if (cronAuth) return cronAuth;
 
   console.log('[METRICS-SYNC] Starting social metrics sync');
 

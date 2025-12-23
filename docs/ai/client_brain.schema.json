@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "docs/ai/client_brain.schema.json",
+  "title": "ClientBrain",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "brand_basics",
+    "offer_details",
+    "audience",
+    "competitors",
+    "constraints",
+    "pillars",
+    "faq",
+    "assets_links"
+  ],
+  "properties": {
+    "brand_basics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "website", "socials", "tone", "differentiators"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "website": { "type": "string", "minLength": 1 },
+        "socials": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "tone": { "type": "string", "minLength": 1 },
+        "differentiators": { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+      }
+    },
+    "offer_details": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["products_services", "usps"],
+      "properties": {
+        "products_services": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "pricing_optional": { "type": "string" },
+        "usps": { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+      }
+    },
+    "audience": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["demographics", "location", "intent", "problems", "objections"],
+      "properties": {
+        "demographics": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "location": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "intent": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "problems": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "objections": { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+      }
+    },
+    "competitors": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 10,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "notes"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "notes": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "constraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["banned_claims", "legal_constraints", "taboo_topics", "dos", "donts"],
+      "properties": {
+        "banned_claims": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "legal_constraints": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "taboo_topics": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "dos": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "donts": { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+      }
+    },
+    "pillars": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 7,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "examples"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "examples": { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+        }
+      }
+    },
+    "faq": {
+      "type": "array",
+      "minItems": 10,
+      "maxItems": 30,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["question", "answer"],
+        "properties": {
+          "question": { "type": "string", "minLength": 1 },
+          "answer": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "assets_links": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key_urls", "guidelines_link"],
+      "properties": {
+        "key_urls": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "guidelines_link": { "type": "string", "minLength": 1 },
+        "lead_magnet_optional": { "type": "string" }
+      }
+    }
+  }
+}

@@ -33,6 +33,9 @@ import BillingOverview from "./pages/BillingOverview";
 import InviteAccept from "./pages/InviteAccept";
 import Messages from "./pages/Messages";
 import NotFound from "./pages/NotFound";
+import AiOnboardingAgency from "./pages/ai/AiOnboardingAgency";
+import AiOnboardingClient from "./pages/ai/AiOnboardingClient";
+import AiFieldDemo from "./pages/ai/AiFieldDemo";
 
 import { ClientPortalLayout } from "./pages/ClientPortalLayout";
 import ClientLogin from "./pages/client/ClientLogin";
@@ -186,6 +189,9 @@ const App = () => {
                 <Route path="/billing" element={<Billing />} />
                 <Route path="/billing/overview" element={<BillingOverview />} />
                 <Route path="/settings" element={<Settings />} />
+                <Route path="/ai/onboarding/agency" element={<AiOnboardingAgency />} />
+                <Route path="/ai/onboarding/client" element={<AiOnboardingClient />} />
+                <Route path="/ai/field-demo" element={<AiFieldDemo />} />
               </Route>
 
               {/* Client Detail Routes - No Sidebar */}

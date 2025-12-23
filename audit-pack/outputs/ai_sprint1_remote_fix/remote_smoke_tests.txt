@@ -1,0 +1,69 @@
+﻿{
+  "project_url": "https://dbclmdeowohzmwtkktsa.supabase.co",
+  "results": [
+    {
+      "endpoint": "ai-brains-agency",
+      "status": 200,
+      "ok": true,
+      "body": {
+        "success": true,
+        "brain": {
+          "id": "bfde84eb-5ec3-437a-a0c6-067abf83802a",
+          "agency_id": "8cd04a4d-7bac-41f2-845a-af23829f9891",
+          "version": 1,
+          "status": "draft",
+          "locked": false
+        }
+      }
+    },
+    {
+      "endpoint": "ai-brains-client",
+      "status": 200,
+      "ok": true,
+      "body": {
+        "success": true,
+        "brain": {
+          "id": "521d0be6-ba3c-4a00-9cbf-2f6c6ffa21a1",
+          "agency_id": "8cd04a4d-7bac-41f2-845a-af23829f9891",
+          "client_id": "851b3c93-ea7d-4d84-aecb-df44743f28e0",
+          "version": 1,
+          "status": "draft",
+          "locked": false
+        }
+      }
+    },
+    {
+      "endpoint": "ai-documents-ingest",
+      "status": 200,
+      "ok": true,
+      "body": {
+        "success": true,
+        "document_id": "92f23a16-f8cc-4092-a5f9-5f65f675bf8b",
+        "chunks_created": 1,
+        "token_count": 3
+      }
+    },
+    {
+      "endpoint": "ai-ask",
+      "status": 200,
+      "ok": true,
+      "body": {
+        "answer": "UNKNOWN",
+        "unknown": true,
+        "questions": [
+          "What platform is this for?",
+          "What is the primary goal of this request?"
+        ],
+        "confidence": 0,
+        "sources": {
+          "agency_brain_fields": [],
+          "client_brain_fields": [],
+          "memory_citations": []
+        },
+        "escalate_to_human": false,
+        "escalation_reason": null
+      }
+    }
+  ],
+  "redacted": true
+}

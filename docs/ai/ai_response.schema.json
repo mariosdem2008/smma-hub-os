@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "docs/ai/ai_response.schema.json",
+  "title": "AIResponse",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "answer",
+    "unknown",
+    "questions",
+    "confidence",
+    "sources",
+    "escalate_to_human",
+    "escalation_reason"
+  ],
+  "properties": {
+    "answer": { "type": "string" },
+    "unknown": { "type": "boolean" },
+    "questions": {
+      "type": ["array", "null"],
+      "minItems": 1,
+      "maxItems": 3,
+      "items": { "type": "string" }
+    },
+    "confidence": { "type": "integer", "minimum": 0, "maximum": 100 },
+    "sources": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["agency_brain_fields", "client_brain_fields", "memory_citations"],
+      "properties": {
+        "agency_brain_fields": { "type": "array", "items": { "type": "string" } },
+        "client_brain_fields": { "type": "array", "items": { "type": "string" } },
+        "memory_citations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["doc_id", "chunk_id", "doc_type"],
+            "properties": {
+              "doc_id": { "type": "string" },
+              "chunk_id": { "type": "string" },
+              "doc_type": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "escalate_to_human": { "type": "boolean" },
+    "escalation_reason": { "type": ["string", "null"] }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "unknown": { "const": true },
+          "escalate_to_human": { "const": false }
+        },
+        "required": ["unknown", "escalate_to_human"]
+      },
+      "then": {
+        "properties": {
+          "questions": { "type": "array", "minItems": 1, "maxItems": 3 }
+        },
+        "required": ["questions"]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "unknown": { "const": false }
+        },
+        "required": ["unknown"]
+      },
+      "then": {
+        "properties": {
+          "questions": { "type": "null" }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "escalate_to_human": { "const": true }
+        },
+        "required": ["escalate_to_human"]
+      },
+      "then": {
+        "properties": {
+          "escalation_reason": { "type": "string", "minLength": 1 }
+        },
+        "required": ["escalation_reason"]
+      }
+    }
+  ]
+}

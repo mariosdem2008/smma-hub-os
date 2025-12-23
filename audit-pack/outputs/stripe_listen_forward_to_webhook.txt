@@ -1,0 +1,2 @@
+stripe listen --forward-to http://localhost:54321/functions/v1/stripe-webhook
+> Ready! You are using Stripe API Version [2025-11-17.clover]. Your webhook signing secret is whsec_147404e8693f028b4321b1393ac334924c0961a05a0a96874c9ec8f2fe9aaba9 (^C to quit)

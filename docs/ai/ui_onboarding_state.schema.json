@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "docs/ai/ui_onboarding_state.schema.json",
+  "title": "OnboardingState",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "onboarding_type",
+    "status",
+    "core_question_count",
+    "core_questions_completed",
+    "steps",
+    "created_at",
+    "updated_at"
+  ],
+  "properties": {
+    "onboarding_type": { "type": "string", "enum": ["agency", "client"] },
+    "status": { "type": "string", "enum": ["draft", "usable", "complete", "locked"] },
+    "core_question_count": { "type": "integer", "minimum": 20, "maximum": 50 },
+    "core_questions_completed": { "type": "integer", "minimum": 0 },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["step_id", "question", "input_type", "required", "status", "followups"],
+        "properties": {
+          "step_id": { "type": "string" },
+          "question": { "type": "string" },
+          "input_type": { "type": "string", "enum": ["single_select", "multi_select", "textarea", "file_upload", "url_list"] },
+          "required": { "type": "boolean" },
+          "status": { "type": "string", "enum": ["pending", "answered", "skipped"] },
+          "answer": { "type": ["string", "array", "object", "null"] },
+          "followups": {
+            "type": "array",
+            "maxItems": 3,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["question", "answer", "status"],
+              "properties": {
+                "question": { "type": "string" },
+                "answer": { "type": ["string", "array", "object", "null"] },
+                "status": { "type": "string", "enum": ["pending", "answered", "skipped"] }
+              }
+            }
+          },
+          "validation": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["quality_status", "issues"],
+            "properties": {
+              "quality_status": { "type": "string", "enum": ["accepted", "followup_required"] },
+              "issues": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        }
+      }
+    },
+    "progress": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["percent_required_filled", "exemplars_ingested"],
+      "properties": {
+        "percent_required_filled": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "exemplars_ingested": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "review_snapshot": {
+      "type": ["object", "null"],
+      "additionalProperties": true
+    },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" }
+  }
+}
