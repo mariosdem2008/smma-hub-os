@@ -1,0 +1,8 @@
+Serving functions on http://127.0.0.1:54321/functions/v1/<function-name>
+ - http://127.0.0.1:54321/functions/v1/add-client-user-to-conversation
+ - http://127.0.0.1:54321/functions/v1/check-subscription
+ - http://127.0.0.1:54321/functions/v1/client-auth-forgot-password
+ - http://127.0.0.1:54321/functions/v1/client-auth-login
+ - http://127.0.0.1:54321/functions/v1/client-auth-logout
+... and 27 more functions
+Using supabase-edge-runtime-1.69.28 (compatible with Deno v2.1.4)
