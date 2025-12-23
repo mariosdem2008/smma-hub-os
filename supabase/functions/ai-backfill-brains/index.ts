@@ -19,10 +19,89 @@ function isFilled(value: unknown) {
   return false;
 }
 
-function coverageScore(sections: Record<string, unknown>) {
-  const keys = Object.keys(sections);
-  const filled = keys.filter((key) => isFilled(sections[key])).length;
-  return keys.length === 0 ? 0 : filled / keys.length;
+const REQUIRED_AGENCY_FIELDS = [
+  "identity.name",
+  "identity.niches",
+  "identity.offers",
+  "identity.geo",
+  "identity.languages",
+  "icp.industries",
+  "icp.size",
+  "icp.personas",
+  "icp.pains",
+  "icp.objections",
+  "voice_tone.adjectives",
+  "voice_tone.banned_words",
+  "voice_tone.preferred_vocab",
+  "voice_tone.writing_rules",
+  "strategy_defaults.pillars",
+  "strategy_defaults.hook_styles",
+  "strategy_defaults.cta_styles",
+  "strategy_defaults.platform_formats",
+  "safety_policy.allowed",
+  "safety_policy.avoid",
+  "safety_policy.compliance_notes",
+  "process_rules.revisions",
+  "process_rules.approvals",
+  "process_rules.escalation_rules",
+  "faq",
+  "gold_examples",
+];
+
+const REQUIRED_CLIENT_FIELDS = [
+  "brand_basics.name",
+  "brand_basics.website",
+  "brand_basics.socials",
+  "brand_basics.tone",
+  "brand_basics.differentiators",
+  "offer_details.products_services",
+  "offer_details.usps",
+  "audience.demographics",
+  "audience.location",
+  "audience.intent",
+  "audience.problems",
+  "audience.objections",
+  "competitors",
+  "constraints.banned_claims",
+  "constraints.legal_constraints",
+  "constraints.taboo_topics",
+  "constraints.dos",
+  "constraints.donts",
+  "pillars",
+  "faq",
+  "assets_links.key_urls",
+  "assets_links.guidelines_link",
+];
+
+function getPathValue(target: Record<string, unknown>, path: string) {
+  return path.split(".").reduce<unknown>((current, key) => {
+    if (!current || typeof current !== "object") return undefined;
+    return (current as Record<string, unknown>)[key];
+  }, target);
+}
+
+function mergeDeep(target: Record<string, unknown>, source: Record<string, unknown>) {
+  const result = { ...target };
+  Object.entries(source).forEach(([key, value]) => {
+    if (Array.isArray(value)) {
+      result[key] = value;
+      return;
+    }
+    if (value && typeof value === "object") {
+      const current = (result[key] as Record<string, unknown>) ?? {};
+      result[key] = mergeDeep(current, value as Record<string, unknown>);
+      return;
+    }
+    result[key] = value;
+  });
+  return result;
+}
+
+function completionPercent(target: Record<string, unknown>, requiredFields: string[]) {
+  const total = requiredFields.length;
+  if (total === 0) return 0;
+  const filled = requiredFields.filter((field) => isFilled(getPathValue(target, field))).length;
+  return Math.round((filled / total) * 100);
 }
 
 serve(async (req: Request) => {
@@ -73,6 +152,7 @@ serve(async (req: Request) => {
     clients_usable: 0,
     documents_created: 0,
     errors: [] as string[],
+    skipped_sources: [] as string[],
   };
 
   for (const agency of agencies ?? []) {
@@ -142,27 +222,31 @@ serve(async (req: Request) => {
       },
     };
 
-    const coverage = coverageScore({
-      identity: brain.identity,
-      icp: brain.icp,
-      voice_tone: brain.voice_tone,
-      strategy_defaults: brain.strategy_defaults,
-      safety_policy: brain.safety_policy,
-      process_rules: brain.process_rules,
-      faq: brain.faq,
-      gold_examples: brain.gold_examples,
-    });
+    const { data: agencySeedDocs, error: agencySeedError } = await supabase
+      .from("ai_documents")
+      .select("metadata")
+      .eq("agency_id", agency.id)
+      .eq("doc_type", "agency_sop")
+      .limit(1);
+    if (agencySeedError) {
+      stats.errors.push(`agency_seed_doc ${agency.id}: ${agencySeedError.message}`);
+    }
+    const agencySeedPayload = agencySeedDocs?.[0]?.metadata?.backfill_payload;
+    const mergedAgencyBrain = agencySeedPayload && typeof agencySeedPayload === "object"
+      ? mergeDeep(brain, agencySeedPayload as Record<string, unknown>)
+      : brain;
 
-    const status = coverage >= 0.7 ? "usable" : "draft";
+    const completion = completionPercent(mergedAgencyBrain, REQUIRED_AGENCY_FIELDS);
+    const status = completion >= 70 ? "usable" : "draft";
     if (!dryRun) {
       const { error } = await supabase.from("agency_brains").insert({
         agency_id: agency.id,
         version: 1,
         status,
         locked: false,
-        brain_json: brain,
+        brain_json: mergedAgencyBrain,
         json_diff: null,
-        confidence: Math.round(coverage * 100),
+        confidence: completion,
       });
       if (error) {
         stats.errors.push(`agency ${agency.id}: ${error.message}`);
@@ -214,19 +298,58 @@ serve(async (req: Request) => {
       .select("brand_voice, brand_tone, brand_guidelines, brand_palette")
       .eq("client_id", client.id)
       .maybeSingle();
-    if (brandingError) stats.errors.push(`client_branding ${client.id}: ${brandingError.message}`);
+    if (brandingError) {
+      if (brandingError.message.includes("Could not find the table")) {
+        stats.skipped_sources.push(`client_branding:${client.id}`);
+      } else {
+        stats.errors.push(`client_branding ${client.id}: ${brandingError.message}`);
+      }
+    }
 
-    const { data: pillars, error: pillarsError } = await supabase
+    let pillars: Array<{ title: string; description: string | null }> | null = null;
+    const { data: pillarsData, error: pillarsError } = await supabase
       .from("client_content_pillars")
       .select("title, description")
       .eq("client_id", client.id);
-    if (pillarsError) stats.errors.push(`client_content_pillars ${client.id}: ${pillarsError.message}`);
+    if (pillarsError) {
+      if (pillarsError.message.includes("Could not find the table")) {
+        stats.skipped_sources.push(`client_content_pillars:${client.id}`);
+      } else {
+        stats.errors.push(`client_content_pillars ${client.id}: ${pillarsError.message}`);
+      }
+    } else {
+      pillars = pillarsData ?? [];
+    }
 
-    const { data: assets, error: assetsError } = await supabase
+    let assets: Array<{ file_url: string | null }> | null = null;
+    const { data: assetsData, error: assetsError } = await supabase
       .from("client_assets")
       .select("file_url")
       .eq("client_id", client.id);
-    if (assetsError) stats.errors.push(`client_assets ${client.id}: ${assetsError.message}`);
+    if (assetsError) {
+      if (assetsError.message.includes("Could not find the table")) {
+        stats.skipped_sources.push(`client_assets:${client.id}`);
+      } else {
+        stats.errors.push(`client_assets ${client.id}: ${assetsError.message}`);
+      }
+    } else {
+      assets = assetsData ?? [];
+    }
+
+    let socials: Array<{ url: string | null }> | null = null;
+    const { data: socialsData, error: socialsError } = await supabase
+      .from("social_profiles")
+      .select("url")
+      .eq("client_id", client.id);
+    if (socialsError) {
+      if (socialsError.message.includes("Could not find the table")) {
+        stats.skipped_sources.push(`social_profiles:${client.id}`);
+      } else {
+        stats.errors.push(`social_profiles ${client.id}: ${socialsError.message}`);
+      }
+    } else {
+      socials = socialsData ?? [];
+    }
 
     const assetUrls = [
       ...(assets ?? []).map((asset) => asset.file_url).filter(Boolean),
@@ -237,12 +360,12 @@ serve(async (req: Request) => {
       brand_basics: {
         name: client.name ?? "",
         website: client.website ?? "",
-        socials: [],
-        tone: branding?.brand_tone ?? branding?.brand_voice ?? "",
+        socials: (socials ?? []).map((profile) => profile.url).filter(Boolean) as string[],
+        tone: branding?.brand_tone ?? branding?.brand_voice ?? client.tone_of_voice ?? "",
         differentiators: branding?.brand_guidelines ? [branding.brand_guidelines] : [],
       },
       offer_details: {
-        products_services: [],
+        products_services: client.niche ? [client.niche] : [],
         pricing_optional: "",
         usps: [],
       },
@@ -291,18 +414,22 @@ serve(async (req: Request) => {
       },
     };
 
-    const coverage = coverageScore({
-      brand_basics: brain.brand_basics,
-      offer_details: brain.offer_details,
-      audience: brain.audience,
-      competitors: brain.competitors,
-      constraints: brain.constraints,
-      pillars: brain.pillars,
-      faq: brain.faq,
-      assets_links: brain.assets_links,
-    });
+    const { data: clientSeedDocs, error: clientSeedError } = await supabase
+      .from("ai_documents")
+      .select("metadata")
+      .eq("client_id", client.id)
+      .eq("doc_type", "client_guidelines")
+      .limit(1);
+    if (clientSeedError) {
+      stats.errors.push(`client_seed_doc ${client.id}: ${clientSeedError.message}`);
+    }
+    const clientSeedPayload = clientSeedDocs?.[0]?.metadata?.backfill_payload;
+    const mergedClientBrain = clientSeedPayload && typeof clientSeedPayload === "object"
+      ? mergeDeep(brain, clientSeedPayload as Record<string, unknown>)
+      : brain;
 
-    const status = coverage >= 0.7 ? "usable" : "draft";
+    const completion = completionPercent(mergedClientBrain, REQUIRED_CLIENT_FIELDS);
+    const status = completion >= 70 ? "usable" : "draft";
     if (!dryRun) {
       const { error } = await supabase.from("client_brains").insert({
         agency_id: client.agency_id,
@@ -310,9 +437,9 @@ serve(async (req: Request) => {
         version: 1,
         status,
         locked: false,
-        brain_json: brain,
+        brain_json: mergedClientBrain,
         json_diff: null,
-        confidence: Math.round(coverage * 100),
+        confidence: completion,
       });
       if (error) {
         stats.errors.push(`client ${client.id}: ${error.message}`);

@@ -10,6 +10,7 @@ Day 2
 - Review draft vs usable status distribution in agency_brains/client_brains.
 - Validate follow-up counts (max 3) and average response times.
 - Confirm no writes to legacy onboarding tables.
+  - Note: sparse legacy accounts may backfill as draft; expected to complete via onboarding v2.
 
 Day 3
 - Sample 10 agency brains and 10 client brains for data quality.

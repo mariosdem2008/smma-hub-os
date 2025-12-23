@@ -1,0 +1,7 @@
+Setting up Edge Functions runtime...
+Env name cannot start with SUPABASE_, skipping: SUPABASE_SERVICE_ROLE_KEY
+Env name cannot start with SUPABASE_, skipping: SUPABASE_ANON_KEY
+Env name cannot start with SUPABASE_, skipping: SUPABASE_URL
+2025-12-23T13:01:44.457015159Z serving the request with supabase/functions/ai-backfill-brains
+2025-12-23T13:01:44.804772379Z [Info] Listening on http://localhost:9999/
+2025-12-23T13:01:44.804801240Z 
