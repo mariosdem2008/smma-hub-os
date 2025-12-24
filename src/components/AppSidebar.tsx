@@ -23,7 +23,6 @@ import {
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useUpgradeModal } from "@/contexts/UpgradeModalContext";
 import { useRole } from "@/hooks/useRole";
@@ -79,16 +78,16 @@ export function AppSidebar() {
                       <NavLink
                         to={item.url}
                         className={`
-                          relative transition-all duration-200 hover:bg-[#2A2F46]
-                          ${active ? "bg-[#2A2F46] text-white" : ""}
+                          relative transition-all duration-200 hover:bg-card/70
+                          ${active ? "bg-card text-foreground" : ""}
                         `}
-                        activeClassName="bg-[#2A2F46] text-white font-medium"
+                        activeClassName="bg-card text-foreground font-medium"
                       >
-                        {active && <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#4E5DFF] rounded-full" />}
+                        {active && <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-full" />}
                         <item.icon
                           className={`
                           h-4 w-4 ml-1 transition-all duration-200
-                          ${active ? "text-[#4E5DFF]" : "text-slate-400 hover:text-[#4E5DFF] hover:scale-[1.03]"}
+                          ${active ? "text-primary" : "text-muted-foreground hover:text-primary hover:scale-[1.03]"}
                         `}
                         />
                         {!isCollapsed && <span className="ml-2">{item.title}</span>}
@@ -107,7 +106,7 @@ export function AppSidebar() {
             <SidebarGroupContent>
               <Button
                 onClick={() => openUpgradeModal()}
-                className="w-full bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-white shadow-lg"
+                className="w-full bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground shadow-lg"
               >
                 <ArrowUpCircle className="h-4 w-4" />
                 {!isCollapsed && <span className="ml-2 font-semibold">Upgrade</span>}
@@ -118,7 +117,6 @@ export function AppSidebar() {
       </SidebarContent>
       <SidebarFooter>
         <div className="flex items-center gap-2 px-2 py-1">
-          <ThemeToggle />
           <Button variant="ghost" className="flex-1 justify-start hover:bg-sidebar-accent" onClick={signOut}>
             <LogOut className="h-4 w-4" />
             {!isCollapsed && <span className="ml-2">Sign Out</span>}

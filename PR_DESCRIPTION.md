@@ -8,9 +8,12 @@
 - Added embeddings utilities and real embedding calls when API key is present.
 - Logged usage in `ai_usage_logs` across ingest, ask, retrieve, and strategy.
 - Added smoke test script for tenant safety + strategy gating.
+- Smoke tests now auto-discover agency/client IDs when TEST_* is missing.
 - Added docs for implementation, testing, and SQL smoke tests.
 - Fixed `match_ai_embeddings` parameter order for Postgres defaults.
 - Added expanded `ai_usage_logs` columns for runtime evidence.
+- Gated Client Detail access behind `client_brains.usable` with onboarding redirect.
+- Added client detail gate tests and return-to onboarding flow.
 
 ## Push/Upstream
 Command: `git push -u origin feat/ai-employee-v1-sprint1-2025-12-23`
@@ -64,29 +67,33 @@ Deployed Functions on project dbclmdeowohzmwtkktsa: ai-documents-ingest
 ```
 
 ## Secrets
-`OPENAI_API_KEY` not present in `supabase/.env`.
-TODO added in `docs/ai/spec_gaps.md`.
+`OPENAI_API_KEY` is set in Supabase function secrets.
 
 ## Smoke Tests
-Command: `node scripts/brain_spine_smoke_tests.mjs`
+Command: `node docs/ai/brain_spine_smoke_tests.mjs`
 Output:
 ```
-Missing required env vars: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, TEST_AGENCY_ID, TEST_CLIENT_ID, TEST_OTHER_AGENCY_ID
+Resolved IDs: agency=8cd04a4d-7bac-41f2-845a-af23829f9891, client=851b3c93-ea7d-4d84-aecb-df44743f28e0, other_agency=01be19da-8da8-4686-8c9c-b992f92de25c
+1) Insert minimal client brain (missing fields)...
+2) Strategy gate returns UNKNOWN...
+3) Insert memory doc + embeddings...
+4) Retrieval respects agency filter...
+5) Update client brain to usable and generate strategy...
+Smoke tests passed.
 ```
-Status: BLOCKED (missing test IDs). Provide `TEST_*` IDs to rerun.
+Status: PASS
 
 ## Quality Gates
 - `npm run lint`: OK
 - `npx tsc -p .`: OK
 - `npm run build`: OK (chunk size warnings only)
 
-## How to test (exact 6 steps)
-1) Apply migrations in order (see above).
-2) Run SQL checks from `docs/ai/sql_smoke_tests.md` in Supabase SQL editor.
-3) Set env vars: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `TEST_AGENCY_ID`, `TEST_CLIENT_ID`, `TEST_OTHER_AGENCY_ID`.
-4) Run smoke script: `node scripts/brain_spine_smoke_tests.mjs`.
-5) In-app: complete client onboarding and click "Lock v1".
-6) Open Strategy Hub and click "Generate Strategy" to see UNKNOWN or a draft with citations.
+## How to test (exact 5 steps)
+1) Set env vars: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`.
+2) Run smoke script: `node docs/ai/brain_spine_smoke_tests.mjs`.
+3) Create a new client and open `/clients/:id` before onboarding (gate should block).
+4) Deep-link `/clients/:id?tab=strategy` before onboarding (gate should still block).
+5) Complete AI onboarding (Lock v1) and confirm client detail loads normally.
 
 ## Risks + rollback (max 5)
 - RLS tightening on brains/embeddings could block direct client reads; rollback by restoring previous policies.

@@ -1,5 +1,4 @@
 import { Outlet, Link } from "react-router-dom";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,11 +14,10 @@ export function ClientDetailLayout() {
           </Button>
         </Link>
         <div className="flex-1">
-          <h2 className="text-lg font-bold bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] bg-clip-text text-transparent">SMMAHUB</h2>
+          <h2 className="text-lg font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">SMMAHUB</h2>
         </div>
         <div className="flex items-center gap-2 md:gap-3">
           <NotificationCenter />
-          <ThemeToggle />
         </div>
       </header>
       <main className="flex-1">
