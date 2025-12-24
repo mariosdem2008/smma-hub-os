@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import ClientDetail from "@/pages/ClientDetail";
 import {
@@ -89,6 +89,10 @@ const renderClientDetail = (initialEntry: string) => {
 };
 
 describe("ClientDetail gate", () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   beforeEach(() => {
     vi.mocked(getClientById).mockResolvedValue({
       id: "client-1",
