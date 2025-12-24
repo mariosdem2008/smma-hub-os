@@ -100,3 +100,15 @@ Status: PASS
 - Strategy draft relies on OPENAI key; without it, UNKNOWN is returned.
 - New doc_type check may reject legacy doc_types; rollback by restoring old constraint.
 - `match_ai_embeddings` signature change requires callers to use new return shape.
+
+## Client Detail Gate
+- Rule: block Client Detail until `client_brains.usable === true` (no row => blocked).
+- UX: full-page gate + CTA to AI onboarding + returnTo redirect after Lock v1.
+- Tests added: unusable blocks, usable allows, deeplink blocks.
+- Commands run (PASS): `npm run test`, `npm run lint`, `npx tsc -p .`, `npm run build` (build warns on chunk size).
+- Manual verification:
+  1) Create a new client and open `/clients/:id` before onboarding (gate blocks).
+  2) Deep-link `/clients/:id?tab=strategy` before onboarding (gate blocks).
+  3) Complete AI onboarding (Lock v1) and confirm client detail loads.
+  4) Click the CTA and verify returnTo brings you back to the original tab.
+  5) Verify Strategy tab renders after usable becomes true.
