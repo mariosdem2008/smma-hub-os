@@ -1,5 +1,5 @@
 supabase migration new team_invite_hardening
 
 git add .
-git commit -m "Client Portal fixes"
+git commit -m "Deploy Push"
 git push

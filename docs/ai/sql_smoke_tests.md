@@ -27,13 +27,26 @@ from public.agencies
 limit 1;
 ```
 
-4) Verify match_ai_embeddings returns rows for an agency:
+4) Verify match_ai_embeddings permission boundary:
 ```sql
+-- As authenticated client, this should FAIL with permission error
 select *
 from public.match_ai_embeddings(
   (select id from public.agencies limit 1),
-  null,
   array_fill(0.01::float8, array[1536])::vector,
+  null,
+  2,
+  null
+);
+```
+
+```sql
+-- As service_role (edge function), this should succeed
+select *
+from public.match_ai_embeddings(
+  (select id from public.agencies limit 1),
+  array_fill(0.01::float8, array[1536])::vector,
+  null,
   2,
   null
 );

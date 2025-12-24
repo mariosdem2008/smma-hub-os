@@ -67,6 +67,46 @@ export default function Clients() {
 
   const isAtLimit = limits?.clients !== null && clients.length >= limits.clients;
 
+
+  function getReadinessSignals(client: Client) {
+    const hasContact = Boolean(client?.email) || Boolean(client?.phone);
+    const hasAssets = (client?.assetCount || 0) > 0;
+    const hasPublished = (client?.publishedVideoCount || 0) > 0;
+    const trueCount = Number(hasContact) + Number(hasAssets) + Number(hasPublished);
+
+    if (trueCount === 0) {
+      return { status: "NOT_STARTED", hasContact, hasAssets, hasPublished, trueCount };
+    }
+    if (trueCount === 1) {
+      return { status: "IN_PROGRESS", hasContact, hasAssets, hasPublished, trueCount };
+    }
+    return { status: "COMPLETE", hasContact, hasAssets, hasPublished, trueCount };
+  }
+
+  function getReadinessVariant(status: string) {
+    if (status === "NOT_STARTED") return "outline";
+    if (status === "IN_PROGRESS") return "orange";
+    return "green";
+  }
+
+  function getStrategyHint(readiness: ReturnType<typeof getReadinessSignals>) {
+    if (readiness.status === "NOT_STARTED") return "Needs onboarding to unlock strategy";
+    if (readiness.status === "COMPLETE") return "Ready for Strategy";
+
+    const missing: string[] = [];
+    if (!readiness.hasContact) missing.push("contact");
+    if (!readiness.hasAssets) missing.push("assets");
+    if (!readiness.hasPublished) missing.push("published");
+    return `Missing: ${missing.join(", ")}`;
+  }
+
+  function getNextStep(readiness: ReturnType<typeof getReadinessSignals>) {
+    if (!readiness.hasContact) return "Next: add contact info";
+    if (!readiness.hasAssets) return "Next: add assets";
+    if (!readiness.hasPublished) return "Next: publish a post";
+    return "Next: run strategy";
+  }
+
   const fetchClients = async () => {
     if (!user) return;
 
@@ -225,46 +265,6 @@ export default function Clients() {
       setSubmitting(false);
     }
   };
-
-  const getReadinessSignals = (client: Client) => {
-    const hasContact = Boolean(client?.email) || Boolean(client?.phone);
-    const hasAssets = (client?.assetCount || 0) > 0;
-    const hasPublished = (client?.publishedVideoCount || 0) > 0;
-    const trueCount = Number(hasContact) + Number(hasAssets) + Number(hasPublished);
-
-    if (trueCount === 0) {
-      return { status: "NOT_STARTED", hasContact, hasAssets, hasPublished, trueCount };
-    }
-    if (trueCount === 1) {
-      return { status: "IN_PROGRESS", hasContact, hasAssets, hasPublished, trueCount };
-    }
-    return { status: "COMPLETE", hasContact, hasAssets, hasPublished, trueCount };
-  };
-
-  const getReadinessVariant = (status: string) => {
-    if (status === "NOT_STARTED") return "outline";
-    if (status === "IN_PROGRESS") return "orange";
-    return "green";
-  };
-
-  const getStrategyHint = (readiness: ReturnType<typeof getReadinessSignals>) => {
-    if (readiness.status === "NOT_STARTED") return "Needs onboarding to unlock strategy";
-    if (readiness.status === "COMPLETE") return "Ready for Strategy";
-
-    const missing: string[] = [];
-    if (!readiness.hasContact) missing.push("contact");
-    if (!readiness.hasAssets) missing.push("assets");
-    if (!readiness.hasPublished) missing.push("published");
-    return `Missing: ${missing.join(", ")}`;
-  };
-
-  const getNextStep = (readiness: ReturnType<typeof getReadinessSignals>) => {
-    if (!readiness.hasContact) return "Next: add contact info";
-    if (!readiness.hasAssets) return "Next: add assets";
-    if (!readiness.hasPublished) return "Next: publish a post";
-    return "Next: run strategy";
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
