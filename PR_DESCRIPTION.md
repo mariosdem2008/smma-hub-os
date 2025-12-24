@@ -112,3 +112,8 @@ Status: PASS
   3) Complete AI onboarding (Lock v1) and confirm client detail loads.
   4) Click the CTA and verify returnTo brings you back to the original tab.
   5) Verify Strategy tab renders after usable becomes true.
+
+## Rebase + Evidence
+- Base branch: `origin/main` (rebased, 4 commits on top).
+- Final gates (PASS): `npm run test`, `npm run lint`, `npx tsc -p .`, `npm run build` (build warns on chunk size).
+- Smoke tests: PASS already recorded above.
