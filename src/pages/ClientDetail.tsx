@@ -15,6 +15,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { hapticSelection } from "@/lib/haptics";
 import { getClientBrainStatus, getClientById, getClientBrandingPrimaryColor } from "@/data";
+import { isPermissionError } from "@/data/supabase";
 import ClientHeader from "@/components/ClientHeader";
 import OverviewTab from "@/components/client-tabs/OverviewTab";
 import AnalyticsTab from "@/components/client-tabs/AnalyticsTab";
@@ -99,7 +100,12 @@ export default function ClientDetail() {
   const [primaryColor, setPrimaryColor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [gateLoading, setGateLoading] = useState(true);
-  const [gateStatus, setGateStatus] = useState<{ usable: boolean; missingFields?: string[] } | null>(null);
+  const [gateStatus, setGateStatus] = useState<{
+    usable: boolean;
+    missingFields?: string[];
+    missingFieldsCount?: number;
+  } | null>(null);
+  const [gateNoAccess, setGateNoAccess] = useState(false);
   const [activeTab, setActiveTab] = useState("strategy");
   const [agencyId, setAgencyId] = useState<string>("");
   const lastFocusRef = useRef<string | null>(null);
@@ -152,7 +158,14 @@ export default function ClientDetail() {
     try {
       const status = await getClientBrainStatus(clientId);
       setGateStatus(status);
+      setGateNoAccess(false);
     } catch (error: any) {
+      if (isPermissionError(error)) {
+        setGateNoAccess(true);
+        setGateStatus({ usable: false });
+        setGateLoading(false);
+        return;
+      }
       toast({
         title: "Error",
         description: error.message || "Failed to check client onboarding status",
@@ -258,9 +271,26 @@ export default function ClientDetail() {
     );
   }
 
+  if (gateNoAccess) {
+    return (
+      <div className="p-6">
+        <Card>
+          <CardContent className="py-12 text-center">
+            <p className="text-muted-foreground">
+              You do not have access to this client&apos;s AI onboarding status.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   if (!gateStatus?.usable) {
     const returnTo = `${location.pathname}${location.search}`;
-    const missingCount = gateStatus?.missingFields?.length;
+    const missingCount =
+      typeof gateStatus?.missingFieldsCount === "number"
+        ? gateStatus.missingFieldsCount
+        : gateStatus?.missingFields?.length;
     const onboardingUrl = `/onboarding/ai/client/${clientId}`;
 
     return (

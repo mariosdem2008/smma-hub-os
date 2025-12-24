@@ -65,14 +65,14 @@ serve(async (req: Request) => {
   if (action === "create") {
     const existing = await supabase
       .from("client_brains")
-      .select("id")
+      .select("id, agency_id, client_id, version, status, locked")
       .eq("agency_id", agencyId)
       .eq("client_id", clientId)
       .eq("version", 1)
       .maybeSingle();
 
     if (existing.data) {
-      return jsonResponse({ error: "Client brain v1 already exists" }, 409, corsHeaders(req));
+      return jsonResponse({ success: true, brain: existing.data, existing: true }, 200, corsHeaders(req));
     }
 
     const { data, error } = await supabase

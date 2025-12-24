@@ -1,0 +1,375 @@
+﻿.\docs\ai\brain_spine_v1_contract.md:105:These fields must be present (non-empty) for `client_brains.usable = true`:
+.\docs\ai\brain_spine_v1_discovery.md:4:- `public.agency_brains`: id, agency_id, version, status, locked, brain_json, json_diff, confidence, created_at, updated_at.
+.\docs\ai\brain_spine_v1_discovery.md:5:- `public.client_brains`: id, agency_id, client_id, version, status, locked, brain_json, json_diff, confidence, created_at, updated_at.
+.\docs\ai\brain_spine_v1_discovery.md:8:- `public.ai_embeddings`: id, agency_id, client_id, doc_type, document_id, chunk_id, embedding, model, metadata, created_at.
+.\docs\ai\brain_spine_v1_discovery.md:11:## Existing embeddings/vector setup
+.\docs\ai\brain_spine_v1_discovery.md:13:- `public.ai_embeddings.embedding` uses `vector(1536)`.
+.\docs\ai\brain_spine_v1_discovery.md:14:- `ai-documents-ingest` currently inserts embeddings with a zero vector placeholder.
+.\docs\ai\brain_spine_v1_discovery.md:20:- `ai-ask`: placeholder RAG endpoint with budgets/rate limits and UNKNOWN response.
+.\docs\ai\brain_spine_v1_discovery.md:21:- `ai-documents-ingest`: chunk + store documents + zero-vector embeddings.
+.\docs\ai\brain_spine_v1_discovery.md:26:- `AiOnboardingV2Chat` writes answers to `agency_brains` or `client_brains` via `ai-brains-*`.
+.\docs\ai\brain_spine_v1_discovery.md:32:- No `client_brains.usable` flag for safe strategy gating.
+.\docs\ai\brain_spine_v1_discovery.md:34:- No `ai_usage_logs` table or view (usage logging is in `ai_runs` only).
+.\docs\ai\brain_spine_v1_discovery.md:35:- No retrieval endpoint; no `match_ai_embeddings` RPC for vector search.
+.\docs\ai\brain_spine_v1_discovery.md:36:- Embeddings are currently zero vectors (need real embedding generation).
+.\docs\ai\brain_spine_v1_discovery.md:37:- No strategy generation endpoint to enforce UNKNOWN quality gates.
+.\docs\ai\spec_gaps.md:6:3) Embeddings defaults: embedding_dim=1536, similarity=cosine.
+.\docs\ai\spec_gaps.md:21:1) Client list onboarding status source: expose client_brains status/usable flag in client list API or a lightweight view. Until then the Clients list badge is a proxy based on {contact, assets, published} signals.
+.\docs\ai\spec_gaps.md:23:3) Decide where to surface `client_brains.usable` in Dashboard/Clients readiness summaries once Brain Spine v1 is live.
+.\docs\ai\spec_gaps.md:27:7) Provide OPENAI_API_KEY in Supabase secrets to enable real embeddings + strategy generation.
+.\docs\ai\spec_gaps.md:28:8) Create a tenant-safe way for authenticated app users to read `client_brains.usable` (and optional missing fields) for Client Detail gating; current RLS restricts `client_brains` select to service_role.
+.\docs\ai\sql_smoke_tests.md:10:  and table_name in ('agency_brains','client_brains','ai_memory_items','ai_usage_logs','ai_documents','ai_embeddings');
+.\docs\ai\sql_smoke_tests.md:13:2) Verify `client_brains.usable` column:
+.\docs\ai\sql_smoke_tests.md:18:  and table_name = 'client_brains'
+.\docs\ai\sql_smoke_tests.md:30:4) Verify match_ai_embeddings returns rows for an agency:
+.\docs\ai\sql_smoke_tests.md:33:from public.match_ai_embeddings(
+.\docs\ai\sql_smoke_tests.md:42:5) Verify ai_usage_logs insert:
+.\docs\ai\sql_smoke_tests.md:44:insert into public.ai_usage_logs (agency_id, endpoint, model, tokens_estimate)
+.\docs\ai\safety_unknown_policy.md:1:# Safety UNKNOWN Policy (v1)
+.\docs\ai\safety_unknown_policy.md:15:  "answer": "UNKNOWN",
+.\docs\ai\sql_drafts.sql:2:-- Requires pgvector if vector(1536) is used.
+.\docs\ai\sql_drafts.sql:4:create table if not exists agency_brains (
+.\docs\ai\sql_drafts.sql:17:create table if not exists client_brains (
+.\docs\ai\sql_drafts.sql:68:create table if not exists ai_embeddings (
+.\docs\ai\sql_drafts.sql:75:  embedding vector(1536) not null,
+.\docs\ai\sql_drafts.sql:156:create index if not exists idx_ai_embeddings_filter on ai_embeddings(agency_id, client_id, doc_type);
+.\docs\ai\ui_onboarding_spec.md:97:   - Force UNKNOWN behavior; allow only review or exit
+.\PR_DESCRIPTION.md:5:- Added strategy draft doc type and updated `match_ai_embeddings` RPC metadata output.
+.\PR_DESCRIPTION.md:6:- Implemented RAG retrieval in `ai-ask` with UNKNOWN safety fallbacks.
+.\PR_DESCRIPTION.md:8:- Added embeddings utilities and real embedding calls when API key is present.
+.\PR_DESCRIPTION.md:9:- Logged usage in `ai_usage_logs` across ingest, ask, retrieve, and strategy.
+.\PR_DESCRIPTION.md:13:- Fixed `match_ai_embeddings` parameter order for Postgres defaults.
+.\PR_DESCRIPTION.md:14:- Added expanded `ai_usage_logs` columns for runtime evidence.
+.\PR_DESCRIPTION.md:15:- Gated Client Detail access behind `client_brains.usable` with onboarding redirect.
+.\PR_DESCRIPTION.md:30:2) `20251224103000_strategy_docs_and_embeddings.sql`
+.\PR_DESCRIPTION.md:31:3) `20251224110000_expand_ai_usage_logs.sql`
+.\PR_DESCRIPTION.md:37:Applying migration 20251224103000_strategy_docs_and_embeddings.sql...
+.\PR_DESCRIPTION.md:38:Applying migration 20251224110000_expand_ai_usage_logs.sql...
+.\PR_DESCRIPTION.md:41:Note: Initial push failed due to parameter default ordering in `match_ai_embeddings`; fixed by reordering parameters.
+.\PR_DESCRIPTION.md:49:- Q1: `client_brains.usable` exists
+.\PR_DESCRIPTION.md:50:- Q2: `match_ai_embeddings` exists
+.\PR_DESCRIPTION.md:51:- Q3: `ai_usage_logs` has new columns
+.\PR_DESCRIPTION.md:78:2) Strategy gate returns UNKNOWN...
+.\PR_DESCRIPTION.md:79:3) Insert memory doc + embeddings...
+.\PR_DESCRIPTION.md:99:- RLS tightening on brains/embeddings could block direct client reads; rollback by restoring previous policies.
+.\PR_DESCRIPTION.md:100:- Strategy draft relies on OPENAI key; without it, UNKNOWN is returned.
+.\PR_DESCRIPTION.md:102:- `match_ai_embeddings` signature change requires callers to use new return shape.
+.\PR_DESCRIPTION.md:105:- Rule: block Client Detail until `client_brains.usable === true` (no row => blocked).
+.\docs\ai\spec_v1.md:12:- Safety by default: UNKNOWN + 1-3 questions or escalation when not grounded.
+.\docs\ai\spec_v1.md:26:   - Document ingestion: chunking + embedding
+.\docs\ai\spec_v1.md:27:   - Storage: document metadata + chunks + embeddings
+.\docs\ai\spec_v1.md:56:5) Return response, or UNKNOWN + questions/escalation
+.\docs\ai\spec_v1.md:84:- Embeddings defaults: embedding_dim=1536, similarity=cosine
+.\docs\ai\spec_v1.md:87:- Grounding rule: if not grounded in brain/memory -> UNKNOWN + ask 1-3 questions or escalate
+.\docs\ai\spec_v1.md:96:- For UNKNOWN responses, set unknown=true and include 1-3 questions (or escalation when needed)
+.\docs\ai\spec_v1.md:141:  - UNKNOWN returned in >= 95% missing-info prompts (manual test set)
+.\docs\ai\spec_v1.md:169:1) Define ingestion flow with chunking + embedding + acceptance tests
+.\docs\ai\how_to_test_brain_spine.md:11:1) Apply migrations (including `20251224090000_brain_spine_v1.sql` and `20251224103000_strategy_docs_and_embeddings.sql`).
+.\docs\ai\how_to_test_brain_spine.md:16:6) Confirm that you see either UNKNOWN with missing fields or a strategy draft with citations count.
+.\docs\ai\how_to_test_brain_spine.md:24:- Check `ai_usage_logs` for entries from:
+.\docs\ai\how_to_test_brain_spine.md:30:- If `OPENAI_API_KEY` is missing, the strategy endpoint returns UNKNOWN.
+.\PRODUCTION_CHECKLIST.md:173:- Storage usage per plan tier
+.\docs\ai\brain_spine_v1_impl.md:8:- `client_brains.usable` is the gate for strategy generation.
+.\docs\ai\brain_spine_v1_impl.md:9:- Memory stored in `ai_documents` + `ai_embeddings`.
+.\docs\ai\brain_spine_v1_impl.md:14:3) `client_brains.usable` toggles based on required fields.
+.\docs\ai\brain_spine_v1_impl.md:16:   - Phase A: gate (UNKNOWN if missing fields)
+.\docs\ai\brain_spine_v1_impl.md:18:5) Strategy Hub shows UNKNOWN gate or draft strategy result.
+.\docs\ai\brain_spine_v1_impl.md:19:6) Usage logged in `ai_usage_logs`.
+.\docs\ai\brain_spine_v1_impl.md:23:- `ai-retrieve-context`: returns top-k chunks via `match_ai_embeddings`.
+.\docs\ai\brain_spine_v1_impl.md:24:- `ai-ask`: RAG retrieval + UNKNOWN policy.
+.\docs\ai\brain_spine_v1_impl.md:28:- Brains: `agency_brains`, `client_brains`.
+.\docs\ai\brain_spine_v1_impl.md:29:- Memory: `ai_documents`, `ai_document_chunks`, `ai_embeddings`.
+.\docs\ai\brain_spine_v1_impl.md:31:- Usage: `ai_usage_logs`.
+.\docs\ai\brain_spine_v1_impl.md:34:UNKNOWN responses follow `docs/ai/safety_unknown_policy.md`.
+.\docs\ai\brain_spine_v1_impl.md:37:- Embeddings use OpenAI; if key missing, endpoints return UNKNOWN.
+.\scripts\brain_spine_smoke_tests.mjs:27:    .from("client_brains")
+.\scripts\brain_spine_smoke_tests.mjs:43:  console.log("2) Strategy gate returns UNKNOWN...");
+.\scripts\brain_spine_smoke_tests.mjs:49:  console.log("3) Insert memory doc + embeddings...");
+.\scripts\brain_spine_smoke_tests.mjs:80:  await supabase.from("ai_embeddings").insert({
+.\scripts\brain_spine_smoke_tests.mjs:86:    embedding: zeroVector,
+.\scripts\brain_spine_smoke_tests.mjs:88:    metadata: { similarity: "cosine", embedding_dim: 1536 },
+.\scripts\brain_spine_smoke_tests.mjs:92:  const { data: matchSame } = await supabase.rpc("match_ai_embeddings", {
+.\scripts\brain_spine_smoke_tests.mjs:95:    p_query_embedding: zeroVector,
+.\scripts\brain_spine_smoke_tests.mjs:101:  const { data: matchOther } = await supabase.rpc("match_ai_embeddings", {
+.\scripts\brain_spine_smoke_tests.mjs:104:    p_query_embedding: zeroVector,
+.\scripts\brain_spine_smoke_tests.mjs:112:    .from("client_brains")
+.\supabase\functions\ai-ask\index.ts:5:import { embedText } from "../_shared/embeddings.ts";
+.\supabase\functions\ai-ask\index.ts:44:    answer: "UNKNOWN",
+.\supabase\functions\ai-ask\index.ts:142:      answer: "UNKNOWN",
+.\supabase\functions\ai-ask\index.ts:193:      answer: "UNKNOWN",
+.\supabase\functions\ai-ask\index.ts:237:      answer: "UNKNOWN",
+.\supabase\functions\ai-ask\index.ts:274:  const embeddingApiKey = Deno.env.get("OPENAI_API_KEY");
+.\supabase\functions\ai-ask\index.ts:275:  if (!embeddingApiKey) {
+.\supabase\functions\ai-ask\index.ts:277:      "AI embeddings are not configured. Please contact support.",
+.\supabase\functions\ai-ask\index.ts:297:    await supabase.from("ai_usage_logs").insert({
+.\supabase\functions\ai-ask\index.ts:301:      model: "embeddings-not-configured",
+.\supabase\functions\ai-ask\index.ts:311:  const embeddingModel = Deno.env.get("EMBEDDING_MODEL_ID") ?? "text-embedding-3-small";
+.\supabase\functions\ai-ask\index.ts:312:  const queryEmbedding = await embedText(question, embeddingApiKey, embeddingModel);
+.\supabase\functions\ai-ask\index.ts:314:  const { data: clientMatches } = await supabase.rpc("match_ai_embeddings", {
+.\supabase\functions\ai-ask\index.ts:317:    p_query_embedding: queryEmbedding,
+.\supabase\functions\ai-ask\index.ts:322:  const { data: agencyMatches } = await supabase.rpc("match_ai_embeddings", {
+.\supabase\functions\ai-ask\index.ts:325:    p_query_embedding: queryEmbedding,
+.\supabase\functions\ai-ask\index.ts:330:  const { data: exemplarMatches } = await supabase.rpc("match_ai_embeddings", {
+.\supabase\functions\ai-ask\index.ts:333:    p_query_embedding: queryEmbedding,
+.\supabase\functions\ai-ask\index.ts:367:    await supabase.from("ai_usage_logs").insert({
+.\supabase\functions\ai-ask\index.ts:387:    "You are an AI assistant. Answer strictly using the provided context. If context is insufficient, respond with UNKNOWN.";
+.\supabase\functions\ai-ask\index.ts:398:        Authorization: `Bearer ${embeddingApiKey}`,
+.\supabase\functions\ai-ask\index.ts:418:        answer: parsed.answer || "UNKNOWN",
+.\supabase\functions\ai-ask\index.ts:461:  await supabase.from("ai_usage_logs").insert({
+.\src\contexts\UpgradeAssistantContext.tsx:10:  | 'ai_usage_high'
+.\src\components\ai\AiOnboardingV2Chat.tsx:159:          .from("agency_brains")
+.\src\components\ai\AiOnboardingV2Chat.tsx:168:          .from("client_brains")
+.\src\integrations\supabase\types.ts:352:      ai_generation_usage: {
+.\src\integrations\supabase\types.ts:3116:      agency_brains: {
+.\src\integrations\supabase\types.ts:3155:            foreignKeyName: "agency_brains_agency_id_fkey"
+.\src\integrations\supabase\types.ts:3163:      client_brains: {
+.\src\integrations\supabase\types.ts:3208:            foreignKeyName: "client_brains_agency_id_fkey"
+.\src\integrations\supabase\types.ts:3215:            foreignKeyName: "client_brains_client_id_fkey"
+.\src\integrations\supabase\types.ts:3222:            foreignKeyName: "client_brains_client_id_fkey"
+.\src\integrations\supabase\types.ts:3229:            foreignKeyName: "client_brains_client_id_fkey"
+.\src\integrations\supabase\types.ts:3423:      get_monthly_ai_usage: { Args: { p_agency_id: string }; Returns: number }
+.\src\lib\upgrade-assistant-messages.ts:42:    ai_usage_high: {
+.\src\data\index.ts:183:    .from("client_brains")
+.\supabase\migrations\20251124133649_334878d3-6f11-41c7-ac57-53e7e85a4c1b.sql:5:-- Create table to track AI generation usage
+.\supabase\migrations\20251124133649_334878d3-6f11-41c7-ac57-53e7e85a4c1b.sql:6:CREATE TABLE IF NOT EXISTS public.ai_generation_usage (
+.\supabase\migrations\20251124133649_334878d3-6f11-41c7-ac57-53e7e85a4c1b.sql:17:ALTER TABLE public.ai_generation_usage ENABLE ROW LEVEL SECURITY;
+.\supabase\migrations\20251124133649_334878d3-6f11-41c7-ac57-53e7e85a4c1b.sql:19:-- Agency members can view their own agency usage
+.\supabase\migrations\20251124133649_334878d3-6f11-41c7-ac57-53e7e85a4c1b.sql:20:CREATE POLICY "Agency members can view usage"
+.\supabase\migrations\20251124133649_334878d3-6f11-41c7-ac57-53e7e85a4c1b.sql:21:  ON public.ai_generation_usage
+.\supabase\migrations\20251124133649_334878d3-6f11-41c7-ac57-53e7e85a4c1b.sql:31:-- Agency members can insert usage
+.\supabase\migrations\20251124133649_334878d3-6f11-41c7-ac57-53e7e85a4c1b.sql:32:CREATE POLICY "Agency members can insert usage"
+.\supabase\migrations\20251124133649_334878d3-6f11-41c7-ac57-53e7e85a4c1b.sql:33:  ON public.ai_generation_usage
+.\supabase\migrations\20251124133649_334878d3-6f11-41c7-ac57-53e7e85a4c1b.sql:44:CREATE INDEX idx_ai_usage_month_agency ON public.ai_generation_usage(month_year, agency_id);
+.\supabase\migrations\20251124133649_334878d3-6f11-41c7-ac57-53e7e85a4c1b.sql:46:-- Function to get current month's usage count for an agency
+.\supabase\migrations\20251124133649_334878d3-6f11-41c7-ac57-53e7e85a4c1b.sql:47:CREATE OR REPLACE FUNCTION public.get_monthly_ai_usage(p_agency_id UUID)
+.\supabase\migrations\20251124133649_334878d3-6f11-41c7-ac57-53e7e85a4c1b.sql:55:  FROM public.ai_generation_usage
+.\src\components\client-tabs\StrategyHubTab.tsx:120:              <p className="text-sm font-semibold">UNKNOWN: Missing strategy context</p>
+.\supabase\functions\_shared\embeddings.ts:34:  const response = await fetch("https://api.openai.com/v1/embeddings", {
+.\supabase\functions\_shared\embeddings.ts:52:  const vector = payload?.data?.[0]?.embedding;
+.\src\pages\Dashboard.tsx:909:                    Safety: UNKNOWN
+.\src\pages\BillingOverview.tsx:18:  const [usage, setUsage] = useState({ clients: 0, teamMembers: 0, aiGenerations: 0 });
+.\src\pages\BillingOverview.tsx:52:        // Get AI generation usage
+.\src\pages\BillingOverview.tsx:54:          .rpc('get_monthly_ai_usage', { p_agency_id: membership.agency_id });
+.\src\pages\BillingOverview.tsx:62:        console.error('Error fetching usage:', error);
+.\src\pages\BillingOverview.tsx:97:    ? Math.round((usage.clients / limits.clients) * 100)
+.\src\pages\BillingOverview.tsx:101:    ? Math.round((usage.teamMembers / limits.teamMembers) * 100)
+.\src\pages\BillingOverview.tsx:105:  const aiPercent = Math.round((usage.aiGenerations / aiQuota) * 100);
+.\src\pages\BillingOverview.tsx:119:        <p className="text-muted-foreground">View your subscription and usage details</p>
+.\src\pages\BillingOverview.tsx:172:          <CardDescription>Your current resource usage</CardDescription>
+.\src\pages\BillingOverview.tsx:183:                {loadingUsage ? '...' : usage.clients} / {limits?.clients || 'Γê₧'}
+.\src\pages\BillingOverview.tsx:203:                {loadingUsage ? '...' : usage.teamMembers} / {limits?.teamMembers || 'Γê₧'}
+.\src\pages\BillingOverview.tsx:244:                {loadingUsage ? '...' : usage.aiGenerations} / {aiQuota}
+.\src\pages\Billing.tsx:21:  const [usage, setUsage] = useState({ clients: 0, teamMembers: 0 });
+.\src\pages\Billing.tsx:92:        console.error('Error fetching usage:', error);
+.\src\pages\Billing.tsx:151:    ? Math.round((usage.clients / limits.clients) * 100)
+.\src\pages\Billing.tsx:155:    ? Math.round((usage.teamMembers / limits.teamMembers) * 100)
+.\src\pages\Billing.tsx:168:        <p className="text-muted-foreground">Manage your subscription and view usage</p>
+.\src\pages\Billing.tsx:229:          <CardDescription>Your current resource usage</CardDescription>
+.\src\pages\Billing.tsx:240:                {loadingUsage ? '...' : usage.clients} / {limits?.clients || 'Γê₧'}
+.\src\pages\Billing.tsx:254:                {loadingUsage ? '...' : usage.teamMembers} / {limits?.teamMembers || 'Γê₧'}
+.\audit-pack\outputs\ai_sprint1_verify\migration_apply.txt:342:NOTICE (00000): trigger "trg_agency_brains_updated_at" for relation "public.agency_brains" does not exist, skipping
+.\audit-pack\outputs\ai_sprint1_verify\migration_apply.txt:343:NOTICE (00000): trigger "trg_client_brains_updated_at" for relation "public.client_brains" does not exist, skipping
+.\audit-pack\outputs\ai_sprint1_verify\functions_smoke.txt:55:    "answer":  "UNKNOWN",
+.\src\components\client-tabs\BrandingTab.tsx:688:              placeholder="Add comprehensive brand guidelines, usage rules, do's and don'ts, typography preferences, imagery style, etc."
+.\audit-pack\outputs\ai_sprint1_verify\db_checks_output.txt:9: agency_brains
+.\audit-pack\outputs\ai_sprint1_verify\db_checks_output.txt:13: ai_embeddings
+.\audit-pack\outputs\ai_sprint1_verify\db_checks_output.txt:18: client_brains
+.\audit-pack\outputs\ai_sprint1_verify\db_checks_output.txt:23: agency_brains      | t
+.\audit-pack\outputs\ai_sprint1_verify\db_checks_output.txt:27: ai_embeddings      | t
+.\audit-pack\outputs\ai_sprint1_verify\db_checks_output.txt:32: client_brains      | t
+.\audit-pack\outputs\ai_sprint1_verify\db_checks.sql:8:    'agency_brains',
+.\audit-pack\outputs\ai_sprint1_verify\db_checks.sql:9:    'client_brains',
+.\audit-pack\outputs\ai_sprint1_verify\db_checks.sql:12:    'ai_embeddings',
+.\audit-pack\outputs\ai_sprint1_verify\db_checks.sql:24:  'agency_brains',
+.\audit-pack\outputs\ai_sprint1_verify\db_checks.sql:25:  'client_brains',
+.\audit-pack\outputs\ai_sprint1_verify\db_checks.sql:28:  'ai_embeddings',
+.\supabase\functions\client-auth-login\index.ts:209:    return new Response(JSON.stringify({ success: false, code: "E99_UNKNOWN", error: "Internal server error", v: FN_VERSION }), {
+.\audit-pack\outputs\ai_sprint1_remote_fix\remote_smoke_tests.txt:51:        "answer": "UNKNOWN",
+.\supabase\functions\ai-documents-ingest\index.ts:5:import { buildChunks, DEFAULT_EMBEDDING_DIM, embedText, tokenize } from "../_shared/embeddings.ts";
+.\supabase\functions\ai-documents-ingest\index.ts:134:  const embeddingApiKey = Deno.env.get("OPENAI_API_KEY");
+.\supabase\functions\ai-documents-ingest\index.ts:135:  const embeddingModel = Deno.env.get("EMBEDDING_MODEL_ID") ?? "text-embedding-3-small";
+.\supabase\functions\ai-documents-ingest\index.ts:156:    const embeddingVector = embeddingApiKey ? await embedText(chunk.text, embeddingApiKey, embeddingModel) : zeroVector;
+.\supabase\functions\ai-documents-ingest\index.ts:158:    const { error: embeddingError } = await supabase.from("ai_embeddings").insert({
+.\supabase\functions\ai-documents-ingest\index.ts:164:      embedding: embeddingVector,
+.\supabase\functions\ai-documents-ingest\index.ts:165:      model: embeddingModel,
+.\supabase\functions\ai-documents-ingest\index.ts:168:        embedding_dim: DEFAULT_EMBEDDING_DIM,
+.\supabase\functions\ai-documents-ingest\index.ts:169:        embedding_fallback: !embeddingApiKey,
+.\supabase\functions\ai-documents-ingest\index.ts:173:    if (embeddingError) {
+.\supabase\functions\ai-documents-ingest\index.ts:174:      return jsonResponse({ error: embeddingError.message }, 400, corsHeaders(req));
+.\supabase\functions\ai-documents-ingest\index.ts:178:  await supabase.from("ai_usage_logs").insert({
+.\supabase\functions\ai-documents-ingest\index.ts:182:    model: embeddingModel,
+.\audit-pack\outputs\ai_sprint1_remote_fix\remote_db_push_retry.txt:17:NOTICE (00000): trigger "trg_agency_brains_updated_at" for relation "public.agency_brains" does not exist, skipping
+.\audit-pack\outputs\ai_sprint1_remote_fix\remote_db_push_retry.txt:18:NOTICE (00000): trigger "trg_client_brains_updated_at" for relation "public.client_brains" does not exist, skipping
+.\supabase\functions\ai-brains-agency\index.ts:66:      .from("agency_brains")
+.\supabase\functions\ai-brains-agency\index.ts:77:      .from("agency_brains")
+.\supabase\functions\ai-brains-agency\index.ts:116:      .from("agency_brains")
+.\supabase\functions\ai-brains-agency\index.ts:131:    .from("agency_brains")
+.\audit-pack\outputs\ai_sprint1_remote_fix\migration_diff.txt:12: create table if not exists public.agency_brains (
+.\audit-pack\outputs\ai_sprint1_remote_fix\migration_diff.txt:18:@@ -17,7 +18,7 @@ create table if not exists public.agency_brains (
+.\audit-pack\outputs\ai_sprint1_remote_fix\migration_diff.txt:21: create table if not exists public.client_brains (
+.\audit-pack\outputs\ai_sprint1_remote_fix\migration_diff.txt:27:@@ -31,7 +32,7 @@ create table if not exists public.client_brains (
+.\audit-pack\outputs\ai_sprint1_remote_fix\migration_diff.txt:48: create table if not exists public.ai_embeddings (
+.\audit-pack\outputs\ai_sprint1_remote_fix\migration_diff.txt:54:@@ -81,7 +82,7 @@ create table if not exists public.ai_embeddings (
+.\audit-pack\outputs\ai_sprint1_remote_fix\local_reset.txt:343:NOTICE (00000): trigger "trg_agency_brains_updated_at" for relation "public.agency_brains" does not exist, skipping
+.\audit-pack\outputs\ai_sprint1_remote_fix\local_reset.txt:344:NOTICE (00000): trigger "trg_client_brains_updated_at" for relation "public.client_brains" does not exist, skipping
+.\supabase\functions\generate-ai-content\index.ts:138:    // Check current month's usage
+.\supabase\functions\generate-ai-content\index.ts:139:    const { data: usageCount } = await supabaseClient
+.\supabase\functions\generate-ai-content\index.ts:140:      .rpc('get_monthly_ai_usage', { p_agency_id: agency_id });
+.\supabase\functions\generate-ai-content\index.ts:142:    if (usageCount && usageCount >= monthlyQuota) {
+.\supabase\functions\generate-ai-content\index.ts:146:          error: `Monthly quota exceeded. You've used ${usageCount} of ${monthlyQuota} generations.`, 
+.\supabase\functions\generate-ai-content\index.ts:148:          used: usageCount 
+.\supabase\functions\generate-ai-content\index.ts:306:    // Track usage
+.\supabase\functions\generate-ai-content\index.ts:308:    const { error: usageError } = await supabaseClient.from('ai_generation_usage').insert({
+.\supabase\functions\generate-ai-content\index.ts:315:    if (usageError) {
+.\supabase\functions\generate-ai-content\index.ts:316:      console.error('[AI-CONTENT] Failed to record usage:', usageError);
+.\supabase\functions\generate-ai-content\index.ts:401:        usage: {
+.\supabase\functions\generate-ai-content\index.ts:402:          used: (usageCount || 0) + 1,
+.\supabase\functions\generate-ai-content\index.ts:404:          remaining: monthlyQuota - (usageCount || 0) - 1,
+.\supabase\functions\ai-brains-client\index.ts:67:      .from("client_brains")
+.\supabase\functions\ai-brains-client\index.ts:79:      .from("client_brains")
+.\supabase\functions\ai-brains-client\index.ts:119:      .from("client_brains")
+.\supabase\functions\ai-brains-client\index.ts:135:    .from("client_brains")
+.\supabase\functions\ai-brain-ingest\index.ts:5:import { buildChunks, DEFAULT_EMBEDDING_DIM, embedText, tokenize } from "../_shared/embeddings.ts";
+.\supabase\functions\ai-brain-ingest\index.ts:111:  const table = scope === "agency" ? "agency_brains" : "client_brains";
+.\supabase\functions\ai-brain-ingest\index.ts:182:      .from("agency_brains")
+.\supabase\functions\ai-brain-ingest\index.ts:250:    .from("client_brains")
+.\supabase\functions\ai-brain-ingest\index.ts:285:      const embeddingApiKey = Deno.env.get("OPENAI_API_KEY");
+.\supabase\functions\ai-brain-ingest\index.ts:286:      const embeddingModel = Deno.env.get("EMBEDDING_MODEL_ID") ?? "text-embedding-3-small";
+.\supabase\functions\ai-brain-ingest\index.ts:305:        const embeddingVector = embeddingApiKey
+.\supabase\functions\ai-brain-ingest\index.ts:306:          ? await embedText(chunk.text, embeddingApiKey, embeddingModel)
+.\supabase\functions\ai-brain-ingest\index.ts:309:        await supabase.from("ai_embeddings").insert({
+.\supabase\functions\ai-brain-ingest\index.ts:315:          embedding: embeddingVector,
+.\supabase\functions\ai-brain-ingest\index.ts:316:          model: embeddingModel,
+.\supabase\functions\ai-brain-ingest\index.ts:319:            embedding_dim: DEFAULT_EMBEDDING_DIM,
+.\supabase\functions\ai-brain-ingest\index.ts:320:            embedding_fallback: !embeddingApiKey,
+.\supabase\functions\ai-brain-ingest\index.ts:327:  await supabase.from("ai_usage_logs").insert({
+.\audit-pack\outputs\ai_sprint1_remote\remote_db_push.txt:58:create table if not exists public.agency_brains (                 
+.\supabase\functions\ai-strategy-generate\index.ts:6:import { buildChunks, DEFAULT_EMBEDDING_DIM, embedText, tokenize } from "../_shared/embeddings.ts";
+.\supabase\functions\ai-strategy-generate\index.ts:83:    .from("client_brains")
+.\supabase\functions\ai-strategy-generate\index.ts:98:    await supabase.from("ai_usage_logs").insert({
+.\supabase\functions\ai-strategy-generate\index.ts:113:    .from("agency_brains")
+.\supabase\functions\ai-strategy-generate\index.ts:120:  const embeddingApiKey = Deno.env.get("OPENAI_API_KEY");
+.\supabase\functions\ai-strategy-generate\index.ts:121:  if (!embeddingApiKey) {
+.\supabase\functions\ai-strategy-generate\index.ts:122:    await supabase.from("ai_usage_logs").insert({
+.\supabase\functions\ai-strategy-generate\index.ts:126:      model: "embeddings-not-configured",
+.\supabase\functions\ai-strategy-generate\index.ts:135:        missing_fields: ["embedding_api_key"],
+.\supabase\functions\ai-strategy-generate\index.ts:143:  const embeddingModel = Deno.env.get("EMBEDDING_MODEL_ID") ?? "text-embedding-3-small";
+.\supabase\functions\ai-strategy-generate\index.ts:144:  const queryEmbedding = await embedText("strategy_draft", embeddingApiKey, embeddingModel);
+.\supabase\functions\ai-strategy-generate\index.ts:146:  const { data: clientMatches } = await supabase.rpc("match_ai_embeddings", {
+.\supabase\functions\ai-strategy-generate\index.ts:149:    p_query_embedding: queryEmbedding,
+.\supabase\functions\ai-strategy-generate\index.ts:154:  const { data: agencyMatches } = await supabase.rpc("match_ai_embeddings", {
+.\supabase\functions\ai-strategy-generate\index.ts:157:    p_query_embedding: queryEmbedding,
+.\supabase\functions\ai-strategy-generate\index.ts:162:  const { data: exemplarMatches } = await supabase.rpc("match_ai_embeddings", {
+.\supabase\functions\ai-strategy-generate\index.ts:165:    p_query_embedding: queryEmbedding,
+.\supabase\functions\ai-strategy-generate\index.ts:177:    await supabase.from("ai_usage_logs").insert({
+.\supabase\functions\ai-strategy-generate\index.ts:207:    "You are a strategy assistant. Use only the provided brains and context. If missing, respond UNKNOWN.";
+.\supabase\functions\ai-strategy-generate\index.ts:215:      Authorization: `Bearer ${embeddingApiKey}`,
+.\supabase\functions\ai-strategy-generate\index.ts:229:    await supabase.from("ai_usage_logs").insert({
+.\supabase\functions\ai-strategy-generate\index.ts:308:      const embeddingVector = embeddingApiKey
+.\supabase\functions\ai-strategy-generate\index.ts:309:        ? await embedText(chunk.text, embeddingApiKey, embeddingModel)
+.\supabase\functions\ai-strategy-generate\index.ts:312:      await supabase.from("ai_embeddings").insert({
+.\supabase\functions\ai-strategy-generate\index.ts:318:        embedding: embeddingVector,
+.\supabase\functions\ai-strategy-generate\index.ts:319:        model: embeddingModel,
+.\supabase\functions\ai-strategy-generate\index.ts:322:          embedding_dim: DEFAULT_EMBEDDING_DIM,
+.\supabase\functions\ai-strategy-generate\index.ts:323:          embedding_fallback: !embeddingApiKey,
+.\supabase\functions\ai-strategy-generate\index.ts:329:  await supabase.from("ai_usage_logs").insert({
+.\supabase\functions\send-team-invite\index.ts:262:    let code = "E99_UNKNOWN";
+.\supabase\functions\ai-retrieve-context\index.ts:5:import { embedText } from "../_shared/embeddings.ts";
+.\supabase\functions\ai-retrieve-context\index.ts:62:  const embeddingApiKey = Deno.env.get("OPENAI_API_KEY");
+.\supabase\functions\ai-retrieve-context\index.ts:63:  if (!embeddingApiKey) {
+.\supabase\functions\ai-retrieve-context\index.ts:67:  const embeddingModel = Deno.env.get("EMBEDDING_MODEL_ID") ?? "text-embedding-3-small";
+.\supabase\functions\ai-retrieve-context\index.ts:68:  const queryEmbedding = await embedText(query, embeddingApiKey, embeddingModel);
+.\supabase\functions\ai-retrieve-context\index.ts:70:  const { data: matches, error: matchError } = await supabase.rpc("match_ai_embeddings", {
+.\supabase\functions\ai-retrieve-context\index.ts:73:    p_query_embedding: queryEmbedding,
+.\supabase\functions\ai-retrieve-context\index.ts:82:  await supabase.from("ai_usage_logs").insert({
+.\supabase\functions\ai-retrieve-context\index.ts:86:    model: embeddingModel,
+.\supabase\functions\client-auth-signup\index.ts:526:    console.error("E99_UNKNOWN Signup error:", error);
+.\supabase\functions\client-auth-signup\index.ts:527:    return new Response(JSON.stringify({ success: false, code: "E99_UNKNOWN", error: "Internal server error", v: FN_VERSION }), {
+.\supabase\migrations\20251129082630_7aaf1dd7-a2d4-46cb-ba8e-593890dad2c8.sql:66:CREATE OR REPLACE FUNCTION public.get_monthly_ai_usage(p_agency_id uuid)
+.\supabase\migrations\20251129082630_7aaf1dd7-a2d4-46cb-ba8e-593890dad2c8.sql:74:  FROM public.ai_generation_usage
+.\supabase\migrations\20251129082630_7aaf1dd7-a2d4-46cb-ba8e-593890dad2c8.sql:571:-- Grant usage on extensions schema to authenticated and service_role
+.\supabase\migrations\20251224110000_expand_ai_usage_logs.sql:1:alter table public.ai_usage_logs
+.\supabase\migrations\20251215175200_fix_core_auth_and_membership.sql:2:grant usage on schema public to anon, authenticated;
+.\supabase\migrations\20251213135607_fix-rls-core-tables.sql:2:grant usage on schema public to anon, authenticated;
+.\supabase\migrations\20251213135607_fix-rls-core-tables.sql:12:grant usage, select on all sequences in schema public to authenticated;
+.\supabase\migrations\20251215163908_fix_dashboard_rls_grants.sql:1:-- 0) Schema usage
+.\supabase\migrations\20251215163908_fix_dashboard_rls_grants.sql:2:grant usage on schema public to anon, authenticated;
+.\supabase\migrations\20251215163908_fix_dashboard_rls_grants.sql:12:grant usage, select on all sequences in schema public to authenticated;
+.\supabase\migrations\20251215163908_fix_dashboard_rls_grants.sql:13:grant usage, select on all sequences in schema public to anon;
+.\supabase\migrations\20251221095946_grant_changes.sql:1:grant usage on schema public to service_role;
+.\supabase\migrations\20251213133609_fix-auth-profiles-permissions.sql:2:grant usage on schema public to supabase_auth_admin;
+.\supabase\migrations\20251224103000_strategy_docs_and_embeddings.sql:1:-- Strategy draft doc type + embeddings RPC update + tighter brain/embedding RLS
+.\supabase\migrations\20251224103000_strategy_docs_and_embeddings.sql:18:drop function if exists public.match_ai_embeddings(
+.\supabase\migrations\20251224103000_strategy_docs_and_embeddings.sql:26:create or replace function public.match_ai_embeddings(
+.\supabase\migrations\20251224103000_strategy_docs_and_embeddings.sql:28:  p_query_embedding vector(1536),
+.\supabase\migrations\20251224103000_strategy_docs_and_embeddings.sql:51:    1 - (e.embedding <=> p_query_embedding) as score,
+.\supabase\migrations\20251224103000_strategy_docs_and_embeddings.sql:55:  from public.ai_embeddings e
+.\supabase\migrations\20251224103000_strategy_docs_and_embeddings.sql:61:  order by e.embedding <=> p_query_embedding
+.\supabase\migrations\20251224103000_strategy_docs_and_embeddings.sql:65:drop policy if exists "agency_brains_select" on public.agency_brains;
+.\supabase\migrations\20251224103000_strategy_docs_and_embeddings.sql:66:create policy "agency_brains_select_service" on public.agency_brains
+.\supabase\migrations\20251224103000_strategy_docs_and_embeddings.sql:70:drop policy if exists "client_brains_select" on public.client_brains;
+.\supabase\migrations\20251224103000_strategy_docs_and_embeddings.sql:71:create policy "client_brains_select_service" on public.client_brains
+.\supabase\migrations\20251224103000_strategy_docs_and_embeddings.sql:75:drop policy if exists "ai_embeddings_select" on public.ai_embeddings;
+.\supabase\migrations\20251224103000_strategy_docs_and_embeddings.sql:76:create policy "ai_embeddings_select_service" on public.ai_embeddings
+.\supabase\functions\client-auth-reset-password\index.ts:205:    return new Response(JSON.stringify({ success: false, code: "E99_UNKNOWN", error: "Internal server error", v: FN_VERSION }), {
+.\supabase\migrations\20251215140931_fix_grants_clients_notifications.sql:1:-- 0) Schema usage
+.\supabase\migrations\20251215140931_fix_grants_clients_notifications.sql:2:grant usage on schema public to anon, authenticated;
+.\supabase\migrations\20251215140931_fix_grants_clients_notifications.sql:12:grant usage, select on all sequences in schema public to authenticated;
+.\supabase\migrations\20251215140931_fix_grants_clients_notifications.sql:13:grant usage, select on all sequences in schema public to anon;
+.\supabase\migrations\20251215164841_fix_rls_remaining_tables_and_subscription.sql:1:-- 0) Schema usage (harmless)
+.\supabase\migrations\20251215164841_fix_rls_remaining_tables_and_subscription.sql:2:grant usage on schema public to anon, authenticated;
+.\supabase\migrations\20251215164841_fix_rls_remaining_tables_and_subscription.sql:16:grant usage, select on all sequences in schema public to authenticated;
+.\src\components\settings\BillingTab.tsx:54:      console.error("Error fetching usage:", error);
+.\supabase\migrations\20251215181258_grant_changes.sql:1:grant usage on schema public to authenticated;
+.\supabase\migrations\20251215181258_grant_changes.sql:3:grant usage, select on all sequences in schema public to authenticated;
+.\supabase\migrations\20251224090000_brain_spine_v1.sql:3:alter table public.client_brains
+.\supabase\migrations\20251224090000_brain_spine_v1.sql:16:create table if not exists public.ai_usage_logs (
+.\supabase\migrations\20251224090000_brain_spine_v1.sql:27:create index if not exists idx_ai_usage_logs_agency_client on public.ai_usage_logs(agency_id, client_id, created_at);
+.\supabase\migrations\20251224090000_brain_spine_v1.sql:30:alter table public.ai_usage_logs enable row level security;
+.\supabase\migrations\20251224090000_brain_spine_v1.sql:48:create policy "ai_usage_logs_select" on public.ai_usage_logs
+.\supabase\migrations\20251224090000_brain_spine_v1.sql:52:create policy "ai_usage_logs_insert" on public.ai_usage_logs
+.\supabase\migrations\20251224090000_brain_spine_v1.sql:56:create policy "ai_usage_logs_update" on public.ai_usage_logs
+.\supabase\migrations\20251224090000_brain_spine_v1.sql:60:create policy "ai_usage_logs_delete" on public.ai_usage_logs
+.\supabase\migrations\20251224090000_brain_spine_v1.sql:64:create or replace function public.match_ai_embeddings(
+.\supabase\migrations\20251224090000_brain_spine_v1.sql:66:  p_query_embedding vector(1536),
+.\supabase\migrations\20251224090000_brain_spine_v1.sql:86:    1 - (e.embedding <=> p_query_embedding) as score
+.\supabase\migrations\20251224090000_brain_spine_v1.sql:87:  from public.ai_embeddings e
+.\supabase\migrations\20251224090000_brain_spine_v1.sql:93:  order by e.embedding <=> p_query_embedding
+.\supabase\migrations\20251215171143_fix_metrics_tasks_client_users_access.sql:1:-- 0) Schema usage (safe)
+.\supabase\migrations\20251215171143_fix_metrics_tasks_client_users_access.sql:2:grant usage on schema public to anon, authenticated;
+.\supabase\migrations\20251215171143_fix_metrics_tasks_client_users_access.sql:17:grant usage, select on all sequences in schema public to authenticated;
+.\supabase\migrations\20251215171143_fix_metrics_tasks_client_users_access.sql:18:grant usage, select on all sequences in schema public to anon;
+.\supabase\functions\send-portal-invite\index.ts:427:    console.error("E99_UNKNOWN error:", error);
+.\supabase\functions\send-portal-invite\index.ts:429:    return new Response(JSON.stringify({ success: false, code: "E99_UNKNOWN", error: message, v: FN_VERSION }), {
+.\supabase\migrations\20251215175628_fix_projects_access.sql:1:-- 0) Ensure schema usage
+.\supabase\migrations\20251215175628_fix_projects_access.sql:2:grant usage on schema public to anon, authenticated;
+.\supabase\migrations\20251221104011_delete_invites.sql:2:grant usage on schema public to authenticated;
+.\supabase\migrations\20251223150000_ai_employee_v1_sprint1.sql:7:create table if not exists public.agency_brains (
+.\supabase\migrations\20251223150000_ai_employee_v1_sprint1.sql:20:create table if not exists public.client_brains (
+.\supabase\migrations\20251223150000_ai_employee_v1_sprint1.sql:71:create table if not exists public.ai_embeddings (
+.\supabase\migrations\20251223150000_ai_employee_v1_sprint1.sql:78:  embedding vector(1536) not null,
+.\supabase\migrations\20251223150000_ai_employee_v1_sprint1.sql:159:create index if not exists idx_ai_embeddings_filter on public.ai_embeddings(agency_id, client_id, doc_type);
+.\supabase\migrations\20251223150000_ai_employee_v1_sprint1.sql:163:alter table public.agency_brains enable row level security;
+.\supabase\migrations\20251223150000_ai_employee_v1_sprint1.sql:164:alter table public.client_brains enable row level security;
+.\supabase\migrations\20251223150000_ai_employee_v1_sprint1.sql:167:alter table public.ai_embeddings enable row level security;
+.\supabase\migrations\20251223150000_ai_employee_v1_sprint1.sql:174:create policy "agency_brains_select" on public.agency_brains
+.\supabase\migrations\20251223150000_ai_employee_v1_sprint1.sql:178:create policy "agency_brains_insert" on public.agency_brains
+.\supabase\migrations\20251223150000_ai_employee_v1_sprint1.sql:182:create policy "agency_brains_update" on public.agency_brains
+.\supabase\migrations\20251223150000_ai_employee_v1_sprint1.sql:186:create policy "agency_brains_delete" on public.agency_brains
+.\supabase\migrations\20251223150000_ai_employee_v1_sprint1.sql:190:create policy "client_brains_select" on public.client_brains
+.\supabase\migrations\20251223150000_ai_employee_v1_sprint1.sql:194:create policy "client_brains_insert" on public.client_brains
+.\supabase\migrations\20251223150000_ai_employee_v1_sprint1.sql:198:create policy "client_brains_update" on public.client_brains
+.\supabase\migrations\20251223150000_ai_employee_v1_sprint1.sql:202:create policy "client_brains_delete" on public.client_brains
+.\supabase\migrations\20251223150000_ai_employee_v1_sprint1.sql:258:create policy "ai_embeddings_select" on public.ai_embeddings
+.\supabase\migrations\20251223150000_ai_employee_v1_sprint1.sql:262:create policy "ai_embeddings_insert" on public.ai_embeddings
+.\supabase\migrations\20251223150000_ai_employee_v1_sprint1.sql:266:create policy "ai_embeddings_update" on public.ai_embeddings
+.\supabase\migrations\20251223150000_ai_employee_v1_sprint1.sql:270:create policy "ai_embeddings_delete" on public.ai_embeddings
+.\supabase\migrations\20251223150000_ai_employee_v1_sprint1.sql:342:drop trigger if exists trg_agency_brains_updated_at on public.agency_brains;
+.\supabase\migrations\20251223150000_ai_employee_v1_sprint1.sql:343:create trigger trg_agency_brains_updated_at
+.\supabase\migrations\20251223150000_ai_employee_v1_sprint1.sql:344:  before update on public.agency_brains
+.\supabase\migrations\20251223150000_ai_employee_v1_sprint1.sql:347:drop trigger if exists trg_client_brains_updated_at on public.client_brains;
+.\supabase\migrations\20251223150000_ai_employee_v1_sprint1.sql:348:create trigger trg_client_brains_updated_at
+.\supabase\migrations\20251223150000_ai_employee_v1_sprint1.sql:349:  before update on public.client_brains
+.\supabase\migrations\20251215181154_changes_team_members.sql:2:grant usage on schema public to authenticated;
+.\supabase\migrations\20251213142005_permisions_user_roles.sql:2:grant usage on schema public to authenticated;
+.\src\components\PlanGuard.tsx:56:        console.error('Error checking usage:', error);
