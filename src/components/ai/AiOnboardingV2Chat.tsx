@@ -71,6 +71,7 @@ type Question = {
 type Props = {
   onboardingType: "agency" | "client";
   clientId?: string | null;
+  onComplete?: () => void;
 };
 
 type FollowupState = {
@@ -78,7 +79,7 @@ type FollowupState = {
   answers: string[];
 };
 
-export function AiOnboardingV2Chat({ onboardingType, clientId }: Props) {
+export function AiOnboardingV2Chat({ onboardingType, clientId, onComplete }: Props) {
   const { user } = useAuth();
   const questions = useMemo<Question[]>(
     () => (onboardingType === "agency" ? AGENCY_QUESTIONS : CLIENT_QUESTIONS),
@@ -353,6 +354,7 @@ export function AiOnboardingV2Chat({ onboardingType, clientId }: Props) {
         followup_responses: followups,
       },
     });
+    onComplete?.();
   };
 
   const handleCreateAgency = async () => {

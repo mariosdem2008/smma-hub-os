@@ -1,18 +1,25 @@
-import { useState, useEffect } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useToast } from "@/hooks/use-toast";
 import { useClientFonts } from "@/hooks/useClientFonts";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { hapticSelection } from "@/lib/haptics";
-import { getClientById, getClientBrandingPrimaryColor } from "@/data";
+import { getClientBrainStatus, getClientById, getClientBrandingPrimaryColor } from "@/data";
 import ClientHeader from "@/components/ClientHeader";
 import OverviewTab from "@/components/client-tabs/OverviewTab";
 import AnalyticsTab from "@/components/client-tabs/AnalyticsTab";
 import BrandIdentityTab from "@/components/client-tabs/BrandIdentityTab";
 import SocialProfilesTab from "@/components/SocialProfilesTab";
-import ContentPlanningTab from "@/components/client-tabs/ContentPlanningTab";
 import PipelineTab from "@/components/client-tabs/PipelineTab";
 import CalendarTab from "@/components/client-tabs/CalendarTab";
 import ClientUploadsTab from "@/components/client-tabs/ClientUploadsTab";
@@ -21,6 +28,7 @@ import LibraryTab from "@/components/client-tabs/LibraryTab";
 import TasksTab from "@/components/client-tabs/TasksTab";
 import ReportsTab from "@/components/client-tabs/ReportsTab";
 import AdsTab from "@/components/client-tabs/AdsTab";
+import StrategyHubTab from "@/components/client-tabs/StrategyHubTab";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
@@ -36,6 +44,8 @@ import {
   Upload,
   Users,
   Lightbulb,
+  MoreHorizontal,
+  ChevronDown,
 } from "lucide-react";
 
 interface Client {
@@ -57,32 +67,44 @@ interface Client {
   agency_id: string;
 }
 
-const tabs = [
+const primaryTabs = [
+  { id: "strategy", label: "Strategy", icon: Lightbulb },
+  { id: "pipeline", label: "Pipeline", icon: Workflow },
+  { id: "calendar", label: "Calendar", icon: CalendarIcon },
+  { id: "library", label: "Library", icon: FolderOpen },
+  { id: "portal", label: "Portal", icon: Users },
+];
+
+const secondaryTabs = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "analytics", label: "Analytics", icon: BarChart3 },
   { id: "ads", label: "Ads", icon: Megaphone },
   { id: "reports", label: "Reports", icon: FileText },
   { id: "brand", label: "Brand Identity", icon: Palette },
-  { id: "pipeline", label: "Pipeline", icon: Workflow },
-  { id: "planning", label: "Content Planning", icon: Lightbulb },
-  { id: "library", label: "Library", icon: FolderOpen },
-  { id: "calendar", label: "Calendar", icon: CalendarIcon },
-  { id: "tasks", label: "Tasks", icon: CheckSquare },
   { id: "social", label: "Social Profiles", icon: Share2 },
   { id: "uploads", label: "Client Uploads", icon: Upload },
-  { id: "portal", label: "Client Portal", icon: Users },
+  { id: "tasks", label: "Tasks", icon: CheckSquare },
 ];
+
+const allTabs = [...primaryTabs, ...secondaryTabs];
 
 export default function ClientDetail() {
   const { clientId: rawClientId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
+  const navigate = useNavigate();
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const [client, setClient] = useState<Client | null>(null);
   const [primaryColor, setPrimaryColor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("overview");
+  const [gateLoading, setGateLoading] = useState(true);
+  const [gateStatus, setGateStatus] = useState<{ usable: boolean; missingFields?: string[] } | null>(null);
+  const [activeTab, setActiveTab] = useState("strategy");
   const [agencyId, setAgencyId] = useState<string>("");
+  const lastFocusRef = useRef<string | null>(null);
+  const lastActionRef = useRef<string | null>(null);
+  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
 
   // FIX: Clean the client ID by removing query parameters
   const clientId = rawClientId?.split("?")[0] || "";
@@ -120,6 +142,28 @@ export default function ClientDetail() {
     }
   };
 
+  const fetchGateStatus = async () => {
+    if (!clientId) {
+      setGateStatus({ usable: false });
+      setGateLoading(false);
+      return;
+    }
+
+    try {
+      const status = await getClientBrainStatus(clientId);
+      setGateStatus(status);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to check client onboarding status",
+        variant: "destructive",
+      });
+      setGateStatus({ usable: false });
+    } finally {
+      setGateLoading(false);
+    }
+  };
+
   // Add this function to handle client updates
   const handleClientUpdate = async () => {
     await fetchClient();
@@ -134,15 +178,46 @@ export default function ClientDetail() {
   // Handle URL-based tab navigation
   useEffect(() => {
     const tab = searchParams.get("tab");
-    if (tab && tabs.some((t) => t.id === tab)) {
-      setActiveTab(tab);
+    const normalizedTab = tab === "planning" ? "strategy" : tab;
+    if (normalizedTab && allTabs.some((t) => t.id === normalizedTab)) {
+      setActiveTab(normalizedTab);
     }
-  }, [searchParams]);
+    if (tab === "planning") {
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.set("tab", "strategy");
+      setSearchParams(nextParams);
+    }
+  }, [searchParams, setSearchParams]);
+
+  useEffect(() => {
+    const focus = searchParams.get("focus");
+    const action = searchParams.get("action");
+
+    if (focus && focus !== lastFocusRef.current) {
+      toast({
+        title: "Focused view",
+        description: `Focused: ${focus}.`,
+      });
+      lastFocusRef.current = focus;
+    }
+
+    if (action && action !== lastActionRef.current) {
+      toast({
+        title: "AI action queued",
+        description: `AI action queued: ${action}.`,
+      });
+      lastActionRef.current = action;
+    }
+  }, [searchParams, toast]);
 
   useEffect(() => {
     if (clientId) {
       fetchClient();
     }
+  }, [clientId]);
+
+  useEffect(() => {
+    fetchGateStatus();
   }, [clientId]);
 
   const handleNotesUpdate = (notes: string) => {
@@ -152,12 +227,18 @@ export default function ClientDetail() {
   };
 
   const handleTabChange = (tabId: string) => {
-    setActiveTab(tabId);
-    setSearchParams({ tab: tabId });
+    const nextTab = tabId === "planning" ? "strategy" : tabId;
+    setActiveTab(nextTab);
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set("tab", nextTab);
+    setSearchParams(nextParams);
     hapticSelection();
   };
 
-  if (loading) {
+  const focusParam = searchParams.get("focus");
+  const actionParam = searchParams.get("action");
+
+  if (loading || gateLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-pulse text-muted-foreground">Loading...</div>
@@ -177,8 +258,61 @@ export default function ClientDetail() {
     );
   }
 
+  if (!gateStatus?.usable) {
+    const returnTo = `${location.pathname}${location.search}`;
+    const missingCount = gateStatus?.missingFields?.length;
+    const onboardingUrl = `/onboarding/ai/client/${clientId}`;
+
+    return (
+      <div className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center p-6">
+        <Card className="w-full max-w-xl">
+          <CardContent className="space-y-5 py-10 text-center">
+            <div className="space-y-2">
+              <h1 className="text-2xl font-semibold">AI Client Onboarding required</h1>
+              <p className="text-sm text-muted-foreground">
+                Complete AI onboarding before accessing the client workspace.
+              </p>
+              {typeof missingCount === "number" && (
+                <p className="text-xs text-muted-foreground">
+                  Missing fields: {missingCount}
+                </p>
+              )}
+            </div>
+            <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+              <Button
+                onClick={() =>
+                  navigate(
+                    `/onboarding/ai/client/${clientId}?returnTo=${encodeURIComponent(returnTo)}`,
+                  )
+                }
+              >
+                Start AI Client Onboarding
+              </Button>
+              {client.email && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    const link = `${window.location.origin}${onboardingUrl}?returnTo=${encodeURIComponent(returnTo)}`;
+                    window.location.href = `mailto:${client.email}?subject=Complete AI onboarding&body=${encodeURIComponent(
+                      `Please complete AI onboarding here: ${link}`,
+                    )}`;
+                  }}
+                >
+                  Send to client
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   const renderTabContent = () => {
     switch (activeTab) {
+      case "strategy":
+      case "planning":
+        return <StrategyHubTab clientId={clientId} agencyId={agencyId} client={client} />;
       case "overview":
         return <OverviewTab clientId={clientId} client={client} onNotesUpdate={handleNotesUpdate} />;
       case "analytics":
@@ -191,8 +325,6 @@ export default function ClientDetail() {
         return <BrandIdentityTab clientId={clientId} clientName={client.name} />;
       case "social":
         return <SocialProfilesTab clientId={clientId} />;
-      case "planning":
-        return <ContentPlanningTab clientId={clientId} />;
       case "pipeline":
         return <PipelineTab clientId={clientId} agencyId={agencyId} />;
       case "calendar":
@@ -244,8 +376,8 @@ export default function ClientDetail() {
               onClientUpdate={handleClientUpdate}
             />
           </div>
-          <nav className="p-2">
-            {tabs.map((tab) => {
+          <nav className="p-2 space-y-2">
+            {primaryTabs.map((tab) => {
               const Icon = tab.icon;
               return (
                 <button
@@ -263,6 +395,34 @@ export default function ClientDetail() {
                 </button>
               );
             })}
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className={cn(
+                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-left",
+                    secondaryTabs.some((tab) => tab.id === activeTab)
+                      ? "bg-muted text-foreground"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  )}
+                >
+                  <MoreHorizontal className="h-4 w-4 flex-shrink-0" />
+                  <span className="truncate">More</span>
+                  <ChevronDown className="ml-auto h-4 w-4 opacity-70" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-52">
+                {secondaryTabs.map((tab) => {
+                  const Icon = tab.icon;
+                  return (
+                    <DropdownMenuItem key={tab.id} onClick={() => handleTabChange(tab.id)}>
+                      <Icon className="mr-2 h-4 w-4" />
+                      {tab.label}
+                    </DropdownMenuItem>
+                  );
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </nav>
         </aside>
       )}
@@ -271,7 +431,7 @@ export default function ClientDetail() {
       {isMobile && (
         <div className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t">
           <div className="flex overflow-x-auto scrollbar-hide py-2 px-2 gap-1">
-            {tabs.map((tab) => {
+            {primaryTabs.map((tab) => {
               const Icon = tab.icon;
               return (
                 <button
@@ -287,6 +447,45 @@ export default function ClientDetail() {
                 </button>
               );
             })}
+            <Sheet open={mobileMoreOpen} onOpenChange={setMobileMoreOpen}>
+              <SheetTrigger asChild>
+                <button
+                  className={cn(
+                    "flex flex-col items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium transition-colors flex-shrink-0 min-w-[60px]",
+                    secondaryTabs.some((tab) => tab.id === activeTab)
+                      ? "bg-muted text-foreground"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                  <span className="truncate max-w-[60px]">More</span>
+                </button>
+              </SheetTrigger>
+              <SheetContent side="bottom" className="rounded-t-xl">
+                <SheetHeader>
+                  <SheetTitle>More tabs</SheetTitle>
+                </SheetHeader>
+                <div className="mt-4 grid gap-2">
+                  {secondaryTabs.map((tab) => {
+                    const Icon = tab.icon;
+                    return (
+                      <Button
+                        key={tab.id}
+                        variant="outline"
+                        className="justify-start gap-2"
+                        onClick={() => {
+                          handleTabChange(tab.id);
+                          setMobileMoreOpen(false);
+                        }}
+                      >
+                        <Icon className="h-4 w-4" />
+                        {tab.label}
+                      </Button>
+                    );
+                  })}
+                </div>
+              </SheetContent>
+            </Sheet>
           </div>
         </div>
       )}
@@ -305,6 +504,13 @@ export default function ClientDetail() {
               primaryColor={primaryColor}
               onClientUpdate={handleClientUpdate}
             />
+          </div>
+        )}
+
+        {(focusParam || actionParam) && (
+          <div className="mb-4 rounded-lg border border-border/70 bg-card/40 p-3 text-sm">
+            {focusParam && <div className="text-muted-foreground">Focused: {focusParam}</div>}
+            {actionParam && <div className="text-muted-foreground">AI action queued: {actionParam}</div>}
           </div>
         )}
 

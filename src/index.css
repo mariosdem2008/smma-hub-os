@@ -25,25 +25,33 @@ html {
 
 @layer base {
   :root {
-    /* ===== LIGHT MODE (DEFAULT) ===== */
+    /* ===== DARK MODE (DEFAULT) ===== */
+
+    /* Semantic tokens */
+    --bg: 220 39% 5%;
+    --panel: 220 49% 8%;
+    --text: 215 61% 94%;
+    --muted: 216 21% 67%;
+    --muted-bg: 220 49% 8%;
+    --danger: 0 100% 65%;
     
-    /* Brand Colors - Premium Purple/Blue */
-    --primary: 236 100% 65%;          /* #4E5DFF - Premium Blue */
-    --primary-hover: 237 100% 70%;    /* #6A73FF - Lighter Blue */
-    --primary-foreground: 0 0% 100%;  /* White text on primary */
-    --accent: 237 100% 70%;           /* #6A73FF - Gradient End */
-    --accent-foreground: 0 0% 100%;   /* White text on accent */
+    /* Brand Colors */
+    --primary: 224 100% 65%;          /* #4C7DFF */
+    --primary-hover: 224 100% 70%;
+    --primary-foreground: 0 0% 100%;
+    --accent: 188 86% 53%;            /* #22D3EE */
+    --accent-foreground: 220 39% 5%;
     
-    /* Surface Colors - Subtle Teal Tint */
-    --background: 195 20% 98%;        /* Very light teal-tinted background */
-    --foreground: 200 25% 10%;        /* Deep teal-gray text */
-    --surface: 180 25% 99%;           /* Almost white with subtle teal */
-    --card: 190 35% 97%;              /* Light teal-tinted card */
-    --card-foreground: 200 25% 10%;   /* Dark text on cards */
+    /* Surface Colors */
+    --background: 220 39% 5%;         /* #070A10 */
+    --foreground: 215 61% 94%;        /* #E6EEF9 */
+    --surface: 220 49% 8%;            /* #0B1220 */
+    --card: 222 55% 12%;              /* #0E1830 */
+    --card-foreground: 215 61% 94%;
     
     /* Premium accent colors */
-    --premium-blue: #4E5DFF;
-    --premium-blue-light: #6A73FF;
+    --premium-blue: #4C7DFF;
+    --premium-blue-light: #22D3EE;
     
     /* Vibrant accent colors for professional SaaS */
     --accent-orange: 25 95% 60%;
@@ -59,53 +67,53 @@ html {
     --gradient-green: linear-gradient(135deg, hsl(150, 70%, 55%) 0%, hsl(160, 70%, 60%) 100%);
     
     /* UI Elements */
-    --border: 190 25% 88%;            /* Teal-tinted border */
-    --input: 190 35% 97%;             /* Same as card */
-    --ring: 187 95% 43%;              /* Primary color for focus rings */
+    --border: 218 43% 19%;            /* #1B2A44 */
+    --input: 222 55% 12%;
+    --ring: 224 100% 65%;
     
     /* Text */
-    --text-primary: 200 25% 10%;      /* Deep teal-gray main text */
-    --text-secondary: 195 15% 40%;    /* Medium teal-gray secondary text */
+    --text-primary: 215 61% 94%;
+    --text-secondary: 216 21% 67%;
     
     /* Sidebar & Header */
-    --sidebar-bg: 195 25% 96%;        /* Light teal-gray sidebar */
-    --header-bg: 180 25% 99%;         /* Almost white header with teal hint */
-    --sidebar-background: 195 25% 96%;
-    --sidebar-foreground: 200 25% 10%;
-    --sidebar-primary: 187 95% 43%;
+    --sidebar-bg: 220 49% 8%;
+    --header-bg: 220 49% 8%;
+    --sidebar-background: 220 49% 8%;
+    --sidebar-foreground: 215 61% 94%;
+    --sidebar-primary: 224 100% 65%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 190 30% 93%;
-    --sidebar-accent-foreground: 200 25% 10%;
-    --sidebar-border: 190 25% 88%;
-    --sidebar-ring: 187 95% 43%;
+    --sidebar-accent: 222 55% 12%;
+    --sidebar-accent-foreground: 215 61% 94%;
+    --sidebar-border: 218 43% 19%;
+    --sidebar-ring: 224 100% 65%;
     
     /* Popover & Dropdown */
-    --popover: 180 25% 99%;           /* Almost white */
-    --popover-foreground: 200 25% 10%;
+    --popover: 220 49% 8%;
+    --popover-foreground: 215 61% 94%;
     
     /* Secondary */
-    --secondary: 190 30% 93%;         /* Light teal-gray */
-    --secondary-foreground: 200 25% 10%;
+    --secondary: 220 49% 8%;
+    --secondary-foreground: 215 61% 94%;
     
     /* Muted */
-    --muted: 190 25% 90%;             /* Subtle teal background */
-    --muted-foreground: 195 15% 45%;  /* Muted text */
+    --muted: 216 21% 67%;
+    --muted-foreground: 216 21% 67%;
     
     /* States */
-    --success: 160 84% 39%;           /* #10B981 - Green */
+    --success: 142 71% 52%;           /* #2DDB6D */
     --success-foreground: 0 0% 100%;
-    --error: 0 84% 60%;               /* #EF4444 - Red */
+    --error: 0 100% 65%;              /* #FF4D4D */
     --error-foreground: 0 0% 100%;
-    --destructive: 0 84% 60%;         /* Same as error */
+    --destructive: 0 100% 65%;
     --destructive-foreground: 0 0% 100%;
-    --warning: 38 92% 50%;            /* #F59E0B - Orange */
-    --warning-foreground: 222 47% 11%;
-    --info: 187 95% 43%;              /* #06B6D4 - Same as primary */
-    --info-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 220 39% 5%;
+    --info: 188 86% 53%;
+    --info-foreground: 220 39% 5%;
     
     /* Status colors */
-    --status-active: 160 84% 39%;
-    --status-inactive: 195 15% 50%;
+    --status-active: 142 71% 52%;
+    --status-inactive: 216 21% 67%;
     --status-paused: 38 92% 50%;
     
     --radius: 0.5rem;
@@ -114,68 +122,76 @@ html {
   .dark {
     /* ===== DARK MODE ===== */
     
+    /* Semantic tokens */
+    --bg: 220 39% 5%;
+    --panel: 220 49% 8%;
+    --text: 215 61% 94%;
+    --muted: 216 21% 67%;
+    --muted-bg: 220 49% 8%;
+    --danger: 0 100% 65%;
+
     /* Brand Colors */
-    --primary: 236 100% 65%;          /* #4E5DFF - Premium Blue */
-    --primary-hover: 237 100% 70%;    /* #6A73FF - Lighter Blue */
+    --primary: 224 100% 65%;
+    --primary-hover: 224 100% 70%;
     --primary-foreground: 0 0% 100%;
-    --accent: 237 100% 70%;           /* #6A73FF - Gradient End */
-    --accent-foreground: 0 0% 100%;
+    --accent: 188 86% 53%;
+    --accent-foreground: 220 39% 5%;
     
-    /* Surface Colors - Deep Modern Dark */
-    --background: 225 15% 7%;         /* #0F1117 - Dark background */
-    --foreground: 216 12% 84%;        /* Light text */
-    --surface: 222 20% 12%;           /* #1A1D26 - Surface background */
-    --card: 228 20% 18%;              /* #2A2F46 - Secondary surface */
-    --card-foreground: 216 12% 84%;
+    /* Surface Colors */
+    --background: 220 39% 5%;
+    --foreground: 215 61% 94%;
+    --surface: 220 49% 8%;
+    --card: 222 55% 12%;
+    --card-foreground: 215 61% 94%;
     
     /* UI Elements */
-    --border: 228 15% 25%;            /* Subtle border */
-    --input: 228 20% 18%;             /* Dark input bg */
-    --ring: 236 100% 65%;             /* Primary for focus */
+    --border: 218 43% 19%;
+    --input: 222 55% 12%;
+    --ring: 224 100% 65%;
     
     /* Text */
-    --text-primary: 190 25% 95%;      /* Light teal text */
-    --text-secondary: 190 15% 65%;    /* Medium teal-gray text */
+    --text-primary: 215 61% 94%;
+    --text-secondary: 216 21% 67%;
     
     /* Sidebar & Header */
-    --sidebar-bg: 225 15% 7%;         /* Deep dark sidebar */
-    --header-bg: 225 15% 7%;          /* Deep dark header with glass effect */
-    --sidebar-background: 225 15% 7%;
-    --sidebar-foreground: 216 12% 84%;
-    --sidebar-primary: 236 100% 65%;
+    --sidebar-bg: 220 49% 8%;
+    --header-bg: 220 49% 8%;
+    --sidebar-background: 220 49% 8%;
+    --sidebar-foreground: 215 61% 94%;
+    --sidebar-primary: 224 100% 65%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 228 20% 18%;
-    --sidebar-accent-foreground: 216 12% 84%;
-    --sidebar-border: 228 15% 25%;
-    --sidebar-ring: 236 100% 65%;
+    --sidebar-accent: 222 55% 12%;
+    --sidebar-accent-foreground: 215 61% 94%;
+    --sidebar-border: 218 43% 19%;
+    --sidebar-ring: 224 100% 65%;
     
     /* Popover & Dropdown */
-    --popover: 198 25% 12%;
-    --popover-foreground: 190 25% 95%;
+    --popover: 220 49% 8%;
+    --popover-foreground: 215 61% 94%;
     
     /* Secondary */
-    --secondary: 195 25% 18%;
-    --secondary-foreground: 190 25% 95%;
+    --secondary: 220 49% 8%;
+    --secondary-foreground: 215 61% 94%;
     
     /* Muted */
-    --muted: 195 22% 25%;
-    --muted-foreground: 190 15% 65%;
+    --muted: 216 21% 67%;
+    --muted-foreground: 216 21% 67%;
     
-    /* States (same values, different backgrounds) */
-    --success: 160 84% 39%;
+    /* States */
+    --success: 142 71% 52%;
     --success-foreground: 0 0% 100%;
-    --error: 0 84% 60%;
+    --error: 0 100% 65%;
     --error-foreground: 0 0% 100%;
-    --destructive: 0 84% 60%;
+    --destructive: 0 100% 65%;
     --destructive-foreground: 0 0% 100%;
     --warning: 38 92% 50%;
-    --warning-foreground: 200 30% 8%;
-    --info: 187 95% 43%;
-    --info-foreground: 0 0% 100%;
+    --warning-foreground: 220 39% 5%;
+    --info: 188 86% 53%;
+    --info-foreground: 220 39% 5%;
     
     /* Status colors */
-    --status-active: 160 84% 39%;
-    --status-inactive: 190 15% 60%;
+    --status-active: 142 71% 52%;
+    --status-inactive: 216 21% 67%;
     --status-paused: 38 92% 50%;
   }
 }
@@ -329,21 +345,21 @@ html {
   .glass-header {
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
-    background: rgba(0, 0, 0, 0.3);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    background: rgba(11, 18, 32, 0.8);
+    border-bottom: 1px solid rgba(27, 42, 68, 0.6);
   }
 
   /* ===== PREMIUM ICON EFFECTS ===== */
   .icon-default {
-    @apply text-slate-400;
+    @apply text-muted-foreground;
   }
   
   .icon-hover:hover {
-    @apply text-[#4E5DFF] scale-[1.03];
+    @apply text-primary scale-[1.03];
   }
   
   .icon-active {
-    @apply text-[#4E5DFF];
+    @apply text-primary;
   }
 
   /* ===== FOCUS STATES ===== */
@@ -357,9 +373,22 @@ html {
     display: block;
     width: 40px;
     height: 3px;
-    background: linear-gradient(135deg, #4E5DFF 0%, #6A73FF 100%);
+    background: linear-gradient(135deg, #4C7DFF 0%, #22D3EE 100%);
     border-radius: 2px;
     margin-top: 8px;
+  }
+
+  /* ===== AI SURFACE UTILS ===== */
+  .ai-surface {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+  }
+
+  .ai-glow {
+    background-image: radial-gradient(600px circle at 10% 0%, hsl(var(--primary) / 0.08), transparent 60%),
+      radial-gradient(500px circle at 100% 20%, hsl(var(--accent) / 0.08), transparent 55%);
   }
 
   /* ===== MOBILE NATIVE-LIKE EXPERIENCE ===== */

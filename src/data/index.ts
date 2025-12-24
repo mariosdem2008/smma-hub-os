@@ -175,6 +175,26 @@ export async function getClientBrandingPrimaryColor(clientId: string): Promise<s
   return branding?.primary_color ?? null;
 }
 
+export async function getClientBrainStatus(clientId: string): Promise<{
+  usable: boolean;
+  missingFields?: string[];
+}> {
+  const { data, error } = await db
+    .from("client_brains")
+    .select("usable, brain_json")
+    .eq("client_id", clientId)
+    .order("version", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw toDbError(error, "Failed to load client brain status");
+
+  const missingFieldsRaw = (data?.brain_json as { missing_fields?: unknown } | null)?.missing_fields;
+  const missingFields = Array.isArray(missingFieldsRaw) ? missingFieldsRaw.map(String) : undefined;
+
+  return { usable: data?.usable === true, missingFields };
+}
+
 export async function getClientAssetCount(clientId: string): Promise<number> {
   const { count, error } = await db
     .from("assets")
