@@ -178,21 +178,40 @@ export async function getClientBrandingPrimaryColor(clientId: string): Promise<s
 export async function getClientBrainStatus(clientId: string): Promise<{
   usable: boolean;
   missingFields?: string[];
+  missingFieldsCount?: number;
+  status?: string | null;
+  locked?: boolean | null;
+  version?: number | null;
+  updatedAt?: string | null;
 }> {
-  const { data, error } = await db
-    .from("client_brains")
-    .select("usable, brain_json")
-    .eq("client_id", clientId)
-    .order("version", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const { data, error } = await db.rpc("get_client_brain_status", { p_client_id: clientId });
 
   if (error) throw toDbError(error, "Failed to load client brain status");
 
-  const missingFieldsRaw = (data?.brain_json as { missing_fields?: unknown } | null)?.missing_fields;
-  const missingFields = Array.isArray(missingFieldsRaw) ? missingFieldsRaw.map(String) : undefined;
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) {
+    return {
+      usable: false,
+      missingFields: ["onboarding_not_started"],
+      missingFieldsCount: 1,
+    };
+  }
 
-  return { usable: data?.usable === true, missingFields };
+  const missingFields = Array.isArray(row.missing_fields)
+    ? row.missing_fields.map(String)
+    : [];
+  const missingFieldsCount =
+    typeof row.missing_fields_count === "number" ? row.missing_fields_count : missingFields.length;
+
+  return {
+    usable: row.usable === true,
+    missingFields,
+    missingFieldsCount,
+    status: row.status ?? null,
+    locked: row.locked ?? null,
+    version: row.version ?? null,
+    updatedAt: row.updated_at ?? null,
+  };
 }
 
 export async function getClientAssetCount(clientId: string): Promise<number> {

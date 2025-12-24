@@ -1,0 +1,3541 @@
+
+> vite_react_shadcn_ts@0.0.0 test
+> vitest run
+
+
+[1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90mc:/Users/mario/Desktop/SMMAHUB/smmahub/2/smma-hub-os[39m
+
+ [32m✓[39m src/data/__tests__/clientBrainStatus.test.ts [2m([22m[2m3 tests[22m[2m)[22m[90m 2[2mms[22m[39m
+[90mstderr[2m | src/components/ai/__tests__/AiOnboardingV3Guided.test.tsx[2m > [22m[2mAiOnboardingV3Guided[2m > [22m[2mrenders loading state initially
+[22m[39m⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+[90mstderr[2m | src/components/ai/__tests__/AiOnboardingV3Guided.test.tsx[2m > [22m[2mAiOnboardingV3Guided[2m > [22m[2mrenders multi_select step with options
+[22m[39mInit error: Error: Failed to create brain
+    at initOnboarding [90m(c:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\[39msrc\components\ai\AiOnboardingV3Guided.tsx:101:40[90m)[39m
+
+[90mstderr[2m | src/pages/__tests__/ClientDetailGate.test.tsx[2m > [22m[2mClientDetail gate[2m > [22m[2mblocks access when client is unusable
+[22m[39m⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+ [32m✓[39m src/pages/__tests__/ClientDetailGate.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[90m 64[2mms[22m[39m
+[90mstderr[2m | src/components/ai/__tests__/AiOnboardingV3Guided.test.tsx[2m > [22m[2mAiOnboardingV3Guided[2m > [22m[2msaves progress to client_onboarding_sessions
+[22m[39mLoad step error: {
+  message: [32m'AI service unavailable (missing API key). Contact support.'[39m
+}
+
+ [31m❯[39m src/components/ai/__tests__/AiOnboardingV3Guided.test.tsx [2m([22m[2m8 tests[22m[2m | [22m[31m7 failed[39m[2m)[22m[33m 4624[2mms[22m[39m
+[31m   [31m×[31m AiOnboardingV3Guided[2m > [22mrenders loading state initially[90m 44[2mms[22m[31m[39m
+[31m     → Unable to find an accessible element with the role "progressbar"
+
+There are no accessible roles. But there might be some inaccessible roles. If you wish to access them, then set the `hidden` option to `true`. Learn more about this here: https://testing-library.com/docs/dom-testing-library/api-queries#byrole
+
+Ignored nodes: comments, script, style
+[36m<body>[31m
+  [36m<div>[31m
+    [36m<div[31m
+      [33mclass[31m=[32m"flex items-center justify-center min-h-[400px]"[31m
+    [36m>[31m
+      [36m<svg[31m
+        [33mclass[31m=[32m"lucide lucide-loader-circle h-8 w-8 animate-spin text-primary"[31m
+        [33mfill[31m=[32m"none"[31m
+        [33mheight[31m=[32m"24"[31m
+        [33mstroke[31m=[32m"currentColor"[31m
+        [33mstroke-linecap[31m=[32m"round"[31m
+        [33mstroke-linejoin[31m=[32m"round"[31m
+        [33mstroke-width[31m=[32m"2"[31m
+        [33mviewBox[31m=[32m"0 0 24 24"[31m
+        [33mwidth[31m=[32m"24"[31m
+        [33mxmlns[31m=[32m"http://www.w3.org/2000/svg"[31m
+      [36m>[31m
+        [36m<path[31m
+          [33md[31m=[32m"M21 12a9 9 0 1 1-6.219-8.56"[31m
+        [36m/>[31m
+      [36m</svg>[31m
+    [36m</div>[31m
+  [36m</div>[31m
+[36m</body>[31m[39m
+[31m   [31m×[31m AiOnboardingV3Guided[2m > [22mvalidates brand_basics input and shows errors[90m 13[2mms[22m[31m[39m
+[31m     → Found multiple elements with the role "button" and name `/Next/i`
+
+Here are the matching elements:
+
+Ignored nodes: comments, script, style
+[36m<button[31m
+  [33mclass[31m=[32m"inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 touch-manipulation active:scale-95 bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] text-white shadow-md shadow-blue-500/30 hover:opacity-90 h-11 min-h-[48px] md:min-h-[44px] rounded-md px-8"[31m
+[36m>[31m
+  [0mNext[0m
+[36m</button>[31m
+
+Ignored nodes: comments, script, style
+[36m<button[31m
+  [33mclass[31m=[32m"inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 touch-manipulation active:scale-95 bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] text-white shadow-md shadow-blue-500/30 hover:opacity-90 h-11 min-h-[48px] md:min-h-[44px] rounded-md px-8"[31m
+  [33mdisabled[31m=[32m""[31m
+[36m>[31m
+  [0mNext[0m
+[36m</button>[31m
+
+Ignored nodes: comments, script, style
+[36m<button[31m
+  [33mclass[31m=[32m"inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 touch-manipulation active:scale-95 bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] text-white shadow-md shadow-blue-500/30 hover:opacity-90 h-11 min-h-[48px] md:min-h-[44px] rounded-md px-8"[31m
+  [33mdisabled[31m=[32m""[31m
+[36m>[31m
+  [0mNext[0m
+[36m</button>[31m
+
+(If this is intentional, then use the `*AllBy*` variant of the query (like `queryAllByText`, `getAllByText`, or `findAllByText`)).
+
+Ignored nodes: comments, script, style
+[36m<body>[31m
+  [36m<div>[31m
+    [36m<div[31m
+      [33mclass[31m=[32m"max-w-2xl mx-auto p-6 space-y-6"[31m
+    [36m>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"space-y-2"[31m
+      [36m>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"flex items-center justify-between text-sm"[31m
+        [36m>[31m
+          [36m<span[31m
+            [33mclass[31m=[32m"text-muted-foreground"[31m
+          [36m>[31m
+            [0mStep Progress[0m
+          [36m</span>[31m
+          [36m<span[31m
+            [33mclass[31m=[32m"font-medium"[31m
+          [36m>[31m
+            [0m%[0m
+          [36m</span>[31m
+        [36m</div>[31m
+        [36m<div[31m
+          [33maria-valuemax[31m=[32m"100"[31m
+          [33maria-valuemin[31m=[32m"0"[31m
+          [33mclass[31m=[32m"relative h-4 w-full overflow-hidden rounded-full bg-secondary"[31m
+          [33mdata-max[31m=[32m"100"[31m
+          [33mdata-state[31m=[32m"indeterminate"[31m
+          [33mrole[31m=[32m"progressbar"[31m
+        [36m>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"h-full w-full flex-1 bg-primary transition-all"[31m
+            [33mdata-max[31m=[32m"100"[31m
+            [33mdata-state[31m=[32m"indeterminate"[31m
+            [33mstyle[31m=[32m"transform: translateX(-100%);"[31m
+          [36m/>[31m
+        [36m</div>[31m
+      [36m</div>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"rounded-xl border bg-card text-card-foreground shadow-lg shadow-black/40 transition-all duration-200 hover:shadow-xl hover:shadow-black/50 hover:scale-[1.005] p-6"[31m
+      [36m>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"space-y-4"[31m
+        [36m>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"flex items-start gap-3"[31m
+          [36m>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium"[31m
+            [36m>[31m
+              [0mAI[0m
+            [36m</div>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"flex-1"[31m
+            [36m>[31m
+              [36m<p[31m
+                [33mclass[31m=[32m"text-base leading-relaxed"[31m
+              [36m/>[31m
+            [36m</div>[31m
+          [36m</div>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"mt-6"[31m
+          [36m/>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"flex items-center justify-between mt-6"[31m
+          [36m>[31m
+            [36m<span[31m
+              [33mclass[31m=[32m"text-xs text-muted-foreground"[31m
+            [36m/>[31m
+            [36m<button[31m
+              [33mclass[31m=[32m"inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 touch-manipulation active:scale-95 bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] text-white shadow-md shadow-blue-500/30 hover:opacity-90 h-11 min-h-[48px] md:min-h-[44px] rounded-md px-8"[31m
+            [36m>[31m
+              [0mNext[0m
+            [36m</button>[31m
+          [36m</div>[31m
+        [36m</div>[31m
+      [36m</div>[31m
+    [36m</div>[31m
+  [36m</div>[31m
+  [36m<div>[31m
+    [36m<div[31m
+      [33mclass[31m=[32m"max-w-2xl mx-auto p-6 space-y-6"[31m
+    [36m>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"space-y-2"[31m
+      [36m>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"flex items-center justify-between text-sm"[31m
+        [36m>[31m
+          [36m<span[31m
+            [33mclass[31m=[32m"text-muted-foreground"[31m
+          [36m>[31m
+            [0mStep Progress[0m
+          [36m</span>[31m
+          [36m<span[31m
+            [33mclass[31m=[32m"font-medium"[31m
+          [36m>[31m
+            [0m11[0m
+            [0m%[0m
+          [36m</span>[31m
+        [36m</div>[31m
+        [36m<div[31m
+          [33maria-valuemax[31m=[32m"100"[31m
+          [33maria-valuemin[31m=[32m"0"[31m
+          [33mclass[31m=[32m"relative h-4 w-full overflow-hidden rounded-full bg-secondary"[31m
+          [33mdata-max[31m=[32m"100"[31m
+          [33mdata-state[31m=[32m"indeterminate"[31m
+          [33mrole[31m=[32m"progressbar"[31m
+        [36m>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"h-full w-full flex-1 bg-primary transition-all"[31m
+            [33mdata-max[31m=[32m"100"[31m
+            [33mdata-state[31m=[32m"indeterminate"[31m
+            [33mstyle[31m=[32m"transform: translateX(-89%);"[31m
+          [36m/>[31m
+        [36m</div>[31m
+      [36m</div>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"rounded-xl border bg-card text-card-foreground shadow-lg shadow-black/40 transition-all duration-200 hover:shadow-xl hover:shadow-black/50 hover:scale-[1.005] p-6"[31m
+      [36m>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"space-y-4"[31m
+        [36m>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"flex items-start gap-3"[31m
+          [36m>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium"[31m
+            [36m>[31m
+              [0mAI[0m
+            [36m</div>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"flex-1"[31m
+            [36m>[31m
+              [36m<p[31m
+                [33mclass[31m=[32m"text-base leading-relaxed"[31m
+              [36m>[31m
+                [0mLet's start with the basics. What's your client's brand name and website?[0m
+              [36m</p>[31m
+            [36m</div>[31m
+          [36m</div>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"mt-6"[31m
+          [36m>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"space-y-4"[31m
+            [36m>[31m
+              [36m<div>[31m
+                [36m<label[31m
+                  [33mclass[31m=[32m"text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"[31m
+                  [33mfor[31m=[32m"brand"[31m
+                [36m>[31m
+                  [0mBrand Name *[0m
+                [36m</label>[31m
+                [36m<input[31m
+                  [33mclass[31m=[32m"flex h-10 md:h-10 min-h-[44px] md:min-h-[40px] w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-vis...[39m
+[31m   [31m×[31m AiOnboardingV3Guided[2m > [22mrenders multi_select step with options[33m 1004[2mms[22m[31m[39m
+[31m     → Unable to find an element with the text: /Which of these offerings/i. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[31m
+  [36m<div>[31m
+    [36m<div[31m
+      [33mclass[31m=[32m"max-w-2xl mx-auto p-6 space-y-6"[31m
+    [36m>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"space-y-2"[31m
+      [36m>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"flex items-center justify-between text-sm"[31m
+        [36m>[31m
+          [36m<span[31m
+            [33mclass[31m=[32m"text-muted-foreground"[31m
+          [36m>[31m
+            [0mStep Progress[0m
+          [36m</span>[31m
+          [36m<span[31m
+            [33mclass[31m=[32m"font-medium"[31m
+          [36m>[31m
+            [0m%[0m
+          [36m</span>[31m
+        [36m</div>[31m
+        [36m<div[31m
+          [33maria-valuemax[31m=[32m"100"[31m
+          [33maria-valuemin[31m=[32m"0"[31m
+          [33mclass[31m=[32m"relative h-4 w-full overflow-hidden rounded-full bg-secondary"[31m
+          [33mdata-max[31m=[32m"100"[31m
+          [33mdata-state[31m=[32m"indeterminate"[31m
+          [33mrole[31m=[32m"progressbar"[31m
+        [36m>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"h-full w-full flex-1 bg-primary transition-all"[31m
+            [33mdata-max[31m=[32m"100"[31m
+            [33mdata-state[31m=[32m"indeterminate"[31m
+            [33mstyle[31m=[32m"transform: translateX(-100%);"[31m
+          [36m/>[31m
+        [36m</div>[31m
+      [36m</div>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"rounded-xl border bg-card text-card-foreground shadow-lg shadow-black/40 transition-all duration-200 hover:shadow-xl hover:shadow-black/50 hover:scale-[1.005] p-6"[31m
+      [36m>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"space-y-4"[31m
+        [36m>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"flex items-start gap-3"[31m
+          [36m>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium"[31m
+            [36m>[31m
+              [0mAI[0m
+            [36m</div>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"flex-1"[31m
+            [36m>[31m
+              [36m<p[31m
+                [33mclass[31m=[32m"text-base leading-relaxed"[31m
+              [36m/>[31m
+            [36m</div>[31m
+          [36m</div>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"mt-6"[31m
+          [36m/>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"flex items-center justify-between mt-6"[31m
+          [36m>[31m
+            [36m<span[31m
+              [33mclass[31m=[32m"text-xs text-muted-foreground"[31m
+            [36m/>[31m
+            [36m<button[31m
+              [33mclass[31m=[32m"inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 touch-manipulation active:scale-95 bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] text-white shadow-md shadow-blue-500/30 hover:opacity-90 h-11 min-h-[48px] md:min-h-[44px] rounded-md px-8"[31m
+            [36m>[31m
+              [0mNext[0m
+            [36m</button>[31m
+          [36m</div>[31m
+        [36m</div>[31m
+      [36m</div>[31m
+    [36m</div>[31m
+  [36m</div>[31m
+  [36m<div>[31m
+    [36m<div[31m
+      [33mclass[31m=[32m"max-w-2xl mx-auto p-6 space-y-6"[31m
+    [36m>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"space-y-2"[31m
+      [36m>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"flex items-center justify-between text-sm"[31m
+        [36m>[31m
+          [36m<span[31m
+            [33mclass[31m=[32m"text-muted-foreground"[31m
+          [36m>[31m
+            [0mStep Progress[0m
+          [36m</span>[31m
+          [36m<span[31m
+            [33mclass[31m=[32m"font-medium"[31m
+          [36m>[31m
+            [0m11[0m
+            [0m%[0m
+          [36m</span>[31m
+        [36m</div>[31m
+        [36m<div[31m
+          [33maria-valuemax[31m=[32m"100"[31m
+          [33maria-valuemin[31m=[32m"0"[31m
+          [33mclass[31m=[32m"relative h-4 w-full overflow-hidden rounded-full bg-secondary"[31m
+          [33mdata-max[31m=[32m"100"[31m
+          [33mdata-state[31m=[32m"indeterminate"[31m
+          [33mrole[31m=[32m"progressbar"[31m
+        [36m>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"h-full w-full flex-1 bg-primary transition-all"[31m
+            [33mdata-max[31m=[32m"100"[31m
+            [33mdata-state[31m=[32m"indeterminate"[31m
+            [33mstyle[31m=[32m"transform: translateX(-89%);"[31m
+          [36m/>[31m
+        [36m</div>[31m
+      [36m</div>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"rounded-xl border bg-card text-card-foreground shadow-lg shadow-black/40 transition-all duration-200 hover:shadow-xl hover:shadow-black/50 hover:scale-[1.005] p-6"[31m
+      [36m>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"space-y-4"[31m
+        [36m>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"flex items-start gap-3"[31m
+          [36m>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium"[31m
+            [36m>[31m
+              [0mAI[0m
+            [36m</div>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"flex-1"[31m
+            [36m>[31m
+              [36m<p[31m
+                [33mclass[31m=[32m"text-base leading-relaxed"[31m
+              [36m>[31m
+                [0mLet's start with the basics. What's your client's brand name and website?[0m
+              [36m</p>[31m
+            [36m</div>[31m
+          [36m</div>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"mt-6"[31m
+          [36m>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"space-y-4"[31m
+            [36m>[31m
+              [36m<div>[31m
+                [36m<label[31m
+                  [33mclass[31m=[32m"text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"[31m
+                  [33mfor[31m=[32m"brand"[31m
+                [36m>[31m
+                  [0mBrand Name *[0m
+                [36m</label>[31m
+                [36m<input[31m
+                  [33mclass[31m=[32m"flex h-10 md:h-10 min-h-[44px] md:min-h-[40px] w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-vis...
+
+Ignored nodes: comments, script, style
+[36m<html>[31m
+  [36m<head />[31m
+  [36m<body>[31m
+    [36m<div>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"max-w-2xl mx-auto p-6 space-y-6"[31m
+      [36m>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"space-y-2"[31m
+        [36m>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"flex items-center justify-between text-sm"[31m
+          [36m>[31m
+            [36m<span[31m
+              [33mclass[31m=[32m"text-muted-foreground"[31m
+            [36m>[31m
+              [0mStep Progress[0m
+            [36m</span>[31m
+            [36m<span[31m
+              [33mclass[31m=[32m"font-medium"[31m
+            [36m>[31m
+              [0m%[0m
+            [36m</span>[31m
+          [36m</div>[31m
+          [36m<div[31m
+            [33maria-valuemax[31m=[32m"100"[31m
+            [33maria-valuemin[31m=[32m"0"[31m
+            [33mclass[31m=[32m"relative h-4 w-full overflow-hidden rounded-full bg-secondary"[31m
+            [33mdata-max[31m=[32m"100"[31m
+            [33mdata-state[31m=[32m"indeterminate"[31m
+            [33mrole[31m=[32m"progressbar"[31m
+          [36m>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"h-full w-full flex-1 bg-primary transition-all"[31m
+              [33mdata-max[31m=[32m"100"[31m
+              [33mdata-state[31m=[32m"indeterminate"[31m
+              [33mstyle[31m=[32m"transform: translateX(-100%);"[31m
+            [36m/>[31m
+          [36m</div>[31m
+        [36m</div>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"rounded-xl border bg-card text-card-foreground shadow-lg shadow-black/40 transition-all duration-200 hover:shadow-xl hover:shadow-black/50 hover:scale-[1.005] p-6"[31m
+        [36m>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"space-y-4"[31m
+          [36m>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"flex items-start gap-3"[31m
+            [36m>[31m
+              [36m<div[31m
+                [33mclass[31m=[32m"w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium"[31m
+              [36m>[31m
+                [0mAI[0m
+              [36m</div>[31m
+              [36m<div[31m
+                [33mclass[31m=[32m"flex-1"[31m
+              [36m>[31m
+                [36m<p[31m
+                  [33mclass[31m=[32m"text-base leading-relaxed"[31m
+                [36m/>[31m
+              [36m</div>[31m
+            [36m</div>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"mt-6"[31m
+            [36m/>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"flex items-center justify-between mt-6"[31m
+            [36m>[31m
+              [36m<span[31m
+                [33mclass[31m=[32m"text-xs text-muted-foreground"[31m
+              [36m/>[31m
+              [36m<button[31m
+                [33mclass[31m=[32m"inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 touch-manipulation active:scale-95 bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] text-white shadow-md shadow-blue-500/30 hover:opacity-90 h-11 min-h-[48px] md:min-h-[44px] rounded-md px-8"[31m
+              [36m>[31m
+                [0mNext[0m
+              [36m</button>[31m
+            [36m</div>[31m
+          [36m</div>[31m
+        [36m</div>[31m
+      [36m</div>[31m
+    [36m</div>[31m
+    [36m<div>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"max-w-2xl mx-auto p-6 space-y-6"[31m
+      [36m>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"space-y-2"[31m
+        [36m>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"flex items-center justify-between text-sm"[31m
+          [36m>[31m
+            [36m<span[31m
+              [33mclass[31m=[32m"text-muted-foreground"[31m
+            [36m>[31m
+              [0mStep Progress[0m
+            [36m</span>[31m
+            [36m<span[31m
+              [33mclass[31m=[32m"font-medium"[31m
+            [36m>[31m
+              [0m11[0m
+              [0m%[0m
+            [36m</span>[31m
+          [36m</div>[31m
+          [36m<div[31m
+            [33maria-valuemax[31m=[32m"100"[31m
+            [33maria-valuemin[31m=[32m"0"[31m
+            [33mclass[31m=[32m"relative h-4 w-full overflow-hidden rounded-full bg-secondary"[31m
+            [33mdata-max[31m=[32m"100"[31m
+            [33mdata-state[31m=[32m"indeterminate"[31m
+            [33mrole[31m=[32m"progressbar"[31m
+          [36m>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"h-full w-full flex-1 bg-primary transition-all"[31m
+              [33mdata-max[31m=[32m"100"[31m
+              [33mdata-state[31m=[32m"indeterminate"[31m
+              [33mstyle[31m=[32m"transform: translateX(-89%);"[31m
+            [36m/>[31m
+          [36m</div>[31m
+        [36m</div>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"rounded-xl border bg-card text-card-foreground shadow-lg shadow-black/40 transition-all duration-200 hover:shadow-xl hover:shadow-black/50 hover:scale-[1.005] p-6"[31m
+        [36m>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"space-y-4"[31m
+          [36m>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"flex items-start gap-3"[31m
+            [36m>[31m
+              [36m<div[31m
+                [33mclass[31m=[32m"w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium"[31m
+              [36m>[31m
+                [0mAI[0m
+              [36m</div>[31m
+              [36m<div[31m
+                [33mclass[31m=[32m"flex-1"[31m
+              [36m>[31m
+                [36m<p[31m
+                  [33mclass[31m=[32m"text-base leading-relaxed"[31m
+                [36m>[31m
+                  [0mLet's start with the basics. What's your client's brand name and website?[0m
+                [36m</p>[31m
+              [36m</div>[31m
+            [36m</div>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"mt-6"[31m
+            [36m>[31m
+              [36m<div[31m
+                [33mclass[31m=[32m"space-y-4"[31m
+              [36m>[31m
+                [36m<div>[31m
+                  [36m<label[31m
+                    [33mclass[31m=[32m"text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"[31m
+                    [33mfor[31m=[32m"brand"[31m
+                  [36m>[31m
+                    [0mBrand Name *[0m
+                  [36m</label>[3...[39m
+[31m   [31m×[31m AiOnboardingV3Guided[2m > [22mhandles selection in chips input[33m 1007[2mms[22m[31m[39m
+[31m     → Unable to find an element with the text: /What makes this brand stand out/i. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[31m
+  [36m<div>[31m
+    [36m<div[31m
+      [33mclass[31m=[32m"max-w-2xl mx-auto p-6 space-y-6"[31m
+    [36m>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"space-y-2"[31m
+      [36m>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"flex items-center justify-between text-sm"[31m
+        [36m>[31m
+          [36m<span[31m
+            [33mclass[31m=[32m"text-muted-foreground"[31m
+          [36m>[31m
+            [0mStep Progress[0m
+          [36m</span>[31m
+          [36m<span[31m
+            [33mclass[31m=[32m"font-medium"[31m
+          [36m>[31m
+            [0m%[0m
+          [36m</span>[31m
+        [36m</div>[31m
+        [36m<div[31m
+          [33maria-valuemax[31m=[32m"100"[31m
+          [33maria-valuemin[31m=[32m"0"[31m
+          [33mclass[31m=[32m"relative h-4 w-full overflow-hidden rounded-full bg-secondary"[31m
+          [33mdata-max[31m=[32m"100"[31m
+          [33mdata-state[31m=[32m"indeterminate"[31m
+          [33mrole[31m=[32m"progressbar"[31m
+        [36m>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"h-full w-full flex-1 bg-primary transition-all"[31m
+            [33mdata-max[31m=[32m"100"[31m
+            [33mdata-state[31m=[32m"indeterminate"[31m
+            [33mstyle[31m=[32m"transform: translateX(-100%);"[31m
+          [36m/>[31m
+        [36m</div>[31m
+      [36m</div>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"rounded-xl border bg-card text-card-foreground shadow-lg shadow-black/40 transition-all duration-200 hover:shadow-xl hover:shadow-black/50 hover:scale-[1.005] p-6"[31m
+      [36m>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"space-y-4"[31m
+        [36m>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"flex items-start gap-3"[31m
+          [36m>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium"[31m
+            [36m>[31m
+              [0mAI[0m
+            [36m</div>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"flex-1"[31m
+            [36m>[31m
+              [36m<p[31m
+                [33mclass[31m=[32m"text-base leading-relaxed"[31m
+              [36m/>[31m
+            [36m</div>[31m
+          [36m</div>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"mt-6"[31m
+          [36m/>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"flex items-center justify-between mt-6"[31m
+          [36m>[31m
+            [36m<span[31m
+              [33mclass[31m=[32m"text-xs text-muted-foreground"[31m
+            [36m/>[31m
+            [36m<button[31m
+              [33mclass[31m=[32m"inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 touch-manipulation active:scale-95 bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] text-white shadow-md shadow-blue-500/30 hover:opacity-90 h-11 min-h-[48px] md:min-h-[44px] rounded-md px-8"[31m
+            [36m>[31m
+              [0mNext[0m
+            [36m</button>[31m
+          [36m</div>[31m
+        [36m</div>[31m
+      [36m</div>[31m
+    [36m</div>[31m
+  [36m</div>[31m
+  [36m<div>[31m
+    [36m<div[31m
+      [33mclass[31m=[32m"max-w-2xl mx-auto p-6 space-y-6"[31m
+    [36m>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"space-y-2"[31m
+      [36m>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"flex items-center justify-between text-sm"[31m
+        [36m>[31m
+          [36m<span[31m
+            [33mclass[31m=[32m"text-muted-foreground"[31m
+          [36m>[31m
+            [0mStep Progress[0m
+          [36m</span>[31m
+          [36m<span[31m
+            [33mclass[31m=[32m"font-medium"[31m
+          [36m>[31m
+            [0m11[0m
+            [0m%[0m
+          [36m</span>[31m
+        [36m</div>[31m
+        [36m<div[31m
+          [33maria-valuemax[31m=[32m"100"[31m
+          [33maria-valuemin[31m=[32m"0"[31m
+          [33mclass[31m=[32m"relative h-4 w-full overflow-hidden rounded-full bg-secondary"[31m
+          [33mdata-max[31m=[32m"100"[31m
+          [33mdata-state[31m=[32m"indeterminate"[31m
+          [33mrole[31m=[32m"progressbar"[31m
+        [36m>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"h-full w-full flex-1 bg-primary transition-all"[31m
+            [33mdata-max[31m=[32m"100"[31m
+            [33mdata-state[31m=[32m"indeterminate"[31m
+            [33mstyle[31m=[32m"transform: translateX(-89%);"[31m
+          [36m/>[31m
+        [36m</div>[31m
+      [36m</div>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"rounded-xl border bg-card text-card-foreground shadow-lg shadow-black/40 transition-all duration-200 hover:shadow-xl hover:shadow-black/50 hover:scale-[1.005] p-6"[31m
+      [36m>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"space-y-4"[31m
+        [36m>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"flex items-start gap-3"[31m
+          [36m>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium"[31m
+            [36m>[31m
+              [0mAI[0m
+            [36m</div>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"flex-1"[31m
+            [36m>[31m
+              [36m<p[31m
+                [33mclass[31m=[32m"text-base leading-relaxed"[31m
+              [36m>[31m
+                [0mLet's start with the basics. What's your client's brand name and website?[0m
+              [36m</p>[31m
+            [36m</div>[31m
+          [36m</div>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"mt-6"[31m
+          [36m>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"space-y-4"[31m
+            [36m>[31m
+              [36m<div>[31m
+                [36m<label[31m
+                  [33mclass[31m=[32m"text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"[31m
+                  [33mfor[31m=[32m"brand"[31m
+                [36m>[31m
+                  [0mBrand Name *[0m
+                [36m</label>[31m
+                [36m<input[31m
+                  [33mclass[31m=[32m"flex h-10 md:h-10 min-h-[44px] md:min-h-[40px] w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-vis...
+
+Ignored nodes: comments, script, style
+[36m<html>[31m
+  [36m<head />[31m
+  [36m<body>[31m
+    [36m<div>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"max-w-2xl mx-auto p-6 space-y-6"[31m
+      [36m>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"space-y-2"[31m
+        [36m>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"flex items-center justify-between text-sm"[31m
+          [36m>[31m
+            [36m<span[31m
+              [33mclass[31m=[32m"text-muted-foreground"[31m
+            [36m>[31m
+              [0mStep Progress[0m
+            [36m</span>[31m
+            [36m<span[31m
+              [33mclass[31m=[32m"font-medium"[31m
+            [36m>[31m
+              [0m%[0m
+            [36m</span>[31m
+          [36m</div>[31m
+          [36m<div[31m
+            [33maria-valuemax[31m=[32m"100"[31m
+            [33maria-valuemin[31m=[32m"0"[31m
+            [33mclass[31m=[32m"relative h-4 w-full overflow-hidden rounded-full bg-secondary"[31m
+            [33mdata-max[31m=[32m"100"[31m
+            [33mdata-state[31m=[32m"indeterminate"[31m
+            [33mrole[31m=[32m"progressbar"[31m
+          [36m>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"h-full w-full flex-1 bg-primary transition-all"[31m
+              [33mdata-max[31m=[32m"100"[31m
+              [33mdata-state[31m=[32m"indeterminate"[31m
+              [33mstyle[31m=[32m"transform: translateX(-100%);"[31m
+            [36m/>[31m
+          [36m</div>[31m
+        [36m</div>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"rounded-xl border bg-card text-card-foreground shadow-lg shadow-black/40 transition-all duration-200 hover:shadow-xl hover:shadow-black/50 hover:scale-[1.005] p-6"[31m
+        [36m>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"space-y-4"[31m
+          [36m>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"flex items-start gap-3"[31m
+            [36m>[31m
+              [36m<div[31m
+                [33mclass[31m=[32m"w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium"[31m
+              [36m>[31m
+                [0mAI[0m
+              [36m</div>[31m
+              [36m<div[31m
+                [33mclass[31m=[32m"flex-1"[31m
+              [36m>[31m
+                [36m<p[31m
+                  [33mclass[31m=[32m"text-base leading-relaxed"[31m
+                [36m/>[31m
+              [36m</div>[31m
+            [36m</div>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"mt-6"[31m
+            [36m/>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"flex items-center justify-between mt-6"[31m
+            [36m>[31m
+              [36m<span[31m
+                [33mclass[31m=[32m"text-xs text-muted-foreground"[31m
+              [36m/>[31m
+              [36m<button[31m
+                [33mclass[31m=[32m"inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 touch-manipulation active:scale-95 bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] text-white shadow-md shadow-blue-500/30 hover:opacity-90 h-11 min-h-[48px] md:min-h-[44px] rounded-md px-8"[31m
+              [36m>[31m
+                [0mNext[0m
+              [36m</button>[31m
+            [36m</div>[31m
+          [36m</div>[31m
+        [36m</div>[31m
+      [36m</div>[31m
+    [36m</div>[31m
+    [36m<div>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"max-w-2xl mx-auto p-6 space-y-6"[31m
+      [36m>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"space-y-2"[31m
+        [36m>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"flex items-center justify-between text-sm"[31m
+          [36m>[31m
+            [36m<span[31m
+              [33mclass[31m=[32m"text-muted-foreground"[31m
+            [36m>[31m
+              [0mStep Progress[0m
+            [36m</span>[31m
+            [36m<span[31m
+              [33mclass[31m=[32m"font-medium"[31m
+            [36m>[31m
+              [0m11[0m
+              [0m%[0m
+            [36m</span>[31m
+          [36m</div>[31m
+          [36m<div[31m
+            [33maria-valuemax[31m=[32m"100"[31m
+            [33maria-valuemin[31m=[32m"0"[31m
+            [33mclass[31m=[32m"relative h-4 w-full overflow-hidden rounded-full bg-secondary"[31m
+            [33mdata-max[31m=[32m"100"[31m
+            [33mdata-state[31m=[32m"indeterminate"[31m
+            [33mrole[31m=[32m"progressbar"[31m
+          [36m>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"h-full w-full flex-1 bg-primary transition-all"[31m
+              [33mdata-max[31m=[32m"100"[31m
+              [33mdata-state[31m=[32m"indeterminate"[31m
+              [33mstyle[31m=[32m"transform: translateX(-89%);"[31m
+            [36m/>[31m
+          [36m</div>[31m
+        [36m</div>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"rounded-xl border bg-card text-card-foreground shadow-lg shadow-black/40 transition-all duration-200 hover:shadow-xl hover:shadow-black/50 hover:scale-[1.005] p-6"[31m
+        [36m>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"space-y-4"[31m
+          [36m>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"flex items-start gap-3"[31m
+            [36m>[31m
+              [36m<div[31m
+                [33mclass[31m=[32m"w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium"[31m
+              [36m>[31m
+                [0mAI[0m
+              [36m</div>[31m
+              [36m<div[31m
+                [33mclass[31m=[32m"flex-1"[31m
+              [36m>[31m
+                [36m<p[31m
+                  [33mclass[31m=[32m"text-base leading-relaxed"[31m
+                [36m>[31m
+                  [0mLet's start with the basics. What's your client's brand name and website?[0m
+                [36m</p>[31m
+              [36m</div>[31m
+            [36m</div>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"mt-6"[31m
+            [36m>[31m
+              [36m<div[31m
+                [33mclass[31m=[32m"space-y-4"[31m
+              [36m>[31m
+                [36m<div>[31m
+                  [36m<label[31m
+                    [33mclass[31m=[32m"text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"[31m
+                    [33mfor[31m=[32m"brand"[31m
+                  [36m>[31m
+                    [0mBrand Name *[0m
+                  [36m</label>[3...[39m
+[31m   [31m×[31m AiOnboardingV3Guided[2m > [22mblocks proceed when missing OPENAI_API_KEY[33m 1015[2mms[22m[31m[39m
+[31m     → Found multiple elements with the text: /Let's start with the basics/i
+
+Here are the matching elements:
+
+Ignored nodes: comments, script, style
+[36m<p[31m
+  [33mclass[31m=[32m"text-base leading-relaxed"[31m
+[36m>[31m
+  [0mLet's start with the basics. What's your client's brand name and website?[0m
+[36m</p>[31m
+
+Ignored nodes: comments, script, style
+[36m<p[31m
+  [33mclass[31m=[32m"text-base leading-relaxed"[31m
+[36m>[31m
+  [0mLet's start with the basics.[0m
+[36m</p>[31m
+
+(If this is intentional, then use the `*AllBy*` variant of the query (like `queryAllByText`, `getAllByText`, or `findAllByText`)).
+
+Ignored nodes: comments, script, style
+[36m<body>[31m
+  [36m<div>[31m
+    [36m<div[31m
+      [33mclass[31m=[32m"max-w-2xl mx-auto p-6 space-y-6"[31m
+    [36m>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"space-y-2"[31m
+      [36m>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"flex items-center justify-between text-sm"[31m
+        [36m>[31m
+          [36m<span[31m
+            [33mclass[31m=[32m"text-muted-foreground"[31m
+          [36m>[31m
+            [0mStep Progress[0m
+          [36m</span>[31m
+          [36m<span[31m
+            [33mclass[31m=[32m"font-medium"[31m
+          [36m>[31m
+            [0m%[0m
+          [36m</span>[31m
+        [36m</div>[31m
+        [36m<div[31m
+          [33maria-valuemax[31m=[32m"100"[31m
+          [33maria-valuemin[31m=[32m"0"[31m
+          [33mclass[31m=[32m"relative h-4 w-full overflow-hidden rounded-full bg-secondary"[31m
+          [33mdata-max[31m=[32m"100"[31m
+          [33mdata-state[31m=[32m"indeterminate"[31m
+          [33mrole[31m=[32m"progressbar"[31m
+        [36m>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"h-full w-full flex-1 bg-primary transition-all"[31m
+            [33mdata-max[31m=[32m"100"[31m
+            [33mdata-state[31m=[32m"indeterminate"[31m
+            [33mstyle[31m=[32m"transform: translateX(-100%);"[31m
+          [36m/>[31m
+        [36m</div>[31m
+      [36m</div>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"rounded-xl border bg-card text-card-foreground shadow-lg shadow-black/40 transition-all duration-200 hover:shadow-xl hover:shadow-black/50 hover:scale-[1.005] p-6"[31m
+      [36m>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"space-y-4"[31m
+        [36m>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"flex items-start gap-3"[31m
+          [36m>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium"[31m
+            [36m>[31m
+              [0mAI[0m
+            [36m</div>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"flex-1"[31m
+            [36m>[31m
+              [36m<p[31m
+                [33mclass[31m=[32m"text-base leading-relaxed"[31m
+              [36m/>[31m
+            [36m</div>[31m
+          [36m</div>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"mt-6"[31m
+          [36m/>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"flex items-center justify-between mt-6"[31m
+          [36m>[31m
+            [36m<span[31m
+              [33mclass[31m=[32m"text-xs text-muted-foreground"[31m
+            [36m/>[31m
+            [36m<button[31m
+              [33mclass[31m=[32m"inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 touch-manipulation active:scale-95 bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] text-white shadow-md shadow-blue-500/30 hover:opacity-90 h-11 min-h-[48px] md:min-h-[44px] rounded-md px-8"[31m
+            [36m>[31m
+              [0mNext[0m
+            [36m</button>[31m
+          [36m</div>[31m
+        [36m</div>[31m
+      [36m</div>[31m
+    [36m</div>[31m
+  [36m</div>[31m
+  [36m<div>[31m
+    [36m<div[31m
+      [33mclass[31m=[32m"max-w-2xl mx-auto p-6 space-y-6"[31m
+    [36m>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"space-y-2"[31m
+      [36m>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"flex items-center justify-between text-sm"[31m
+        [36m>[31m
+          [36m<span[31m
+            [33mclass[31m=[32m"text-muted-foreground"[31m
+          [36m>[31m
+            [0mStep Progress[0m
+          [36m</span>[31m
+          [36m<span[31m
+            [33mclass[31m=[32m"font-medium"[31m
+          [36m>[31m
+            [0m11[0m
+            [0m%[0m
+          [36m</span>[31m
+        [36m</div>[31m
+        [36m<div[31m
+          [33maria-valuemax[31m=[32m"100"[31m
+          [33maria-valuemin[31m=[32m"0"[31m
+          [33mclass[31m=[32m"relative h-4 w-full overflow-hidden rounded-full bg-secondary"[31m
+          [33mdata-max[31m=[32m"100"[31m
+          [33mdata-state[31m=[32m"indeterminate"[31m
+          [33mrole[31m=[32m"progressbar"[31m
+        [36m>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"h-full w-full flex-1 bg-primary transition-all"[31m
+            [33mdata-max[31m=[32m"100"[31m
+            [33mdata-state[31m=[32m"indeterminate"[31m
+            [33mstyle[31m=[32m"transform: translateX(-89%);"[31m
+          [36m/>[31m
+        [36m</div>[31m
+      [36m</div>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"rounded-xl border bg-card text-card-foreground shadow-lg shadow-black/40 transition-all duration-200 hover:shadow-xl hover:shadow-black/50 hover:scale-[1.005] p-6"[31m
+      [36m>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"space-y-4"[31m
+        [36m>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"flex items-start gap-3"[31m
+          [36m>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium"[31m
+            [36m>[31m
+              [0mAI[0m
+            [36m</div>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"flex-1"[31m
+            [36m>[31m
+              [36m<p[31m
+                [33mclass[31m=[32m"text-base leading-relaxed"[31m
+              [36m>[31m
+                [0mLet's start with the basics. What's your client's brand name and website?[0m
+              [36m</p>[31m
+            [36m</div>[31m
+          [36m</div>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"mt-6"[31m
+          [36m>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"space-y-4"[31m
+            [36m>[31m
+              [36m<div>[31m
+                [36m<label[31m
+                  [33mclass[31m=[32m"text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"[31m
+                  [33mfor[31m=[32m"brand"[31m
+                [36m>[31m
+                  [0mBrand Name *[0m
+                [36m</label>[31m
+                [36m<input[31m
+                  [33mclass[31m=[32m"flex h-10 md:h-10 min-h-[44px] md:min-h-[40px] w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-vis...
+
+Ignored nodes: comments, script, style
+[36m<html>[31m
+  [36m<head />[31m
+  [36m<body>[31m
+    [36m<div>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"max-w-2xl mx-auto p-6 space-y-6"[31m
+      [36m>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"space-y-2"[31m
+        [36m>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"flex items-center justify-between text-sm"[31m
+          [36m>[31m
+            [36m<span[31m
+              [33mclass[31m=[32m"text-muted-foreground"[31m
+            [36m>[31m
+              [0mStep Progress[0m
+            [36m</span>[31m
+            [36m<span[31m
+              [33mclass[31m=[32m"font-medium"[31m
+            [36m>[31m
+              [0m%[0m
+            [36m</span>[31m
+          [36m</div>[31m
+          [36m<div[31m
+            [33maria-valuemax[31m=[32m"100"[31m
+            [33maria-valuemin[31m=[32m"0"[31m
+            [33mclass[31m=[32m"relative h-4 w-full overflow-hidden rounded-full bg-secondary"[31m
+            [33mdata-max[31m=[32m"100"[31m
+            [33mdata-state[31m=[32m"indeterminate"[31m
+            [33mrole[31m=[32m"progressbar"[31m
+          [36m>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"h-full w-full flex-1 bg-primary transition-all"[31m
+              [33mdata-max[31m=[32m"100"[31m
+              [33mdata-state[31m=[32m"indeterminate"[31m
+              [33mstyle[31m=[32m"transform: translateX(-100%);"[31m
+            [36m/>[31m
+          [36m</div>[31m
+        [36m</div>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"rounded-xl border bg-card text-card-foreground shadow-lg shadow-black/40 transition-all duration-200 hover:shadow-xl hover:shadow-black/50 hover:scale-[1.005] p-6"[31m
+        [36m>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"space-y-4"[31m
+          [36m>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"flex items-start gap-3"[31m
+            [36m>[31m
+              [36m<div[31m
+                [33mclass[31m=[32m"w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium"[31m
+              [36m>[31m
+                [0mAI[0m
+              [36m</div>[31m
+              [36m<div[31m
+                [33mclass[31m=[32m"flex-1"[31m
+              [36m>[31m
+                [36m<p[31m
+                  [33mclass[31m=[32m"text-base leading-relaxed"[31m
+                [36m/>[31m
+              [36m</div>[31m
+            [36m</div>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"mt-6"[31m
+            [36m/>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"flex items-center justify-between mt-6"[31m
+            [36m>[31m
+              [36m<span[31m
+                [33mclass[31m=[32m"text-xs text-muted-foreground"[31m
+              [36m/>[31m
+              [36m<button[31m
+                [33mclass[31m=[32m"inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 touch-manipulation active:scale-95 bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] text-white shadow-md shadow-blue-500/30 hover:opacity-90 h-11 min-h-[48px] md:min-h-[44px] rounded-md px-8"[31m
+              [36m>[31m
+                [0mNext[0m
+              [36m</button>[31m
+            [36m</div>[31m
+          [36m</div>[31m
+        [36m</div>[31m
+      [36m</div>[31m
+    [36m</div>[31m
+    [36m<div>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"max-w-2xl mx-auto p-6 space-y-6"[31m
+      [36m>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"space-y-2"[31m
+        [36m>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"flex items-center justify-between text-sm"[31m
+          [36m>[31m
+            [36m<span[31m
+              [33mclass[31m=[32m"text-muted-foreground"[31m
+            [36m>[31m
+              [0mStep Progress[0m
+            [36m</span>[31m
+            [36m<span[31m
+              [33mclass[31m=[32m"font-medium"[31m
+            [36m>[31m
+              [0m11[0m
+              [0m%[0m
+            [36m</span>[31m
+          [36m</div>[31m
+          [36m<div[31m
+            [33maria-valuemax[31m=[32m"100"[31m
+            [33maria-valuemin[31m=[32m"0"[31m
+            [33mclass[31m=[32m"relative h-4 w-full overflow-hidden rounded-full bg-secondary"[31m
+            [33mdata-max[31m=[32m"100"[31m
+            [33mdata-state[31m=[32m"indeterminate"[31m
+            [33mrole[31m=[32m"progressbar"[31m
+          [36m>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"h-full w-full flex-1 bg-primary transition-all"[31m
+              [33mdata-max[31m=[32m"100"[31m
+              [33mdata-state[31m=[32m"indeterminate"[31m
+              [33mstyle[31m=[32m"transform: translateX(-89%);"[31m
+            [36m/>[31m
+          [36m</div>[31m
+        [36m</div>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"rounded-xl border bg-card text-card-foreground shadow-lg shadow-black/40 transition-all duration-200 hover:shadow-xl hover:shadow-black/50 hover:scale-[1.005] p-6"[31m
+        [36m>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"space-y-4"[31m
+          [36m>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"flex items-start gap-3"[31m
+            [36m>[31m
+              [36m<div[31m
+                [33mclass[31m=[32m"w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium"[31m
+              [36m>[31m
+                [0mAI[0m
+              [36m</div>[31m
+              [36m<div[31m
+                [33mclass[31m=[32m"flex-1"[31m
+              [36m>[31m
+                [36m<p[31m
+                  [33mclass[31m=[32m"text-base leading-relaxed"[31m
+                [36m>[31m
+                  [0mLet's start with the basics. What's your client's brand name and website?[0m
+                [36m</p>[31m
+              [36m</div>[31m
+            [36m</div>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"mt-6"[31m
+            [36m>[31m
+              [36m<div[31m
+                [33mclass[31m=[32m"space-y-4"[31m
+              [36m>[31m
+                [36m<div>[31m
+                  [36m<label[31m
+                    [33mclass[31m=[32m"text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"[31m
+                    [33mfor[31m=[32m"brand"[31m
+                  [36m>[31m
+                    [0mBrand Name *[0m
+                  [36m</label>[3...[39m
+[31m   [31m×[31m AiOnboardingV3Guided[2m > [22msaves progress to client_onboarding_sessions[33m 508[2mms[22m[31m[39m
+[31m     → Found multiple elements with the role "button" and name `/Next/i`
+
+Here are the matching elements:
+
+Ignored nodes: comments, script, style
+[36m<button[31m
+  [33mclass[31m=[32m"inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 touch-manipulation active:scale-95 bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] text-white shadow-md shadow-blue-500/30 hover:opacity-90 h-11 min-h-[48px] md:min-h-[44px] rounded-md px-8"[31m
+[36m>[31m
+  [0mNext[0m
+[36m</button>[31m
+
+Ignored nodes: comments, script, style
+[36m<button[31m
+  [33mclass[31m=[32m"inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 touch-manipulation active:scale-95 bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] text-white shadow-md shadow-blue-500/30 hover:opacity-90 h-11 min-h-[48px] md:min-h-[44px] rounded-md px-8"[31m
+[36m>[31m
+  [0mNext[0m
+[36m</button>[31m
+
+Ignored nodes: comments, script, style
+[36m<button[31m
+  [33mclass[31m=[32m"inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 touch-manipulation active:scale-95 bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] text-white shadow-md shadow-blue-500/30 hover:opacity-90 h-11 min-h-[48px] md:min-h-[44px] rounded-md px-8"[31m
+  [33mdisabled[31m=[32m""[31m
+[36m>[31m
+  [0mNext[0m
+[36m</button>[31m
+
+Ignored nodes: comments, script, style
+[36m<button[31m
+  [33mclass[31m=[32m"inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 touch-manipulation active:scale-95 bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] text-white shadow-md shadow-blue-500/30 hover:opacity-90 h-11 min-h-[48px] md:min-h-[44px] rounded-md px-8"[31m
+  [33mdisabled[31m=[32m""[31m
+[36m>[31m
+  [0mNext[0m
+[36m</button>[31m
+
+Ignored nodes: comments, script, style
+[36m<button[31m
+  [33mclass[31m=[32m"inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 touch-manipulation active:scale-95 bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] text-white shadow-md shadow-blue-500/30 hover:opacity-90 h-11 min-h-[48px] md:min-h-[44px] rounded-md px-8"[31m
+  [33mdisabled[31m=[32m""[31m
+[36m>[31m
+  [0mNext[0m
+[36m</button>[31m
+
+(If this is intentional, then use the `*AllBy*` variant of the query (like `queryAllByText`, `getAllByText`, or `findAllByText`)).
+
+Ignored nodes: comments, script, style
+[36m<body>[31m
+  [36m<div>[31m
+    [36m<div[31m
+      [33mclass[31m=[32m"max-w-2xl mx-auto p-6 space-y-6"[31m
+    [36m>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"space-y-2"[31m
+      [36m>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"flex items-center justify-between text-sm"[31m
+        [36m>[31m
+          [36m<span[31m
+            [33mclass[31m=[32m"text-muted-foreground"[31m
+          [36m>[31m
+            [0mStep Progress[0m
+          [36m</span>[31m
+          [36m<span[31m
+            [33mclass[31m=[32m"font-medium"[31m
+          [36m>[31m
+            [0m%[0m
+          [36m</span>[31m
+        [36m</div>[31m
+        [36m<div[31m
+          [33maria-valuemax[31m=[32m"100"[31m
+          [33maria-valuemin[31m=[32m"0"[31m
+          [33mclass[31m=[32m"relative h-4 w-full overflow-hidden rounded-full bg-secondary"[31m
+          [33mdata-max[31m=[32m"100"[31m
+          [33mdata-state[31m=[32m"indeterminate"[31m
+          [33mrole[31m=[32m"progressbar"[31m
+        [36m>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"h-full w-full flex-1 bg-primary transition-all"[31m
+            [33mdata-max[31m=[32m"100"[31m
+            [33mdata-state[31m=[32m"indeterminate"[31m
+            [33mstyle[31m=[32m"transform: translateX(-100%);"[31m
+          [36m/>[31m
+        [36m</div>[31m
+      [36m</div>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"rounded-xl border bg-card text-card-foreground shadow-lg shadow-black/40 transition-all duration-200 hover:shadow-xl hover:shadow-black/50 hover:scale-[1.005] p-6"[31m
+      [36m>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"space-y-4"[31m
+        [36m>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"flex items-start gap-3"[31m
+          [36m>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium"[31m
+            [36m>[31m
+              [0mAI[0m
+            [36m</div>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"flex-1"[31m
+            [36m>[31m
+              [36m<p[31m
+                [33mclass[31m=[32m"text-base leading-relaxed"[31m
+              [36m/>[31m
+            [36m</div>[31m
+          [36m</div>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"mt-6"[31m
+          [36m/>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"flex items-center justify-between mt-6"[31m
+          [36m>[31m
+            [36m<span[31m
+              [33mclass[31m=[32m"text-xs text-muted-foreground"[31m
+            [36m/>[31m
+            [36m<button[31m
+              [33mclass[31m=[32m"inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 touch-manipulation active:scale-95 bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] text-white shadow-md shadow-blue-500/30 hover:opacity-90 h-11 min-h-[48px] md:min-h-[44px] rounded-md px-8"[31m
+            [36m>[31m
+              [0mNext[0m
+            [36m</button>[31m
+          [36m</div>[31m
+        [36m</div>[31m
+      [36m</div>[31m
+    [36m</div>[31m
+  [36m</div>[31m
+  [36m<div>[31m
+    [36m<div[31m
+      [33mclass[31m=[32m"max-w-2xl mx-auto p-6 space-y-6"[31m
+    [36m>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"space-y-2"[31m
+      [36m>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"flex items-center justify-between text-sm"[31m
+        [36m>[31m
+          [36m<span[31m
+            [33mclass[31m=[32m"text-muted-foreground"[31m
+          [36m>[31m
+            [0mStep Progress[0m
+          [36m</span>[31m
+          [36m<span[31m
+            [33mclass[31m=[32m"font-medium"[31m
+          [36m>[31m
+            [0m11[0m
+            [0m%[0m
+          [36m</span>[31m
+        [36m</div>[31m
+        [36m<div[31m
+          [33maria-valuemax[31m=[32m"100"[31m
+          [33maria-valuemin[31m=[32m"0"[31m
+          [33mclass[31m=[32m"relative h-4 w-full overflow-hidden rounded-full bg-secondary"[31m
+          [33mdata-max[31m=[32m"100"[31m
+          [33mdata-state[31m=[32m"indeterminate"[31m
+          [33mrole[31m=[32m"progressbar"[31m
+        [36m>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"h-full w-full flex-1 bg-primary transition-all"[31m
+            [33mdata-max[31m=[32m"100"[31m
+            [33mdata-state[31m=[32m"indeterminate"[31m
+            [33mstyle[31m=[32m"transform: translateX(-89%);"[31m
+          [36m/>[31m
+        [36m</div>[31m
+      [36m</div>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"rounded-xl border bg-card text-card-foreground shadow-lg shadow-black/40 transition-all duration-200 hover:shadow-xl hover:shadow-black/50 hover:scale-[1.005] p-6"[31m
+      [36m>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"space-y-4"[31m
+        [36m>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"flex items-start gap-3"[31m
+          [36m>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium"[31m
+            [36m>[31m
+              [0mAI[0m
+            [36m</div>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"flex-1"[31m
+            [36m>[31m
+              [36m<p[31m
+                [33mclass[31m=[32m"text-base leading-relaxed"[31m
+              [36m>[31m
+                [0mLet's start with the basics. What's your client's brand name and website?[0m
+              [36m</p>[31m
+            [36m</div>[31m
+          [36m</div>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"mt-6"[31m
+          [36m>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"space-y-4"[31m
+            [36m>[31m
+              [36m<div>[31m
+                [36m<label[31m
+                  [33mclass[31m=[32m"text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"[31m
+                  [33mfor[31m=[32m"brand"[31m
+                [36m>[31m
+                  [0mBrand Name *[0m
+                [36m</label>[31m
+                [36m<input[31m
+                  [33mclass[31m=[32m"flex h-10 md:h-10 min-h-[44px] md:min-h-[40px] w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-vis...[39m
+[31m   [31m×[31m AiOnboardingV3Guided[2m > [22mresumes from existing session[33m 1008[2mms[22m[31m[39m
+[31m     → Unable to find an element with the text: /Which offerings/i. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[31m
+  [36m<div>[31m
+    [36m<div[31m
+      [33mclass[31m=[32m"max-w-2xl mx-auto p-6 space-y-6"[31m
+    [36m>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"space-y-2"[31m
+      [36m>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"flex items-center justify-between text-sm"[31m
+        [36m>[31m
+          [36m<span[31m
+            [33mclass[31m=[32m"text-muted-foreground"[31m
+          [36m>[31m
+            [0mStep Progress[0m
+          [36m</span>[31m
+          [36m<span[31m
+            [33mclass[31m=[32m"font-medium"[31m
+          [36m>[31m
+            [0m%[0m
+          [36m</span>[31m
+        [36m</div>[31m
+        [36m<div[31m
+          [33maria-valuemax[31m=[32m"100"[31m
+          [33maria-valuemin[31m=[32m"0"[31m
+          [33mclass[31m=[32m"relative h-4 w-full overflow-hidden rounded-full bg-secondary"[31m
+          [33mdata-max[31m=[32m"100"[31m
+          [33mdata-state[31m=[32m"indeterminate"[31m
+          [33mrole[31m=[32m"progressbar"[31m
+        [36m>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"h-full w-full flex-1 bg-primary transition-all"[31m
+            [33mdata-max[31m=[32m"100"[31m
+            [33mdata-state[31m=[32m"indeterminate"[31m
+            [33mstyle[31m=[32m"transform: translateX(-100%);"[31m
+          [36m/>[31m
+        [36m</div>[31m
+      [36m</div>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"rounded-xl border bg-card text-card-foreground shadow-lg shadow-black/40 transition-all duration-200 hover:shadow-xl hover:shadow-black/50 hover:scale-[1.005] p-6"[31m
+      [36m>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"space-y-4"[31m
+        [36m>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"flex items-start gap-3"[31m
+          [36m>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium"[31m
+            [36m>[31m
+              [0mAI[0m
+            [36m</div>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"flex-1"[31m
+            [36m>[31m
+              [36m<p[31m
+                [33mclass[31m=[32m"text-base leading-relaxed"[31m
+              [36m/>[31m
+            [36m</div>[31m
+          [36m</div>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"mt-6"[31m
+          [36m/>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"flex items-center justify-between mt-6"[31m
+          [36m>[31m
+            [36m<span[31m
+              [33mclass[31m=[32m"text-xs text-muted-foreground"[31m
+            [36m/>[31m
+            [36m<button[31m
+              [33mclass[31m=[32m"inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 touch-manipulation active:scale-95 bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] text-white shadow-md shadow-blue-500/30 hover:opacity-90 h-11 min-h-[48px] md:min-h-[44px] rounded-md px-8"[31m
+            [36m>[31m
+              [0mNext[0m
+            [36m</button>[31m
+          [36m</div>[31m
+        [36m</div>[31m
+      [36m</div>[31m
+    [36m</div>[31m
+  [36m</div>[31m
+  [36m<div>[31m
+    [36m<div[31m
+      [33mclass[31m=[32m"max-w-2xl mx-auto p-6 space-y-6"[31m
+    [36m>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"space-y-2"[31m
+      [36m>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"flex items-center justify-between text-sm"[31m
+        [36m>[31m
+          [36m<span[31m
+            [33mclass[31m=[32m"text-muted-foreground"[31m
+          [36m>[31m
+            [0mStep Progress[0m
+          [36m</span>[31m
+          [36m<span[31m
+            [33mclass[31m=[32m"font-medium"[31m
+          [36m>[31m
+            [0m11[0m
+            [0m%[0m
+          [36m</span>[31m
+        [36m</div>[31m
+        [36m<div[31m
+          [33maria-valuemax[31m=[32m"100"[31m
+          [33maria-valuemin[31m=[32m"0"[31m
+          [33mclass[31m=[32m"relative h-4 w-full overflow-hidden rounded-full bg-secondary"[31m
+          [33mdata-max[31m=[32m"100"[31m
+          [33mdata-state[31m=[32m"indeterminate"[31m
+          [33mrole[31m=[32m"progressbar"[31m
+        [36m>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"h-full w-full flex-1 bg-primary transition-all"[31m
+            [33mdata-max[31m=[32m"100"[31m
+            [33mdata-state[31m=[32m"indeterminate"[31m
+            [33mstyle[31m=[32m"transform: translateX(-89%);"[31m
+          [36m/>[31m
+        [36m</div>[31m
+      [36m</div>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"rounded-xl border bg-card text-card-foreground shadow-lg shadow-black/40 transition-all duration-200 hover:shadow-xl hover:shadow-black/50 hover:scale-[1.005] p-6"[31m
+      [36m>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"space-y-4"[31m
+        [36m>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"flex items-start gap-3"[31m
+          [36m>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium"[31m
+            [36m>[31m
+              [0mAI[0m
+            [36m</div>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"flex-1"[31m
+            [36m>[31m
+              [36m<p[31m
+                [33mclass[31m=[32m"text-base leading-relaxed"[31m
+              [36m>[31m
+                [0mLet's start with the basics. What's your client's brand name and website?[0m
+              [36m</p>[31m
+            [36m</div>[31m
+          [36m</div>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"mt-6"[31m
+          [36m>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"space-y-4"[31m
+            [36m>[31m
+              [36m<div>[31m
+                [36m<label[31m
+                  [33mclass[31m=[32m"text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"[31m
+                  [33mfor[31m=[32m"brand"[31m
+                [36m>[31m
+                  [0mBrand Name *[0m
+                [36m</label>[31m
+                [36m<input[31m
+                  [33mclass[31m=[32m"flex h-10 md:h-10 min-h-[44px] md:min-h-[40px] w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-vis...
+
+Ignored nodes: comments, script, style
+[36m<html>[31m
+  [36m<head />[31m
+  [36m<body>[31m
+    [36m<div>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"max-w-2xl mx-auto p-6 space-y-6"[31m
+      [36m>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"space-y-2"[31m
+        [36m>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"flex items-center justify-between text-sm"[31m
+          [36m>[31m
+            [36m<span[31m
+              [33mclass[31m=[32m"text-muted-foreground"[31m
+            [36m>[31m
+              [0mStep Progress[0m
+            [36m</span>[31m
+            [36m<span[31m
+              [33mclass[31m=[32m"font-medium"[31m
+            [36m>[31m
+              [0m%[0m
+            [36m</span>[31m
+          [36m</div>[31m
+          [36m<div[31m
+            [33maria-valuemax[31m=[32m"100"[31m
+            [33maria-valuemin[31m=[32m"0"[31m
+            [33mclass[31m=[32m"relative h-4 w-full overflow-hidden rounded-full bg-secondary"[31m
+            [33mdata-max[31m=[32m"100"[31m
+            [33mdata-state[31m=[32m"indeterminate"[31m
+            [33mrole[31m=[32m"progressbar"[31m
+          [36m>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"h-full w-full flex-1 bg-primary transition-all"[31m
+              [33mdata-max[31m=[32m"100"[31m
+              [33mdata-state[31m=[32m"indeterminate"[31m
+              [33mstyle[31m=[32m"transform: translateX(-100%);"[31m
+            [36m/>[31m
+          [36m</div>[31m
+        [36m</div>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"rounded-xl border bg-card text-card-foreground shadow-lg shadow-black/40 transition-all duration-200 hover:shadow-xl hover:shadow-black/50 hover:scale-[1.005] p-6"[31m
+        [36m>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"space-y-4"[31m
+          [36m>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"flex items-start gap-3"[31m
+            [36m>[31m
+              [36m<div[31m
+                [33mclass[31m=[32m"w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium"[31m
+              [36m>[31m
+                [0mAI[0m
+              [36m</div>[31m
+              [36m<div[31m
+                [33mclass[31m=[32m"flex-1"[31m
+              [36m>[31m
+                [36m<p[31m
+                  [33mclass[31m=[32m"text-base leading-relaxed"[31m
+                [36m/>[31m
+              [36m</div>[31m
+            [36m</div>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"mt-6"[31m
+            [36m/>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"flex items-center justify-between mt-6"[31m
+            [36m>[31m
+              [36m<span[31m
+                [33mclass[31m=[32m"text-xs text-muted-foreground"[31m
+              [36m/>[31m
+              [36m<button[31m
+                [33mclass[31m=[32m"inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 touch-manipulation active:scale-95 bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] text-white shadow-md shadow-blue-500/30 hover:opacity-90 h-11 min-h-[48px] md:min-h-[44px] rounded-md px-8"[31m
+              [36m>[31m
+                [0mNext[0m
+              [36m</button>[31m
+            [36m</div>[31m
+          [36m</div>[31m
+        [36m</div>[31m
+      [36m</div>[31m
+    [36m</div>[31m
+    [36m<div>[31m
+      [36m<div[31m
+        [33mclass[31m=[32m"max-w-2xl mx-auto p-6 space-y-6"[31m
+      [36m>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"space-y-2"[31m
+        [36m>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"flex items-center justify-between text-sm"[31m
+          [36m>[31m
+            [36m<span[31m
+              [33mclass[31m=[32m"text-muted-foreground"[31m
+            [36m>[31m
+              [0mStep Progress[0m
+            [36m</span>[31m
+            [36m<span[31m
+              [33mclass[31m=[32m"font-medium"[31m
+            [36m>[31m
+              [0m11[0m
+              [0m%[0m
+            [36m</span>[31m
+          [36m</div>[31m
+          [36m<div[31m
+            [33maria-valuemax[31m=[32m"100"[31m
+            [33maria-valuemin[31m=[32m"0"[31m
+            [33mclass[31m=[32m"relative h-4 w-full overflow-hidden rounded-full bg-secondary"[31m
+            [33mdata-max[31m=[32m"100"[31m
+            [33mdata-state[31m=[32m"indeterminate"[31m
+            [33mrole[31m=[32m"progressbar"[31m
+          [36m>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"h-full w-full flex-1 bg-primary transition-all"[31m
+              [33mdata-max[31m=[32m"100"[31m
+              [33mdata-state[31m=[32m"indeterminate"[31m
+              [33mstyle[31m=[32m"transform: translateX(-89%);"[31m
+            [36m/>[31m
+          [36m</div>[31m
+        [36m</div>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"rounded-xl border bg-card text-card-foreground shadow-lg shadow-black/40 transition-all duration-200 hover:shadow-xl hover:shadow-black/50 hover:scale-[1.005] p-6"[31m
+        [36m>[31m
+          [36m<div[31m
+            [33mclass[31m=[32m"space-y-4"[31m
+          [36m>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"flex items-start gap-3"[31m
+            [36m>[31m
+              [36m<div[31m
+                [33mclass[31m=[32m"w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium"[31m
+              [36m>[31m
+                [0mAI[0m
+              [36m</div>[31m
+              [36m<div[31m
+                [33mclass[31m=[32m"flex-1"[31m
+              [36m>[31m
+                [36m<p[31m
+                  [33mclass[31m=[32m"text-base leading-relaxed"[31m
+                [36m>[31m
+                  [0mLet's start with the basics. What's your client's brand name and website?[0m
+                [36m</p>[31m
+              [36m</div>[31m
+            [36m</div>[31m
+            [36m<div[31m
+              [33mclass[31m=[32m"mt-6"[31m
+            [36m>[31m
+              [36m<div[31m
+                [33mclass[31m=[32m"space-y-4"[31m
+              [36m>[31m
+                [36m<div>[31m
+                  [36m<label[31m
+                    [33mclass[31m=[32m"text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"[31m
+                    [33mfor[31m=[32m"brand"[31m
+                  [36m>[31m
+                    [0mBrand Name *[0m
+                  [36m</label>[3...[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[1m[7m Failed Tests 7 [27m[22m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[31m[1m[7m FAIL [27m[22m[39m src/components/ai/__tests__/AiOnboardingV3Guided.test.tsx[2m > [22mAiOnboardingV3Guided[2m > [22mrenders loading state initially
+[31m[1mTestingLibraryElementError[22m: Unable to find an accessible element with the role "progressbar"
+
+There are no accessible roles. But there might be some inaccessible roles. If you wish to access them, then set the `hidden` option to `true`. Learn more about this here: https://testing-library.com/docs/dom-testing-library/api-queries#byrole
+
+Ignored nodes: comments, script, style
+[36m<body>[31m
+  [36m<div>[31m
+    [36m<div[31m
+      [33mclass[31m=[32m"flex items-center justify-center min-h-[400px]"[31m
+    [36m>[31m
+      [36m<svg[31m
+        [33mclass[31m=[32m"lucide lucide-loader-circle h-8 w-8 animate-spin text-primary"[31m
+        [33mfill[31m=[32m"none"[31m
+        [33mheight[31m=[32m"24"[31m
+        [33mstroke[31m=[32m"currentColor"[31m
+        [33mstroke-linecap[31m=[32m"round"[31m
+        [33mstroke-linejoin[31m=[32m"round"[31m
+        [33mstroke-width[31m=[32m"2"[31m
+        [33mviewBox[31m=[32m"0 0 24 24"[31m
+        [33mwidth[31m=[32m"24"[31m
+        [33mxmlns[31m=[32m"http://www.w3.org/2000/svg"[31m
+      [36m>[31m
+        [36m<path[31m
+          [33md[31m=[32m"M21 12a9 9 0 1 1-6.219-8.56"[31m
+        [36m/>[31m
+      [36m</svg>[31m
+    [36m</div>[31m
+  [36m</div>[31m
+[36m</body>[31m[39m
+[90m [2m❯[22m Object.getElementError node_modules/@testing-library/dom/dist/config.js:[2m37:19[22m[39m
+[90m [2m❯[22m node_modules/@testing-library/dom/dist/query-helpers.js:[2m76:38[22m[39m
+[90m [2m❯[22m node_modules/@testing-library/dom/dist/query-helpers.js:[2m52:17[22m[39m
+[90m [2m❯[22m getByRole node_modules/@testing-library/dom/dist/query-helpers.js:[2m95:19[22m[39m
+[36m [2m❯[22m src/components/ai/__tests__/AiOnboardingV3Guided.test.tsx:[2m79:19[22m[39m
+    [90m 77| [39m    )[33m;[39m
+    [90m 78| [39m
+    [90m 79| [39m    [34mexpect[39m(screen[33m.[39m[34mgetByRole[39m([32m"progressbar"[39m))[33m.[39m[34mtoBeInTheDocument[39m()[33m;[39m
+    [90m   | [39m                  [31m^[39m
+    [90m 80| [39m  })[33m;[39m
+    [90m 81| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/7]⎯[22m[39m
+
+[31m[1m[7m FAIL [27m[22m[39m src/components/ai/__tests__/AiOnboardingV3Guided.test.tsx[2m > [22mAiOnboardingV3Guided[2m > [22mvalidates brand_basics input and shows errors
+[31m[1mTestingLibraryElementError[22m[39m: Found multiple elements with the role "button" and name `/Next/i`
+
+Here are the matching elements:
+
+Ignored nodes: comments, script, style
+[36m<button[39m
+  [33mclass[39m=[32m"inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 touch-manipulation active:scale-95 bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] text-white shadow-md shadow-blue-500/30 hover:opacity-90 h-11 min-h-[48px] md:min-h-[44px] rounded-md px-8"[39m
+[36m>[39m
+  [0mNext[0m
+[36m</button>[39m
+
+Ignored nodes: comments, script, style
+[36m<button[39m
+  [33mclass[39m=[32m"inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 touch-manipulation active:scale-95 bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] text-white shadow-md shadow-blue-500/30 hover:opacity-90 h-11 min-h-[48px] md:min-h-[44px] rounded-md px-8"[39m
+  [33mdisabled[39m=[32m""[39m
+[36m>[39m
+  [0mNext[0m
+[36m</button>[39m
+
+Ignored nodes: comments, script, style
+[36m<button[39m
+  [33mclass[39m=[32m"inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 touch-manipulation active:scale-95 bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] text-white shadow-md shadow-blue-500/30 hover:opacity-90 h-11 min-h-[48px] md:min-h-[44px] rounded-md px-8"[39m
+  [33mdisabled[39m=[32m""[39m
+[36m>[39m
+  [0mNext[0m
+[36m</button>[39m
+
+(If this is intentional, then use the `*AllBy*` variant of the query (like `queryAllByText`, `getAllByText`, or `findAllByText`)).
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"max-w-2xl mx-auto p-6 space-y-6"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"space-y-2"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center justify-between text-sm"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-muted-foreground"[39m
+          [36m>[39m
+            [0mStep Progress[0m
+          [36m</span>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"font-medium"[39m
+          [36m>[39m
+            [0m%[0m
+          [36m</span>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33maria-valuemax[39m=[32m"100"[39m
+          [33maria-valuemin[39m=[32m"0"[39m
+          [33mclass[39m=[32m"relative h-4 w-full overflow-hidden rounded-full bg-secondary"[39m
+          [33mdata-max[39m=[32m"100"[39m
+          [33mdata-state[39m=[32m"indeterminate"[39m
+          [33mrole[39m=[32m"progressbar"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"h-full w-full flex-1 bg-primary transition-all"[39m
+            [33mdata-max[39m=[32m"100"[39m
+            [33mdata-state[39m=[32m"indeterminate"[39m
+            [33mstyle[39m=[32m"transform: translateX(-100%);"[39m
+          [36m/>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"rounded-xl border bg-card text-card-foreground shadow-lg shadow-black/40 transition-all duration-200 hover:shadow-xl hover:shadow-black/50 hover:scale-[1.005] p-6"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"space-y-4"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex items-start gap-3"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium"[39m
+            [36m>[39m
+              [0mAI[0m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex-1"[39m
+            [36m>[39m
+              [36m<p[39m
+                [33mclass[39m=[32m"text-base leading-relaxed"[39m
+              [36m/>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"mt-6"[39m
+          [36m/>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex items-center justify-between mt-6"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"text-xs text-muted-foreground"[39m
+            [36m/>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 touch-manipulation active:scale-95 bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] text-white shadow-md shadow-blue-500/30 hover:opacity-90 h-11 min-h-[48px] md:min-h-[44px] rounded-md px-8"[39m
+            [36m>[39m
+              [0mNext[0m
+            [36m</button>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"max-w-2xl mx-auto p-6 space-y-6"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"space-y-2"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center justify-between text-sm"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-muted-foreground"[39m
+          [36m>[39m
+            [0mStep Progress[0m
+          [36m</span>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"font-medium"[39m
+          [36m>[39m
+            [0m11[0m
+            [0m%[0m
+          [36m</span>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33maria-valuemax[39m=[32m"100"[39m
+          [33maria-valuemin[39m=[32m"0"[39m
+          [33mclass[39m=[32m"relative h-4 w-full overflow-hidden rounded-full bg-secondary"[39m
+          [33mdata-max[39m=[32m"100"[39m
+          [33mdata-state[39m=[32m"indeterminate"[39m
+          [33mrole[39m=[32m"progressbar"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"h-full w-full flex-1 bg-primary transition-all"[39m
+            [33mdata-max[39m=[32m"100"[39m
+            [33mdata-state[39m=[32m"indeterminate"[39m
+            [33mstyle[39m=[32m"transform: translateX(-89%);"[39m
+          [36m/>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"rounded-xl border bg-card text-card-foreground shadow-lg shadow-black/40 transition-all duration-200 hover:shadow-xl hover:shadow-black/50 hover:scale-[1.005] p-6"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"space-y-4"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex items-start gap-3"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium"[39m
+            [36m>[39m
+              [0mAI[0m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex-1"[39m
+            [36m>[39m
+              [36m<p[39m
+                [33mclass[39m=[32m"text-base leading-relaxed"[39m
+              [36m>[39m
+                [0mLet's start with the basics. What's your client's brand name and website?[0m
+              [36m</p>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"mt-6"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"space-y-4"[39m
+            [36m>[39m
+              [36m<div>[39m
+                [36m<label[39m
+                  [33mclass[39m=[32m"text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"[39m
+                  [33mfor[39m=[32m"brand"[39m
+                [36m>[39m
+                  [0mBrand Name *[0m
+                [36m</label>[39m
+                [36m<input[39m
+                  [33mclass[39m=[32m"flex h-10 md:h-10 min-h-[44px] md:min-h-[40px] w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-vis...
+[90m [2m❯[22m Object.getElementError node_modules/@testing-library/dom/dist/config.js:[2m37:19[22m[39m
+[90m [2m❯[22m getElementError node_modules/@testing-library/dom/dist/query-helpers.js:[2m20:35[22m[39m
+[90m [2m❯[22m getMultipleElementsFoundError node_modules/@testing-library/dom/dist/query-helpers.js:[2m23:10[22m[39m
+[90m [2m❯[22m node_modules/@testing-library/dom/dist/query-helpers.js:[2m55:13[22m[39m
+[90m [2m❯[22m getByRole node_modules/@testing-library/dom/dist/query-helpers.js:[2m95:19[22m[39m
+[36m [2m❯[22m src/components/ai/__tests__/AiOnboardingV3Guided.test.tsx:[2m151:31[22m[39m
+    [90m149| [39m    })[33m;[39m
+    [90m150| [39m
+    [90m151| [39m    [35mconst[39m nextButton [33m=[39m screen[33m.[39m[34mgetByRole[39m([32m"button"[39m[33m,[39m { name[33m:[39m [36m/Next/i[39m })[33m;[39m
+    [90m   | [39m                              [31m^[39m
+    [90m152| [39m    [35mawait[39m user[33m.[39m[34mclick[39m(nextButton)[33m;[39m
+    [90m153| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/7]⎯[22m[39m
+
+[31m[1m[7m FAIL [27m[22m[39m src/components/ai/__tests__/AiOnboardingV3Guided.test.tsx[2m > [22mAiOnboardingV3Guided[2m > [22mrenders multi_select step with options
+[31m[1mTestingLibraryElementError[22m[39m: Unable to find an element with the text: /Which of these offerings/i. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"max-w-2xl mx-auto p-6 space-y-6"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"space-y-2"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center justify-between text-sm"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-muted-foreground"[39m
+          [36m>[39m
+            [0mStep Progress[0m
+          [36m</span>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"font-medium"[39m
+          [36m>[39m
+            [0m%[0m
+          [36m</span>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33maria-valuemax[39m=[32m"100"[39m
+          [33maria-valuemin[39m=[32m"0"[39m
+          [33mclass[39m=[32m"relative h-4 w-full overflow-hidden rounded-full bg-secondary"[39m
+          [33mdata-max[39m=[32m"100"[39m
+          [33mdata-state[39m=[32m"indeterminate"[39m
+          [33mrole[39m=[32m"progressbar"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"h-full w-full flex-1 bg-primary transition-all"[39m
+            [33mdata-max[39m=[32m"100"[39m
+            [33mdata-state[39m=[32m"indeterminate"[39m
+            [33mstyle[39m=[32m"transform: translateX(-100%);"[39m
+          [36m/>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"rounded-xl border bg-card text-card-foreground shadow-lg shadow-black/40 transition-all duration-200 hover:shadow-xl hover:shadow-black/50 hover:scale-[1.005] p-6"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"space-y-4"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex items-start gap-3"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium"[39m
+            [36m>[39m
+              [0mAI[0m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex-1"[39m
+            [36m>[39m
+              [36m<p[39m
+                [33mclass[39m=[32m"text-base leading-relaxed"[39m
+              [36m/>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"mt-6"[39m
+          [36m/>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex items-center justify-between mt-6"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"text-xs text-muted-foreground"[39m
+            [36m/>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 touch-manipulation active:scale-95 bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] text-white shadow-md shadow-blue-500/30 hover:opacity-90 h-11 min-h-[48px] md:min-h-[44px] rounded-md px-8"[39m
+            [36m>[39m
+              [0mNext[0m
+            [36m</button>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"max-w-2xl mx-auto p-6 space-y-6"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"space-y-2"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center justify-between text-sm"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-muted-foreground"[39m
+          [36m>[39m
+            [0mStep Progress[0m
+          [36m</span>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"font-medium"[39m
+          [36m>[39m
+            [0m11[0m
+            [0m%[0m
+          [36m</span>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33maria-valuemax[39m=[32m"100"[39m
+          [33maria-valuemin[39m=[32m"0"[39m
+          [33mclass[39m=[32m"relative h-4 w-full overflow-hidden rounded-full bg-secondary"[39m
+          [33mdata-max[39m=[32m"100"[39m
+          [33mdata-state[39m=[32m"indeterminate"[39m
+          [33mrole[39m=[32m"progressbar"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"h-full w-full flex-1 bg-primary transition-all"[39m
+            [33mdata-max[39m=[32m"100"[39m
+            [33mdata-state[39m=[32m"indeterminate"[39m
+            [33mstyle[39m=[32m"transform: translateX(-89%);"[39m
+          [36m/>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"rounded-xl border bg-card text-card-foreground shadow-lg shadow-black/40 transition-all duration-200 hover:shadow-xl hover:shadow-black/50 hover:scale-[1.005] p-6"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"space-y-4"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex items-start gap-3"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium"[39m
+            [36m>[39m
+              [0mAI[0m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex-1"[39m
+            [36m>[39m
+              [36m<p[39m
+                [33mclass[39m=[32m"text-base leading-relaxed"[39m
+              [36m>[39m
+                [0mLet's start with the basics. What's your client's brand name and website?[0m
+              [36m</p>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"mt-6"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"space-y-4"[39m
+            [36m>[39m
+              [36m<div>[39m
+                [36m<label[39m
+                  [33mclass[39m=[32m"text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"[39m
+                  [33mfor[39m=[32m"brand"[39m
+                [36m>[39m
+                  [0mBrand Name *[0m
+                [36m</label>[39m
+                [36m<input[39m
+                  [33mclass[39m=[32m"flex h-10 md:h-10 min-h-[44px] md:min-h-[40px] w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-vis...
+
+Ignored nodes: comments, script, style
+[36m<html>[39m
+  [36m<head />[39m
+  [36m<body>[39m
+    [36m<div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"max-w-2xl mx-auto p-6 space-y-6"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"space-y-2"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex items-center justify-between text-sm"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"text-muted-foreground"[39m
+            [36m>[39m
+              [0mStep Progress[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"font-medium"[39m
+            [36m>[39m
+              [0m%[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33maria-valuemax[39m=[32m"100"[39m
+            [33maria-valuemin[39m=[32m"0"[39m
+            [33mclass[39m=[32m"relative h-4 w-full overflow-hidden rounded-full bg-secondary"[39m
+            [33mdata-max[39m=[32m"100"[39m
+            [33mdata-state[39m=[32m"indeterminate"[39m
+            [33mrole[39m=[32m"progressbar"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"h-full w-full flex-1 bg-primary transition-all"[39m
+              [33mdata-max[39m=[32m"100"[39m
+              [33mdata-state[39m=[32m"indeterminate"[39m
+              [33mstyle[39m=[32m"transform: translateX(-100%);"[39m
+            [36m/>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"rounded-xl border bg-card text-card-foreground shadow-lg shadow-black/40 transition-all duration-200 hover:shadow-xl hover:shadow-black/50 hover:scale-[1.005] p-6"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"space-y-4"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex items-start gap-3"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium"[39m
+              [36m>[39m
+                [0mAI[0m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"flex-1"[39m
+              [36m>[39m
+                [36m<p[39m
+                  [33mclass[39m=[32m"text-base leading-relaxed"[39m
+                [36m/>[39m
+              [36m</div>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"mt-6"[39m
+            [36m/>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex items-center justify-between mt-6"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"text-xs text-muted-foreground"[39m
+              [36m/>[39m
+              [36m<button[39m
+                [33mclass[39m=[32m"inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 touch-manipulation active:scale-95 bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] text-white shadow-md shadow-blue-500/30 hover:opacity-90 h-11 min-h-[48px] md:min-h-[44px] rounded-md px-8"[39m
+              [36m>[39m
+                [0mNext[0m
+              [36m</button>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+    [36m<div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"max-w-2xl mx-auto p-6 space-y-6"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"space-y-2"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex items-center justify-between text-sm"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"text-muted-foreground"[39m
+            [36m>[39m
+              [0mStep Progress[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"font-medium"[39m
+            [36m>[39m
+              [0m11[0m
+              [0m%[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33maria-valuemax[39m=[32m"100"[39m
+            [33maria-valuemin[39m=[32m"0"[39m
+            [33mclass[39m=[32m"relative h-4 w-full overflow-hidden rounded-full bg-secondary"[39m
+            [33mdata-max[39m=[32m"100"[39m
+            [33mdata-state[39m=[32m"indeterminate"[39m
+            [33mrole[39m=[32m"progressbar"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"h-full w-full flex-1 bg-primary transition-all"[39m
+              [33mdata-max[39m=[32m"100"[39m
+              [33mdata-state[39m=[32m"indeterminate"[39m
+              [33mstyle[39m=[32m"transform: translateX(-89%);"[39m
+            [36m/>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"rounded-xl border bg-card text-card-foreground shadow-lg shadow-black/40 transition-all duration-200 hover:shadow-xl hover:shadow-black/50 hover:scale-[1.005] p-6"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"space-y-4"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex items-start gap-3"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium"[39m
+              [36m>[39m
+                [0mAI[0m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"flex-1"[39m
+              [36m>[39m
+                [36m<p[39m
+                  [33mclass[39m=[32m"text-base leading-relaxed"[39m
+                [36m>[39m
+                  [0mLet's start with the basics. What's your client's brand name and website?[0m
+                [36m</p>[39m
+              [36m</div>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"mt-6"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"space-y-4"[39m
+              [36m>[39m
+                [36m<div>[39m
+                  [36m<label[39m
+                    [33mclass[39m=[32m"text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"[39m
+                    [33mfor[39m=[32m"brand"[39m
+                  [36m>[39m
+                    [0mBrand Name *[0m
+                  [36m</label>[3...
+[90m [2m❯[22m Proxy.waitFor node_modules/@testing-library/dom/dist/wait-for.js:[2m163:27[22m[39m
+[36m [2m❯[22m src/components/ai/__tests__/AiOnboardingV3Guided.test.tsx:[2m185:11[22m[39m
+    [90m183| [39m    )[33m;[39m
+    [90m184| [39m
+    [90m185| [39m    [35mawait[39m [34mwaitFor[39m(() [33m=>[39m {
+    [90m   | [39m          [31m^[39m
+    [90m186| [39m      [34mexpect[39m(screen[33m.[39m[34mgetByText[39m([36m/Which of these offerings/i[39m))[33m.[39m[34mtoBeInTheD[39m…
+    [90m187| [39m    })[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/7]⎯[22m[39m
+
+[31m[1m[7m FAIL [27m[22m[39m src/components/ai/__tests__/AiOnboardingV3Guided.test.tsx[2m > [22mAiOnboardingV3Guided[2m > [22mhandles selection in chips input
+[31m[1mTestingLibraryElementError[22m[39m: Unable to find an element with the text: /What makes this brand stand out/i. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"max-w-2xl mx-auto p-6 space-y-6"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"space-y-2"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center justify-between text-sm"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-muted-foreground"[39m
+          [36m>[39m
+            [0mStep Progress[0m
+          [36m</span>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"font-medium"[39m
+          [36m>[39m
+            [0m%[0m
+          [36m</span>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33maria-valuemax[39m=[32m"100"[39m
+          [33maria-valuemin[39m=[32m"0"[39m
+          [33mclass[39m=[32m"relative h-4 w-full overflow-hidden rounded-full bg-secondary"[39m
+          [33mdata-max[39m=[32m"100"[39m
+          [33mdata-state[39m=[32m"indeterminate"[39m
+          [33mrole[39m=[32m"progressbar"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"h-full w-full flex-1 bg-primary transition-all"[39m
+            [33mdata-max[39m=[32m"100"[39m
+            [33mdata-state[39m=[32m"indeterminate"[39m
+            [33mstyle[39m=[32m"transform: translateX(-100%);"[39m
+          [36m/>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"rounded-xl border bg-card text-card-foreground shadow-lg shadow-black/40 transition-all duration-200 hover:shadow-xl hover:shadow-black/50 hover:scale-[1.005] p-6"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"space-y-4"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex items-start gap-3"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium"[39m
+            [36m>[39m
+              [0mAI[0m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex-1"[39m
+            [36m>[39m
+              [36m<p[39m
+                [33mclass[39m=[32m"text-base leading-relaxed"[39m
+              [36m/>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"mt-6"[39m
+          [36m/>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex items-center justify-between mt-6"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"text-xs text-muted-foreground"[39m
+            [36m/>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 touch-manipulation active:scale-95 bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] text-white shadow-md shadow-blue-500/30 hover:opacity-90 h-11 min-h-[48px] md:min-h-[44px] rounded-md px-8"[39m
+            [36m>[39m
+              [0mNext[0m
+            [36m</button>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"max-w-2xl mx-auto p-6 space-y-6"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"space-y-2"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center justify-between text-sm"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-muted-foreground"[39m
+          [36m>[39m
+            [0mStep Progress[0m
+          [36m</span>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"font-medium"[39m
+          [36m>[39m
+            [0m11[0m
+            [0m%[0m
+          [36m</span>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33maria-valuemax[39m=[32m"100"[39m
+          [33maria-valuemin[39m=[32m"0"[39m
+          [33mclass[39m=[32m"relative h-4 w-full overflow-hidden rounded-full bg-secondary"[39m
+          [33mdata-max[39m=[32m"100"[39m
+          [33mdata-state[39m=[32m"indeterminate"[39m
+          [33mrole[39m=[32m"progressbar"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"h-full w-full flex-1 bg-primary transition-all"[39m
+            [33mdata-max[39m=[32m"100"[39m
+            [33mdata-state[39m=[32m"indeterminate"[39m
+            [33mstyle[39m=[32m"transform: translateX(-89%);"[39m
+          [36m/>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"rounded-xl border bg-card text-card-foreground shadow-lg shadow-black/40 transition-all duration-200 hover:shadow-xl hover:shadow-black/50 hover:scale-[1.005] p-6"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"space-y-4"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex items-start gap-3"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium"[39m
+            [36m>[39m
+              [0mAI[0m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex-1"[39m
+            [36m>[39m
+              [36m<p[39m
+                [33mclass[39m=[32m"text-base leading-relaxed"[39m
+              [36m>[39m
+                [0mLet's start with the basics. What's your client's brand name and website?[0m
+              [36m</p>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"mt-6"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"space-y-4"[39m
+            [36m>[39m
+              [36m<div>[39m
+                [36m<label[39m
+                  [33mclass[39m=[32m"text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"[39m
+                  [33mfor[39m=[32m"brand"[39m
+                [36m>[39m
+                  [0mBrand Name *[0m
+                [36m</label>[39m
+                [36m<input[39m
+                  [33mclass[39m=[32m"flex h-10 md:h-10 min-h-[44px] md:min-h-[40px] w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-vis...
+
+Ignored nodes: comments, script, style
+[36m<html>[39m
+  [36m<head />[39m
+  [36m<body>[39m
+    [36m<div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"max-w-2xl mx-auto p-6 space-y-6"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"space-y-2"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex items-center justify-between text-sm"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"text-muted-foreground"[39m
+            [36m>[39m
+              [0mStep Progress[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"font-medium"[39m
+            [36m>[39m
+              [0m%[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33maria-valuemax[39m=[32m"100"[39m
+            [33maria-valuemin[39m=[32m"0"[39m
+            [33mclass[39m=[32m"relative h-4 w-full overflow-hidden rounded-full bg-secondary"[39m
+            [33mdata-max[39m=[32m"100"[39m
+            [33mdata-state[39m=[32m"indeterminate"[39m
+            [33mrole[39m=[32m"progressbar"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"h-full w-full flex-1 bg-primary transition-all"[39m
+              [33mdata-max[39m=[32m"100"[39m
+              [33mdata-state[39m=[32m"indeterminate"[39m
+              [33mstyle[39m=[32m"transform: translateX(-100%);"[39m
+            [36m/>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"rounded-xl border bg-card text-card-foreground shadow-lg shadow-black/40 transition-all duration-200 hover:shadow-xl hover:shadow-black/50 hover:scale-[1.005] p-6"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"space-y-4"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex items-start gap-3"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium"[39m
+              [36m>[39m
+                [0mAI[0m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"flex-1"[39m
+              [36m>[39m
+                [36m<p[39m
+                  [33mclass[39m=[32m"text-base leading-relaxed"[39m
+                [36m/>[39m
+              [36m</div>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"mt-6"[39m
+            [36m/>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex items-center justify-between mt-6"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"text-xs text-muted-foreground"[39m
+              [36m/>[39m
+              [36m<button[39m
+                [33mclass[39m=[32m"inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 touch-manipulation active:scale-95 bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] text-white shadow-md shadow-blue-500/30 hover:opacity-90 h-11 min-h-[48px] md:min-h-[44px] rounded-md px-8"[39m
+              [36m>[39m
+                [0mNext[0m
+              [36m</button>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+    [36m<div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"max-w-2xl mx-auto p-6 space-y-6"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"space-y-2"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex items-center justify-between text-sm"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"text-muted-foreground"[39m
+            [36m>[39m
+              [0mStep Progress[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"font-medium"[39m
+            [36m>[39m
+              [0m11[0m
+              [0m%[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33maria-valuemax[39m=[32m"100"[39m
+            [33maria-valuemin[39m=[32m"0"[39m
+            [33mclass[39m=[32m"relative h-4 w-full overflow-hidden rounded-full bg-secondary"[39m
+            [33mdata-max[39m=[32m"100"[39m
+            [33mdata-state[39m=[32m"indeterminate"[39m
+            [33mrole[39m=[32m"progressbar"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"h-full w-full flex-1 bg-primary transition-all"[39m
+              [33mdata-max[39m=[32m"100"[39m
+              [33mdata-state[39m=[32m"indeterminate"[39m
+              [33mstyle[39m=[32m"transform: translateX(-89%);"[39m
+            [36m/>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"rounded-xl border bg-card text-card-foreground shadow-lg shadow-black/40 transition-all duration-200 hover:shadow-xl hover:shadow-black/50 hover:scale-[1.005] p-6"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"space-y-4"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex items-start gap-3"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium"[39m
+              [36m>[39m
+                [0mAI[0m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"flex-1"[39m
+              [36m>[39m
+                [36m<p[39m
+                  [33mclass[39m=[32m"text-base leading-relaxed"[39m
+                [36m>[39m
+                  [0mLet's start with the basics. What's your client's brand name and website?[0m
+                [36m</p>[39m
+              [36m</div>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"mt-6"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"space-y-4"[39m
+              [36m>[39m
+                [36m<div>[39m
+                  [36m<label[39m
+                    [33mclass[39m=[32m"text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"[39m
+                    [33mfor[39m=[32m"brand"[39m
+                  [36m>[39m
+                    [0mBrand Name *[0m
+                  [36m</label>[3...
+[90m [2m❯[22m Proxy.waitFor node_modules/@testing-library/dom/dist/wait-for.js:[2m163:27[22m[39m
+[36m [2m❯[22m src/components/ai/__tests__/AiOnboardingV3Guided.test.tsx:[2m221:11[22m[39m
+    [90m219| [39m    )[33m;[39m
+    [90m220| [39m
+    [90m221| [39m    [35mawait[39m [34mwaitFor[39m(() [33m=>[39m {
+    [90m   | [39m          [31m^[39m
+    [90m222| [39m      [34mexpect[39m(screen[33m.[39m[34mgetByText[39m([36m/What makes this brand stand out/i[39m))[33m.[39m[34mtoB[39m…
+    [90m223| [39m    })[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/7]⎯[22m[39m
+
+[31m[1m[7m FAIL [27m[22m[39m src/components/ai/__tests__/AiOnboardingV3Guided.test.tsx[2m > [22mAiOnboardingV3Guided[2m > [22mblocks proceed when missing OPENAI_API_KEY
+[31m[1mTestingLibraryElementError[22m[39m: Found multiple elements with the text: /Let's start with the basics/i
+
+Here are the matching elements:
+
+Ignored nodes: comments, script, style
+[36m<p[39m
+  [33mclass[39m=[32m"text-base leading-relaxed"[39m
+[36m>[39m
+  [0mLet's start with the basics. What's your client's brand name and website?[0m
+[36m</p>[39m
+
+Ignored nodes: comments, script, style
+[36m<p[39m
+  [33mclass[39m=[32m"text-base leading-relaxed"[39m
+[36m>[39m
+  [0mLet's start with the basics.[0m
+[36m</p>[39m
+
+(If this is intentional, then use the `*AllBy*` variant of the query (like `queryAllByText`, `getAllByText`, or `findAllByText`)).
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"max-w-2xl mx-auto p-6 space-y-6"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"space-y-2"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center justify-between text-sm"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-muted-foreground"[39m
+          [36m>[39m
+            [0mStep Progress[0m
+          [36m</span>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"font-medium"[39m
+          [36m>[39m
+            [0m%[0m
+          [36m</span>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33maria-valuemax[39m=[32m"100"[39m
+          [33maria-valuemin[39m=[32m"0"[39m
+          [33mclass[39m=[32m"relative h-4 w-full overflow-hidden rounded-full bg-secondary"[39m
+          [33mdata-max[39m=[32m"100"[39m
+          [33mdata-state[39m=[32m"indeterminate"[39m
+          [33mrole[39m=[32m"progressbar"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"h-full w-full flex-1 bg-primary transition-all"[39m
+            [33mdata-max[39m=[32m"100"[39m
+            [33mdata-state[39m=[32m"indeterminate"[39m
+            [33mstyle[39m=[32m"transform: translateX(-100%);"[39m
+          [36m/>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"rounded-xl border bg-card text-card-foreground shadow-lg shadow-black/40 transition-all duration-200 hover:shadow-xl hover:shadow-black/50 hover:scale-[1.005] p-6"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"space-y-4"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex items-start gap-3"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium"[39m
+            [36m>[39m
+              [0mAI[0m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex-1"[39m
+            [36m>[39m
+              [36m<p[39m
+                [33mclass[39m=[32m"text-base leading-relaxed"[39m
+              [36m/>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"mt-6"[39m
+          [36m/>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex items-center justify-between mt-6"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"text-xs text-muted-foreground"[39m
+            [36m/>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 touch-manipulation active:scale-95 bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] text-white shadow-md shadow-blue-500/30 hover:opacity-90 h-11 min-h-[48px] md:min-h-[44px] rounded-md px-8"[39m
+            [36m>[39m
+              [0mNext[0m
+            [36m</button>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"max-w-2xl mx-auto p-6 space-y-6"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"space-y-2"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center justify-between text-sm"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-muted-foreground"[39m
+          [36m>[39m
+            [0mStep Progress[0m
+          [36m</span>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"font-medium"[39m
+          [36m>[39m
+            [0m11[0m
+            [0m%[0m
+          [36m</span>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33maria-valuemax[39m=[32m"100"[39m
+          [33maria-valuemin[39m=[32m"0"[39m
+          [33mclass[39m=[32m"relative h-4 w-full overflow-hidden rounded-full bg-secondary"[39m
+          [33mdata-max[39m=[32m"100"[39m
+          [33mdata-state[39m=[32m"indeterminate"[39m
+          [33mrole[39m=[32m"progressbar"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"h-full w-full flex-1 bg-primary transition-all"[39m
+            [33mdata-max[39m=[32m"100"[39m
+            [33mdata-state[39m=[32m"indeterminate"[39m
+            [33mstyle[39m=[32m"transform: translateX(-89%);"[39m
+          [36m/>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"rounded-xl border bg-card text-card-foreground shadow-lg shadow-black/40 transition-all duration-200 hover:shadow-xl hover:shadow-black/50 hover:scale-[1.005] p-6"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"space-y-4"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex items-start gap-3"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium"[39m
+            [36m>[39m
+              [0mAI[0m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex-1"[39m
+            [36m>[39m
+              [36m<p[39m
+                [33mclass[39m=[32m"text-base leading-relaxed"[39m
+              [36m>[39m
+                [0mLet's start with the basics. What's your client's brand name and website?[0m
+              [36m</p>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"mt-6"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"space-y-4"[39m
+            [36m>[39m
+              [36m<div>[39m
+                [36m<label[39m
+                  [33mclass[39m=[32m"text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"[39m
+                  [33mfor[39m=[32m"brand"[39m
+                [36m>[39m
+                  [0mBrand Name *[0m
+                [36m</label>[39m
+                [36m<input[39m
+                  [33mclass[39m=[32m"flex h-10 md:h-10 min-h-[44px] md:min-h-[40px] w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-vis...
+
+Ignored nodes: comments, script, style
+[36m<html>[39m
+  [36m<head />[39m
+  [36m<body>[39m
+    [36m<div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"max-w-2xl mx-auto p-6 space-y-6"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"space-y-2"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex items-center justify-between text-sm"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"text-muted-foreground"[39m
+            [36m>[39m
+              [0mStep Progress[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"font-medium"[39m
+            [36m>[39m
+              [0m%[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33maria-valuemax[39m=[32m"100"[39m
+            [33maria-valuemin[39m=[32m"0"[39m
+            [33mclass[39m=[32m"relative h-4 w-full overflow-hidden rounded-full bg-secondary"[39m
+            [33mdata-max[39m=[32m"100"[39m
+            [33mdata-state[39m=[32m"indeterminate"[39m
+            [33mrole[39m=[32m"progressbar"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"h-full w-full flex-1 bg-primary transition-all"[39m
+              [33mdata-max[39m=[32m"100"[39m
+              [33mdata-state[39m=[32m"indeterminate"[39m
+              [33mstyle[39m=[32m"transform: translateX(-100%);"[39m
+            [36m/>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"rounded-xl border bg-card text-card-foreground shadow-lg shadow-black/40 transition-all duration-200 hover:shadow-xl hover:shadow-black/50 hover:scale-[1.005] p-6"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"space-y-4"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex items-start gap-3"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium"[39m
+              [36m>[39m
+                [0mAI[0m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"flex-1"[39m
+              [36m>[39m
+                [36m<p[39m
+                  [33mclass[39m=[32m"text-base leading-relaxed"[39m
+                [36m/>[39m
+              [36m</div>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"mt-6"[39m
+            [36m/>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex items-center justify-between mt-6"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"text-xs text-muted-foreground"[39m
+              [36m/>[39m
+              [36m<button[39m
+                [33mclass[39m=[32m"inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 touch-manipulation active:scale-95 bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] text-white shadow-md shadow-blue-500/30 hover:opacity-90 h-11 min-h-[48px] md:min-h-[44px] rounded-md px-8"[39m
+              [36m>[39m
+                [0mNext[0m
+              [36m</button>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+    [36m<div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"max-w-2xl mx-auto p-6 space-y-6"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"space-y-2"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex items-center justify-between text-sm"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"text-muted-foreground"[39m
+            [36m>[39m
+              [0mStep Progress[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"font-medium"[39m
+            [36m>[39m
+              [0m11[0m
+              [0m%[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33maria-valuemax[39m=[32m"100"[39m
+            [33maria-valuemin[39m=[32m"0"[39m
+            [33mclass[39m=[32m"relative h-4 w-full overflow-hidden rounded-full bg-secondary"[39m
+            [33mdata-max[39m=[32m"100"[39m
+            [33mdata-state[39m=[32m"indeterminate"[39m
+            [33mrole[39m=[32m"progressbar"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"h-full w-full flex-1 bg-primary transition-all"[39m
+              [33mdata-max[39m=[32m"100"[39m
+              [33mdata-state[39m=[32m"indeterminate"[39m
+              [33mstyle[39m=[32m"transform: translateX(-89%);"[39m
+            [36m/>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"rounded-xl border bg-card text-card-foreground shadow-lg shadow-black/40 transition-all duration-200 hover:shadow-xl hover:shadow-black/50 hover:scale-[1.005] p-6"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"space-y-4"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex items-start gap-3"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium"[39m
+              [36m>[39m
+                [0mAI[0m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"flex-1"[39m
+              [36m>[39m
+                [36m<p[39m
+                  [33mclass[39m=[32m"text-base leading-relaxed"[39m
+                [36m>[39m
+                  [0mLet's start with the basics. What's your client's brand name and website?[0m
+                [36m</p>[39m
+              [36m</div>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"mt-6"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"space-y-4"[39m
+              [36m>[39m
+                [36m<div>[39m
+                  [36m<label[39m
+                    [33mclass[39m=[32m"text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"[39m
+                    [33mfor[39m=[32m"brand"[39m
+                  [36m>[39m
+                    [0mBrand Name *[0m
+                  [36m</label>[3...
+[90m [2m❯[22m Proxy.waitFor node_modules/@testing-library/dom/dist/wait-for.js:[2m163:27[22m[39m
+[36m [2m❯[22m src/components/ai/__tests__/AiOnboardingV3Guided.test.tsx:[2m250:11[22m[39m
+    [90m248| [39m    )[33m;[39m
+    [90m249| [39m
+    [90m250| [39m    [35mawait[39m [34mwaitFor[39m(() [33m=>[39m {
+    [90m   | [39m          [31m^[39m
+    [90m251| [39m      [90m// Should show loading initially, then error[39m
+    [90m252| [39m      [34mexpect[39m(screen[33m.[39m[34mqueryByText[39m([36m/Let's start with the basics/i[39m))[33m.[39mnot[33m.[39m[34mt[39m…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/7]⎯[22m[39m
+
+[31m[1m[7m FAIL [27m[22m[39m src/components/ai/__tests__/AiOnboardingV3Guided.test.tsx[2m > [22mAiOnboardingV3Guided[2m > [22msaves progress to client_onboarding_sessions
+[31m[1mTestingLibraryElementError[22m[39m: Found multiple elements with the role "button" and name `/Next/i`
+
+Here are the matching elements:
+
+Ignored nodes: comments, script, style
+[36m<button[39m
+  [33mclass[39m=[32m"inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 touch-manipulation active:scale-95 bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] text-white shadow-md shadow-blue-500/30 hover:opacity-90 h-11 min-h-[48px] md:min-h-[44px] rounded-md px-8"[39m
+[36m>[39m
+  [0mNext[0m
+[36m</button>[39m
+
+Ignored nodes: comments, script, style
+[36m<button[39m
+  [33mclass[39m=[32m"inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 touch-manipulation active:scale-95 bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] text-white shadow-md shadow-blue-500/30 hover:opacity-90 h-11 min-h-[48px] md:min-h-[44px] rounded-md px-8"[39m
+[36m>[39m
+  [0mNext[0m
+[36m</button>[39m
+
+Ignored nodes: comments, script, style
+[36m<button[39m
+  [33mclass[39m=[32m"inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 touch-manipulation active:scale-95 bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] text-white shadow-md shadow-blue-500/30 hover:opacity-90 h-11 min-h-[48px] md:min-h-[44px] rounded-md px-8"[39m
+  [33mdisabled[39m=[32m""[39m
+[36m>[39m
+  [0mNext[0m
+[36m</button>[39m
+
+Ignored nodes: comments, script, style
+[36m<button[39m
+  [33mclass[39m=[32m"inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 touch-manipulation active:scale-95 bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] text-white shadow-md shadow-blue-500/30 hover:opacity-90 h-11 min-h-[48px] md:min-h-[44px] rounded-md px-8"[39m
+  [33mdisabled[39m=[32m""[39m
+[36m>[39m
+  [0mNext[0m
+[36m</button>[39m
+
+Ignored nodes: comments, script, style
+[36m<button[39m
+  [33mclass[39m=[32m"inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 touch-manipulation active:scale-95 bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] text-white shadow-md shadow-blue-500/30 hover:opacity-90 h-11 min-h-[48px] md:min-h-[44px] rounded-md px-8"[39m
+  [33mdisabled[39m=[32m""[39m
+[36m>[39m
+  [0mNext[0m
+[36m</button>[39m
+
+(If this is intentional, then use the `*AllBy*` variant of the query (like `queryAllByText`, `getAllByText`, or `findAllByText`)).
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"max-w-2xl mx-auto p-6 space-y-6"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"space-y-2"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center justify-between text-sm"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-muted-foreground"[39m
+          [36m>[39m
+            [0mStep Progress[0m
+          [36m</span>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"font-medium"[39m
+          [36m>[39m
+            [0m%[0m
+          [36m</span>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33maria-valuemax[39m=[32m"100"[39m
+          [33maria-valuemin[39m=[32m"0"[39m
+          [33mclass[39m=[32m"relative h-4 w-full overflow-hidden rounded-full bg-secondary"[39m
+          [33mdata-max[39m=[32m"100"[39m
+          [33mdata-state[39m=[32m"indeterminate"[39m
+          [33mrole[39m=[32m"progressbar"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"h-full w-full flex-1 bg-primary transition-all"[39m
+            [33mdata-max[39m=[32m"100"[39m
+            [33mdata-state[39m=[32m"indeterminate"[39m
+            [33mstyle[39m=[32m"transform: translateX(-100%);"[39m
+          [36m/>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"rounded-xl border bg-card text-card-foreground shadow-lg shadow-black/40 transition-all duration-200 hover:shadow-xl hover:shadow-black/50 hover:scale-[1.005] p-6"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"space-y-4"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex items-start gap-3"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium"[39m
+            [36m>[39m
+              [0mAI[0m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex-1"[39m
+            [36m>[39m
+              [36m<p[39m
+                [33mclass[39m=[32m"text-base leading-relaxed"[39m
+              [36m/>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"mt-6"[39m
+          [36m/>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex items-center justify-between mt-6"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"text-xs text-muted-foreground"[39m
+            [36m/>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 touch-manipulation active:scale-95 bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] text-white shadow-md shadow-blue-500/30 hover:opacity-90 h-11 min-h-[48px] md:min-h-[44px] rounded-md px-8"[39m
+            [36m>[39m
+              [0mNext[0m
+            [36m</button>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"max-w-2xl mx-auto p-6 space-y-6"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"space-y-2"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center justify-between text-sm"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-muted-foreground"[39m
+          [36m>[39m
+            [0mStep Progress[0m
+          [36m</span>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"font-medium"[39m
+          [36m>[39m
+            [0m11[0m
+            [0m%[0m
+          [36m</span>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33maria-valuemax[39m=[32m"100"[39m
+          [33maria-valuemin[39m=[32m"0"[39m
+          [33mclass[39m=[32m"relative h-4 w-full overflow-hidden rounded-full bg-secondary"[39m
+          [33mdata-max[39m=[32m"100"[39m
+          [33mdata-state[39m=[32m"indeterminate"[39m
+          [33mrole[39m=[32m"progressbar"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"h-full w-full flex-1 bg-primary transition-all"[39m
+            [33mdata-max[39m=[32m"100"[39m
+            [33mdata-state[39m=[32m"indeterminate"[39m
+            [33mstyle[39m=[32m"transform: translateX(-89%);"[39m
+          [36m/>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"rounded-xl border bg-card text-card-foreground shadow-lg shadow-black/40 transition-all duration-200 hover:shadow-xl hover:shadow-black/50 hover:scale-[1.005] p-6"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"space-y-4"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex items-start gap-3"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium"[39m
+            [36m>[39m
+              [0mAI[0m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex-1"[39m
+            [36m>[39m
+              [36m<p[39m
+                [33mclass[39m=[32m"text-base leading-relaxed"[39m
+              [36m>[39m
+                [0mLet's start with the basics. What's your client's brand name and website?[0m
+              [36m</p>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"mt-6"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"space-y-4"[39m
+            [36m>[39m
+              [36m<div>[39m
+                [36m<label[39m
+                  [33mclass[39m=[32m"text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"[39m
+                  [33mfor[39m=[32m"brand"[39m
+                [36m>[39m
+                  [0mBrand Name *[0m
+                [36m</label>[39m
+                [36m<input[39m
+                  [33mclass[39m=[32m"flex h-10 md:h-10 min-h-[44px] md:min-h-[40px] w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-vis...
+[90m [2m❯[22m Object.getElementError node_modules/@testing-library/dom/dist/config.js:[2m37:19[22m[39m
+[90m [2m❯[22m getElementError node_modules/@testing-library/dom/dist/query-helpers.js:[2m20:35[22m[39m
+[90m [2m❯[22m getMultipleElementsFoundError node_modules/@testing-library/dom/dist/query-helpers.js:[2m23:10[22m[39m
+[90m [2m❯[22m node_modules/@testing-library/dom/dist/query-helpers.js:[2m55:13[22m[39m
+[90m [2m❯[22m getByRole node_modules/@testing-library/dom/dist/query-helpers.js:[2m95:19[22m[39m
+[36m [2m❯[22m src/components/ai/__tests__/AiOnboardingV3Guided.test.tsx:[2m309:31[22m[39m
+    [90m307| [39m    [35mawait[39m user[33m.[39m[34mtype[39m(websiteInput[33m,[39m [32m"https://test.com"[39m)[33m;[39m
+    [90m308| [39m
+    [90m309| [39m    [35mconst[39m nextButton [33m=[39m screen[33m.[39m[34mgetByRole[39m([32m"button"[39m[33m,[39m { name[33m:[39m [36m/Next/i[39m })[33m;[39m
+    [90m   | [39m                              [31m^[39m
+    [90m310| [39m    [35mawait[39m user[33m.[39m[34mclick[39m(nextButton)[33m;[39m
+    [90m311| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/7]⎯[22m[39m
+
+[31m[1m[7m FAIL [27m[22m[39m src/components/ai/__tests__/AiOnboardingV3Guided.test.tsx[2m > [22mAiOnboardingV3Guided[2m > [22mresumes from existing session
+[31m[1mTestingLibraryElementError[22m[39m: Unable to find an element with the text: /Which offerings/i. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"max-w-2xl mx-auto p-6 space-y-6"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"space-y-2"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center justify-between text-sm"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-muted-foreground"[39m
+          [36m>[39m
+            [0mStep Progress[0m
+          [36m</span>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"font-medium"[39m
+          [36m>[39m
+            [0m%[0m
+          [36m</span>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33maria-valuemax[39m=[32m"100"[39m
+          [33maria-valuemin[39m=[32m"0"[39m
+          [33mclass[39m=[32m"relative h-4 w-full overflow-hidden rounded-full bg-secondary"[39m
+          [33mdata-max[39m=[32m"100"[39m
+          [33mdata-state[39m=[32m"indeterminate"[39m
+          [33mrole[39m=[32m"progressbar"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"h-full w-full flex-1 bg-primary transition-all"[39m
+            [33mdata-max[39m=[32m"100"[39m
+            [33mdata-state[39m=[32m"indeterminate"[39m
+            [33mstyle[39m=[32m"transform: translateX(-100%);"[39m
+          [36m/>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"rounded-xl border bg-card text-card-foreground shadow-lg shadow-black/40 transition-all duration-200 hover:shadow-xl hover:shadow-black/50 hover:scale-[1.005] p-6"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"space-y-4"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex items-start gap-3"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium"[39m
+            [36m>[39m
+              [0mAI[0m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex-1"[39m
+            [36m>[39m
+              [36m<p[39m
+                [33mclass[39m=[32m"text-base leading-relaxed"[39m
+              [36m/>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"mt-6"[39m
+          [36m/>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex items-center justify-between mt-6"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"text-xs text-muted-foreground"[39m
+            [36m/>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 touch-manipulation active:scale-95 bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] text-white shadow-md shadow-blue-500/30 hover:opacity-90 h-11 min-h-[48px] md:min-h-[44px] rounded-md px-8"[39m
+            [36m>[39m
+              [0mNext[0m
+            [36m</button>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"max-w-2xl mx-auto p-6 space-y-6"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"space-y-2"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center justify-between text-sm"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-muted-foreground"[39m
+          [36m>[39m
+            [0mStep Progress[0m
+          [36m</span>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"font-medium"[39m
+          [36m>[39m
+            [0m11[0m
+            [0m%[0m
+          [36m</span>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33maria-valuemax[39m=[32m"100"[39m
+          [33maria-valuemin[39m=[32m"0"[39m
+          [33mclass[39m=[32m"relative h-4 w-full overflow-hidden rounded-full bg-secondary"[39m
+          [33mdata-max[39m=[32m"100"[39m
+          [33mdata-state[39m=[32m"indeterminate"[39m
+          [33mrole[39m=[32m"progressbar"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"h-full w-full flex-1 bg-primary transition-all"[39m
+            [33mdata-max[39m=[32m"100"[39m
+            [33mdata-state[39m=[32m"indeterminate"[39m
+            [33mstyle[39m=[32m"transform: translateX(-89%);"[39m
+          [36m/>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"rounded-xl border bg-card text-card-foreground shadow-lg shadow-black/40 transition-all duration-200 hover:shadow-xl hover:shadow-black/50 hover:scale-[1.005] p-6"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"space-y-4"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex items-start gap-3"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium"[39m
+            [36m>[39m
+              [0mAI[0m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex-1"[39m
+            [36m>[39m
+              [36m<p[39m
+                [33mclass[39m=[32m"text-base leading-relaxed"[39m
+              [36m>[39m
+                [0mLet's start with the basics. What's your client's brand name and website?[0m
+              [36m</p>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"mt-6"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"space-y-4"[39m
+            [36m>[39m
+              [36m<div>[39m
+                [36m<label[39m
+                  [33mclass[39m=[32m"text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"[39m
+                  [33mfor[39m=[32m"brand"[39m
+                [36m>[39m
+                  [0mBrand Name *[0m
+                [36m</label>[39m
+                [36m<input[39m
+                  [33mclass[39m=[32m"flex h-10 md:h-10 min-h-[44px] md:min-h-[40px] w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-vis...
+
+Ignored nodes: comments, script, style
+[36m<html>[39m
+  [36m<head />[39m
+  [36m<body>[39m
+    [36m<div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"max-w-2xl mx-auto p-6 space-y-6"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"space-y-2"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex items-center justify-between text-sm"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"text-muted-foreground"[39m
+            [36m>[39m
+              [0mStep Progress[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"font-medium"[39m
+            [36m>[39m
+              [0m%[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33maria-valuemax[39m=[32m"100"[39m
+            [33maria-valuemin[39m=[32m"0"[39m
+            [33mclass[39m=[32m"relative h-4 w-full overflow-hidden rounded-full bg-secondary"[39m
+            [33mdata-max[39m=[32m"100"[39m
+            [33mdata-state[39m=[32m"indeterminate"[39m
+            [33mrole[39m=[32m"progressbar"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"h-full w-full flex-1 bg-primary transition-all"[39m
+              [33mdata-max[39m=[32m"100"[39m
+              [33mdata-state[39m=[32m"indeterminate"[39m
+              [33mstyle[39m=[32m"transform: translateX(-100%);"[39m
+            [36m/>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"rounded-xl border bg-card text-card-foreground shadow-lg shadow-black/40 transition-all duration-200 hover:shadow-xl hover:shadow-black/50 hover:scale-[1.005] p-6"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"space-y-4"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex items-start gap-3"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium"[39m
+              [36m>[39m
+                [0mAI[0m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"flex-1"[39m
+              [36m>[39m
+                [36m<p[39m
+                  [33mclass[39m=[32m"text-base leading-relaxed"[39m
+                [36m/>[39m
+              [36m</div>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"mt-6"[39m
+            [36m/>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex items-center justify-between mt-6"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"text-xs text-muted-foreground"[39m
+              [36m/>[39m
+              [36m<button[39m
+                [33mclass[39m=[32m"inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 touch-manipulation active:scale-95 bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] text-white shadow-md shadow-blue-500/30 hover:opacity-90 h-11 min-h-[48px] md:min-h-[44px] rounded-md px-8"[39m
+              [36m>[39m
+                [0mNext[0m
+              [36m</button>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+    [36m<div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"max-w-2xl mx-auto p-6 space-y-6"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"space-y-2"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex items-center justify-between text-sm"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"text-muted-foreground"[39m
+            [36m>[39m
+              [0mStep Progress[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"font-medium"[39m
+            [36m>[39m
+              [0m11[0m
+              [0m%[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33maria-valuemax[39m=[32m"100"[39m
+            [33maria-valuemin[39m=[32m"0"[39m
+            [33mclass[39m=[32m"relative h-4 w-full overflow-hidden rounded-full bg-secondary"[39m
+            [33mdata-max[39m=[32m"100"[39m
+            [33mdata-state[39m=[32m"indeterminate"[39m
+            [33mrole[39m=[32m"progressbar"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"h-full w-full flex-1 bg-primary transition-all"[39m
+              [33mdata-max[39m=[32m"100"[39m
+              [33mdata-state[39m=[32m"indeterminate"[39m
+              [33mstyle[39m=[32m"transform: translateX(-89%);"[39m
+            [36m/>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"rounded-xl border bg-card text-card-foreground shadow-lg shadow-black/40 transition-all duration-200 hover:shadow-xl hover:shadow-black/50 hover:scale-[1.005] p-6"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"space-y-4"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex items-start gap-3"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium"[39m
+              [36m>[39m
+                [0mAI[0m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"flex-1"[39m
+              [36m>[39m
+                [36m<p[39m
+                  [33mclass[39m=[32m"text-base leading-relaxed"[39m
+                [36m>[39m
+                  [0mLet's start with the basics. What's your client's brand name and website?[0m
+                [36m</p>[39m
+              [36m</div>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"mt-6"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"space-y-4"[39m
+              [36m>[39m
+                [36m<div>[39m
+                  [36m<label[39m
+                    [33mclass[39m=[32m"text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"[39m
+                    [33mfor[39m=[32m"brand"[39m
+                  [36m>[39m
+                    [0mBrand Name *[0m
+                  [36m</label>[3...
+[90m [2m❯[22m Proxy.waitFor node_modules/@testing-library/dom/dist/wait-for.js:[2m163:27[22m[39m
+[36m [2m❯[22m src/components/ai/__tests__/AiOnboardingV3Guided.test.tsx:[2m361:11[22m[39m
+    [90m359| [39m    )[33m;[39m
+    [90m360| [39m
+    [90m361| [39m    [35mawait[39m [34mwaitFor[39m(() [33m=>[39m {
+    [90m   | [39m          [31m^[39m
+    [90m362| [39m      [34mexpect[39m(screen[33m.[39m[34mgetByText[39m([36m/Which offerings/i[39m))[33m.[39m[34mtoBeInTheDocument[39m()[33m;[39m
+    [90m363| [39m    })[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/7]⎯[22m[39m
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m2 passed[39m[22m[90m (3)[39m
+[2m      Tests [22m [1m[31m7 failed[39m[22m[2m | [22m[1m[32m7 passed[39m[22m[90m (14)[39m
+[2m   Start at [22m 12:32:59
+[2m   Duration [22m 5.76s[2m (transform 173ms, setup 206ms, collect 863ms, tests 4.69s, environment 1.31s, prepare 263ms)[22m
+

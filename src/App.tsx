@@ -17,7 +17,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { ClientDetailLayout } from "@/components/ClientDetailLayout";
 import { useTimezoneDetection } from "@/hooks/useTimezoneDetection";
 
-import Landing from "./pages/Landing";
+import Landing from "./pages/LandingV2";
 import Auth from "./pages/Auth";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
@@ -191,6 +191,9 @@ const App = () => {
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/ai/onboarding/agency" element={<AiOnboardingAgency />} />
                 <Route path="/ai/onboarding/client" element={<AiOnboardingClient />} />
+                <Route path="/ai/onboarding/client/:clientId" element={<AiOnboardingClient />} />
+                <Route path="/onboarding/ai/client" element={<AiOnboardingClient />} />
+                <Route path="/onboarding/ai/client/:clientId" element={<AiOnboardingClient />} />
                 <Route path="/ai/field-demo" element={<AiFieldDemo />} />
               </Route>
 

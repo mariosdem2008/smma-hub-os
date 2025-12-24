@@ -150,39 +150,7 @@ export function AiOnboardingV2Chat({ onboardingType, clientId, onComplete }: Pro
 
   useEffect(() => {
     const initBrain = async () => {
-      if (!agencyId || !user) return;
-
-      let existing: { id: string; brain_json: any } | null = null;
-
-      if (onboardingType === "agency") {
-        const { data } = await supabase
-          .from("agency_brains")
-          .select("id, brain_json, status, version")
-          .eq("agency_id", agencyId)
-          .order("version", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        existing = data ?? null;
-      } else if (clientId) {
-        const { data } = await supabase
-          .from("client_brains")
-          .select("id, brain_json, status, version")
-          .eq("agency_id", agencyId)
-          .eq("client_id", clientId)
-          .order("version", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        existing = data ?? null;
-      }
-
-      if (existing?.id) {
-        setBrainId(existing.id);
-        const raw = (existing.brain_json as any)?.raw_responses ?? {};
-        const rawFollowups = (existing.brain_json as any)?.followup_responses ?? {};
-        setAnswers((prev) => ({ ...raw, ...prev }));
-        setFollowups((prev) => ({ ...rawFollowups, ...prev }));
-        return;
-      }
+      if (!agencyId || !user || brainId) return;
 
       const body: Record<string, unknown> = {
         action: "create",
@@ -201,7 +169,7 @@ export function AiOnboardingV2Chat({ onboardingType, clientId, onComplete }: Pro
     };
 
     initBrain();
-  }, [agencyId, onboardingType, clientId, user]);
+  }, [agencyId, onboardingType, clientId, user, brainId]);
 
   useEffect(() => {
     localStorage.setItem(

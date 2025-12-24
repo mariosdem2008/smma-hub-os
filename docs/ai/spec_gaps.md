@@ -25,3 +25,5 @@
 5) Define the actual Strategy generation endpoint implementation (currently gate-only).
 6) Confirm strategy generation prompt + model ID for production (currently defaulting to gpt-4o-mini).
 7) Provide OPENAI_API_KEY in Supabase secrets to enable real embeddings + strategy generation.
+8) Resolved (2025-12-24): Added tenant-safe RPC `get_client_brain_status` for `client_brains` gating with safe fields only.
+9) Resolved (2025-12-24): Onboarding uses edge functions for brain IDs and no longer reads `agency_brains`/`client_brains` directly in the client.
