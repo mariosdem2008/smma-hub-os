@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { UserPlus, Sparkles } from "lucide-react";
 import { InviteTeamMemberDialog } from "./InviteTeamMemberDialog";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
@@ -44,15 +43,14 @@ export function AppLayout() {
           <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b glass-header px-4 shadow-lg">
             {!isMobile && <SidebarTrigger className="icon-hover" />}
             <div className="flex-1">
-              <h2 className="text-lg font-bold bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] bg-clip-text text-transparent">SMMAHUB</h2>
+              <h2 className="text-lg font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">SMMAHUB</h2>
             </div>
             <div className="flex items-center gap-2 md:gap-3">
               <NotificationCenter />
-              <ThemeToggle />
               {upgradeBadgeText && !isMobile && (
                 <Badge
                   variant="secondary"
-                  className="cursor-pointer bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] text-white hover:opacity-90 transition-all duration-200 border-0"
+                  className="cursor-pointer bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-90 transition-all duration-200 border-0"
                   onClick={() => openUpgradeModal()}
                 >
                   <Sparkles className="mr-1 h-3 w-3" />

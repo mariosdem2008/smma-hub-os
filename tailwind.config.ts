@@ -29,11 +29,11 @@ export default {
         "text-secondary": "hsl(var(--text-secondary))",
         
         /* Premium accent colors */
-        "premium-blue": "#4E5DFF",
-        "premium-blue-light": "#6A73FF",
-        "premium-dark": "#0F1117",
-        "premium-surface": "#1A1D26",
-        "premium-surface-secondary": "#2A2F46",
+        "premium-blue": "#4C7DFF",
+        "premium-blue-light": "#22D3EE",
+        "premium-dark": "#070A10",
+        "premium-surface": "#0B1220",
+        "premium-surface-secondary": "#0E1830",
         
         /* Vibrant accent colors */
         "accent-orange": "hsl(var(--accent-orange))",
@@ -73,8 +73,8 @@ export default {
         
         /* Muted */
         muted: {
-          DEFAULT: "hsl(var(--muted))",
-          foreground: "hsl(var(--muted-foreground))",
+          DEFAULT: "hsl(var(--muted-bg))",
+          foreground: "hsl(var(--muted))",
         },
         
         /* Card */
@@ -140,7 +140,7 @@ export default {
         'premium': '0 10px 40px -10px rgba(78, 93, 255, 0.3)',
       },
       backgroundImage: {
-        'gradient-premium': 'linear-gradient(135deg, #4E5DFF 0%, #6A73FF 100%)',
+        'gradient-premium': 'linear-gradient(135deg, #4C7DFF 0%, #22D3EE 100%)',
         'gradient-orange': 'var(--gradient-orange)',
         'gradient-teal': 'var(--gradient-teal)',
         'gradient-purple': 'var(--gradient-purple)',

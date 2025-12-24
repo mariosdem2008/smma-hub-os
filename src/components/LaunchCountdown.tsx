@@ -55,9 +55,9 @@ export function LaunchCountdown() {
         <Calendar className="h-4 w-4" />
         <span>Launching December 23rd, 2025</span>
       </div>
-      
+
       <div className="flex gap-3 sm:gap-4">
-        {timeBlocks.map((block, index) => (
+        {timeBlocks.map((block) => (
           <div key={block.label} className="flex flex-col items-center">
             <motion.div
               key={block.value}
