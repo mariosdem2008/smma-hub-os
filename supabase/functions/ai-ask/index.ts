@@ -2,10 +2,15 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
+import { embedText } from "../_shared/embeddings.ts";
 
 const TOKEN_CAP = 6000;
 const DAILY_LIMIT = 20;
 const MONTHLY_BUDGET = 50;
+const CLIENT_MEMORY_TOP_K = 6;
+const AGENCY_MEMORY_TOP_K = 4;
+const EXEMPLAR_TOP_K = 2;
+const MAX_CONTEXT_CHARS = 6000;
 
 function jsonResponse(body: unknown, status = 200, headers: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
@@ -32,6 +37,23 @@ function emptySources() {
     client_brain_fields: [],
     memory_citations: [],
   };
+}
+
+function buildUnknown(questions: string[]) {
+  return {
+    answer: "UNKNOWN",
+    unknown: true,
+    questions,
+    confidence: 0,
+    sources: emptySources(),
+    escalate_to_human: false,
+    escalation_reason: null,
+  };
+}
+
+function truncateContext(text: string, limit: number) {
+  if (text.length <= limit) return text;
+  return `${text.slice(0, limit)}...`;
 }
 
 serve(async (req: Request) => {
@@ -249,18 +271,173 @@ serve(async (req: Request) => {
     .eq("user_id", user.id)
     .eq("day_yyyy_mm_dd", dayKey);
 
-  const responsePayload = {
-    answer: "UNKNOWN",
-    unknown: true,
-    questions: [
+  const embeddingApiKey = Deno.env.get("OPENAI_API_KEY");
+  if (!embeddingApiKey) {
+    const responsePayload = buildUnknown([
+      "AI embeddings are not configured. Please contact support.",
+    ]);
+    const latency = Date.now() - startTime;
+    await supabase.from("ai_runs").insert({
+      agency_id: agencyId,
+      client_id: clientId ?? null,
+      user_id: user.id,
+      prompt_id: promptRow.id,
+      prompt_version: promptRow.version,
+      model: promptRow.model,
+      tokens_in: tokenEstimate,
+      tokens_out: 0,
+      cost_usd: 0,
+      latency_ms: latency,
+      success: true,
+      citations: responsePayload.sources,
+      unknown: true,
+      escalate_to_human: false,
+      escalation_reason: null,
+    });
+    await supabase.from("ai_usage_logs").insert({
+      agency_id: agencyId,
+      client_id: clientId ?? null,
+      endpoint: "ai-ask",
+      model: "embeddings-not-configured",
+      tokens_estimate: tokenEstimate,
+      tokens_in: tokenEstimate,
+      tokens_out: 0,
+      latency_ms: Date.now() - startTime,
+      unknown: true,
+    });
+    return jsonResponse(responsePayload, 200, corsHeaders(req));
+  }
+
+  const embeddingModel = Deno.env.get("EMBEDDING_MODEL_ID") ?? "text-embedding-3-small";
+  const queryEmbedding = await embedText(question, embeddingApiKey, embeddingModel);
+
+  const { data: clientMatches } = await supabase.rpc("match_ai_embeddings", {
+    p_agency_id: agencyId,
+    p_client_id: clientId ?? null,
+    p_query_embedding: queryEmbedding,
+    p_match_count: CLIENT_MEMORY_TOP_K,
+    p_doc_types: ["client_guidelines", "client_notes", "approved_posts", "ai_artifact", "strategy_draft"],
+  });
+
+  const { data: agencyMatches } = await supabase.rpc("match_ai_embeddings", {
+    p_agency_id: agencyId,
+    p_client_id: null,
+    p_query_embedding: queryEmbedding,
+    p_match_count: AGENCY_MEMORY_TOP_K,
+    p_doc_types: ["agency_sop"],
+  });
+
+  const { data: exemplarMatches } = await supabase.rpc("match_ai_embeddings", {
+    p_agency_id: agencyId,
+    p_client_id: null,
+    p_query_embedding: queryEmbedding,
+    p_match_count: EXEMPLAR_TOP_K,
+    p_doc_types: ["agency_exemplar_strategy"],
+  });
+
+  const matches = [
+    ...(clientMatches || []),
+    ...(agencyMatches || []),
+    ...(exemplarMatches || []),
+  ];
+
+  if (matches.length === 0) {
+    const responsePayload = buildUnknown([
       "What platform is this for?",
       "What is the primary goal of this request?",
-    ],
-    confidence: 0,
-    sources: emptySources(),
-    escalate_to_human: false,
-    escalation_reason: null,
-  };
+    ]);
+    const latency = Date.now() - startTime;
+    await supabase.from("ai_runs").insert({
+      agency_id: agencyId,
+      client_id: clientId ?? null,
+      user_id: user.id,
+      prompt_id: promptRow.id,
+      prompt_version: promptRow.version,
+      model: promptRow.model,
+      tokens_in: tokenEstimate,
+      tokens_out: 0,
+      cost_usd: 0,
+      latency_ms: latency,
+      success: true,
+      citations: responsePayload.sources,
+      unknown: true,
+      escalate_to_human: false,
+      escalation_reason: null,
+    });
+    await supabase.from("ai_usage_logs").insert({
+      agency_id: agencyId,
+      client_id: clientId ?? null,
+      endpoint: "ai-ask",
+      model: "retrieval-only",
+      tokens_estimate: tokenEstimate,
+      tokens_in: tokenEstimate,
+      tokens_out: 0,
+      latency_ms: Date.now() - startTime,
+      unknown: true,
+    });
+    return jsonResponse(responsePayload, 200, corsHeaders(req));
+  }
+
+  const context = truncateContext(
+    matches.map((row: any) => `(${row.doc_type}) ${row.chunk_text}`).join("\n\n"),
+    MAX_CONTEXT_CHARS,
+  );
+
+  const systemPrompt =
+    "You are an AI assistant. Answer strictly using the provided context. If context is insufficient, respond with UNKNOWN.";
+  const userPrompt = `Question: ${question}\n\nContext:\n${context}\n\nReturn JSON: {"answer":"", "unknown": false, "questions": [], "confidence": 0-100}`;
+
+  let responsePayload = buildUnknown([
+    "What additional details should the agency provide to answer this accurately?",
+  ]);
+
+  try {
+    const aiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${embeddingApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: Deno.env.get("RAG_MODEL_ID") ?? "gpt-4o-mini",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        temperature: 0.2,
+      }),
+    });
+
+    if (aiResponse.ok) {
+      const aiData = await aiResponse.json();
+      const content = aiData?.choices?.[0]?.message?.content ?? "";
+      const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || content.match(/```\n([\s\S]*?)\n```/);
+      const rawJson = jsonMatch ? jsonMatch[1] : content;
+      const parsed = JSON.parse(rawJson);
+      responsePayload = {
+        answer: parsed.answer || "UNKNOWN",
+        unknown: Boolean(parsed.unknown),
+        questions: parsed.questions || [],
+        confidence: parsed.confidence ?? 0,
+        sources: {
+          agency_brain_fields: [],
+          client_brain_fields: [],
+          memory_citations: matches.map((row: any) => ({
+            doc_type: row.doc_type,
+            document_id: row.document_id,
+            chunk_id: row.chunk_id,
+            score: row.score,
+          })),
+        },
+        escalate_to_human: false,
+        escalation_reason: null,
+      };
+    }
+  } catch {
+    responsePayload = buildUnknown([
+      "Unable to generate a grounded answer. Please add more context.",
+    ]);
+  }
 
   const latency = Date.now() - startTime;
   await supabase.from("ai_runs").insert({
@@ -276,9 +453,21 @@ serve(async (req: Request) => {
     latency_ms: latency,
     success: true,
     citations: responsePayload.sources,
-    unknown: true,
-    escalate_to_human: false,
-    escalation_reason: null,
+    unknown: responsePayload.unknown,
+    escalate_to_human: responsePayload.escalate_to_human ?? false,
+    escalation_reason: responsePayload.escalation_reason ?? null,
+  });
+
+  await supabase.from("ai_usage_logs").insert({
+    agency_id: agencyId,
+    client_id: clientId ?? null,
+    endpoint: "ai-ask",
+    model: Deno.env.get("RAG_MODEL_ID") ?? "gpt-4o-mini",
+    tokens_estimate: tokenEstimate,
+    tokens_in: tokenEstimate,
+    tokens_out: 0,
+    latency_ms: latency,
+    unknown: responsePayload.unknown,
   });
 
   await supabase

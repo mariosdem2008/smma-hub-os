@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
+import { buildChunks, DEFAULT_EMBEDDING_DIM, embedText, tokenize } from "../_shared/embeddings.ts";
 
 const ALLOWED_DOC_TYPES = [
   "agency_exemplar_strategy",
@@ -10,6 +11,7 @@ const ALLOWED_DOC_TYPES = [
   "client_notes",
   "approved_posts",
   "ai_artifact",
+  "strategy_draft",
 ];
 
 const ALLOWED_FILE_EXTENSIONS = ["pdf", "docx", "txt", "md"];
@@ -18,36 +20,11 @@ const OVERLAP_TOKENS = 140;
 const MAX_CHUNKS = 120;
 const MAX_EXTRACTED_CHARS = 150000;
 const MAX_FILE_SIZE_MB = 20;
-const EMBEDDING_DIM = 1536;
-
 function jsonResponse(body: unknown, status = 200, headers: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
     status,
     headers: { "Content-Type": "application/json", ...headers },
   });
-}
-
-function tokenize(text: string) {
-  return text.trim().split(/\s+/).filter(Boolean);
-}
-
-function buildChunks(tokens: string[]) {
-  const chunks: { text: string; tokenCount: number; start: number; end: number }[] = [];
-  if (tokens.length === 0) return chunks;
-
-  const step = Math.max(CHUNK_SIZE_TOKENS - OVERLAP_TOKENS, 1);
-  for (let start = 0; start < tokens.length && chunks.length < MAX_CHUNKS; start += step) {
-    const end = Math.min(start + CHUNK_SIZE_TOKENS, tokens.length);
-    const slice = tokens.slice(start, end);
-    chunks.push({
-      text: slice.join(" "),
-      tokenCount: slice.length,
-      start,
-      end,
-    });
-    if (end === tokens.length) break;
-  }
-  return chunks;
 }
 
 serve(async (req: Request) => {
@@ -75,6 +52,7 @@ serve(async (req: Request) => {
     return jsonResponse({ error: "Unauthorized" }, 401, corsHeaders(req));
   }
 
+  const startTime = Date.now();
   const body = await req.json().catch(() => ({}));
   const agencyId = body.agency_id as string | undefined;
   const clientId = body.client_id as string | undefined;
@@ -118,7 +96,7 @@ serve(async (req: Request) => {
 
   const extractedText = content.slice(0, MAX_EXTRACTED_CHARS);
   const tokens = tokenize(extractedText);
-  const chunks = buildChunks(tokens);
+  const chunks = buildChunks(tokens, CHUNK_SIZE_TOKENS, OVERLAP_TOKENS, MAX_CHUNKS);
 
   if (chunks.length === 0) {
     return jsonResponse({ error: "No content to ingest" }, 400, corsHeaders(req));
@@ -153,8 +131,9 @@ serve(async (req: Request) => {
     return jsonResponse({ error: documentError?.message ?? "Failed to create document" }, 400, corsHeaders(req));
   }
 
-  const embeddingModel = Deno.env.get("EMBEDDING_MODEL_ID") ?? "EMBEDDING_MODEL";
-  const zeroVector = Array(EMBEDDING_DIM).fill(0);
+  const embeddingApiKey = Deno.env.get("OPENAI_API_KEY");
+  const embeddingModel = Deno.env.get("EMBEDDING_MODEL_ID") ?? "text-embedding-3-small";
+  const zeroVector = Array(DEFAULT_EMBEDDING_DIM).fill(0);
 
   for (let index = 0; index < chunks.length; index += 1) {
     const chunk = chunks[index];
@@ -174,21 +153,39 @@ serve(async (req: Request) => {
       return jsonResponse({ error: chunkError?.message ?? "Failed to create chunk" }, 400, corsHeaders(req));
     }
 
+    const embeddingVector = embeddingApiKey ? await embedText(chunk.text, embeddingApiKey, embeddingModel) : zeroVector;
+
     const { error: embeddingError } = await supabase.from("ai_embeddings").insert({
       agency_id: agencyId,
       client_id: clientId ?? null,
       doc_type: docType,
       document_id: documentRow.id,
       chunk_id: chunkRow.id,
-      embedding: zeroVector,
+      embedding: embeddingVector,
       model: embeddingModel,
-      metadata: { similarity: "cosine", embedding_dim: EMBEDDING_DIM },
+      metadata: {
+        similarity: "cosine",
+        embedding_dim: DEFAULT_EMBEDDING_DIM,
+        embedding_fallback: !embeddingApiKey,
+      },
     });
 
     if (embeddingError) {
       return jsonResponse({ error: embeddingError.message }, 400, corsHeaders(req));
     }
   }
+
+  await supabase.from("ai_usage_logs").insert({
+    agency_id: agencyId,
+    client_id: clientId ?? null,
+    endpoint: "ai-documents-ingest",
+    model: embeddingModel,
+    tokens_estimate: tokens.length,
+    tokens_in: tokens.length,
+    tokens_out: 0,
+    latency_ms: Date.now() - startTime,
+    unknown: false,
+  });
 
   return jsonResponse(
     {
