@@ -5,9 +5,26 @@ import { PortalAiAssistant } from "@/pages/client-portal/PortalAiAssistant";
 import AgencyAiAdmin from "@/pages/ai/AgencyAiAdmin";
 
 const useRoleMock = vi.fn();
+const useAuthMock = vi.fn();
+const supabaseFromMock = vi.fn();
+
+vi.mock("@/integrations/supabase/client", () => ({
+  supabase: {
+    from: (...args: any[]) => supabaseFromMock(...args),
+    functions: { invoke: vi.fn() },
+  },
+}));
 
 vi.mock("@/hooks/useRole", () => ({
   useRole: () => useRoleMock(),
+}));
+
+vi.mock("@/lib/auth", () => ({
+  useAuth: () => useAuthMock(),
+}));
+
+vi.mock("@/hooks/use-toast", () => ({
+  useToast: () => ({ toast: vi.fn() }),
 }));
 
 vi.mock("@/components/client-tabs/AiRepChatTab", () => ({
@@ -26,6 +43,31 @@ describe("Client portal AI + admin guard", () => {
 
   beforeEach(() => {
     useRoleMock.mockReturnValue({ isAdmin: false, loading: false });
+    useAuthMock.mockReturnValue({ user: { id: "user-1" } });
+
+    supabaseFromMock.mockImplementation((table: string) => {
+      const query: any = {
+        select: () => query,
+        eq: () => query,
+        limit: () => query,
+        maybeSingle: async () => ({ data: null, error: null }),
+        order: async () => ({ data: [], error: null }),
+      };
+
+      if (table === "agency_members") {
+        query.maybeSingle = async () => ({ data: { agency_id: "agency-1" }, error: null });
+      }
+
+      if (table === "agency_ai_chat_messages") {
+        query.order = async () => ({ data: [], error: null });
+      }
+
+      if (table === "agency_ai_chat_threads") {
+        query.order = async () => ({ data: [], error: null });
+      }
+
+      return query;
+    });
   });
 
   it("renders Client Portal AI Assistant page using clientId from outlet context", async () => {
@@ -71,7 +113,8 @@ describe("Client portal AI + admin guard", () => {
     );
 
     expect(await screen.findByText("Agency AI")).toBeInTheDocument();
-    expect(screen.getByText("Admin-only")).toBeInTheDocument();
+    expect(screen.getByText("Sessions")).toBeInTheDocument();
+    expect(screen.getByText("Revelation Chat (v1)")).toBeInTheDocument();
   });
 });
 
