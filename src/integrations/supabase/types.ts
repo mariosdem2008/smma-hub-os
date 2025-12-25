@@ -270,6 +270,73 @@ export type Database = {
         }
         Relationships: []
       }
+      agency_ai_chat_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          meta_json: Json
+          role: string
+          thread_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          meta_json?: Json
+          role: string
+          thread_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          meta_json?: Json
+          role?: string
+          thread_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agency_ai_chat_messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "agency_ai_chat_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agency_ai_chat_threads: {
+        Row: {
+          agency_id: string
+          created_at: string
+          created_by: string
+          id: string
+          title: string
+        }
+        Insert: {
+          agency_id: string
+          created_at?: string
+          created_by: string
+          id?: string
+          title?: string
+        }
+        Update: {
+          agency_id?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agency_ai_chat_threads_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agency_invites: {
         Row: {
           accepted: boolean
