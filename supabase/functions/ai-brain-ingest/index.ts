@@ -4,6 +4,7 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
 import { buildChunks, DEFAULT_EMBEDDING_DIM, embedText, tokenize } from "../_shared/embeddings.ts";
 import { evaluateClientBrainForStrategy } from "../_shared/brain-quality.ts";
+import { mapV3AnswersToClientBrain } from "../_shared/client-brain-mapping.ts";
 
 const CHUNK_SIZE_TOKENS = 900;
 const OVERLAP_TOKENS = 140;
@@ -192,56 +193,7 @@ serve(async (req: Request) => {
     );
   }
 
-  const clientBrain = {
-    brand_basics: {
-      name: (rawResponses.brand as string) ?? "",
-      website: extractFirstUrl(rawResponses.brand),
-      socials: splitToList(rawResponses.socials),
-      tone: (rawResponses.tone as string) ?? "",
-      differentiators: splitToList(rawResponses.differentiators),
-    },
-    offer_details: {
-      products_services: splitToList(rawResponses.offers),
-      pricing_optional: (rawResponses.pricing as string) ?? "",
-      usps: splitToList(rawResponses.cta),
-    },
-    audience: {
-      demographics: splitToList(rawResponses.audience),
-      location: [],
-      intent: [],
-      problems: splitToList(rawResponses.problems),
-      objections: [],
-    },
-    competitors: splitToList(rawResponses.competitors),
-    constraints: {
-      banned_claims: splitToList(rawResponses.constraints),
-      legal_constraints: [],
-      taboo_topics: splitToList(rawResponses.final_notes),
-      dos: splitToList(rawResponses.dos),
-      donts: splitToList(rawResponses.voice),
-    },
-    pillars: splitToList(rawResponses.pillars).map((entry) => ({ name: entry, examples: [] })),
-    faq: [],
-    assets_links: {
-      key_urls: [
-        ...splitToList(rawResponses.assets),
-        ...splitToList(rawResponses.assets_upload),
-      ],
-      guidelines_link: "",
-      lead_magnet_optional: (rawResponses.lead_magnet as string) ?? "",
-    },
-    goals: splitToList(rawResponses.goals),
-    metrics: splitToList(rawResponses.metrics),
-    timeline: (rawResponses.timeline as string) ?? "",
-    approvals: (rawResponses.approvals as string) ?? "",
-    contacts: splitToList(rawResponses.contacts),
-    raw_responses: rawResponses,
-    followup_responses: followupResponses,
-    inference_metadata: {
-      source: "onboarding_v2",
-      generated_at: generatedAt,
-    },
-  };
+  const clientBrain = mapV3AnswersToClientBrain(rawResponses, followupResponses, generatedAt);
 
   const gate = evaluateClientBrainForStrategy(clientBrain);
   const status = gate.usable ? "usable" : "draft";
