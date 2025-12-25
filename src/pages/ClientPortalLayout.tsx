@@ -16,6 +16,7 @@ import {
   CheckCircle,
   //  Upload,
   MessageSquare,
+  Bot,
   BarChart3,
 } from "lucide-react";
 
@@ -38,6 +39,7 @@ const navItems = [
   { path: "content-calendar", label: "Calendar", key: "content_calendar", icon: CalendarDays },
   { path: "performance", label: "Performance", key: "performance", icon: BarChart3 },
   { path: "messages", label: "Messages", key: "messages", icon: MessageSquare },
+  { path: "ai-assistant", label: "AI Assistant", key: "ai_assistant", icon: Bot },
   { path: "assets", label: "Assets", key: "assets", icon: FolderOpen },
   //  { path: "uploads", label: "Upload", key: "uploads", icon: Upload },
   {

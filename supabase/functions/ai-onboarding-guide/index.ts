@@ -33,6 +33,7 @@ interface StepSpec {
 }
 
 interface Answers {
+  [key: string]: unknown;
   brand?: string;
   website?: string;
   niche?: string;
@@ -48,6 +49,18 @@ interface Answers {
   constraints?: string[];
   approval_cadence?: string;
   approver_contact?: string;
+  banned_claims?: string[];
+  taboo_topics?: string[];
+  brief?: {
+    confidence?: number;
+    summary?: Record<string, unknown>;
+    followup?: {
+      pending?: boolean;
+      for_step_id?: string;
+      question?: string;
+      answer?: string;
+    };
+  };
   competitors?: string[];
   pillars?: string[];
   cta_styles?: string[];
@@ -65,16 +78,17 @@ const REQUIRED_STEPS = [
   "tone_voice",
   "platforms",
   "goals_kpis",
-  "constraints_approvals"
+  "constraints_approvals",
+  "pillars",
+  "safety_topics",
 ];
 
 const OPTIONAL_STEPS = [
   "competitors",
-  "pillars",
   "cta_styles",
   "assets",
   "pricing",
-  "timeline"
+  "timeline",
 ];
 
 function jsonResponse(body: unknown, status = 200, headers: Record<string, string> = {}) {
@@ -93,7 +107,18 @@ function validateUrl(url: string): boolean {
   }
 }
 
-function getNextStepId(currentStepId: string | null, answers: Answers, completedRequired: boolean): string {
+function shouldAskBriefFollowup(currentStepId: string | null, answers: Answers) {
+  if (!currentStepId) return false;
+  if (currentStepId === "brief_followup") return false;
+  const followup = answers.brief?.followup;
+  if (!followup?.pending) return false;
+  if (followup.for_step_id !== currentStepId) return false;
+  if (!followup.question) return false;
+  if (followup.answer && followup.answer.trim().length > 0) return false;
+  return true;
+}
+
+function getNextLinearStepId(currentStepId: string | null, skippedSteps: string[] = []): string {
   if (!currentStepId) return "brand_basics";
 
   const currentIndex = REQUIRED_STEPS.indexOf(currentStepId);
@@ -102,7 +127,7 @@ function getNextStepId(currentStepId: string | null, answers: Answers, completed
   }
 
   if (currentStepId === REQUIRED_STEPS[REQUIRED_STEPS.length - 1]) {
-    // Just completed last required step
+    // Just completed last core step
     return "review_required";
   }
 
@@ -116,10 +141,32 @@ function getNextStepId(currentStepId: string | null, answers: Answers, completed
     return OPTIONAL_STEPS[optionalIndex + 1];
   }
 
+  // Before showing final_review, check if there are skipped steps
+  if (skippedSteps.length > 0) {
+    // Return the first skipped step
+    return skippedSteps[0];
+  }
+
   return "final_review";
 }
 
+function getNextStepId(currentStepId: string | null, answers: Answers, completedRequired: boolean, skippedSteps: string[] = []): string {
+  if (!currentStepId) return "brand_basics";
+
+  if (currentStepId === "brief_followup") {
+    const base = answers.brief?.followup?.for_step_id ?? null;
+    return getNextLinearStepId(base, skippedSteps);
+  }
+
+  if (shouldAskBriefFollowup(currentStepId, answers)) {
+    return "brief_followup";
+  }
+
+  return getNextLinearStepId(currentStepId, skippedSteps);
+}
+
 function calculateProgress(stepId: string): number {
+  if (stepId === "brief_followup") return 50;
   const reqIndex = REQUIRED_STEPS.indexOf(stepId);
   if (reqIndex >= 0) {
     return Math.round(((reqIndex + 1) / REQUIRED_STEPS.length) * 100);
@@ -226,9 +273,26 @@ async function generateOptionsWithAI(
   };
 
   if (stepId === "niche") return staticOptions.niche;
-  if (stepId === "tone_voice") return staticOptions.tone_traits;
+  if (stepId === "tone_voice") {
+    return staticOptions.tone_traits;
+  }
   if (stepId === "platforms") return staticOptions.platforms;
-  if (stepId === "goals_kpis") return staticOptions.goals;
+  if (stepId === "goals_kpis") {
+    // Combine goals (pick 1+) and KPIs (pick 1-3)
+    return [
+      ...staticOptions.goals,
+      { id: "divider_kpis", label: "--- KPIs to Track (pick 1-3) ---" },
+      ...staticOptions.kpis
+    ];
+  }
+  if (stepId === "constraints_approvals") {
+    // Combine content constraints and approval cadence
+    return [
+      ...staticOptions.constraints_options,
+      { id: "divider_approval", label: "--- Approval Process (pick 1) ---" },
+      ...staticOptions.approval_cadence
+    ];
+  }
 
   // AI-generated options for context-specific steps
   if (stepId === "offers" && answers.website) {
@@ -451,9 +515,6 @@ function validateStep(stepId: string, answers: Answers, userInput: unknown): str
     if (!input.tone || input.tone.length !== 3) {
       errors.push("Please select exactly 3 tone traits");
     }
-    if (!input.tone_example) {
-      errors.push("Please select a tone example");
-    }
   }
 
   if (stepId === "platforms") {
@@ -476,6 +537,27 @@ function validateStep(stepId: string, answers: Answers, userInput: unknown): str
     }
   }
 
+  if (stepId === "constraints_approvals") {
+    const input = userInput as { constraints?: string[]; approval_cadence?: string };
+    // Constraints are optional, but approval cadence is required
+    if (!input.approval_cadence) {
+      errors.push("Please select an approval process");
+    }
+  }
+
+  if (stepId === "pillars") {
+    const list = Array.isArray(userInput) ? userInput.map(String).filter(Boolean) : [];
+    if (list.length > 0 && (list.length < 3 || list.length > 6)) {
+      errors.push("Please provide 3-6 pillars, or skip this step");
+    }
+  }
+
+  if (stepId === "brief_followup") {
+    if (typeof userInput !== "string" || userInput.trim().length < 2) {
+      errors.push("Please answer the follow-up question");
+    }
+  }
+
   return errors;
 }
 
@@ -487,6 +569,10 @@ function buildStepSpec(
 ): StepSpec {
   const progress = calculateProgress(stepId);
   const can_lock = canLock(stepId, answers);
+
+  const followupQuestion =
+    answers.brief?.followup?.question ??
+    "One quick question to help us tailor the strategy: what should we know?";
 
   const specs: Record<string, Omit<StepSpec, "progress_percent" | "can_lock">> = {
     brand_basics: {
@@ -525,7 +611,7 @@ function buildStepSpec(
     },
     tone_voice: {
       step_id: "tone_voice",
-      assistant_message: "How should the brand sound? Pick 3 tone traits and 1 style example.",
+      assistant_message: "How should this client's brand voice sound? Select exactly 3 tone traits that describe their personality.",
       input_type: "chips",
       options: options || [],
       constraints: { required: true, min: 3, max: 3 }
@@ -539,10 +625,10 @@ function buildStepSpec(
     },
     goals_kpis: {
       step_id: "goals_kpis",
-      assistant_message: "What are the key goals for the next 90 days? Then pick 1-3 KPIs to track progress.",
-      input_type: "multi_select",
+      assistant_message: "What are the key goals for the next 90 days? Select at least 1 goal. Then pick 1-3 KPIs to track progress.",
+      input_type: "chips",
       options: options || [],
-      constraints: { required: true, min: 1 }
+      constraints: { required: true, min: 2, max: 9 }
     },
     constraints_approvals: {
       step_id: "constraints_approvals",
@@ -551,16 +637,74 @@ function buildStepSpec(
       options: options || [],
       constraints: { required: false }
     },
+    pillars: {
+      step_id: "pillars",
+      assistant_message:
+        "Pillars time. Add 3-6 content pillars (comma/newline separated). If you're not sure, you can skip and we'll infer a safe default.",
+      input_type: "textarea",
+      constraints: { required: false },
+    },
+    safety_topics: {
+      step_id: "safety_topics",
+      assistant_message:
+        "Any banned claims or taboo topics? List what we must avoid (comma/newline separated). You can skip if none.",
+      input_type: "textarea",
+      constraints: { required: false },
+    },
+    brief_followup: {
+      step_id: "brief_followup",
+      assistant_message: followupQuestion,
+      input_type: "textarea",
+      constraints: { required: true },
+    },
     review_required: {
       step_id: "review_required",
       assistant_message: `Excellent! You've completed all required fields. ${buildRecap(answers)} Ready to lock this in, or enhance with optional details?`,
       input_type: "single_select",
       options: [
         { id: "lock", label: "Lock & Finish (Brain is ready)" },
-        { id: "enhance", label: "Enhance Strategy Depth (6 optional steps)" }
+        { id: "enhance", label: "Enhance Strategy Depth (5 optional steps)" }
       ],
       constraints: { required: true }
-    }
+    },
+    competitors: {
+      step_id: "competitors",
+      assistant_message: "Who are the top competitors or alternatives? (comma/newline separated, optional)",
+      input_type: "textarea",
+      constraints: { required: false },
+    },
+    cta_styles: {
+      step_id: "cta_styles",
+      assistant_message: "What CTAs should we use? (comma/newline separated, optional)",
+      input_type: "textarea",
+      constraints: { required: false },
+    },
+    assets: {
+      step_id: "assets",
+      assistant_message: "Share key links/assets we should use (URLs or notes, comma/newline separated, optional).",
+      input_type: "textarea",
+      constraints: { required: false },
+    },
+    pricing: {
+      step_id: "pricing",
+      assistant_message: "Anything about pricing we should know? (optional)",
+      input_type: "textarea",
+      constraints: { required: false },
+    },
+    timeline: {
+      step_id: "timeline",
+      assistant_message: "Any timeline constraints or deadlines? (optional)",
+      input_type: "textarea",
+      constraints: { required: false },
+    },
+    final_review: {
+      step_id: "final_review",
+      assistant_message:
+        "Review complete. Ready to lock this in? (We'll still keep safe fallbacks for anything skipped.)",
+      input_type: "single_select",
+      options: [{ id: "lock", label: "Lock & Finish (Brain is ready)" }],
+      constraints: { required: true },
+    },
   };
 
   const spec = specs[stepId] || specs.brand_basics;
@@ -583,85 +727,100 @@ function buildRecap(answers: Answers): string {
 }
 
 serve(async (req: Request) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders(req) });
-  }
+  try {
+    if (req.method === "OPTIONS") {
+      return new Response(null, { headers: corsHeaders(req) });
+    }
 
-  if (req.method !== "POST") {
-    return jsonResponse({ error: "Method not allowed", v: FN_VERSION }, 405, corsHeaders(req));
-  }
+    if (req.method !== "POST") {
+      return jsonResponse({ error: "Method not allowed", v: FN_VERSION }, 405, corsHeaders(req));
+    }
 
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) {
-    return jsonResponse({ error: "Missing Authorization header", v: FN_VERSION }, 401, corsHeaders(req));
-  }
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return jsonResponse({ error: "Missing Authorization header", v: FN_VERSION }, 401, corsHeaders(req));
+    }
 
-  const openaiKey = Deno.env.get("OPENAI_API_KEY");
-  if (!openaiKey) {
-    console.error("CRITICAL: OPENAI_API_KEY not set");
+    const openaiKey = Deno.env.get("OPENAI_API_KEY");
+    if (!openaiKey) {
+      console.error("CRITICAL: OPENAI_API_KEY not set");
+      return jsonResponse(
+        { error: "AI service unavailable (missing API key). Contact support.", v: FN_VERSION },
+        503,
+        corsHeaders(req)
+      );
+    }
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+      auth: { persistSession: false },
+    });
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: userData, error: userError } = await supabase.auth.getUser(token);
+    const user = userData?.user;
+    if (userError || !user) {
+      return jsonResponse({ error: "Unauthorized", v: FN_VERSION }, 401, corsHeaders(req));
+    }
+
+    const body = await req.json().catch(() => ({}));
+    const agencyId = body.agency_id as string | undefined;
+    const clientId = body.client_id as string | undefined;
+    const brainId = body.brain_id as string | undefined;
+    const currentStepId = body.step_id as string | null;
+    const answers = (body.answers || {}) as Answers;
+    const userInput = body.user_input;
+    const skippedSteps = (body.skipped_steps || []) as string[];
+
+    if (!agencyId || !clientId) {
+      return jsonResponse({ error: "agency_id and client_id required", v: FN_VERSION }, 400, corsHeaders(req));
+    }
+
+    // Verify membership
+    const { data: membership } = await supabase
+      .from("agency_members")
+      .select("agency_id")
+      .eq("user_id", user.id)
+      .eq("agency_id", agencyId)
+      .maybeSingle();
+
+    if (!membership) {
+      return jsonResponse({ error: "Forbidden", v: FN_VERSION }, 403, corsHeaders(req));
+    }
+
+    // Validate user input if provided (skip validation if userInput is null for skip action)
+    let validationErrors: string[] = [];
+    if (currentStepId && userInput !== undefined && userInput !== null) {
+      validationErrors = validateStep(currentStepId, answers, userInput);
+      if (validationErrors.length > 0) {
+        // Return current step with errors, don't advance
+        const options = await generateOptionsWithAI(currentStepId, answers, openaiKey);
+        const spec = buildStepSpec(currentStepId, answers, openaiKey, options);
+        spec.validation_errors = validationErrors;
+        return jsonResponse(spec, 200, corsHeaders(req));
+      }
+    }
+
+    // Determine next step
+    const nextStepId = userInput !== undefined
+      ? getNextStepId(currentStepId, answers, false, skippedSteps)
+      : (currentStepId || "brand_basics");
+
+    // Generate options for next step
+    const options = await generateOptionsWithAI(nextStepId, answers, openaiKey);
+    const stepSpec = buildStepSpec(nextStepId, answers, openaiKey, options);
+
+    return jsonResponse(stepSpec, 200, corsHeaders(req));
+  } catch (error) {
+    // Catch any uncaught errors and return with CORS headers
+    console.error("Uncaught error in ai-onboarding-guide:", error);
     return jsonResponse(
-      { error: "AI service unavailable (missing API key). Contact support.", v: FN_VERSION },
-      503,
+      {
+        error: "Internal server error",
+        message: error instanceof Error ? error.message : String(error),
+        v: FN_VERSION
+      },
+      500,
       corsHeaders(req)
     );
   }
-
-  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-    auth: { persistSession: false },
-  });
-
-  const token = authHeader.replace("Bearer ", "");
-  const { data: userData, error: userError } = await supabase.auth.getUser(token);
-  const user = userData?.user;
-  if (userError || !user) {
-    return jsonResponse({ error: "Unauthorized", v: FN_VERSION }, 401, corsHeaders(req));
-  }
-
-  const body = await req.json().catch(() => ({}));
-  const agencyId = body.agency_id as string | undefined;
-  const clientId = body.client_id as string | undefined;
-  const brainId = body.brain_id as string | undefined;
-  const currentStepId = body.step_id as string | null;
-  const answers = (body.answers || {}) as Answers;
-  const userInput = body.user_input;
-
-  if (!agencyId || !clientId) {
-    return jsonResponse({ error: "agency_id and client_id required", v: FN_VERSION }, 400, corsHeaders(req));
-  }
-
-  // Verify membership
-  const { data: membership } = await supabase
-    .from("agency_members")
-    .select("agency_id")
-    .eq("user_id", user.id)
-    .eq("agency_id", agencyId)
-    .maybeSingle();
-
-  if (!membership) {
-    return jsonResponse({ error: "Forbidden", v: FN_VERSION }, 403, corsHeaders(req));
-  }
-
-  // Validate user input if provided
-  let validationErrors: string[] = [];
-  if (currentStepId && userInput !== undefined) {
-    validationErrors = validateStep(currentStepId, answers, userInput);
-    if (validationErrors.length > 0) {
-      // Return current step with errors, don't advance
-      const options = await generateOptionsWithAI(currentStepId, answers, openaiKey);
-      const spec = buildStepSpec(currentStepId, answers, openaiKey, options);
-      spec.validation_errors = validationErrors;
-      return jsonResponse(spec, 200, corsHeaders(req));
-    }
-  }
-
-  // Determine next step
-  const nextStepId = userInput !== undefined
-    ? getNextStepId(currentStepId, answers, false)
-    : (currentStepId || "brand_basics");
-
-  // Generate options for next step
-  const options = await generateOptionsWithAI(nextStepId, answers, openaiKey);
-  const stepSpec = buildStepSpec(nextStepId, answers, openaiKey, options);
-
-  return jsonResponse(stepSpec, 200, corsHeaders(req));
 });

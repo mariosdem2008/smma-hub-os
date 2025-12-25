@@ -972,6 +972,74 @@ export type Database = {
           },
         ]
       }
+      client_onboarding_sessions: {
+        Row: {
+          agency_id: string
+          answers_json: Json
+          brain_id: string
+          client_id: string
+          completed_required: boolean
+          created_at: string
+          id: string
+          step_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          agency_id: string
+          answers_json?: Json
+          brain_id: string
+          client_id: string
+          completed_required?: boolean
+          created_at?: string
+          id?: string
+          step_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          agency_id?: string
+          answers_json?: Json
+          brain_id?: string
+          client_id?: string
+          completed_required?: boolean
+          created_at?: string
+          id?: string
+          step_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_onboarding_sessions_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_onboarding_sessions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_contacts_secure"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_onboarding_sessions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_portal_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_onboarding_sessions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_refresh_tokens: {
         Row: {
           client_user_id: string
