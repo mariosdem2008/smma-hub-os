@@ -36,6 +36,7 @@ import NotFound from "./pages/NotFound";
 import AiOnboardingAgency from "./pages/ai/AiOnboardingAgency";
 import AiOnboardingClient from "./pages/ai/AiOnboardingClient";
 import AiFieldDemo from "./pages/ai/AiFieldDemo";
+import AgencyAiAdmin from "./pages/ai/AgencyAiAdmin";
 
 import { ClientPortalLayout } from "./pages/ClientPortalLayout";
 import ClientLogin from "./pages/client/ClientLogin";
@@ -55,6 +56,7 @@ import PortalApprovals from "./pages/client-portal/PortalApprovals";
 import PortalMessages from "./pages/client-portal/PortalMessages";
 import { PortalPerformance } from "./pages/client-portal/PortalPerformance";
 import ReportDetail from "./components/client-tabs/ReportDetail";
+import { PortalAiAssistant } from "./pages/client-portal/PortalAiAssistant";
 
 const queryClient = new QueryClient();
 
@@ -155,6 +157,7 @@ const App = () => {
                 <Route path="social-profiles" element={<PortalSocialProfiles />} />
                 <Route path="uploads" element={<PortalUploads />} />
                 <Route path="messages" element={<PortalMessages />} />
+                <Route path="ai-assistant" element={<PortalAiAssistant />} />
               </Route>
               <Route path="/client/portal/:portalSlug" element={<ClientPortalShell />}>
                 <Route index element={<PortalOverview />} />
@@ -168,6 +171,7 @@ const App = () => {
                 <Route path="social-profiles" element={<PortalSocialProfiles />} />
                 <Route path="uploads" element={<PortalUploads />} />
                 <Route path="messages" element={<PortalMessages />} />
+                <Route path="ai-assistant" element={<PortalAiAssistant />} />
               </Route>
 
               {/* Onboarding */}
@@ -189,6 +193,7 @@ const App = () => {
                 <Route path="/billing" element={<Billing />} />
                 <Route path="/billing/overview" element={<BillingOverview />} />
                 <Route path="/settings" element={<Settings />} />
+                <Route path="/ai/admin" element={<AgencyAiAdmin />} />
                 <Route path="/ai/onboarding/agency" element={<AiOnboardingAgency />} />
                 <Route path="/ai/onboarding/client" element={<AiOnboardingClient />} />
                 <Route path="/ai/onboarding/client/:clientId" element={<AiOnboardingClient />} />

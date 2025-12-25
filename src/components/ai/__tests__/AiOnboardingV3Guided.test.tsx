@@ -3,6 +3,7 @@ import { render, screen, waitFor, cleanup } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AiOnboardingV3Guided } from "../AiOnboardingV3Guided";
 import { BrowserRouter } from "react-router-dom";
+import { mapV3AnswersToClientBrain } from "../../../../supabase/functions/_shared/client-brain-mapping";
 
 // Mock supabase at module level
 const mockInvoke = vi.fn();
@@ -448,5 +449,108 @@ describe("AiOnboardingV3Guided", () => {
 
     // Should NOT show brand_basics
     expect(screen.queryByLabelText(/Brand Name/i)).not.toBeInTheDocument();
+  });
+
+  it("calls ai-brain-ingest with freshest answers when locking (includes brief + pillars + safety topics)", async () => {
+    const user = userEvent.setup();
+
+    const sessionAnswers = {
+      brand: "Acme Co",
+      website: "https://acme.example",
+      niche: "saas",
+      offers: ["offer_a"],
+      audience: ["persona_a"],
+      differentiators: ["diff_a", "diff_b"],
+      tone: ["professional", "friendly", "educational"],
+      platforms: ["instagram"],
+      primary_platform: "instagram",
+      goals: ["awareness"],
+      kpis: ["reach"],
+      pillars: ["Customer stories", "Product education", "Behind-the-scenes"],
+      banned_claims: ["Guaranteed results"],
+      taboo_topics: ["politics"],
+      approval_cadence: "weekly_batch",
+      approver_contact: "Jane Doe",
+    };
+
+    mockInvoke.mockImplementation((fnName: string, payload: any) => {
+      const body = payload?.body ?? {};
+
+      if (fnName === "ai-brains-client" && body.action === "create") {
+        return Promise.resolve({ data: { brain: { id: "brain-789" } }, error: null });
+      }
+
+      if (fnName === "ai-onboarding-guide") {
+        return Promise.resolve({
+          data: {
+            step_id: "review_required",
+            assistant_message: "Ready to lock?",
+            input_type: "single_select",
+            options: [
+              { id: "lock", label: "Lock & Finish (Brain is ready)" },
+              { id: "enhance", label: "Enhance Strategy Depth (5 optional steps)" },
+            ],
+            constraints: { required: true },
+            progress_percent: 100,
+            can_lock: true,
+          },
+          error: null,
+        });
+      }
+
+      if (fnName === "ai-brains-client" && (body.action === "update" || body.action === "lock")) {
+        return Promise.resolve({ data: {}, error: null });
+      }
+
+      if (fnName === "ai-brain-ingest") {
+        return Promise.resolve({ data: { ok: true, usable: true }, error: null });
+      }
+
+      return Promise.resolve({ data: {}, error: null });
+    });
+
+    mockMaybeSingle.mockResolvedValue({
+      data: {
+        id: "session-123",
+        step_id: "review_required",
+        answers_json: sessionAnswers,
+        brain_id: "brain-789",
+      },
+      error: null,
+    });
+
+    render(
+      <BrowserRouter>
+        <AiOnboardingV3Guided {...defaultProps} />
+      </BrowserRouter>
+    );
+
+    const lockOption = await screen.findByRole("button", { name: "Lock & Finish (Brain is ready)" });
+    await user.click(lockOption);
+
+    const finishButton = await screen.findByRole("button", { name: "Lock & Finish" });
+    await user.click(finishButton);
+
+    await waitFor(() => {
+      expect(mockInvoke).toHaveBeenCalledWith("ai-brain-ingest", expect.anything());
+    });
+
+    const ingestCall = mockInvoke.mock.calls.find((call) => call[0] === "ai-brain-ingest");
+    expect(ingestCall).toBeTruthy();
+    const ingestBody = ingestCall?.[1]?.body;
+    const rawResponses = ingestBody?.raw_responses;
+
+    expect(rawResponses.pillars).toEqual(sessionAnswers.pillars);
+    expect(rawResponses.taboo_topics).toEqual(sessionAnswers.taboo_topics);
+    expect(rawResponses.banned_claims).toEqual(sessionAnswers.banned_claims);
+
+    expect(rawResponses.brief).toBeTruthy();
+    expect(typeof rawResponses.brief.confidence).toBe("number");
+
+    const brain = mapV3AnswersToClientBrain(rawResponses, {}, "2025-12-25T00:00:00.000Z") as any;
+    expect(Array.isArray(brain.pillars)).toBe(true);
+    expect(brain.pillars.length).toBeGreaterThan(0);
+    expect(Array.isArray(brain.constraints?.banned_claims_or_taboo_topics)).toBe(true);
+    expect(brain.constraints.banned_claims_or_taboo_topics.length).toBeGreaterThan(0);
   });
 });
