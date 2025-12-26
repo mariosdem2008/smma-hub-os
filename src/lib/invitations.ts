@@ -1,11 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { FunctionsHttpError } from "@supabase/supabase-js";
 
-interface SendTeamInviteParams {
-  inviteToken: string;
-  resend?: boolean;
-}
-
 interface SendPortalInviteParams {
   email: string;
   clientName: string;
@@ -32,24 +27,6 @@ async function getAccessToken() {
   if (!token) throw new Error("No active session");
 
   return token;
-}
-
-export async function sendTeamInviteEmail(params: SendTeamInviteParams) {
-  try {
-    const accessToken = await getAccessToken();
-    const { data, error } = await supabase.functions.invoke('send-team-invite', {
-      body: params,
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    });
-
-    if (error) throw error;
-    return { success: true, data };
-  } catch (error) {
-    console.error('Error sending team invite email:', error);
-    return { success: false, error };
-  }
 }
 
 export async function sendPortalInviteEmail(params: SendPortalInviteParams) {

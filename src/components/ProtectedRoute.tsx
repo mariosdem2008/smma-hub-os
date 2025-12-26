@@ -1,8 +1,8 @@
 import { Navigate, useLocation } from "react-router-dom";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
-import { db } from "@/data";
 import { Button } from "@/components/ui/button";
+import { getActiveAgencyId } from "@/lib/active-agency";
 
 const DEBUG = false;
 const TIMEOUT_MS = 12000;
@@ -13,7 +13,6 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   const [membershipStatus, setMembershipStatus] = useState<"loading" | "has" | "none">("loading");
   const [timedOut, setTimedOut] = useState(false);
-  const checkedUserRef = useRef<string | null>(null);
 
   // Reset timeout when loading completes
   useEffect(() => {
@@ -37,52 +36,14 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return () => clearTimeout(timeout);
   }, [authLoading, membershipStatus]);
 
-  // Check membership ONLY when user.id changes (not on every route)
   useEffect(() => {
-    // No user = no membership
     if (!user) {
       setMembershipStatus("none");
-      checkedUserRef.current = null;
       return;
     }
 
-    // Already checked this user
-    if (checkedUserRef.current === user.id) {
-      return;
-    }
-
-    let cancelled = false;
-    setMembershipStatus("loading");
-
-    const checkMembership = async () => {
-      try {
-        const membership = await db.from("agency_members")
-          .select("agency_id")
-          .eq("user_id", user.id)
-          .maybeSingle();
-
-        if (cancelled) return;
-
-        if (membership.error) {
-          if (DEBUG) console.warn("[ProtectedRoute] Membership check error:", membership.error);
-          // On error, allow access to prevent loops
-          setMembershipStatus("has");
-        } else {
-          setMembershipStatus(membership.data ? "has" : "none");
-        }
-        
-        checkedUserRef.current = user.id;
-      } catch (err) {
-        if (DEBUG) console.warn("[ProtectedRoute] Exception:", err);
-        if (!cancelled) {
-          setMembershipStatus("has"); // Allow on error
-          checkedUserRef.current = user.id;
-        }
-      }
-    };
-
-    checkMembership();
-    return () => { cancelled = true; };
+    const activeAgencyId = getActiveAgencyId();
+    setMembershipStatus(activeAgencyId ? "has" : "none");
   }, [user?.id]);
 
   // === RENDER LOGIC ===
@@ -118,14 +79,12 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   // Logged in but no membership → onboarding
-  if (membershipStatus === "none" && location.pathname !== "/onboarding") {
-    return <Navigate to="/onboarding" replace />;
+  const allowNoAgencyPaths = new Set(["/bootstrap", "/welcome", "/select-agency", "/create-agency", "/invitations"]);
+
+  if (membershipStatus === "none" && !allowNoAgencyPaths.has(location.pathname)) {
+    return <Navigate to="/bootstrap" replace />;
   }
 
   // Has membership but on onboarding → dashboard
-  if (membershipStatus === "has" && location.pathname === "/onboarding") {
-    return <Navigate to="/dashboard" replace />;
-  }
-
   return <>{children}</>;
 }

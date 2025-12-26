@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { getActiveAgencyId } from "@/lib/active-agency";
 
 type ThreadRow = { id: string; title: string; created_at: string };
 type MessageRow = { id: string; role: string; content: string; created_at: string };
@@ -37,15 +38,7 @@ export default function AgencyAiAdmin() {
     const run = async () => {
       setLoadingAgency(true);
       try {
-        const { data, error } = await supabase
-          .from("agency_members")
-          .select("agency_id")
-          .eq("user_id", user.id)
-          .eq("role", "admin")
-          .limit(1)
-          .maybeSingle();
-        if (error) throw error;
-        setAgencyId(data?.agency_id ?? null);
+        setAgencyId(getActiveAgencyId());
       } catch (err: any) {
         toast({
           title: "Failed to load agency",
@@ -281,4 +274,3 @@ export default function AgencyAiAdmin() {
     </div>
   );
 }
-

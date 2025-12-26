@@ -266,29 +266,105 @@ export async function listAgencyMembersWithProfiles() {
 export async function listPendingAgencyInvites() {
   const { agencyId } = await getMyAgencyContext();
 
+  const nowIso = new Date().toISOString();
   return safeList(
     db
       .from("agency_invites")
       .select("*")
       .eq("agency_id", agencyId)
       .eq("accepted", false)
-      .gt("expires_at", new Date().toISOString())
+      .eq("declined", false)
+      .or(`expires_at.is.null,expires_at.gt.${nowIso}`)
       .order("created_at", { ascending: false }),
     "Failed to load invites"
   );
 }
 
 export async function createAgencyInvite(email: string, role: string) {
+  const user = await requireUser();
   const { agencyId } = await getMyAgencyContext();
+
+  const normalizedEmail = email.toLowerCase();
+  const nowIso = new Date().toISOString();
+  const newToken = crypto.randomUUID();
+  const newExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  // If there is already an active pending invite, return it (supports "resend" without churn).
+  const existing = await safeMaybeSingle(
+    db
+      .from("agency_invites")
+      .select("id, token, expires_at, email, role, agency_id, invited_by")
+      .eq("agency_id", agencyId)
+      .eq("email", normalizedEmail)
+      .eq("accepted", false)
+      .eq("declined", false)
+      .or(`expires_at.is.null,expires_at.gt.${nowIso}`)
+      .maybeSingle(),
+    "Failed to check existing invite"
+  );
+
+  if (existing?.id) {
+    // If a legacy/buggy row exists without a token, refresh it so email sending/link sharing works.
+    if (!existing.token) {
+      const { data, error } = await db
+        .from("agency_invites")
+        .update({
+          role,
+          invited_by: user.id,
+          token: newToken,
+          expires_at: existing.expires_at ?? newExpiry,
+        })
+        .eq("id", existing.id)
+        .select("id, token, expires_at, email, role, agency_id, invited_by")
+        .single();
+
+      if (error) throw toDbError(error, "Failed to refresh invite token");
+      return data;
+    }
+    return existing;
+  }
+
+  // If there is a stale/expired pending invite, refresh it in-place (new token/expiry).
+  const stale = await safeMaybeSingle(
+    db
+      .from("agency_invites")
+      .select("id")
+      .eq("agency_id", agencyId)
+      .eq("email", normalizedEmail)
+      .eq("accepted", false)
+      .eq("declined", false)
+      .maybeSingle(),
+    "Failed to check existing invite"
+  );
+
+  if (stale?.id) {
+    const { data, error } = await db
+      .from("agency_invites")
+      .update({
+        role,
+        invited_by: user.id,
+        token: newToken,
+        expires_at: newExpiry,
+      })
+      .eq("id", stale.id)
+      .select("id, token, expires_at, email, role, agency_id, invited_by")
+      .single();
+
+    if (error) throw toDbError(error, "Failed to refresh invite");
+    return data;
+  }
 
   const { data, error } = await db
     .from("agency_invites")
     .insert({
       agency_id: agencyId,
-      email: email.toLowerCase(),
+      email: normalizedEmail,
       role,
+      invited_by: user.id,
+      token: newToken,
+      expires_at: newExpiry,
     })
-    .select("id, token, expires_at, email, role, agency_id")
+    .select("id, token, expires_at, email, role, agency_id, invited_by")
     .single();
 
   if (error) throw toDbError(error, "Failed to create invite");
@@ -324,26 +400,6 @@ export async function isUserAgencyMember(agencyId: string, userId: string): Prom
     .eq("user_id", userId)
     .maybeSingle();
   return !!data;
-}
-
-export async function hasPendingInvite(agencyId: string, email: string): Promise<boolean> {
-  const { data } = await db
-    .from("agency_invites")
-    .select("id")
-    .eq("agency_id", agencyId)
-    .eq("email", email.toLowerCase())
-    .eq("accepted", false)
-    .maybeSingle();
-  return !!data;
-}
-
-export async function getUserFullName(userId: string): Promise<string | null> {
-  const { data } = await db
-    .from("profiles")
-    .select("full_name")
-    .eq("id", userId)
-    .maybeSingle();
-  return data?.full_name ?? null;
 }
 
 export async function updateAgencyMemberRole(memberId: string, newRole: string) {

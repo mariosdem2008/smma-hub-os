@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { getActiveAgencyId } from "@/lib/active-agency";
 
-type UserRole = "owner" | "admin" | "manager" | "creator" | "viewer" | null;
+type UserRole = "owner" | "admin" | "manager" | "member" | null;
 
 export function useRole() {
   const { user } = useAuth();
@@ -18,29 +19,34 @@ export function useRole() {
       }
 
       try {
-        const { data: agencyData } = await supabase
+        const activeAgencyId = getActiveAgencyId();
+        if (!activeAgencyId) {
+          setRole(null);
+          return;
+        }
+
+        const { data: memberData, error: memberErr } = await supabase
+          .from("agency_members")
+          .select("role")
+          .eq("agency_id", activeAgencyId)
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (memberErr) throw memberErr;
+
+        if (memberData?.role) {
+          setRole(memberData.role as UserRole);
+          return;
+        }
+
+        const { data: agencyData, error: ownerErr } = await supabase
           .from("agencies")
           .select("id")
+          .eq("id", activeAgencyId)
           .eq("user_id", user.id)
-          .single();
+          .maybeSingle();
+        if (ownerErr) throw ownerErr;
 
-        if (agencyData) {
-          // User is the agency owner
-          setRole("owner");
-        } else {
-          // Check agency_members
-          const { data: memberData } = await supabase
-            .from("agency_members")
-            .select("role")
-            .eq("user_id", user.id)
-            .single();
-
-          if (memberData) {
-            setRole(memberData.role as UserRole);
-          } else {
-            setRole(null);
-          }
-        }
+        setRole(agencyData ? "owner" : null);
       } catch (error) {
         console.error("Error fetching role:", error);
         setRole(null);
@@ -55,15 +61,18 @@ export function useRole() {
   const isOwner = role === "owner";
   const isAdmin = role === "admin";
   const isManager = role === "manager";
-  const isCreator = role === "creator";
-  const isViewer = role === "viewer";
+  const isMember = role === "member";
+
+  // Back-compat flags (older UI checked creator/viewer)
+  const isCreator = false;
+  const isViewer = isMember;
   
   const canManageTeam = isOwner || isAdmin;
   const canManageClients = isOwner || isAdmin || isManager;
   const canDeleteClients = isOwner || isAdmin || isManager;
-  const canEditSettings = isOwner || isAdmin || isManager || isCreator;
-  const canCreateContent = isOwner || isAdmin || isManager || isCreator;
-  const canEditContent = isOwner || isAdmin || isManager || isCreator;
+  const canEditSettings = isOwner || isAdmin || isManager;
+  const canCreateContent = isOwner || isAdmin || isManager;
+  const canEditContent = isOwner || isAdmin || isManager;
   const canDeleteContent = isOwner || isAdmin || isManager;
   const canApproveContent = isOwner || isAdmin || isManager;
   const canChangeRoles = isOwner || isAdmin;
@@ -75,6 +84,7 @@ export function useRole() {
     isOwner,
     isAdmin,
     isManager,
+    isMember,
     isCreator,
     isViewer,
     canManageTeam,

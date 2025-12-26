@@ -340,33 +340,45 @@ export type Database = {
       agency_invites: {
         Row: {
           accepted: boolean
+          accepted_at: string | null
           agency_id: string
           created_at: string
+          declined: boolean
+          declined_at: string | null
           email: string
           expires_at: string
           id: string
+          invited_by: string | null
           role: string
-          token: string
+          token: string | null
         }
         Insert: {
           accepted?: boolean
+          accepted_at?: string | null
           agency_id: string
           created_at?: string
+          declined?: boolean
+          declined_at?: string | null
           email: string
           expires_at?: string
           id?: string
+          invited_by?: string | null
           role?: string
-          token?: string
+          token?: string | null
         }
         Update: {
           accepted?: boolean
+          accepted_at?: string | null
           agency_id?: string
           created_at?: string
+          declined?: boolean
+          declined_at?: string | null
           email?: string
           expires_at?: string
           id?: string
+          invited_by?: string | null
           role?: string
-          token?: string
+          token?: string | null
         }
         Relationships: [
           {
@@ -1103,6 +1115,53 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agency_onboarding_sessions: {
+        Row: {
+          agency_id: string
+          answers_json: Json
+          brain_id: string | null
+          completed: boolean
+          completed_at: string | null
+          created_at: string
+          id: string
+          step_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          agency_id: string
+          answers_json?: Json
+          brain_id?: string | null
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          step_id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          agency_id?: string
+          answers_json?: Json
+          brain_id?: string | null
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          step_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agency_onboarding_sessions_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
             referencedColumns: ["id"]
           },
         ]
@@ -3530,8 +3589,12 @@ export type Database = {
     }
     Functions: {
       accept_agency_invite: {
-        Args: { _invite_token: string; _user_id: string }
-        Returns: Json
+        Args: { _invite_id: string }
+        Returns: string
+      }
+      decline_agency_invite: {
+        Args: { _invite_id: string }
+        Returns: boolean
       }
       delete_client_cascade: {
         Args: { p_client_id: string }
@@ -3549,10 +3612,26 @@ export type Database = {
         Returns: {
           accepted: boolean
           agency_id: string
+          agency_name: string
+          declined: boolean
           email: string
-          expires_at: string
-          id: string
+          expires_at: string | null
+          invite_id: string
           role: string
+        }[]
+      }
+      get_my_pending_agency_invites: {
+        Args: never
+        Returns: {
+          agency_id: string
+          agency_name: string
+          created_at: string
+          email: string
+          expires_at: string | null
+          invite_id: string
+          invited_by: string | null
+          role: string
+          token: string | null
         }[]
       }
       get_monthly_ai_usage: { Args: { p_agency_id: string }; Returns: number }
@@ -3564,6 +3643,7 @@ export type Database = {
           token_expires_at: string
         }[]
       }
+      get_user_agency_bootstrap: { Args: never; Returns: Json }
       get_user_client_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
