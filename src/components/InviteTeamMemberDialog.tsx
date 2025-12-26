@@ -21,9 +21,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Copy, UserPlus } from "lucide-react";
-import { createAgencyInvite, sendTeamInviteEmail, getMyAgency, getUserFullName } from "@/data";
+import { createAgencyInvite, getMyAgency, getOwnerSubscriptionPlan, sendTeamInviteEmail } from "@/data";
 
-const ROLES = ["admin", "manager", "creator", "viewer"];
+const ROLES = ["admin", "manager", "member"];
 
 interface InviteTeamMemberDialogProps {
   open: boolean;
@@ -44,14 +44,10 @@ export function InviteTeamMemberDialog({ open, onOpenChange }: InviteTeamMemberD
   useEffect(() => {
     async function fetchPlan() {
       if (!user) return;
-      
-      const { data: subscription } = await supabase
-        .from("subscriptions")
-        .select("plan_type")
-        .eq("user_id", user.id)
-        .single();
-      
-      setCurrentUserPlan(subscription?.plan_type || 'free');
+
+      const agency = await getMyAgency();
+      const plan = await getOwnerSubscriptionPlan(agency.user_id);
+      setCurrentUserPlan(plan || "free");
     }
     
     if (open) {
@@ -93,22 +89,21 @@ export function InviteTeamMemberDialog({ open, onOpenChange }: InviteTeamMemberD
 
     setSubmitting(true);
     try {
-      const agency = await getMyAgency();
-
       const inviteRow = await createAgencyInvite(inviteEmail, inviteRole);
 
-      const link = `${window.location.origin}/invite/${inviteRow.token}`;
+      const link = inviteRow.token ? `${window.location.origin}/invite/${inviteRow.token}` : "";
       setInviteLink(link);
-      setShowInviteLink(true);
+      setShowInviteLink(Boolean(inviteRow.token));
 
-      const fullName = await getUserFullName(user?.id || "");
-      const emailResult = await sendTeamInviteEmail({
-        inviteToken: inviteRow.token,
-      });
+      const emailResult = inviteRow.token
+        ? await sendTeamInviteEmail({
+            inviteToken: inviteRow.token,
+          })
+        : { success: false };
 
       toast({
         title: "Success",
-        description: emailResult?.success === false
+        description: (emailResult as any)?.success === false
           ? "Invitation created, but email could not be sent. Share the link manually."
           : "Invitation created and email sent successfully",
       });

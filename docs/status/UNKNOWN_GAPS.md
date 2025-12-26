@@ -1,5 +1,4 @@
 # UNKNOWN / TODO Gaps
 
-1) **Agency AI backend not wired**
-- Evidence: `src/pages/ai/AgencyAiAdmin.tsx` is a stub with a TODO to wire an agency-scoped edge function (e.g. `ai-agency-rep-chat`).
-
+1) **Agency AI assistant is v1 (deterministic)**
+- Evidence: `supabase/functions/_shared/agency-admin-chat.ts` currently generates a simple deterministic assistant response (no LLM yet).

@@ -37,7 +37,7 @@ export default function Auth() {
       });
     } else {
       // Check for redirect URL
-      const redirectUrl = sessionStorage.getItem("redirectUrl") || "/dashboard";
+      const redirectUrl = sessionStorage.getItem("redirectUrl") || "/bootstrap";
       sessionStorage.removeItem("redirectUrl");
       navigate(redirectUrl);
     }
@@ -59,13 +59,11 @@ export default function Auth() {
 
     setLoading(true);
 
-    const redirectUrl = `${window.location.origin}/onboarding`;
-
     const { data, error } = await supabase.auth.signUp({
       email: formData.email,
       password: formData.password,
       options: {
-        emailRedirectTo: `${window.location.origin}/onboarding`,
+        emailRedirectTo: `${window.location.origin}/bootstrap`,
         data: { full_name: formData.fullName },
       },
     });

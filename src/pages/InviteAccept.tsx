@@ -7,15 +7,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle, CheckCircle2, Clock, Users } from "lucide-react";
+import { acceptAgencyInvite } from "@/lib/agency-invites";
+import { getUserAgencyBootstrap } from "@/lib/bootstrap";
+import { setActiveAgencyId } from "@/lib/active-agency";
 
 interface Invite {
-  id: string;
+  invite_id: string;
   agency_id: string;
   email: string;
   role: string;
-  token: string;
-  expires_at: string;
+  expires_at: string | null;
   accepted: boolean;
+  declined: boolean;
   agency_name: string | null;
 }
 
@@ -54,17 +57,15 @@ export default function InviteAccept() {
 
       const inviteData = (data as any)[0] as Invite;
 
-      const expired = new Date(inviteData.expires_at) <= new Date();
+      const expired = inviteData.expires_at ? new Date(inviteData.expires_at) <= new Date() : false;
       if (inviteData.accepted) {
         setError("accepted");
+      } else if (inviteData.declined) {
+        setError("declined");
       } else if (expired) {
         setError("expired");
       } else {
-        setInvite({
-          ...inviteData,
-          token: token,
-          agency_name: inviteData.agency_name || null
-        });
+        setInvite({ ...inviteData, agency_name: inviteData.agency_name || null });
       }
     } catch (err: any) {
       console.error("Error fetching invite:", err);
@@ -79,34 +80,40 @@ export default function InviteAccept() {
 
     setJoining(true);
     try {
-      // Use secure database function to accept invite (bypasses RLS)
-      const { data, error } = await supabase.rpc('accept_agency_invite', {
-        _invite_token: invite.token,
-        _user_id: user.id
-      });
+      const agencyId = await acceptAgencyInvite(invite.invite_id);
 
-      if (error) throw error;
-
-      const result = data as { success: boolean; error?: string; agency_id?: string };
-
-      if (!result.success) {
-        if (result.error === "email_mismatch") {
-          setError("email_mismatch");
-          return;
-        }
-        throw new Error(result.error || "Failed to join agency");
-      }
+      const bootstrap = await getUserAgencyBootstrap();
+      const memberships = bootstrap.memberships ?? [];
+      const uniq = Array.from(new Set(memberships.map((m) => m.agency_id))).map(
+        (agency_id) => memberships.find((m) => m.agency_id === agency_id)!,
+      );
 
       toast({
         title: "Success",
         description: "You have joined the agency successfully!",
       });
 
-      navigate("/dashboard");
+      if (uniq.length > 1) {
+        if (agencyId) setActiveAgencyId(agencyId);
+        navigate("/select-agency", { replace: true });
+        return;
+      }
+      if (uniq.length === 1) {
+        setActiveAgencyId(uniq[0].agency_id);
+        navigate("/dashboard", { replace: true });
+        return;
+      }
+
+      navigate("/bootstrap", { replace: true });
     } catch (error: any) {
+      const message = error?.message ?? String(error);
+      if (message.includes("email_mismatch")) {
+        setError("email_mismatch");
+        return;
+      }
       toast({
         title: "Error",
-        description: error.message || "Failed to join agency",
+        description: message || "Failed to join agency",
         variant: "destructive",
       });
     } finally {
@@ -118,8 +125,10 @@ export default function InviteAccept() {
     switch (role) {
       case "manager":
         return "secondary";
+      case "member":
+        return "outline";
+      // Back-compat display for older roles
       case "creator":
-        return "default";
       case "viewer":
         return "outline";
       default:
@@ -192,14 +201,35 @@ export default function InviteAccept() {
     );
   }
 
-  if (error === "email_mismatch" && invite && user) {
+  if (error === "declined") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10">
+              <AlertCircle className="h-8 w-8 text-destructive" />
+            </div>
+            <CardTitle className="text-2xl">Invite Declined</CardTitle>
+            <CardDescription>This invitation was declined and can no longer be used.</CardDescription>
+          </CardHeader>
+          <CardContent className="text-center">
+            <Button onClick={() => navigate("/welcome")} variant="outline">
+              Go to Welcome
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if ((error === "email_mismatch" || (invite && user && invite.email && user.email && invite.email.toLowerCase() !== user.email.toLowerCase()))) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">Email Mismatch</CardTitle>
             <CardDescription>
-              You must sign in with the invited email ({invite.email}). You are currently signed in as ({user.email}).
+              You must sign in with the invited email ({invite?.email}). You are currently signed in as ({user?.email}).
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -207,10 +237,11 @@ export default function InviteAccept() {
               className="w-full"
               onClick={async () => {
                 await supabase.auth.signOut();
-                navigate(`/auth?redirect=/invite/${token}`);
+                sessionStorage.setItem("redirectUrl", `/invite/${token}`);
+                navigate("/auth");
               }}
             >
-              Sign out and sign in with {invite.email}
+              Sign out and sign in with {invite?.email}
             </Button>
             <Button variant="outline" className="w-full" onClick={() => navigate("/dashboard")}>
               Cancel
@@ -286,14 +317,20 @@ export default function InviteAccept() {
               </p>
               <Button
                 className="w-full"
-                onClick={() => navigate(`/auth?redirect=/invite/${token}`)}
+                onClick={() => {
+                  sessionStorage.setItem("redirectUrl", `/invite/${token}`);
+                  navigate("/auth");
+                }}
               >
                 Sign In
               </Button>
               <Button
                 variant="outline"
                 className="w-full"
-                onClick={() => navigate(`/auth?redirect=/invite/${token}`)}
+                onClick={() => {
+                  sessionStorage.setItem("redirectUrl", `/invite/${token}`);
+                  navigate("/auth");
+                }}
               >
                 Create Account
               </Button>

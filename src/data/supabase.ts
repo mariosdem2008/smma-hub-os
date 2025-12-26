@@ -2,6 +2,7 @@
 import type { PostgrestError, SupabaseClient, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
+import { getActiveAgencyId } from "@/lib/active-agency";
 
 // Re-export db from the existing Supabase client
 export const db = supabase as SupabaseClient<Database>;
@@ -77,48 +78,67 @@ export async function requireUser(): Promise<User> {
 type AgencyContext = {
   agencyId: string;
   isOwner: boolean;
-  role: "owner" | "admin" | "manager" | "creator" | "viewer" | "member";
+  role: "owner" | "admin" | "manager" | "member";
 };
 
-let cachedAgencyCtx: { userId: string; ctx: AgencyContext } | null = null;
+let cachedAgencyCtx: { userId: string; activeAgencyId: string | null; ctx: AgencyContext } | null = null;
 
 export async function getAgencyContextForUser(userId: string): Promise<AgencyContext> {
-  if (cachedAgencyCtx?.userId === userId) return cachedAgencyCtx.ctx;
+  const activeAgencyId = getActiveAgencyId();
+  if (cachedAgencyCtx?.userId === userId && cachedAgencyCtx.activeAgencyId === activeAgencyId) {
+    return cachedAgencyCtx.ctx;
+  }
 
-  // 1) Owner path
-  const { data: agency, error: agencyErr } = await db
+  const { data: ownedAgency, error: ownedErr } = await db
     .from("agencies")
     .select("id,user_id")
     .eq("user_id", userId)
     .maybeSingle();
 
-  if (agencyErr) throw toDbError(agencyErr);
+  if (ownedErr) throw toDbError(ownedErr);
 
-  if (agency?.id) {
-    const ctx: AgencyContext = { agencyId: agency.id, isOwner: true, role: "owner" };
-    cachedAgencyCtx = { userId, ctx };
-    return ctx;
-  }
-
-  // 2) Member path
-  const { data: member, error: memberErr } = await db
+  const { data: members, error: memberErr } = await db
     .from("agency_members")
     .select("agency_id,role")
     .eq("user_id", userId)
-    .maybeSingle();
+    .order("created_at", { ascending: false });
 
   if (memberErr) throw toDbError(memberErr);
 
-  if (!member?.agency_id) {
+  const membershipList: Array<{ agencyId: string; role: AgencyContext["role"]; isOwner: boolean }> = [];
+  if (ownedAgency?.id) {
+    membershipList.push({ agencyId: ownedAgency.id, role: "owner", isOwner: true });
+  }
+  for (const m of members ?? []) {
+    membershipList.push({
+      agencyId: m.agency_id,
+      role: (m.role as AgencyContext["role"]) ?? "member",
+      isOwner: false,
+    });
+  }
+
+  const unique = new Map<string, (typeof membershipList)[number]>();
+  for (const m of membershipList) {
+    const existing = unique.get(m.agencyId);
+    if (!existing) unique.set(m.agencyId, m);
+    else if (m.isOwner && !existing.isOwner) unique.set(m.agencyId, m);
+  }
+  const memberships = [...unique.values()];
+
+  if (memberships.length === 0) {
     throw { message: "No agency membership found for this user" } satisfies DbError;
   }
 
-  const ctx: AgencyContext = {
-    agencyId: member.agency_id,
-    isOwner: false,
-    role: (member.role as AgencyContext["role"]) ?? "member",
-  };
-  cachedAgencyCtx = { userId, ctx };
+  const selected =
+    (activeAgencyId && memberships.find((m) => m.agencyId === activeAgencyId)) ||
+    (memberships.length === 1 ? memberships[0] : null);
+
+  if (!selected) {
+    throw { message: "Multiple agencies found; select an agency first" } satisfies DbError;
+  }
+
+  const ctx: AgencyContext = { agencyId: selected.agencyId, isOwner: selected.isOwner, role: selected.role };
+  cachedAgencyCtx = { userId, activeAgencyId, ctx };
   return ctx;
 }
 

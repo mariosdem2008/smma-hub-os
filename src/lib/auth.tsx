@@ -90,7 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signUp = async (email: string, password: string, fullName: string) => {
-    const redirectUrl = `${window.location.origin}/onboarding`;
+    const redirectUrl = `${window.location.origin}/bootstrap`;
 
     const { error } = await supabase.auth.signUp({
       email,
@@ -110,7 +110,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!error) {
       const redirectUrl = sessionStorage.getItem("redirectUrl");
       sessionStorage.removeItem("redirectUrl");
-      navigate(redirectUrl || "/dashboard", { replace: true });
+      navigate(redirectUrl || "/bootstrap", { replace: true });
     }
 
     return { error };
