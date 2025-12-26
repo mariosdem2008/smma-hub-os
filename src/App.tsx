@@ -37,6 +37,11 @@ import AiOnboardingAgency from "./pages/ai/AiOnboardingAgency";
 import AiOnboardingClient from "./pages/ai/AiOnboardingClient";
 import AiFieldDemo from "./pages/ai/AiFieldDemo";
 import AgencyAiAdmin from "./pages/ai/AgencyAiAdmin";
+import Bootstrap from "./pages/Bootstrap";
+import Welcome from "./pages/Welcome";
+import SelectAgency from "./pages/SelectAgency";
+import CreateAgencyStub from "./pages/CreateAgencyStub";
+import Invitations from "./pages/Invitations";
 
 import { ClientPortalLayout } from "./pages/ClientPortalLayout";
 import ClientLogin from "./pages/client/ClientLogin";
@@ -180,6 +185,48 @@ const App = () => {
                 element={
                   <ProtectedRoute>
                     <Onboarding />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Bootstrap / tenancy selection */}
+              <Route
+                path="/bootstrap"
+                element={
+                  <ProtectedRoute>
+                    <Bootstrap />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/welcome"
+                element={
+                  <ProtectedRoute>
+                    <Welcome />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/select-agency"
+                element={
+                  <ProtectedRoute>
+                    <SelectAgency />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/create-agency"
+                element={
+                  <ProtectedRoute>
+                    <CreateAgencyStub />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/invitations"
+                element={
+                  <ProtectedRoute>
+                    <Invitations />
                   </ProtectedRoute>
                 }
               />

@@ -22,6 +22,47 @@ export function useSubscription() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  const fetchSubscriptionRow = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('subscriptions')
+      .select('*')
+      .eq('user_id', user!.id)
+      .maybeSingle();
+
+    if (error) throw error;
+    return (data as Subscription | null) ?? null;
+  }, [user]);
+
+  const ensureSubscriptionRow = useCallback(async () => {
+    // If auth session isn't established yet, PostgREST will behave like anon and RLS will hide rows.
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData.session?.access_token) return null;
+
+    const existing = await fetchSubscriptionRow();
+    if (existing) return existing;
+
+    // Create "free" subscription for this user (idempotent via onConflict=user_id).
+    const { error: upsertError } = await supabase
+      .from('subscriptions')
+      .upsert(
+        {
+          user_id: user!.id,
+          plan_type: 'free',
+          status: 'active',
+        },
+        { onConflict: 'user_id' },
+      );
+
+    if (upsertError) {
+      // If another process created it (e.g., edge function) treat as success and refetch.
+      const msg = (upsertError as any)?.message ?? '';
+      const code = (upsertError as any)?.code ?? '';
+      if (code !== '23505' && !/duplicate key/i.test(msg)) throw upsertError;
+    }
+
+    return await fetchSubscriptionRow();
+  }, [fetchSubscriptionRow, user]);
+
   const refreshSubscription = useCallback(async () => {
     if (!user) return;
 
@@ -49,22 +90,14 @@ export function useSubscription() {
         console.warn('[useSubscription] No valid session token, skipping edge function call');
       }
 
-      // Fetch updated subscription from database
-      const { data: subData, error: subError } = await supabase
-        .from('subscriptions')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
-
-      if (!subError && subData) {
-        setSubscription(subData as Subscription);
-      }
+      const row = await ensureSubscriptionRow();
+      if (row) setSubscription(row);
     } catch (err) {
       console.error('[useSubscription] Error refreshing subscription:', err);
     } finally {
       setRefreshing(false);
     }
-  }, [user]);
+  }, [ensureSubscriptionRow, user]);
 
   useEffect(() => {
     if (!user) {
@@ -75,33 +108,8 @@ export function useSubscription() {
 
     const fetchSubscription = async () => {
       try {
-        const { data, error } = await supabase
-          .from('subscriptions')
-          .select('*')
-          .eq('user_id', user.id)
-          .single();
-
-        if (error) {
-          console.error('Error fetching subscription:', error);
-          // Create default free subscription if doesn't exist
-          const { data: newSub, error: insertError } = await supabase
-            .from('subscriptions')
-            .insert({
-              user_id: user.id,
-              plan_type: 'free',
-              status: 'active',
-            })
-            .select()
-            .single();
-
-          if (insertError) {
-            console.error('Error creating subscription:', insertError);
-          } else {
-            setSubscription(newSub as Subscription);
-          }
-        } else {
-          setSubscription(data as Subscription);
-        }
+        const row = await ensureSubscriptionRow();
+        if (row) setSubscription(row);
 
         // Refresh from Stripe on initial load
         await refreshSubscription();

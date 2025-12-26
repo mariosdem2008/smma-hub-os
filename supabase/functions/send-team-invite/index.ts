@@ -16,7 +16,8 @@ const corsHeaders = {
 };
 
 interface TeamInviteRequest {
-  inviteToken: string;
+  inviteToken?: string;
+  invite_token?: string;
   resend?: boolean;
 }
 
@@ -26,7 +27,9 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { inviteToken, resend: allowResend = false }: TeamInviteRequest = await req.json();
+    const body: TeamInviteRequest = await req.json();
+    const inviteToken = body.inviteToken ?? body.invite_token;
+    const allowResend = body.resend ?? false;
 
     if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !SUPABASE_SERVICE_ROLE_KEY) {
       return new Response(
@@ -109,7 +112,7 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    if (new Date(invite.expires_at) <= new Date()) {
+    if (invite.expires_at && new Date(invite.expires_at) <= new Date()) {
       return new Response(
         JSON.stringify({ success: false, code: "E410_EXPIRED", error: "Invite expired" }),
         { status: 410, headers: { "Content-Type": "application/json", ...corsHeaders } },
@@ -192,7 +195,10 @@ const handler = async (req: Request): Promise<Response> => {
       .maybeSingle();
     const inviterName = inviterProfile?.full_name || inviterProfile?.email || "A team member";
 
-    const inviteUrl = `${PUBLIC_URL}/invite/${inviteToken}`;
+    // Canonical flow: user signs in, then reviews/accepts invites from /invitations.
+    // Token links remain an optional shortcut route in the app, but we avoid them in email.
+    const inviteUrl = `${PUBLIC_URL}/invitations`;
+    const expiryText = invite.expires_at ? new Date(invite.expires_at).toLocaleString() : null;
     const emailResponse = await resend.emails.send({
       from: "SMMAHUB <invites@smmahub.net>",
       to: [invite.email],
@@ -212,9 +218,16 @@ const handler = async (req: Request): Promise<Response> => {
               <strong>${inviterName}</strong> has invited you to join <strong>${agency.name}</strong> as a <strong>${invite.role}</strong> on SMMAHUB.
             </p>
             
-            <p style="font-size: 16px; color: #333; line-height: 1.6; margin-bottom: 30px;">
-              Click the button below to accept your invitation. This link expires on ${new Date(invite.expires_at).toLocaleString()}.
-            </p>
+             <p style="font-size: 16px; color: #333; line-height: 1.6; margin-bottom: 12px;">
+               Click the button below to sign in and view your invitation.
+             </p>
+             ${
+               expiryText
+                 ? `<p style="font-size: 14px; color: #666; line-height: 1.6; margin-bottom: 30px;">
+                      Your invitation expires on ${expiryText}.
+                    </p>`
+                 : `<div style="height: 18px;"></div>`
+             }
             
             <div style="text-align: center; margin: 40px 0;">
               <a href="${inviteUrl}" 
@@ -226,9 +239,9 @@ const handler = async (req: Request): Promise<Response> => {
                         font-weight: 600;
                         display: inline-block;
                         box-shadow: 0 4px 12px rgba(78, 93, 255, 0.3);">
-                Accept Invitation
-              </a>
-            </div>
+                 View Invitation
+               </a>
+             </div>
             
             <p style="font-size: 12px; color: #666; text-align: center; margin: 0;">
               If you didn't expect this invitation, you can ignore this email.

@@ -17,8 +17,6 @@ import {
   getOwnerSubscriptionPlan,
   getProfileByEmail,
   isUserAgencyMember,
-  hasPendingInvite,
-  getUserFullName,
   updateAgencyMemberRole,
   removeAgencyMember,
   getAgencyMemberIdsByUserIds,
@@ -70,13 +68,13 @@ interface PendingInvite {
   id: string;
   email: string;
   role: string;
-  token: string;
+  token: string | null;
   created_at: string;
-  expires_at: string;
+  expires_at: string | null;
   accepted: boolean;
 }
 
-const ROLES = ["admin", "manager", "creator", "viewer"];
+const ROLES = ["admin", "manager", "member"];
 
 export default function Team() {
   const { user } = useAuth();
@@ -117,7 +115,7 @@ export default function Team() {
 
       setAgencyId(agency.id);
       setAgencyName(agency.name);
-      setIsOwner(true);
+      setIsOwner(agency.user_id === user.id);
       
       // Get owner's subscription plan
       const plan = await getOwnerSubscriptionPlan(agency.user_id);
@@ -182,35 +180,21 @@ export default function Team() {
         }
       }
 
-      // Check for pending invites
-      const hasPending = await hasPendingInvite(agencyId, inviteEmail);
-
-      if (hasPending) {
-        toast({
-          title: "Invite Already Sent",
-          description: "This email already has a pending invitation",
-          variant: "destructive",
-        });
-        setSubmitting(false);
-        return;
-      }
-
       // Create invite using data layer
       const inviteRow = await createAgencyInvite(inviteEmail, inviteRole);
 
-      const link = `${window.location.origin}/invite/${inviteRow.token}`;
+      const link = inviteRow.token ? `${window.location.origin}/invite/${inviteRow.token}` : "";
       setInviteLink(link);
-      setShowInviteLink(true);
-
-      // Get user's profile for name
-      const fullName = await getUserFullName(user?.id || "");
+      setShowInviteLink(Boolean(inviteRow.token));
 
       // Send email invitation using data layer
-      const emailResult = await sendTeamInviteEmail({
-        inviteToken: inviteRow.token,
-      });
+      const emailResult = inviteRow.token
+        ? await sendTeamInviteEmail({
+            inviteToken: inviteRow.token,
+          })
+        : { success: false };
 
-      if (emailResult.success) {
+      if ((emailResult as any).success) {
         toast({
           title: "Success",
           description: "Invitation created and email sent successfully",
@@ -218,7 +202,9 @@ export default function Team() {
       } else {
         toast({
           title: "Invitation Created",
-          description: "Invitation link created, but email could not be sent. Please share the link manually.",
+          description: inviteRow.token
+            ? "Invitation link created, but email could not be sent. Please share the link manually."
+            : "Invitation created, but no link is available to share.",
         });
       }
 
@@ -244,7 +230,12 @@ export default function Team() {
     });
   };
 
-  const handleCopyInviteLink = (token: string) => {
+  const handleCopyInviteLink = (token: string | null) => {
+    if (!token) {
+      toast({ title: "No link available", description: "This invite does not have a token link to copy." });
+      return;
+    }
+
     const link = `${window.location.origin}/invite/${token}`;
     navigator.clipboard.writeText(link);
     toast({
@@ -273,7 +264,8 @@ export default function Team() {
     }
   };
 
-  const getInviteStatus = (expiresAt: string) => {
+  const getInviteStatus = (expiresAt: string | null) => {
+    if (!expiresAt) return "Pending";
     const now = new Date();
     const expiry = new Date(expiresAt);
     return expiry > now ? "Pending" : "Expired";
@@ -346,7 +338,11 @@ export default function Team() {
         return "default";
       case "manager":
         return "secondary";
+      case "member":
+        return "outline";
+      // Back-compat display for older roles
       case "creator":
+      case "viewer":
         return "outline";
       default:
         return "outline";

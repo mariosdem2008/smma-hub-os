@@ -48,6 +48,31 @@ Deleted:
 
 ## Feature Inventory
 
+## Bootstrap + Agency Creation (Current)
+
+### Post-auth Bootstrap Routing
+- Default post-login route is `/bootstrap` (`src/lib/auth.tsx`, `src/pages/Auth.tsx`).
+- Bootstrap pages:
+  - `/bootstrap` (runs bootstrap checks, auto-accepts pending invites, routes) — `src/pages/Bootstrap.tsx`
+  - `/welcome` (join-or-create) — `src/pages/Welcome.tsx`
+  - `/select-agency` (picker for multi-agency) — `src/pages/SelectAgency.tsx`
+  - `/create-agency` (static agency onboarding + creation) — `src/pages/CreateAgencyStub.tsx`
+- Guard behavior:
+  - `ProtectedRoute` requires `localStorage.activeAgencyId` for protected app pages and sends users to `/bootstrap` when missing (`src/components/ProtectedRoute.tsx`).
+  - Legacy `/onboarding` is no longer the default entry point for new users.
+
+### DB / RPCs (Bootstrap + Create Agency)
+- Bootstrap + invite auto-accept RPCs:
+  - `public.get_user_agency_bootstrap()` (memberships + pending_invites)
+  - `public.accept_pending_agency_invites()` (accepts pending invites for `auth.users.email`)
+  - Migration: `supabase/migrations/20251225201500_bootstrap_rpcs.sql`
+- Create agency (secure):
+  - `public.create_agency_with_admin(_name, _website)` returns `agency_id`, inserts `agency_members` with `role='admin'` for `auth.uid()`
+  - Migration: `supabase/migrations/20251225210000_agency_onboarding_and_create_agency_rpc.sql`
+- Agency onboarding persistence:
+  - Table: `public.agency_onboarding_sessions`
+  - Grant migration: `supabase/migrations/20251225210100_grant_agency_onboarding_sessions.sql`
+
 | Area | Feature | Status | Evidence | Notes |
 |------|---------|--------|----------|-------|
 | **ONBOARDING** |
