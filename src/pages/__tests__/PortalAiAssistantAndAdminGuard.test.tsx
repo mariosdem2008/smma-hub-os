@@ -98,7 +98,7 @@ describe("Client portal AI + admin guard", () => {
     );
 
     expect(await screen.findByText("Dashboard")).toBeInTheDocument();
-    expect(screen.queryByText("Agency AI")).not.toBeInTheDocument();
+    expect(screen.queryByText("Chats")).not.toBeInTheDocument();
   });
 
   it("allows admin access to Agency AI route", async () => {
@@ -112,9 +112,8 @@ describe("Client portal AI + admin guard", () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByText("Agency AI")).toBeInTheDocument();
-    expect(screen.getByText("Sessions")).toBeInTheDocument();
-    expect(screen.getByText("Revelation Chat (v1)")).toBeInTheDocument();
+    expect(await screen.findByText("Chats")).toBeInTheDocument();
+    expect(screen.getByText("New chat")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Message the agency AI")).toBeInTheDocument();
   });
 });
-

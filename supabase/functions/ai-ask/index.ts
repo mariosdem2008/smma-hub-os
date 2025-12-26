@@ -3,6 +3,8 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
 import { embedText } from "../_shared/embeddings.ts";
+import { ai } from "../../../src/ai/router.ts";
+import { TaskType } from "../../../src/ai/taskTypes.ts";
 
 const TOKEN_CAP = 6000;
 const DAILY_LIMIT = 20;
@@ -383,56 +385,49 @@ serve(async (req: Request) => {
     MAX_CONTEXT_CHARS,
   );
 
-  const systemPrompt =
-    "You are an AI assistant. Answer strictly using the provided context. If context is insufficient, respond with UNKNOWN.";
-  const userPrompt = `Question: ${question}\n\nContext:\n${context}\n\nReturn JSON: {"answer":"", "unknown": false, "questions": [], "confidence": 0-100}`;
-
   let responsePayload = buildUnknown([
     "What additional details should the agency provide to answer this accurately?",
   ]);
 
   try {
-    const aiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${embeddingApiKey}`,
-        "Content-Type": "application/json",
+    const aiResult = await ai.run({
+      taskType: TaskType.CLIENT_PORTAL_QA,
+      input: question,
+      context: {
+        agencyId,
+        clientId,
+        userId: user.id,
+        environment: "prod",
+        supabase,
       },
-      body: JSON.stringify({
-        model: Deno.env.get("RAG_MODEL_ID") ?? "gpt-4o-mini",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        temperature: 0.2,
-      }),
+      metadata: { context },
     });
 
-    if (aiResponse.ok) {
-      const aiData = await aiResponse.json();
-      const content = aiData?.choices?.[0]?.message?.content ?? "";
-      const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || content.match(/```\n([\s\S]*?)\n```/);
-      const rawJson = jsonMatch ? jsonMatch[1] : content;
-      const parsed = JSON.parse(rawJson);
-      responsePayload = {
-        answer: parsed.answer || "UNKNOWN",
-        unknown: Boolean(parsed.unknown),
-        questions: parsed.questions || [],
-        confidence: parsed.confidence ?? 0,
-        sources: {
-          agency_brain_fields: [],
-          client_brain_fields: [],
-          memory_citations: matches.map((row: any) => ({
-            doc_type: row.doc_type,
-            document_id: row.document_id,
-            chunk_id: row.chunk_id,
-            score: row.score,
-          })),
-        },
-        escalate_to_human: false,
-        escalation_reason: null,
-      };
-    }
+    const parsed = (aiResult.output ?? {}) as {
+      answer?: string;
+      unknown?: boolean;
+      questions?: string[];
+      confidence?: number;
+    };
+
+    responsePayload = {
+      answer: parsed.answer || "UNKNOWN",
+      unknown: Boolean(parsed.unknown),
+      questions: parsed.questions || [],
+      confidence: parsed.confidence ?? 0,
+      sources: {
+        agency_brain_fields: [],
+        client_brain_fields: [],
+        memory_citations: matches.map((row: any) => ({
+          doc_type: row.doc_type,
+          document_id: row.document_id,
+          chunk_id: row.chunk_id,
+          score: row.score,
+        })),
+      },
+      escalate_to_human: false,
+      escalation_reason: null,
+    };
   } catch {
     responsePayload = buildUnknown([
       "Unable to generate a grounded answer. Please add more context.",
@@ -456,18 +451,6 @@ serve(async (req: Request) => {
     unknown: responsePayload.unknown,
     escalate_to_human: responsePayload.escalate_to_human ?? false,
     escalation_reason: responsePayload.escalation_reason ?? null,
-  });
-
-  await supabase.from("ai_usage_logs").insert({
-    agency_id: agencyId,
-    client_id: clientId ?? null,
-    endpoint: "ai-ask",
-    model: Deno.env.get("RAG_MODEL_ID") ?? "gpt-4o-mini",
-    tokens_estimate: tokenEstimate,
-    tokens_in: tokenEstimate,
-    tokens_out: 0,
-    latency_ms: latency,
-    unknown: responsePayload.unknown,
   });
 
   await supabase

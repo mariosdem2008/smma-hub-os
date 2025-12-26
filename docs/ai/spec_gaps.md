@@ -23,7 +23,14 @@
 3) Decide where to surface `client_brains.usable` in Dashboard/Clients readiness summaries once Brain Spine v1 is live.
 4) Confirm where client onboarding "platforms" should be stored in ClientBrain (needs a dedicated field).
 5) Define the actual Strategy generation endpoint implementation (currently gate-only).
-6) Confirm strategy generation prompt + model ID for production (currently defaulting to gpt-4o-mini).
+6) Confirm strategy generation prompt + model ID for production (currently defaulting to gpt-5-mini).
 7) Provide OPENAI_API_KEY in Supabase secrets to enable real embeddings + strategy generation.
 8) Resolved (2025-12-24): Added tenant-safe RPC `get_client_brain_status` for `client_brains` gating with safe fields only.
 9) Resolved (2025-12-24): Onboarding uses edge functions for brain IDs and no longer reads `agency_brains`/`client_brains` directly in the client.
+10) Define policy for internal notes exposure in client portal QA (default is conservative but no final rule yet).
+11) Confirm structured output contract for onboarding option generation (array shape + required keys).
+12) Confirm if plan-based model routing should enforce limits or only influence model selection (currently pass-through only).
+13) Define required fields for setup_progress_v1.missing_fields and how progress_percent should be computed across guided setup.
+14) Decide canonical AI logging tables (ai_usage_logs/ai_runs) and migration plan for legacy ai_history/ai_generation_usage.
+15) Define model source-of-truth: prompt registry vs model policy, and ensure logged model matches runtime model.
+16) Decide embedding failure behavior in ingestion (hard fail vs zero-vector fallback).

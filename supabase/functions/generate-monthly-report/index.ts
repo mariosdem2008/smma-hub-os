@@ -2,6 +2,8 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
+import { ai } from "../../../src/ai/router.ts";
+import { TaskType } from "../../../src/ai/taskTypes.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -167,36 +169,19 @@ Data:
 Keep insights concise and recommendations specific and actionable.`;
 
       try {
-        const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${OPENAI_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'gpt-4o-mini',
-            messages: [
-              { 
-                role: 'system', 
-                content: 'You are a social media analytics expert providing actionable insights.' 
-              },
-              { role: 'user', content: aiPrompt },
-            ],
-            temperature: 0.7,
-          }),
+        const aiResult = await ai.run({
+          taskType: TaskType.SUMMARIZE,
+          input: aiPrompt,
+          context: { agencyId: agency_id, clientId: client_id, userId: user.id, environment: "prod", supabase: supabaseClient },
+          metadata: { systemPrompt: 'You are a social media analytics expert providing actionable insights.' },
         });
+        const content = aiResult.text;
 
-        if (aiResponse.ok) {
-          const aiData = await aiResponse.json();
-          const content = aiData.choices[0].message.content;
-          
-          // Split into insights and recommendations
-          const parts = content.split(/recommendations?:/i);
-          aiInsights = parts[0].replace(/insights?:/i, '').trim();
-          aiRecommendations = parts[1]?.trim() || '';
-          
-          console.log('[MONTHLY-REPORT] AI insights generated');
-        }
+        const parts = content.split(/recommendations?:/i);
+        aiInsights = parts[0].replace(/insights?:/i, '').trim();
+        aiRecommendations = parts[1]?.trim() || '';
+
+        console.log('[MONTHLY-REPORT] AI insights generated');
       } catch (error) {
         console.error('[MONTHLY-REPORT] AI generation failed:', error);
       }

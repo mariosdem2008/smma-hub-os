@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 
-type ChatMessage = { role: "user" | "assistant"; content: string };
+type Suggestion = { id: string; label: string; user_message: string };
+type ChatMessage = { role: "user" | "assistant"; content: string; suggestions?: Suggestion[] };
 
 export default function AiRepChatTab({ clientId }: { clientId: string }) {
   const { toast } = useToast();
@@ -14,8 +15,8 @@ export default function AiRepChatTab({ clientId }: { clientId: string }) {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
 
-  async function send() {
-    const text = input.trim();
+  async function send(nextMessage?: string) {
+    const text = (nextMessage ?? input).trim();
     if (!text || sending) return;
 
     setSending(true);
@@ -29,7 +30,14 @@ export default function AiRepChatTab({ clientId }: { clientId: string }) {
       if (error) throw new Error(error.message);
 
       const reply = (data?.assistant_message as string | undefined) ?? "UNKNOWN\n\nWhat should we focus on?";
-      setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: reply,
+          suggestions: Array.isArray(data?.suggestions) ? (data.suggestions as Suggestion[]) : [],
+        },
+      ]);
     } catch (err: any) {
       toast({
         title: "AI Rep error",
@@ -38,7 +46,7 @@ export default function AiRepChatTab({ clientId }: { clientId: string }) {
       });
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: "UNKNOWN\n\nI couldn't send that. Please try again." },
+        { role: "assistant", content: "UNKNOWN\n\nI couldn't send that. Please try again.", suggestions: [] },
       ]);
     } finally {
       setSending(false);
@@ -50,15 +58,30 @@ export default function AiRepChatTab({ clientId }: { clientId: string }) {
       <Card className="p-4">
         <div className="space-y-3 max-h-[55vh] overflow-auto">
           {messages.map((m, idx) => (
-            <div
-              key={idx}
-              className={
-                m.role === "user"
-                  ? "ml-auto w-fit max-w-[85%] rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground"
-                  : "mr-auto w-fit max-w-[85%] rounded-lg bg-muted px-3 py-2 text-sm text-foreground"
-              }
-            >
-              <pre className="whitespace-pre-wrap font-sans">{m.content}</pre>
+            <div key={idx} className="space-y-2">
+              <div
+                className={
+                  m.role === "user"
+                    ? "ml-auto w-fit max-w-[85%] rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground"
+                    : "mr-auto w-fit max-w-[85%] rounded-lg bg-muted px-3 py-2 text-sm text-foreground"
+                }
+              >
+                <pre className="whitespace-pre-wrap font-sans">{m.content}</pre>
+              </div>
+              {m.role === "assistant" && m.suggestions && m.suggestions.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {m.suggestions.map((suggestion) => (
+                    <button
+                      key={suggestion.id}
+                      onClick={() => send(suggestion.user_message)}
+                      className="rounded-full border px-3 py-1 text-xs text-muted-foreground transition-transform hover:scale-[1.02] hover:bg-muted active:scale-[0.98]"
+                      disabled={sending}
+                    >
+                      {suggestion.label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </div>
           ))}
         </div>
@@ -71,11 +94,10 @@ export default function AiRepChatTab({ clientId }: { clientId: string }) {
           onChange={(e) => setInput(e.target.value)}
           placeholder="Message the AI Representative…"
         />
-        <Button onClick={send} disabled={sending || input.trim().length === 0}>
+        <Button onClick={() => send()} disabled={sending || input.trim().length === 0}>
           Send
         </Button>
       </div>
     </div>
   );
 }
-

@@ -1,4 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { ai } from "../../../src/ai/router.ts";
+import { TaskType } from "../../../src/ai/taskTypes.ts";
 
 export const DEFAULT_EMBEDDING_DIM = 1536;
 
@@ -31,25 +33,13 @@ export function buildChunks(
 }
 
 export async function embedText(text: string, apiKey: string, model: string) {
-  const response = await fetch("https://api.openai.com/v1/embeddings", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      input: text,
-    }),
+  const result = await ai.run({
+    taskType: TaskType.EMBED_TEXT,
+    input: text,
+    context: { environment: "prod" },
+    metadata: { modelOverride: model },
   });
-
-  if (!response.ok) {
-    const message = await response.text();
-    throw new Error(`Embedding API error: ${response.status} ${message}`);
-  }
-
-  const payload = await response.json();
-  const vector = payload?.data?.[0]?.embedding;
+  const vector = result.output;
   if (!Array.isArray(vector)) {
     throw new Error("Embedding API response missing vector");
   }

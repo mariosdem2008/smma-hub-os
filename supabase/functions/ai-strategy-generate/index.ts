@@ -4,6 +4,8 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
 import { evaluateClientBrainForStrategy } from "../_shared/brain-quality.ts";
 import { buildChunks, DEFAULT_EMBEDDING_DIM, embedText, tokenize } from "../_shared/embeddings.ts";
+import { ai } from "../../../src/ai/router.ts";
+import { TaskType } from "../../../src/ai/taskTypes.ts";
 
 function jsonResponse(body: unknown, status = 200, headers: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
@@ -195,48 +197,21 @@ serve(async (req: Request) => {
     );
   }
 
-  const clientBrain = (brainRow.brain_json as any) ?? {};
-  const agencyBrain = (agencyBrainRow?.brain_json as any) ?? {};
-
   const context = truncate(
     matches.map((row: any) => `(${row.doc_type}) ${row.chunk_text}`).join("\n\n"),
     6000,
   );
 
-  const systemPrompt =
-    "You are a strategy assistant. Use only the provided brains and context. If missing, respond UNKNOWN.";
-  const userPrompt = `Agency Brain:\n${JSON.stringify(agencyBrain)}\n\nClient Brain:\n${JSON.stringify(
-    clientBrain,
-  )}\n\nContext:\n${context}\n\nReturn JSON: {"summary":"", "sections":[{"title":"", "content":""}], "confidence":0-100}`;
-
-  const aiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${embeddingApiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: Deno.env.get("STRATEGY_MODEL_ID") ?? "gpt-4o-mini",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      temperature: 0.2,
-    }),
-  });
-
-  if (!aiResponse.ok) {
-    await supabase.from("ai_usage_logs").insert({
-      agency_id: agencyId,
-      client_id: clientId,
-      endpoint: "ai-strategy-generate",
-      model: "strategy-generation-failed",
-      tokens_estimate: 0,
-      tokens_in: 0,
-      tokens_out: 0,
-      latency_ms: Date.now() - startTime,
-      unknown: true,
+  let parsed: { summary?: string; sections?: any[] } = {};
+  try {
+    const aiResult = await ai.run({
+      taskType: TaskType.STRATEGY_PLAN,
+      input: "",
+      context: { agencyId, clientId, userId: user.id, environment: "prod", supabase },
+      metadata: { context },
     });
+    parsed = (aiResult.output ?? {}) as { summary?: string; sections?: any[] };
+  } catch {
     return jsonResponse(
       buildUnknownResponse({
         missing_fields: ["strategy_generation"],
@@ -246,12 +221,6 @@ serve(async (req: Request) => {
       corsHeaders(req),
     );
   }
-
-  const aiData = await aiResponse.json();
-  const content = aiData?.choices?.[0]?.message?.content ?? "{}";
-  const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || content.match(/```\n([\s\S]*?)\n```/);
-  const rawJson = jsonMatch ? jsonMatch[1] : content;
-  const parsed = JSON.parse(rawJson);
 
   const strategy = {
     summary: parsed.summary || "",

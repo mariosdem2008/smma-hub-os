@@ -2,6 +2,13 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
+import { ai } from "../../../src/ai/router.ts";
+import { TaskType } from "../../../src/ai/taskTypes.ts";
+import {
+  buildOnboardingAudiencePrompt,
+  buildOnboardingDifferentiatorsPrompt,
+  buildOnboardingOffersPrompt,
+} from "../../../src/ai/prompts/onboardingGuide.ts";
 
 const FN_VERSION = "1.0.0";
 
@@ -312,37 +319,12 @@ async function generateOptionsWithAI(
 
 async function generateOffersWithAI(website: string, niche: string, openaiKey: string): Promise<Option[]> {
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${openaiKey}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content: "You are a marketing strategist. Generate 8 concise offer descriptions (max 6 words each) based on website/niche. Return ONLY valid JSON array: [{\"id\":\"offer1\",\"label\":\"...\"},...]. No markdown, no explanation."
-          },
-          {
-            role: "user",
-            content: `Website: ${website}\nNiche: ${niche}\n\nGenerate 8 typical offers/services for this business.`
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 400
-      })
+    const aiResult = await ai.run({
+      taskType: TaskType.EXTRACT_STRUCTURED,
+      messages: buildOnboardingOffersPrompt({ website, niche }),
+      context: { environment: "prod" },
     });
-
-    if (!response.ok) {
-      console.error("OpenAI API error:", await response.text());
-      return getDefaultOffers(niche);
-    }
-
-    const data = await response.json();
-    const content = data.choices[0].message.content.trim();
-    const parsed = JSON.parse(content);
+    const parsed = Array.isArray(aiResult.output) ? aiResult.output : [];
 
     if (Array.isArray(parsed) && parsed.length > 0) {
       return parsed.slice(0, 8);
@@ -369,37 +351,12 @@ function getDefaultOffers(niche: string): Option[] {
 
 async function generateAudienceWithAI(niche: string, offers: string[], openaiKey: string): Promise<Option[]> {
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${openaiKey}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content: "You are a marketing strategist. Generate 5 target audience personas (max 8 words each) based on niche/offers. Return ONLY valid JSON array: [{\"id\":\"persona1\",\"label\":\"...\"},...]. No markdown."
-          },
-          {
-            role: "user",
-            content: `Niche: ${niche}\nOffers: ${offers.join(", ")}\n\nGenerate 5 target audience personas.`
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 300
-      })
+    const aiResult = await ai.run({
+      taskType: TaskType.EXTRACT_STRUCTURED,
+      messages: buildOnboardingAudiencePrompt({ niche, offers }),
+      context: { environment: "prod" },
     });
-
-    if (!response.ok) {
-      console.error("OpenAI API error:", await response.text());
-      return getDefaultAudience();
-    }
-
-    const data = await response.json();
-    const content = data.choices[0].message.content.trim();
-    const parsed = JSON.parse(content);
+    const parsed = Array.isArray(aiResult.output) ? aiResult.output : [];
 
     if (Array.isArray(parsed) && parsed.length > 0) {
       return parsed.slice(0, 5);
@@ -423,37 +380,12 @@ function getDefaultAudience(): Option[] {
 
 async function generateDifferentiatorsWithAI(brand: string, niche: string, openaiKey: string): Promise<Option[]> {
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${openaiKey}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content: "You are a marketing strategist. Generate 6 potential brand differentiators (max 10 words each) based on brand/niche. Return ONLY valid JSON array: [{\"id\":\"diff1\",\"label\":\"...\"},...]. No markdown."
-          },
-          {
-            role: "user",
-            content: `Brand: ${brand}\nNiche: ${niche}\n\nGenerate 6 potential differentiators.`
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 350
-      })
+    const aiResult = await ai.run({
+      taskType: TaskType.EXTRACT_STRUCTURED,
+      messages: buildOnboardingDifferentiatorsPrompt({ brand, niche }),
+      context: { environment: "prod" },
     });
-
-    if (!response.ok) {
-      console.error("OpenAI API error:", await response.text());
-      return getDefaultDifferentiators();
-    }
-
-    const data = await response.json();
-    const content = data.choices[0].message.content.trim();
-    const parsed = JSON.parse(content);
+    const parsed = Array.isArray(aiResult.output) ? aiResult.output : [];
 
     if (Array.isArray(parsed) && parsed.length > 0) {
       return parsed.slice(0, 6);

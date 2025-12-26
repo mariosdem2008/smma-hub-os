@@ -134,6 +134,7 @@ serve(async (req: Request) => {
   return jsonResponse(
     {
       assistant_message: decision.assistant_message,
+      suggestions: decision.suggestions,
       used_sections: decision.used_sections,
       unknown: decision.unknown,
     },

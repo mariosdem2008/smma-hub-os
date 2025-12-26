@@ -6,7 +6,7 @@ import { PostCreateAgencyCta } from "@/components/PostCreateAgencyCta";
 
 function LocationDisplay() {
   const location = useLocation();
-  return <div data-testid="location">{location.pathname}</div>;
+  return <div data-testid="location">{`${location.pathname}${location.search}`}</div>;
 }
 
 describe("PostCreateAgencyCta", () => {
@@ -16,8 +16,7 @@ describe("PostCreateAgencyCta", () => {
 
   afterEach(() => cleanup());
 
-  it("shows admin CTA and routes to /ai/admin", async () => {
-    sessionStorage.setItem("postCreateAgencyCta", "1");
+  it("shows CTA for admin when setup incomplete and routes to guided onboarding", async () => {
     const user = userEvent.setup();
 
     render(
@@ -28,7 +27,7 @@ describe("PostCreateAgencyCta", () => {
             element={
               <>
                 <LocationDisplay />
-                <PostCreateAgencyCta isAdmin />
+                <PostCreateAgencyCta isAdmin aiSetupComplete={false} />
               </>
             }
           />
@@ -37,10 +36,18 @@ describe("PostCreateAgencyCta", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText("Open Agency AI Setup (Admin)")).toBeTruthy();
-    await user.click(screen.getByRole("button", { name: "Open Agency AI Setup (Admin)" }));
-    expect(screen.getByTestId("location").textContent).toBe("/ai/admin");
-    expect(sessionStorage.getItem("postCreateAgencyCta")).toBeNull();
+    expect(screen.getByText("Finish AI Setup")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Open AI Setup" }));
+    expect(screen.getByTestId("location").textContent).toBe("/ai/admin?mode=guided_onboarding");
+  });
+
+  it("hides CTA for non-admin", () => {
+    render(
+      <MemoryRouter>
+        <PostCreateAgencyCta isAdmin={false} aiSetupComplete={false} />
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByText("Finish AI Setup")).toBeNull();
   });
 });
-

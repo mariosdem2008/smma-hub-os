@@ -119,7 +119,6 @@ describe("create agency onboarding flow", () => {
 
     await waitFor(() => expect(screen.getByTestId("location").textContent).toBe("/dashboard"));
     expect(window.localStorage.getItem("activeAgencyId")).toBe("agency-1");
-    expect(window.sessionStorage.getItem("postCreateAgencyCta")).toBe("1");
+    expect(window.sessionStorage.getItem("postCreateAgencyCta")).toBeNull();
   });
 });
-

@@ -2,6 +2,7 @@ import type { ClientBriefV1 } from "./client-brief-v1.ts";
 
 export type AiRepChatResult = {
   assistant_message: string;
+  suggestions: Array<{ id: string; label: string; user_message: string }>;
   used_sections: string[];
   unknown: boolean;
 };
@@ -49,6 +50,10 @@ export function decideAiRepResponse(opts: {
       unknown: true,
       used_sections,
       assistant_message: `UNKNOWN\n\n${missing.question}`,
+      suggestions: [
+        { id: "core-offer", label: "Core offer", user_message: "Core offer: " },
+        { id: "primary-audience", label: "Primary audience", user_message: "Primary audience: " },
+      ],
     };
   }
 
@@ -63,6 +68,10 @@ export function decideAiRepResponse(opts: {
     assistant_message:
       `Got it. For ${audience}, we’ll focus on ${offer}. ` +
       `Key pillars: ${pillars}. What would you like to do next?`,
+    suggestions: [
+      { id: "content-ideas", label: "Content ideas", user_message: "Generate 10 content ideas based on the pillars." },
+      { id: "weekly-plan", label: "Weekly plan", user_message: "Draft a 7-day content plan for this client." },
+      { id: "positioning", label: "Positioning recap", user_message: "Summarize the client's positioning in 3 bullets." },
+    ],
   };
 }
-

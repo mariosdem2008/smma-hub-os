@@ -239,7 +239,6 @@ export default function CreateAgencyStub() {
 
       await persistSession("forbidden", true);
 
-      sessionStorage.setItem("postCreateAgencyCta", "1");
       navigate("/dashboard", { replace: true });
     } catch (err: any) {
       toast({

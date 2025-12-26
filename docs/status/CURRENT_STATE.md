@@ -53,10 +53,11 @@ Deleted:
 ### Post-auth Bootstrap Routing
 - Default post-login route is `/bootstrap` (`src/lib/auth.tsx`, `src/pages/Auth.tsx`).
 - Bootstrap pages:
-  - `/bootstrap` (runs bootstrap checks, auto-accepts pending invites, routes) — `src/pages/Bootstrap.tsx`
-  - `/welcome` (join-or-create) — `src/pages/Welcome.tsx`
-  - `/select-agency` (picker for multi-agency) — `src/pages/SelectAgency.tsx`
-  - `/create-agency` (static agency onboarding + creation) — `src/pages/CreateAgencyStub.tsx`
+  - `/bootstrap` (runs bootstrap checks, auto-accepts pending invites, routes) - `src/pages/Bootstrap.tsx`
+  - `/welcome` (join-or-create) - `src/pages/Welcome.tsx`
+  - `/select-agency` (picker for multi-agency) - `src/pages/SelectAgency.tsx`
+  - `/create-agency` (static agency onboarding + creation) - `src/pages/CreateAgencyStub.tsx`
+  - `/dashboard` (admin CTA to finish AI setup when incomplete) - `src/pages/Dashboard.tsx`
 - Guard behavior:
   - `ProtectedRoute` requires `localStorage.activeAgencyId` for protected app pages and sends users to `/bootstrap` when missing (`src/components/ProtectedRoute.tsx`).
   - Legacy `/onboarding` is no longer the default entry point for new users.
@@ -80,7 +81,7 @@ Deleted:
 | | Onboarding Session Persistence | **DONE** | Table: `client_onboarding_sessions`<br>Migration: `20251224150000_client_onboarding_sessions.sql`<br>Grants: `20251224160000_grant_client_onboarding_sessions.sql` | ✅ Cross-device resume<br>✅ RLS policies active<br>✅ Auto-updated timestamp |
 | | Onboarding V1 (Chat) | **DELETED** | ❌ File removed: `AiOnboardingChat.tsx` | Completely removed |
 | | Onboarding V2 (Chat) | **DELETED** | ❌ File removed: `AiOnboardingV2Chat.tsx` | Completely removed |
-| | Agency AI Onboarding | **TODO** | ❌ Route removed: `/ai/onboarding/agency`<br>❌ File deleted: `AiOnboardingAgency.tsx` | Currently no agency brain onboarding UI |
+| | Agency AI Onboarding | **PARTIAL** | ✅ CTA: `src/components/PostCreateAgencyCta.tsx`<br>✅ Dashboard surface: `src/pages/Dashboard.tsx`<br>Route: `/ai/admin?mode=guided_onboarding` | Admins see "Finish AI Setup" CTA when setup incomplete; continues via AI chat (no dedicated form UI yet) |
 | **AI BRAINS** |
 | | Client Brain Create/Update | **DONE** | Edge function: `ai-brains-client/index.ts`<br>Table: `client_brains` (from `20251224090000_brain_spine_v1.sql`)<br>RPC: `get_client_brain_status` | ✅ CRUD operations<br>✅ Versioning<br>✅ Status tracking (draft/usable)<br>✅ Lock mechanism |
 | | Agency Brain Create/Update | **DONE** | Edge function: `ai-brains-agency/index.ts`<br>Table: `agency_brains` | ✅ CRUD operations<br>✅ Versioning |
@@ -317,10 +318,10 @@ REVIEW_STEPS = [
    - Evidence: Test stderr warnings about v7 future flags
    - Mitigation: Enable future flags or upgrade
 
-2. **No agency brain onboarding UI**
-   - Impact: Agency brains must be created manually
-   - Evidence: Route `/ai/onboarding/agency` removed, no replacement
-   - Mitigation: Build agency onboarding flow or admin tool
+2. **Agency AI onboarding is chat-only**
+   - Impact: No structured form flow; guided setup lives in admin chat
+   - Evidence: CTA to `/ai/admin?mode=guided_onboarding`, no `/ai/onboarding/agency` route
+   - Mitigation: Add a dedicated guided UI if needed
 
 3. **Uncommitted V3 onboarding work**
    - Impact: Feature branch diverged from main, risk of conflicts

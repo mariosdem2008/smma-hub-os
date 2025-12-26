@@ -2,6 +2,8 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
+import { ai } from "../../../src/ai/router.ts";
+import { TaskType } from "../../../src/ai/taskTypes.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -170,106 +172,29 @@ serve(async (req: { method: string; headers: { get: (arg0: string) => any; }; js
       );
     }
 
-    // Build prompts based on mode
-    let systemPrompt = '';
-    let userPrompt = '';
-    const brandInfo = brand_context || '';
-
-    switch (mode) {
-      case 'ideas':
-        systemPrompt = 'You are a creative content strategist. Generate innovative, actionable content ideas.';
-        userPrompt = `Generate 5 content ideas for ${platform || 'social media'}. ${brandInfo}
-        
-Return as JSON array: [{"title": "...", "description": "..."}]`;
-        break;
-
-      case 'hook':
-        systemPrompt = 'You are an expert copywriter. Generate attention-grabbing hooks for social media content.';
-        userPrompt = `Generate 5 powerful hooks for ${platform || 'social media'} content. ${brandInfo}
-        
-Return as JSON array: [{"text": "..."}]`;
-        break;
-
-      case 'caption':
-        systemPrompt = 'You are an expert social media content creator. Generate engaging captions optimized for the platform.';
-        userPrompt = `Generate 3 captions for ${platform || 'social media'}. ${brandInfo}
-        
-Return as JSON array: [{"text": "..."}]`;
-        break;
-
-      case 'script':
-        systemPrompt = 'You are a video script writer. Generate engaging video scripts with clear structure.';
-        userPrompt = `Generate 3 video script variations for ${platform || 'social media'}. ${brandInfo}
-        
-Each script should have:
-- Hook (first 3 seconds)
-- Body (main content)
-- CTA (call to action)
-
-Return as JSON array: [{"text": "..."}]`;
-        break;
-
-      case 'rewrite':
-        systemPrompt = 'You are an expert editor. Improve the given text while maintaining its core message.';
-        userPrompt = `Improve this text for ${platform || 'social media'}: "${input_text}"
-        
-${brandInfo}
-
-Return as JSON array with 3 variations: [{"text": "..."}]`;
-        break;
-    }
-
-    console.log('[AI-CONTENT] Calling OpenAI API...');
-    const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        temperature: 0.8,
-      }),
-    });
-
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error('[AI-CONTENT] OpenAI API error:', aiResponse.status, errorText);
-      
+    console.log('[AI-CONTENT] Calling AI router...');
+    let suggestions;
+    try {
+      const aiResult = await ai.run({
+        taskType: TaskType.CONTENT_IDEAS,
+        input: "",
+        context: { agencyId: agency_id, clientId: client_id, userId: user.id, environment: "prod", supabase: supabaseClient },
+        metadata: {
+          mode,
+          platform,
+          brand_context,
+          input_text,
+        },
+      });
+      suggestions = aiResult.output ?? [];
+    } catch (e) {
+      console.error('[AI-CONTENT] AI generation failed:', e);
       return new Response(
         JSON.stringify({ 
           success: false,
           error: 'AI generation failed. Please try again.' 
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log('[AI-CONTENT] Parsing AI response...');
-    const aiData = await aiResponse.json();
-    const content = aiData.choices[0].message.content;
-
-    // Parse the JSON response
-    let suggestions;
-    try {
-      const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || content.match(/```\n([\s\S]*?)\n```/);
-      const jsonStr = jsonMatch ? jsonMatch[1] : content;
-      suggestions = JSON.parse(jsonStr);
-    } catch (e) {
-      console.error('[AI-CONTENT] Failed to parse AI response:', content);
-      return new Response(
-        JSON.stringify({ 
-          success: false,
-          error: 'Failed to parse AI response. Please try again.' 
-        }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
       );
     }
 
