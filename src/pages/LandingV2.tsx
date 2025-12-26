@@ -263,7 +263,7 @@ export default function LandingV2() {
                 </Badge>
 
                 <h1 className="text-4xl font-semibold leading-tight tracking-tight sm:text-5xl md:text-6xl">
-                  Manage More Clients With Less Work
+                  Agencies Game Changer
                 </h1>
 
                 <p className="mt-6 text-lg text-muted-foreground">
