@@ -32,16 +32,35 @@ export type PromptBuilderArgs = {
   };
 };
 
-export type TaskConfig = {
+type TaskConfigBase = {
   taskType: TaskType;
   outputMode: OutputMode;
   safetyMode: SafetyMode;
   promptBuilder?: (args: PromptBuilderArgs) => ChatMessage[];
   requires: BrainRequirements;
   usageEndpoint: string;
-  schema?: OutputSchema<unknown>;
   buildUnknown?: (args: { reason: string }) => unknown;
 };
+
+type FreeformTaskConfig = TaskConfigBase & {
+  outputMode: "freeform";
+  freeformReason: string;
+  schema?: undefined;
+};
+
+type JsonSchemaTaskConfig = TaskConfigBase & {
+  outputMode: "json_schema";
+  schema: OutputSchema<unknown>;
+  freeformReason?: undefined;
+};
+
+type EmbeddingTaskConfig = TaskConfigBase & {
+  outputMode: "embedding";
+  schema?: undefined;
+  freeformReason?: undefined;
+};
+
+export type TaskConfig = FreeformTaskConfig | JsonSchemaTaskConfig | EmbeddingTaskConfig;
 
 const DEFAULT_UNKNOWN_RESPONSE = { answer: "UNKNOWN", unknown: true, questions: ["What additional context is required?"], confidence: 0 };
 
@@ -49,6 +68,7 @@ export const TASK_REGISTRY: Record<TaskType, TaskConfig> = {
   [TaskType.CHAT_GENERAL]: {
     taskType: TaskType.CHAT_GENERAL,
     outputMode: "freeform",
+    freeformReason: "General chat returns conversational text without a rigid schema.",
     safetyMode: "normal",
     promptBuilder: (args) => buildChatGeneralPrompt({ input: args.input ?? "" }),
     requires: { agency: false, client: false },
@@ -57,6 +77,7 @@ export const TASK_REGISTRY: Record<TaskType, TaskConfig> = {
   [TaskType.CHAT_ADMIN_ONBOARDING]: {
     taskType: TaskType.CHAT_ADMIN_ONBOARDING,
     outputMode: "freeform",
+    freeformReason: "Admin onboarding chat uses conversational replies for guided setup.",
     safetyMode: "strict_unknown",
     promptBuilder: (args) => buildChatGeneralPrompt({ input: args.input ?? "" }),
     requires: { agency: true, client: false },
@@ -103,6 +124,7 @@ export const TASK_REGISTRY: Record<TaskType, TaskConfig> = {
   [TaskType.AGENCY_ADMIN_GENERAL_CHAT]: {
     taskType: TaskType.AGENCY_ADMIN_GENERAL_CHAT,
     outputMode: "freeform",
+    freeformReason: "Admin chat uses conversational output with suggestion parsing.",
     safetyMode: "strict_unknown",
     promptBuilder: (args) =>
       buildAdminGeneralChatPrompt({
@@ -151,6 +173,7 @@ export const TASK_REGISTRY: Record<TaskType, TaskConfig> = {
   [TaskType.SUMMARIZE]: {
     taskType: TaskType.SUMMARIZE,
     outputMode: "freeform",
+    freeformReason: "Report summarization produces narrative text for email/PDF rendering.",
     safetyMode: "normal",
     promptBuilder: (args) =>
       buildSummarizePrompt({
