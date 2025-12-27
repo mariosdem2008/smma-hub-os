@@ -7,6 +7,9 @@ import { buildChunks, DEFAULT_EMBEDDING_DIM, embedText, tokenize } from "../_sha
 import { embedWithPolicy } from "../_shared/embedding-policy.ts";
 import { ai } from "../../../src/ai/router.ts";
 import { TaskType } from "../../../src/ai/taskTypes.ts";
+import { applyRagPolicy, getRagConfig, shouldUseRagPolicy } from "../../../src/ai/ragPolicy.ts";
+import { validateCitations } from "../../../src/ai/citations.ts";
+import { calculateCost } from "../_shared/budgets.ts";
 
 function jsonResponse(body: unknown, status = 200, headers: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
@@ -37,6 +40,18 @@ function truncate(text: string, limit: number) {
   return `${text.slice(0, limit)}...`;
 }
 
+function estimateTokensForCost(text: string) {
+  return Math.ceil(text.length / 3);
+}
+
+function extractUsageFromRaw(raw: unknown) {
+  const usage = (raw as any)?.usage;
+  const inputTokens = usage?.prompt_tokens ?? usage?.input_tokens;
+  const outputTokens = usage?.completion_tokens ?? usage?.output_tokens;
+  if (typeof inputTokens !== "number" && typeof outputTokens !== "number") return undefined;
+  return { inputTokens, outputTokens };
+}
+
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders(req) });
@@ -63,6 +78,7 @@ serve(async (req: Request) => {
   }
 
   const startTime = Date.now();
+  const strictSchema = Deno.env.get("AI_SCHEMA_STRICT") === "true";
   const failHard = Deno.env.get("AI_EMBEDDING_FAIL_HARD") === "true";
   const body = await req.json().catch(() => ({}));
   const agencyId = body.agency_id as string | undefined;
@@ -148,6 +164,8 @@ serve(async (req: Request) => {
   }
 
   const embeddingModel = Deno.env.get("EMBEDDING_MODEL_ID") ?? "text-embedding-3-small";
+  const useRagPolicy = shouldUseRagPolicy({ agencyId, clientId });
+  const ragConfig = getRagConfig(TaskType.STRATEGY_PLAN);
   let queryEmbedding: number[];
   try {
     queryEmbedding = await embedText("strategy_draft", embeddingApiKey, embeddingModel);
@@ -158,28 +176,32 @@ serve(async (req: Request) => {
     throw error;
   }
 
+  const legacyClientDocTypes = ["client_guidelines", "client_notes", "approved_posts", "ai_artifact", "strategy_draft"];
+  const legacyAgencyDocTypes = ["agency_sop"];
+  const legacyExemplarDocTypes = ["agency_exemplar_strategy"];
+
   const { data: clientMatches } = await supabase.rpc("match_ai_embeddings", {
     p_agency_id: agencyId,
     p_client_id: clientId,
     p_query_embedding: queryEmbedding,
-    p_match_count: 6,
-    p_doc_types: ["client_guidelines", "client_notes", "approved_posts", "ai_artifact", "strategy_draft"],
+    p_match_count: useRagPolicy ? ragConfig.client_memory_top_k : 6,
+    p_doc_types: useRagPolicy ? ragConfig.client_doc_types : legacyClientDocTypes,
   });
 
   const { data: agencyMatches } = await supabase.rpc("match_ai_embeddings", {
     p_agency_id: agencyId,
     p_client_id: null,
     p_query_embedding: queryEmbedding,
-    p_match_count: 4,
-    p_doc_types: ["agency_sop"],
+    p_match_count: useRagPolicy ? ragConfig.agency_memory_top_k : 4,
+    p_doc_types: useRagPolicy ? ragConfig.agency_doc_types : legacyAgencyDocTypes,
   });
 
   const { data: exemplarMatches } = await supabase.rpc("match_ai_embeddings", {
     p_agency_id: agencyId,
     p_client_id: null,
     p_query_embedding: queryEmbedding,
-    p_match_count: 2,
-    p_doc_types: ["agency_exemplar_strategy"],
+    p_match_count: useRagPolicy ? ragConfig.exemplar_top_k : 2,
+    p_doc_types: useRagPolicy ? ragConfig.exemplar_doc_types : legacyExemplarDocTypes,
   });
 
   const matches = [
@@ -210,10 +232,16 @@ serve(async (req: Request) => {
     );
   }
 
-  const context = truncate(
-    matches.map((row: any) => `(${row.doc_type}) ${row.chunk_text}`).join("\n\n"),
-    6000,
-  );
+  const fullContext = matches.map((row: any) => `(${row.doc_type}) ${row.chunk_text}`).join("\n\n");
+  const legacyContext = truncate(fullContext, 6000);
+  const legacyContextTruncated = fullContext.length > 6000;
+  const ragResult = useRagPolicy ? applyRagPolicy(matches, ragConfig) : null;
+  const context = ragResult?.context ?? legacyContext;
+  const selectedMatches = ragResult?.selectedMatches ?? matches;
+  const contextTruncated = ragResult?.contextTruncated ?? legacyContextTruncated;
+  const retrievalCount = ragResult?.retrievalCount ?? matches.length;
+  const docTypesUsed = ragResult?.docTypesUsed ?? Array.from(new Set(matches.map((row: any) => row.doc_type)));
+  const ragPolicyVersion = useRagPolicy ? "v1" : "legacy";
 
   let parsed: { summary?: string; sections?: any[] } = {};
   try {
@@ -240,7 +268,7 @@ serve(async (req: Request) => {
     sections: Array.isArray(parsed.sections) ? parsed.sections : [],
   };
 
-  const citations = matches.map((row: any) => ({
+  const citations = selectedMatches.map((row: any) => ({
     doc_type: row.doc_type,
     document_id: row.document_id,
     chunk_id: row.chunk_id,
@@ -324,14 +352,94 @@ serve(async (req: Request) => {
     }
   }
 
+  const usage = extractUsageFromRaw(aiResult?.raw);
+  const runtimeModel = aiResult?.meta?.model ?? (Deno.env.get("STRATEGY_MODEL_ID") ?? "gpt-4o-mini");
+  const tokensIn = usage?.inputTokens ?? estimateTokensForCost(context);
+  const tokensOut = usage?.outputTokens ?? estimateTokensForCost(JSON.stringify(strategy));
+  const costUsd = calculateCost("openai", runtimeModel, tokensIn, tokensOut);
+  const costEstimationMethod = usage ? "token_based" : "estimate_chars_div3";
+
+  const citationsForRun = {
+    memory_citations: selectedMatches
+      .map((row: any) => ({
+        doc_id: row.document_id ?? row.doc_id,
+        chunk_id: row.chunk_id,
+        doc_type: row.doc_type,
+        similarity: row.score ?? row.similarity ?? 0,
+      }))
+      .filter((row: any) => typeof row.doc_id === "string"),
+    client_brain_fields: [],
+    agency_brain_fields: [],
+  };
+
+  const citationValidation = validateCitations(
+    { sources: citationsForRun, unknown: false, escalate_to_human: false },
+    selectedMatches,
+  );
+
+  if (!citationValidation.valid && strictSchema) {
+    await supabase.from("ai_runs").insert({
+      agency_id: agencyId,
+      client_id: clientId,
+      user_id: user.id,
+      prompt_id: null,
+      prompt_version: null,
+      model: runtimeModel,
+      tokens_in: tokensIn,
+      tokens_out: tokensOut,
+      cost_usd: costUsd,
+      latency_ms: Date.now() - startTime,
+      success: false,
+      citations: citationsForRun,
+      unknown: false,
+      escalate_to_human: false,
+      escalation_reason: null,
+      metadata: {
+        cost_estimation_method: costEstimationMethod,
+        retrieval_count: retrievalCount,
+        context_truncated: contextTruncated,
+        doc_types_used: docTypesUsed,
+        rag_policy_version: ragPolicyVersion,
+        citation_errors: citationValidation.errors,
+      },
+    });
+    return jsonResponse({ error: "Citation validation failed", code: "CITATION_VALIDATION_FAILED" }, 500, corsHeaders(req));
+  }
+
+  await supabase.from("ai_runs").insert({
+    agency_id: agencyId,
+    client_id: clientId,
+    user_id: user.id,
+    prompt_id: null,
+    prompt_version: null,
+    model: runtimeModel,
+    tokens_in: tokensIn,
+    tokens_out: tokensOut,
+    cost_usd: costUsd,
+    latency_ms: Date.now() - startTime,
+    success: true,
+    citations: citationsForRun,
+    unknown: false,
+    escalate_to_human: false,
+    escalation_reason: null,
+    metadata: {
+      cost_estimation_method: costEstimationMethod,
+      retrieval_count: retrievalCount,
+      context_truncated: contextTruncated,
+      doc_types_used: docTypesUsed,
+      rag_policy_version: ragPolicyVersion,
+      ...(citationValidation.valid ? {} : { citation_errors: citationValidation.errors }),
+    },
+  });
+
   await supabase.from("ai_usage_logs").insert({
     agency_id: agencyId,
     client_id: clientId,
     endpoint: "ai-strategy-generate",
-    model: Deno.env.get("STRATEGY_MODEL_ID") ?? "gpt-4o-mini",
+    model: runtimeModel,
     tokens_estimate: Math.ceil(JSON.stringify(strategy).length / 4),
-    tokens_in: Math.ceil(userPrompt.length / 4),
-    tokens_out: 0,
+    tokens_in: tokensIn,
+    tokens_out: tokensOut,
     latency_ms: Date.now() - startTime,
     unknown: false,
   });
