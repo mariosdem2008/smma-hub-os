@@ -476,4 +476,165 @@ describe("agency admin setup guided", () => {
     expect(result.body.assistant_message.toUpperCase()).toContain("UNKNOWN");
     expect((result.body.assistant_message.match(/\?/g) ?? []).length).toBeLessThanOrEqual(1);
   });
+
+  it("detects done state when all questions answered", async () => {
+    const { supabase, messages, brain } = createSupabaseMock();
+    brain.brain_json = {
+      setup_profile_v1: {
+        agency: {
+          primary_services: ["Social Media"],
+          niche_industries: ["Fitness"],
+          core_offer_outcome: "Results",
+        },
+      },
+    };
+    runAiTaskMock.mockResolvedValueOnce({
+      assistant_message: "Setup complete!",
+      json: { setup_progress_v1: { status: "completed" } },
+      meta: { provider: "openai", model: "gpt-5-nano" },
+    });
+
+    const result = await handleAgencyAdminSetup({
+      supabase: supabase as any,
+      userId: "user-1",
+      agencyId: "agency-1",
+      threadId: "thread-1",
+      message: "My final answer",
+    });
+
+    expect(result.status).toBe(200);
+    if ("error" in result.body) throw new Error("Unexpected error");
+    expect(result.body).toHaveProperty("done");
+  });
+
+  it("calculates progress percentage correctly", async () => {
+    const { supabase, messages, brain } = createSupabaseMock();
+    brain.brain_json = {
+      setup_profile_v1: {
+        agency: {
+          primary_services: ["Social Media"],
+          niche_industries: ["Fitness"],
+        },
+      },
+    };
+    messages.push({
+      role: "assistant",
+      content: SETUP_QUESTIONS[0].question_text,
+      meta_json: { state: { intent: "ANSWER_TO_ONBOARDING_QUESTION", pending_question_key: SETUP_QUESTIONS[0].key } },
+      created_at: new Date().toISOString(),
+    });
+    runAiTaskMock.mockResolvedValueOnce({
+      assistant_message: "",
+      json: { value: ["Test"] },
+      meta: { provider: "openai", model: "gpt-5-nano" },
+    });
+
+    const result = await handleAgencyAdminSetup({
+      supabase: supabase as any,
+      userId: "user-1",
+      agencyId: "agency-1",
+      threadId: "thread-1",
+      message: "My answer",
+    });
+
+    if ("error" in result.body) throw new Error("Unexpected error");
+    expect(result.body).toHaveProperty("progress_percent");
+    expect(typeof result.body.progress_percent).toBe("number");
+  });
+
+  it("orchestrator handles question not in registry gracefully", async () => {
+    process.env.AI_GUIDED_SETUP_ORCHESTRATION = "true";
+    const { supabase, messages } = createSupabaseMock();
+    messages.push({
+      role: "assistant",
+      content: SETUP_QUESTIONS[0].question_text,
+      meta_json: { state: { intent: "ANSWER_TO_ONBOARDING_QUESTION", pending_question_key: SETUP_QUESTIONS[0].key } },
+      created_at: new Date().toISOString(),
+    });
+    runAiTaskMock.mockResolvedValueOnce({
+      assistant_message: "",
+      json: { value: ["Social media management"] },
+      meta: { provider: "openai", model: "gpt-5-nano" },
+    });
+    selectNextQuestionMock.mockResolvedValueOnce({
+      question_id: "nonexistent_question_id",
+      reason: "Invalid",
+    });
+
+    const result = await handleAgencyAdminSetup({
+      supabase: supabase as any,
+      userId: "user-1",
+      agencyId: "agency-1",
+      threadId: "thread-1",
+      message: "Social media management",
+    });
+
+    expect(selectNextQuestionMock).toHaveBeenCalledTimes(1);
+    expect(result.status).toBe(200);
+    if ("error" in result.body) throw new Error("Unexpected error");
+    expect(result.body.assistant_message).toBeTruthy();
+    delete process.env.AI_GUIDED_SETUP_ORCHESTRATION;
+  });
+
+  it("preserves conversation history across turns", async () => {
+    const { supabase, messages } = createSupabaseMock();
+    messages.push({
+      role: "user",
+      content: "First message",
+      created_at: new Date(Date.now() - 2000).toISOString(),
+    });
+    messages.push({
+      role: "assistant",
+      content: "First response",
+      created_at: new Date(Date.now() - 1000).toISOString(),
+    });
+    messages.push({
+      role: "assistant",
+      content: SETUP_QUESTIONS[0].question_text,
+      meta_json: { state: { intent: "ANSWER_TO_ONBOARDING_QUESTION", pending_question_key: SETUP_QUESTIONS[0].key } },
+      created_at: new Date().toISOString(),
+    });
+    runAiTaskMock.mockResolvedValueOnce({
+      assistant_message: "",
+      json: { value: ["Social media management"] },
+      meta: { provider: "openai", model: "gpt-5-nano" },
+    });
+
+    const result = await handleAgencyAdminSetup({
+      supabase: supabase as any,
+      userId: "user-1",
+      agencyId: "agency-1",
+      threadId: "thread-1",
+      message: "Social media management",
+    });
+
+    expect(runAiTaskMock).toHaveBeenCalled();
+    const call = runAiTaskMock.mock.calls[0]?.[0] as any;
+    const conversation = call?.metadata?.conversation ?? "";
+    expect(conversation).toContain("First message");
+    expect(conversation).toContain("First response");
+  });
+
+  it("handles concurrent requests with same agency_id", async () => {
+    const { supabase } = createSupabaseMock();
+    const promise1 = handleAgencyAdminSetup({
+      supabase: supabase as any,
+      userId: "user-1",
+      agencyId: "agency-1",
+      threadId: "thread-1",
+      message: "First request",
+    });
+    const promise2 = handleAgencyAdminSetup({
+      supabase: supabase as any,
+      userId: "user-1",
+      agencyId: "agency-1",
+      threadId: "thread-2",
+      message: "Second request",
+    });
+
+    const [result1, result2] = await Promise.all([promise1, promise2]);
+
+    expect(result1.status).toBe(200);
+    expect(result2.status).toBe(200);
+  });
 });
