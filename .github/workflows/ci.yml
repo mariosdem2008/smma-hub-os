@@ -13,6 +13,37 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Reject large files (>10MB)
+        shell: bash
+        run: |
+          set -euo pipefail
+          max=$((10*1024*1024))
+          echo "Checking tracked files..."
+          tracked=$(git ls-files -z)
+          if [ -n "$tracked" ]; then
+            while IFS= read -r -d '' f; do
+              [ -f "$f" ] || continue
+              size=$(wc -c <"$f")
+              if [ "$size" -gt "$max" ]; then
+                echo "Tracked file too large: $size $f"
+                exit 1
+              fi
+            done < <(printf '%s' "$tracked")
+          fi
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "Checking PR diff..."
+            base="${{ github.event.pull_request.base.sha }}"
+            head="${{ github.event.pull_request.head.sha }}"
+            while IFS= read -r -d '' f; do
+              [ -f "$f" ] || continue
+              size=$(wc -c <"$f")
+              if [ "$size" -gt "$max" ]; then
+                echo "PR adds large file: $size $f"
+                exit 1
+              fi
+            done < <(git diff --name-only --diff-filter=AM -z "$base" "$head")
+          fi
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
