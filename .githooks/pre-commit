@@ -1,0 +1,20 @@
+#!/usr/bin/env sh
+set -eu
+
+max_bytes=10485760
+offenders=""
+
+git diff --cached --name-only --diff-filter=AM -z | while IFS= read -r -d '' file; do
+  [ -f "$file" ] || continue
+  size=$(wc -c <"$file" | tr -d ' ')
+  if [ "$size" -gt "$max_bytes" ]; then
+    offenders="${offenders}${size} ${file}\n"
+  fi
+done
+
+if [ -n "${offenders}" ]; then
+  echo "Error: staged file(s) exceed 10 MB limit (10485760 bytes):" >&2
+  printf "%b" "${offenders}" | awk '{printf "  - %s bytes  %s\n", $1, $2}' >&2
+  echo "Use Git LFS or external storage for large binaries." >&2
+  exit 1
+fi
