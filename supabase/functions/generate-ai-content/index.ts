@@ -222,6 +222,22 @@ serve(async (req: { method: string; headers: { get: (arg0: string) => any; }; js
     const tokensIn = usage?.inputTokens ?? estimateTokensForCost(inputText);
     const tokensOut = usage?.outputTokens ?? estimateTokensForCost(outputText);
     const costUsd = calculateCost("openai", runtimeModel, tokensIn, tokensOut);
+    const costEstimationMethod = usage ? "token_based" : "estimate_chars_div3";
+    const legacyLoggingEnabled = Deno.env.get("AI_LEGACY_LOGGING") === "true";
+
+    const inputPayload = {
+      mode,
+      project_id,
+      client_id,
+      platform,
+      brand_context,
+      input_text,
+    };
+
+    const outputPayload = {
+      suggestions,
+      generated_at: new Date().toISOString(),
+    };
 
     await logUsage(supabaseClient, {
       taskType: TaskType.CONTENT_IDEAS,
@@ -254,6 +270,14 @@ serve(async (req: { method: string; headers: { get: (arg0: string) => any; }; js
       unknown: false,
       escalate_to_human: false,
       escalation_reason: null,
+      metadata: {
+        cost_estimation_method: costEstimationMethod,
+        mode,
+        project_id: project_id ?? null,
+        input: inputPayload,
+        output: outputPayload,
+        legacy_source: "generate-ai-content",
+      },
     });
 
     const currentMonth = new Date().toISOString().slice(0, 7);
@@ -268,46 +292,34 @@ serve(async (req: { method: string; headers: { get: (arg0: string) => any; }; js
       await incrementBudget(supabaseClient, agency_id, currentMonth, costUsd, false);
     }
 
-    // Store in ai_history for audit
-    const inputPayload = {
-      mode,
-      project_id,
-      client_id,
-      platform,
-      brand_context,
-      input_text,
-    };
+    if (legacyLoggingEnabled) {
+      // Store in ai_history for audit (deprecated in Phase 2).
+      const { error: historyError } = await supabaseClient
+        .from('ai_history')
+        .insert({
+          agency_id,
+          client_id,
+          project_id: project_id || null,
+          mode,
+          input: inputPayload,
+          output: outputPayload,
+        });
 
-    const outputPayload = {
-      suggestions,
-      generated_at: new Date().toISOString(),
-    };
+      if (historyError) {
+        console.error('[AI-CONTENT] Failed to store history:', historyError);
+      }
 
-    const { error: historyError } = await supabaseClient
-      .from('ai_history')
-      .insert({
+      // Track usage (deprecated in Phase 2).
+      const { error: usageError } = await supabaseClient.from('ai_generation_usage').insert({
+        user_id: user.id,
         agency_id,
-        client_id,
-        project_id: project_id || null,
-        mode,
-        input: inputPayload,
-        output: outputPayload,
+        generation_type: mode,
+        month_year: currentMonth,
       });
 
-    if (historyError) {
-      console.error('[AI-CONTENT] Failed to store history:', historyError);
-    }
-
-    // Track usage
-    const { error: usageError } = await supabaseClient.from('ai_generation_usage').insert({
-      user_id: user.id,
-      agency_id,
-      generation_type: mode,
-      month_year: currentMonth,
-    });
-
-    if (usageError) {
-      console.error('[AI-CONTENT] Failed to record usage:', usageError);
+      if (usageError) {
+        console.error('[AI-CONTENT] Failed to record usage:', usageError);
+      }
     }
 
     // Update project fields based on mode (if project_id provided)

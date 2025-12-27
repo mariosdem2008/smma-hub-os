@@ -14,6 +14,7 @@ const CLIENT_MEMORY_TOP_K = 6;
 const AGENCY_MEMORY_TOP_K = 4;
 const EXEMPLAR_TOP_K = 2;
 const MAX_CONTEXT_CHARS = 6000;
+const DEFAULT_COST_ESTIMATION_METHOD = "estimate_chars_div3";
 
 function jsonResponse(body: unknown, status = 200, headers: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
@@ -180,6 +181,7 @@ serve(async (req: Request) => {
       unknown: true,
       escalate_to_human: false,
       escalation_reason: null,
+      metadata: { cost_estimation_method: DEFAULT_COST_ESTIMATION_METHOD },
     });
 
     return jsonResponse(responsePayload, 200, corsHeaders(req));
@@ -238,6 +240,7 @@ serve(async (req: Request) => {
       unknown: true,
       escalate_to_human: true,
       escalation_reason: responsePayload.escalation_reason,
+      metadata: { cost_estimation_method: DEFAULT_COST_ESTIMATION_METHOD },
     });
 
     return jsonResponse(responsePayload, 200, corsHeaders(req));
@@ -272,6 +275,7 @@ serve(async (req: Request) => {
       unknown: true,
       escalate_to_human: false,
       escalation_reason: null,
+      metadata: { cost_estimation_method: DEFAULT_COST_ESTIMATION_METHOD },
     });
 
     return jsonResponse(responsePayload, 200, corsHeaders(req));
@@ -306,6 +310,7 @@ serve(async (req: Request) => {
       unknown: true,
       escalate_to_human: false,
       escalation_reason: null,
+      metadata: { cost_estimation_method: DEFAULT_COST_ESTIMATION_METHOD },
     });
     await supabase.from("ai_usage_logs").insert({
       agency_id: agencyId,
@@ -376,6 +381,7 @@ serve(async (req: Request) => {
       unknown: true,
       escalate_to_human: false,
       escalation_reason: null,
+      metadata: { cost_estimation_method: DEFAULT_COST_ESTIMATION_METHOD },
     });
     await supabase.from("ai_usage_logs").insert({
       agency_id: agencyId,
@@ -445,6 +451,7 @@ serve(async (req: Request) => {
       unknown: true,
       escalate_to_human: true,
       escalation_reason: responsePayload.escalation_reason,
+      metadata: { cost_estimation_method: DEFAULT_COST_ESTIMATION_METHOD },
     });
 
     return jsonResponse(responsePayload, 200, corsHeaders(req));
@@ -506,6 +513,7 @@ serve(async (req: Request) => {
   const tokensIn = usage?.inputTokens ?? estimateTokensForCost(`${question}\n\n${context}`);
   const tokensOut = usage?.outputTokens ?? estimateTokensForCost(responsePayload.answer ?? "");
   const costUsd = calculateCost("openai", runtimeModel, tokensIn, tokensOut);
+  const costEstimationMethod = usage ? "token_based" : DEFAULT_COST_ESTIMATION_METHOD;
   const deltaAdjustment = costUsd - estimatedCostUsd;
   if (deltaAdjustment !== 0) {
     await incrementBudget(supabase, agencyId, monthKey, deltaAdjustment, false);
@@ -527,6 +535,7 @@ serve(async (req: Request) => {
     unknown: responsePayload.unknown,
     escalate_to_human: responsePayload.escalate_to_human ?? false,
     escalation_reason: responsePayload.escalation_reason ?? null,
+    metadata: { cost_estimation_method: costEstimationMethod },
   });
 
   return jsonResponse(responsePayload, 200, corsHeaders(req));

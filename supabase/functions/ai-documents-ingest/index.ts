@@ -3,6 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
 import { buildChunks, DEFAULT_EMBEDDING_DIM, embedText, tokenize } from "../_shared/embeddings.ts";
+import { embedWithPolicy } from "../_shared/embedding-policy.ts";
 
 const ALLOWED_DOC_TYPES = [
   "agency_exemplar_strategy",
@@ -53,6 +54,7 @@ serve(async (req: Request) => {
   }
 
   const startTime = Date.now();
+  const failHard = Deno.env.get("AI_EMBEDDING_FAIL_HARD") === "true";
   const body = await req.json().catch(() => ({}));
   const agencyId = body.agency_id as string | undefined;
   const clientId = body.client_id as string | undefined;
@@ -153,7 +155,24 @@ serve(async (req: Request) => {
       return jsonResponse({ error: chunkError?.message ?? "Failed to create chunk" }, 400, corsHeaders(req));
     }
 
-    const embeddingVector = embeddingApiKey ? await embedText(chunk.text, embeddingApiKey, embeddingModel) : zeroVector;
+    let embeddingResult;
+    try {
+      embeddingResult = await embedWithPolicy({
+        text: chunk.text,
+        apiKey: embeddingApiKey ?? undefined,
+        failHard,
+        embed: (text) => embedText(text, embeddingApiKey ?? "", embeddingModel),
+        zeroVector,
+      });
+    } catch (error: any) {
+      if (error?.code === "MISSING_API_KEY") {
+        return jsonResponse({ error: "OPENAI_API_KEY is not configured", code: "MISSING_API_KEY" }, 500, corsHeaders(req));
+      }
+      if (error?.code === "EMBEDDING_FAILED") {
+        return jsonResponse({ error: "Embedding failed", code: "EMBEDDING_FAILED" }, 500, corsHeaders(req));
+      }
+      throw error;
+    }
 
     const { error: embeddingError } = await supabase.from("ai_embeddings").insert({
       agency_id: agencyId,
@@ -161,12 +180,13 @@ serve(async (req: Request) => {
       doc_type: docType,
       document_id: documentRow.id,
       chunk_id: chunkRow.id,
-      embedding: embeddingVector,
+      embedding: embeddingResult.vector,
       model: embeddingModel,
       metadata: {
         similarity: "cosine",
         embedding_dim: DEFAULT_EMBEDDING_DIM,
-        embedding_fallback: !embeddingApiKey,
+        embedding_fallback: embeddingResult.legacyZeroVector,
+        legacy_zero_vector: embeddingResult.legacyZeroVector,
       },
     });
 

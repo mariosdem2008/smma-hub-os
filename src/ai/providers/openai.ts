@@ -1,10 +1,76 @@
 import { getEnvVar } from "../utils.ts"
 import type { EmbedParams, EmbedResult, GenerateParams, GenerateResult, GenerateStreamResult } from "./types.ts"
+import { CircuitBreaker, fetchWithRetry, fetchWithTimeout } from "./utils.ts"
 
 const OPENAI_BASE_URL = "https://api.openai.com/v1";
+const DEFAULT_TIMEOUT_MS = 30_000;
+const EMBED_TIMEOUT_MS = 10_000;
+const RETRY_BACKOFF_MS = [1_000, 2_000, 4_000];
+const circuitBreaker = new CircuitBreaker();
 
 function getApiKey() {
   return getEnvVar("OPENAI_API_KEY");
+}
+
+function readFlag(name: string, defaultValue = false) {
+  const value = getEnvVar(name);
+  if (value === undefined) return defaultValue;
+  return value.toLowerCase() === "true";
+}
+
+function timeoutsEnabled() {
+  return readFlag("AI_PROVIDER_TIMEOUTS", false);
+}
+
+function retriesEnabled() {
+  const retriesFlag = getEnvVar("AI_PROVIDER_RETRIES");
+  if (retriesFlag === undefined) return timeoutsEnabled();
+  return retriesFlag.toLowerCase() === "true";
+}
+
+function circuitBreakerEnabled() {
+  return readFlag("AI_CIRCUIT_BREAKER", false);
+}
+
+async function fetchWithPolicy(
+  url: string,
+  init: RequestInit,
+  options: { timeoutMs: number; stream?: boolean },
+): Promise<Response> {
+  if (!timeoutsEnabled()) {
+    return fetch(url, init);
+  }
+
+  if (circuitBreakerEnabled() && !circuitBreaker.canRequest()) {
+    const error = new Error("AI provider circuit breaker open") as Error & { code?: string };
+    error.code = "CIRCUIT_OPEN";
+    throw error;
+  }
+
+  try {
+    const response = options.stream || !retriesEnabled()
+      ? await fetchWithTimeout(url, init, options.timeoutMs)
+      : await fetchWithRetry(url, init, {
+          retries: 3,
+          backoffMs: RETRY_BACKOFF_MS,
+          timeoutMs: options.timeoutMs,
+        });
+
+    if (circuitBreakerEnabled()) {
+      if (response.ok) {
+        circuitBreaker.recordSuccess();
+      } else {
+        circuitBreaker.recordFailure();
+      }
+    }
+
+    return response;
+  } catch (error) {
+    if (circuitBreakerEnabled()) {
+      circuitBreaker.recordFailure();
+    }
+    throw error;
+  }
 }
 
 function extractTextFromChatCompletions(json: any): { text: string; model?: string } {
@@ -103,14 +169,14 @@ export async function generate(params: GenerateParams): Promise<GenerateResult> 
     if (!shouldOmitTemperature(params.model) && typeof params.temperature === "number") body.temperature = params.temperature;
     if (!shouldOmitTopP(params.model) && typeof params.top_p === "number") body.top_p = params.top_p;
 
-    const response = await fetch(`${OPENAI_BASE_URL}/chat/completions`, {
+    const response = await fetchWithPolicy(`${OPENAI_BASE_URL}/chat/completions`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(body),
-    });
+    }, { timeoutMs: params.timeoutMs ?? DEFAULT_TIMEOUT_MS });
 
     const json = await response.json().catch(() => ({}));
     if (!response.ok) {
@@ -150,14 +216,14 @@ export async function generate(params: GenerateParams): Promise<GenerateResult> 
   };
 
   const callResponses = async (body: any): Promise<GenerateResult> => {
-    const response = await fetch(`${OPENAI_BASE_URL}/responses`, {
+    const response = await fetchWithPolicy(`${OPENAI_BASE_URL}/responses`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(body),
-    });
+    }, { timeoutMs: params.timeoutMs ?? DEFAULT_TIMEOUT_MS });
 
     const json = await response.json().catch(() => ({}));
     if (!response.ok) {
@@ -291,14 +357,14 @@ export async function* generateStream(params: GenerateParams): GenerateStreamRes
   };
 
   const streamChatCompletions = async function* (omitTemp = false, omitTopP = false): GenerateStreamResult {
-    const response = await fetch(`${OPENAI_BASE_URL}/chat/completions`, {
+    const response = await fetchWithPolicy(`${OPENAI_BASE_URL}/chat/completions`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(buildChatBody(omitTemp, omitTopP)),
-    });
+    }, { timeoutMs: params.timeoutMs ?? DEFAULT_TIMEOUT_MS, stream: true });
 
     const firstText = response.body ? "" : await response.text().catch(() => "");
     if (!response.ok) {
@@ -324,14 +390,14 @@ export async function* generateStream(params: GenerateParams): GenerateStreamRes
   };
 
   const streamResponses = async function* (omitTemp = false, omitTopP = false): GenerateStreamResult {
-    const response = await fetch(`${OPENAI_BASE_URL}/responses`, {
+    const response = await fetchWithPolicy(`${OPENAI_BASE_URL}/responses`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(buildResponsesBody(omitTemp, omitTopP)),
-    });
+    }, { timeoutMs: params.timeoutMs ?? DEFAULT_TIMEOUT_MS, stream: true });
 
     const firstText = response.body ? "" : await response.text().catch(() => "");
     if (!response.ok) {
@@ -419,7 +485,7 @@ export async function embed(params: EmbedParams): Promise<EmbedResult> {
     throw new Error("OPENAI_API_KEY is not configured");
   }
 
-  const response = await fetch(`${OPENAI_BASE_URL}/embeddings`, {
+  const response = await fetchWithPolicy(`${OPENAI_BASE_URL}/embeddings`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -429,7 +495,7 @@ export async function embed(params: EmbedParams): Promise<EmbedResult> {
       model: params.model,
       input: params.input,
     }),
-  });
+  }, { timeoutMs: params.timeoutMs ?? EMBED_TIMEOUT_MS });
 
   const json = await response.json().catch(() => ({}));
   if (!response.ok) {

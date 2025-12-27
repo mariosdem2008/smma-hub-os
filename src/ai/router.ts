@@ -71,6 +71,23 @@ function shouldReturnUnknown(contextMissing: boolean, safetyMode: "strict_unknow
   return contextMissing && safetyMode === "strict_unknown";
 }
 
+function getTimeoutMs(taskType: TaskType) {
+  switch (taskType) {
+    case TaskType.EMBED_TEXT:
+      return 10_000;
+    case TaskType.STRATEGY_PLAN:
+    case TaskType.CLIENT_PORTAL_QA:
+      return 60_000;
+    case TaskType.SUMMARIZE:
+      return 45_000;
+    case TaskType.CHAT_GENERAL:
+    case TaskType.CONTENT_IDEAS:
+      return 30_000;
+    default:
+      return 30_000;
+  }
+}
+
 async function generateWithRetry(opts: {
   provider: { generate: (params: any) => Promise<GenerateResult> };
   params: any;
@@ -193,6 +210,7 @@ export function createAiRouter(deps: RouterDeps = {}) {
       const embeddingResult = await (provider as any).embed({
         model: modelConfig.model,
         input: options.input ?? "",
+        timeoutMs: getTimeoutMs(options.taskType),
       });
       const latencyMs = now() - start;
       await logUsage(supabase, {
@@ -235,6 +253,7 @@ export function createAiRouter(deps: RouterDeps = {}) {
         temperature: modelConfig.params?.temperature,
         max_tokens: modelConfig.params?.max_tokens,
         top_p: modelConfig.params?.top_p,
+        timeoutMs: getTimeoutMs(options.taskType),
       },
       schema,
       taskType: options.taskType,
@@ -369,6 +388,7 @@ export function createAiRouter(deps: RouterDeps = {}) {
       temperature: modelConfig.params?.temperature,
       max_tokens: modelConfig.params?.max_tokens,
       top_p: modelConfig.params?.top_p,
+      timeoutMs: getTimeoutMs(options.taskType),
     };
 
     let text = "";

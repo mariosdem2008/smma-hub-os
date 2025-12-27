@@ -9,6 +9,7 @@ export type GenerateParams = {
   temperature?: number;
   max_tokens?: number;
   top_p?: number;
+  timeoutMs?: number;
 };
 
 export type GenerateResult = {
@@ -29,6 +30,7 @@ export type GenerateStreamResult = AsyncIterable<GenerateStreamChunk>;
 export type EmbedParams = {
   model: string;
   input: string;
+  timeoutMs?: number;
 };
 
 export type EmbedResult = {
