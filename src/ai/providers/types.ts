@@ -13,6 +13,7 @@ export type GenerateParams = {
 
 export type GenerateResult = {
   text: string;
+  model?: string;
   usage?: { inputTokens?: number; outputTokens?: number };
   raw?: unknown;
 };

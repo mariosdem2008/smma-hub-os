@@ -7,8 +7,8 @@ function getApiKey() {
   return getEnvVar("OPENAI_API_KEY");
 }
 
-function extractTextFromChatCompletions(json: any): string {
-  return json?.choices?.[0]?.message?.content ?? "";
+function extractTextFromChatCompletions(json: any): { text: string; model?: string } {
+  return { text: json?.choices?.[0]?.message?.content ?? "", model: json?.model };
 }
 
 function extractUsageFromChatCompletions(json: any): { inputTokens?: number; outputTokens?: number } | undefined {
@@ -121,7 +121,13 @@ export async function generate(params: GenerateParams): Promise<GenerateResult> 
       throw error;
     }
 
-    return { text: extractTextFromChatCompletions(json), usage: extractUsageFromChatCompletions(json), raw: json };
+    const result = extractTextFromChatCompletions(json);
+    return {
+      text: result.text,
+      model: result.model ?? params.model,
+      usage: extractUsageFromChatCompletions(json),
+      raw: json,
+    };
   };
 
   const buildResponsesBody = (opts: { stripTemperature?: boolean; stripTopP?: boolean } = {}) => {
@@ -162,7 +168,12 @@ export async function generate(params: GenerateParams): Promise<GenerateResult> 
       throw error;
     }
 
-    return { text: extractTextFromResponses(json), usage: extractUsageFromResponses(json), raw: json };
+    return {
+      text: extractTextFromResponses(json),
+      model: json?.model ?? params.model,
+      usage: extractUsageFromResponses(json),
+      raw: json,
+    };
   };
 
   const tryResponses = async (): Promise<GenerateResult> => {

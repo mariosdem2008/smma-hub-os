@@ -76,17 +76,17 @@ async function generateWithRetry(opts: {
   params: any;
   schema?: OutputSchema<unknown>;
   taskType: TaskType;
-}): Promise<{ text: string; output?: unknown; raw?: unknown; usage?: GenerateResult["usage"] }> {
+}): Promise<{ text: string; output?: unknown; raw?: unknown; usage?: GenerateResult["usage"]; model?: string }> {
   const first = await opts.provider.generate(opts.params);
   if (!opts.schema) {
-    return { text: first.text, raw: first.raw, usage: first.usage };
+    return { text: first.text, raw: first.raw, usage: first.usage, model: first.model };
   }
 
   try {
     const parsed = extractJson(first.text);
     const validated = opts.schema.validate(parsed);
     if (validated.ok) {
-      return { text: first.text, output: validated.data, raw: first.raw, usage: first.usage };
+      return { text: first.text, output: validated.data, raw: first.raw, usage: first.usage, model: first.model };
     }
   } catch {
     // fall through to repair
@@ -105,7 +105,7 @@ async function generateWithRetry(opts: {
     const parsed = extractJson(retry.text);
     const validated = opts.schema.validate(parsed);
     if (validated.ok) {
-      return { text: retry.text, output: validated.data, raw: retry.raw, usage: retry.usage };
+      return { text: retry.text, output: validated.data, raw: retry.raw, usage: retry.usage, model: retry.model };
     }
   } catch {
     return {
@@ -113,6 +113,7 @@ async function generateWithRetry(opts: {
       output: buildUnknownResponse(opts.taskType, "schema_repair_failed"),
       raw: retry.raw,
       usage: retry.usage,
+      model: retry.model,
     };
   }
 
@@ -121,6 +122,7 @@ async function generateWithRetry(opts: {
     output: buildUnknownResponse(opts.taskType, "schema_repair_failed"),
     raw: retry.raw,
     usage: retry.usage,
+    model: retry.model,
   };
 }
 
@@ -239,11 +241,12 @@ export function createAiRouter(deps: RouterDeps = {}) {
     });
 
     const latencyMs = now() - start;
+    const runtimeModel = result.model ?? modelConfig.model;
     await logUsage(supabase, {
       taskType: options.taskType,
       endpoint: taskConfig.usageEndpoint,
       provider: modelConfig.provider,
-      model: modelConfig.model,
+      model: runtimeModel,
       agencyId: context.agencyId,
       clientId: context.clientId,
       latencyMs,
@@ -259,7 +262,7 @@ export function createAiRouter(deps: RouterDeps = {}) {
       output: result.output,
       raw: result.raw,
       unknown: result.text.startsWith("UNKNOWN"),
-      meta: { provider: modelConfig.provider, model: modelConfig.model },
+      meta: { provider: modelConfig.provider, model: runtimeModel },
     };
   }
 
