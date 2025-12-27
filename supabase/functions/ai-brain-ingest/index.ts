@@ -58,6 +58,28 @@ function buildClientSummary(brain: Record<string, any>) {
     .join(" ");
 }
 
+function buildAgencySummary(brain: Record<string, any>) {
+  const name = brain?.identity?.name || brain?.setup_profile_v1?.agency?.name || "Agency";
+  const offers = (brain?.identity?.offers || []).join("; ");
+  const services = (brain?.setup_profile_v1?.agency?.primary_services || []).join("; ");
+  const niches = (brain?.identity?.niches || brain?.setup_profile_v1?.agency?.niche_industries || []).join("; ");
+  const voice = (brain?.voice_tone?.adjectives || brain?.setup_profile_v1?.brand?.voice_adjectives || []).join(", ");
+  const pricing = brain?.setup_profile_v1?.agency?.pricing_structure || "";
+  const differentiators = brain?.setup_profile_v1?.agency?.unique_differentiators || "";
+
+  return [
+    `Agency: ${name}.`,
+    offers ? `Services: ${offers}.` : null,
+    services ? `Services: ${services}.` : null,
+    niches ? `Niches: ${niches}.` : null,
+    voice ? `Brand Voice: ${voice}.` : null,
+    pricing ? `Pricing: ${pricing}.` : null,
+    differentiators ? `Differentiators: ${differentiators}.` : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders(req) });
@@ -187,6 +209,84 @@ serve(async (req: Request) => {
       .eq("id", brainRow.id)
       .select("updated_at")
       .single();
+
+    const agencySummary = buildAgencySummary(agencyBrain);
+    if (agencySummary.trim().length > 0) {
+      const { data: docRow } = await supabase
+        .from("ai_documents")
+        .insert({
+          agency_id: agencyId,
+          client_id: null,
+          doc_type: "ai_artifact",
+          title: "Agency brain summary",
+          content: agencySummary,
+          extracted_text: agencySummary,
+          source: { source_type: "agency_brain", source_ref: brainRow.id },
+          metadata: { summary_type: "agency_brain_summary" },
+        })
+        .select("id")
+        .single();
+
+      if (docRow?.id) {
+        const tokens = tokenize(agencySummary);
+        const chunks = buildChunks(tokens, CHUNK_SIZE_TOKENS, OVERLAP_TOKENS, MAX_CHUNKS);
+        const embeddingApiKey = Deno.env.get("OPENAI_API_KEY");
+        const embeddingModel = Deno.env.get("EMBEDDING_MODEL_ID") ?? "text-embedding-3-small";
+        const zeroVector = Array(DEFAULT_EMBEDDING_DIM).fill(0);
+
+        for (let index = 0; index < chunks.length; index += 1) {
+          const chunk = chunks[index];
+          const { data: chunkRow } = await supabase
+            .from("ai_document_chunks")
+            .insert({
+              document_id: docRow.id,
+              chunk_index: index,
+              chunk_text: chunk.text,
+              token_count: chunk.tokenCount,
+              chunk_meta: { start_token: chunk.start, end_token: chunk.end },
+            })
+            .select("id")
+            .single();
+
+          if (!chunkRow?.id) continue;
+
+          let embeddingResult;
+          try {
+            embeddingResult = await embedWithPolicy({
+              text: chunk.text,
+              apiKey: embeddingApiKey ?? undefined,
+              failHard,
+              embed: (text) => embedText(text, embeddingApiKey ?? "", embeddingModel),
+              zeroVector,
+            });
+          } catch (error: any) {
+            if (error?.code === "MISSING_API_KEY") {
+              return jsonResponse({ error: "OPENAI_API_KEY is not configured", code: "MISSING_API_KEY" }, 500, corsHeaders(req));
+            }
+            if (error?.code === "EMBEDDING_FAILED") {
+              return jsonResponse({ error: "Embedding failed", code: "EMBEDDING_FAILED" }, 500, corsHeaders(req));
+            }
+            throw error;
+          }
+
+          await supabase.from("ai_embeddings").insert({
+            agency_id: agencyId,
+            client_id: null,
+            doc_type: "ai_artifact",
+            document_id: docRow.id,
+            chunk_id: chunkRow.id,
+            embedding: embeddingResult.vector,
+            model: embeddingModel,
+            metadata: {
+              similarity: "cosine",
+              embedding_dim: DEFAULT_EMBEDDING_DIM,
+              embedding_fallback: embeddingResult.legacyZeroVector,
+              legacy_zero_vector: embeddingResult.legacyZeroVector,
+            },
+          });
+        }
+      }
+    }
 
     return jsonResponse(
       { ok: true, scope, usable: true, missing_fields: [], updated_at: updated?.updated_at ?? null },
