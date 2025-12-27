@@ -8,6 +8,7 @@ import {
   getNextQuestion,
   getQuestionByKey,
 } from "./agency-admin-setup-questions.ts";
+import { selectNextAdminSetupQuestion } from "./agency-admin-setup-orchestrator.ts";
 import { buildAgencyContextSnapshot, buildAiContextSummary, fetchAgencyBrain, upsertAgencyBrain } from "./ai-context.ts";
 import { runAdminGeneralChatAi } from "./agency-admin-general-ai.ts";
 
@@ -596,6 +597,20 @@ function getAiMode() {
       ? process.env.AI_MODE
       : undefined;
   return env === "dev" ? "dev" : "prod";
+}
+
+function readEnvFlag(name: string) {
+  if (typeof Deno !== "undefined" && typeof Deno.env?.get === "function") {
+    return Deno.env.get(name);
+  }
+  if (typeof process !== "undefined") {
+    return process.env[name];
+  }
+  return undefined;
+}
+
+function isGuidedSetupOrchestrationEnabled() {
+  return readEnvFlag("AI_GUIDED_SETUP_ORCHESTRATION") === "true";
 }
 
 export function buildIntroPayload(): GuidedOutput {
@@ -1208,7 +1223,32 @@ export async function handleAgencyAdminSetup(opts: {
     updatedAnsweredKeys.add(pendingQuestion.key);
     const updatedProgress = computeProgress(updatedAnsweredKeys);
     const remaining = getMissingKeys(updatedAnsweredKeys);
-    const upcoming = getNextQuestion(updatedAnsweredKeys);
+    let upcoming = getNextQuestion(updatedAnsweredKeys);
+    if (isGuidedSetupOrchestrationEnabled()) {
+      try {
+        const selection = await selectNextAdminSetupQuestion({
+          supabase: opts.supabase,
+          agencyId: opts.agencyId,
+          userId: opts.userId,
+          answeredKeys: updatedAnsweredKeys,
+          contextSnapshot: snapshot,
+        });
+        if (selection?.question) {
+          upcoming = selection.question;
+        } else {
+          console.warn("guided_setup_orchestrator_invalid_output", {
+            thread_id: opts.threadId,
+            agency_id: opts.agencyId,
+          });
+        }
+      } catch (error) {
+        console.warn("guided_setup_orchestrator_failed", {
+          thread_id: opts.threadId,
+          agency_id: opts.agencyId,
+          message: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
     logSetupEvent("setup_transition", {
       thread_id: opts.threadId,
       from: pendingQuestion.key,

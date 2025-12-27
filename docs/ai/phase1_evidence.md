@@ -83,3 +83,23 @@
   - `npm run lint` -> PASS.
   - `npx tsc -p .` -> PASS.
   - `npm run build` -> PASS. Browserslist data warning; chunk size warning (existing).
+
+## TASK-002: Orchestration behind flag
+- Files changed:
+  - `supabase/functions/_shared/agency-admin-setup.ts`: Added AI_GUIDED_SETUP_ORCHESTRATION flag gate and orchestrator call with fallback to getNextQuestion.
+  - `supabase/functions/_shared/agency-admin-setup-orchestrator.ts`: Added orchestrator prompt builder + selection logic using registry + ai.run.
+  - `src/data/__tests__/agencyAdminSetupGuided.test.ts`: Added flag ON/OFF tests for orchestrator usage.
+  - `src/data/__tests__/agencyAdminSetupOrchestrator.test.ts`: Added prompt snapshot test for orchestrator prompt blocks.
+- Tests added/updated:
+  - `agency admin setup guided -> flag OFF uses hardcoded next question without orchestrator`
+  - `agency admin setup guided -> flag ON uses orchestrator result exactly once`
+  - `agency admin setup orchestrator prompt -> includes bootstrap summary, known/missing fields, registry, and retrieval snippets`
+- Proof:
+  - OFF path unchanged: when flag is false, handler uses `getNextQuestion(updatedAnsweredKeys)` and does not call orchestrator.
+  - ON path calls orchestrator once: when flag is true, `selectNextAdminSetupQuestion(...)` is invoked once per turn.
+  - Fallback exists: invalid orchestrator output logs warning and falls back to `getNextQuestion`.
+- Gates:
+  - `npm run test` -> PASS (31 files, 103 tests). React Router future-flag warnings in stderr.
+  - `npm run lint` -> PASS.
+  - `npx tsc -p .` -> PASS.
+  - `npm run build` -> PASS. Browserslist data warning; chunk size warning (existing).

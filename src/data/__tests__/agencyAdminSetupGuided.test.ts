@@ -1,9 +1,11 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { handleAgencyAdminSetup, buildIntroPayload, buildClarificationForOffers, isReadyConfirmation } from "../../../supabase/functions/_shared/agency-admin-setup";
 import { SETUP_QUESTIONS } from "../../../supabase/functions/_shared/agency-admin-setup-questions";
+import * as orchestrator from "../../../supabase/functions/_shared/agency-admin-setup-orchestrator";
 import * as aiRouter from "../../../supabase/functions/_shared/ai-router.ts";
 
 const runAiTaskMock = vi.spyOn(aiRouter, "runAiTask");
+const selectNextQuestionMock = vi.spyOn(orchestrator, "selectNextAdminSetupQuestion");
 
 function createSupabaseMock(opts?: {
   agency?: { id: string; name: string | null; website?: string | null; niche?: string | null } | null;
@@ -84,6 +86,7 @@ function createSupabaseMock(opts?: {
 
 beforeEach(() => {
   runAiTaskMock.mockReset();
+  selectNextQuestionMock.mockReset();
 });
 
 describe("agency admin setup guided", () => {
@@ -164,6 +167,68 @@ describe("agency admin setup guided", () => {
     if ("error" in result.body) throw new Error("Unexpected error response");
     expect(result.body.progress_percent).toBeGreaterThan(0);
     expect(result.body.assistant_message).toContain(SETUP_QUESTIONS[1].question_text);
+  });
+
+  it("flag OFF uses hardcoded next question without orchestrator", async () => {
+    process.env.AI_GUIDED_SETUP_ORCHESTRATION = "false";
+    const { supabase, messages } = createSupabaseMock();
+    messages.push({
+      role: "assistant",
+      content: SETUP_QUESTIONS[0].question_text,
+      meta_json: { state: { intent: "ANSWER_TO_ONBOARDING_QUESTION", pending_question_key: SETUP_QUESTIONS[0].key, pending_question_text: SETUP_QUESTIONS[0].question_text } },
+      created_at: new Date().toISOString(),
+    });
+    runAiTaskMock.mockResolvedValueOnce({
+      assistant_message: "",
+      json: { value: ["Social media management"] },
+      meta: { provider: "openai", model: "gpt-5-nano" },
+    });
+
+    const result = await handleAgencyAdminSetup({
+      supabase: supabase as any,
+      userId: "user-1",
+      agencyId: "agency-1",
+      threadId: "thread-1",
+      message: "Social media management",
+    });
+
+    expect(selectNextQuestionMock).not.toHaveBeenCalled();
+    if ("error" in result.body) throw new Error("Unexpected error response");
+    expect(result.body.assistant_message).toContain(SETUP_QUESTIONS[1].question_text);
+    delete process.env.AI_GUIDED_SETUP_ORCHESTRATION;
+  });
+
+  it("flag ON uses orchestrator result exactly once", async () => {
+    process.env.AI_GUIDED_SETUP_ORCHESTRATION = "true";
+    const { supabase, messages } = createSupabaseMock();
+    messages.push({
+      role: "assistant",
+      content: SETUP_QUESTIONS[0].question_text,
+      meta_json: { state: { intent: "ANSWER_TO_ONBOARDING_QUESTION", pending_question_key: SETUP_QUESTIONS[0].key, pending_question_text: SETUP_QUESTIONS[0].question_text } },
+      created_at: new Date().toISOString(),
+    });
+    runAiTaskMock.mockResolvedValueOnce({
+      assistant_message: "",
+      json: { value: ["Social media management"] },
+      meta: { provider: "openai", model: "gpt-5-nano" },
+    });
+    selectNextQuestionMock.mockResolvedValueOnce({
+      question: SETUP_QUESTIONS[2],
+      registryId: "deliverables_standard",
+    });
+
+    const result = await handleAgencyAdminSetup({
+      supabase: supabase as any,
+      userId: "user-1",
+      agencyId: "agency-1",
+      threadId: "thread-1",
+      message: "Social media management",
+    });
+
+    expect(selectNextQuestionMock).toHaveBeenCalledTimes(1);
+    if ("error" in result.body) throw new Error("Unexpected error response");
+    expect(result.body.assistant_message).toContain(SETUP_QUESTIONS[2].question_text);
+    delete process.env.AI_GUIDED_SETUP_ORCHESTRATION;
   });
 
   it("prefills context snapshot with agency name and website for extraction", async () => {
