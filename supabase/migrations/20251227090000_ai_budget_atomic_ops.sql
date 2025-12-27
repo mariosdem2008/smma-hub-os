@@ -1,7 +1,8 @@
 create or replace function public.ai_budget_apply_delta(
   p_agency_id uuid,
   p_month_yyyy_mm text,
-  p_delta_usd numeric
+  p_delta_usd numeric,
+  p_enforce boolean default true
 )
 returns table (
   allowed boolean,
@@ -32,7 +33,7 @@ begin
 
   v_new_spent := v_budget.spent_usd + p_delta_usd;
 
-  if v_budget.hard_stop and v_new_spent > v_budget.budget_usd then
+  if p_enforce and v_budget.hard_stop and v_new_spent >= v_budget.budget_usd then
     return query select false, v_budget.id, v_budget.spent_usd, v_budget.budget_usd, v_budget.hard_stop;
     return;
   end if;

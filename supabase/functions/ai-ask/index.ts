@@ -3,6 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
 import { embedText } from "../_shared/embeddings.ts";
+import { calculateCost, checkBudget, incrementBudget } from "../_shared/budgets.ts";
 import { ai } from "../../../src/ai/router.ts";
 import { TaskType } from "../../../src/ai/taskTypes.ts";
 
@@ -23,6 +24,18 @@ function jsonResponse(body: unknown, status = 200, headers: Record<string, strin
 
 function estimateTokens(text: string) {
   return Math.ceil(text.length / 4);
+}
+
+function estimateTokensForCost(text: string) {
+  return Math.ceil(text.length / 3);
+}
+
+function extractUsageFromRaw(raw: unknown) {
+  const usage = (raw as any)?.usage;
+  const inputTokens = usage?.prompt_tokens ?? usage?.input_tokens;
+  const outputTokens = usage?.completion_tokens ?? usage?.output_tokens;
+  if (typeof inputTokens !== "number" && typeof outputTokens !== "number") return undefined;
+  return { inputTokens, outputTokens };
 }
 
 function utcDayString(date = new Date()) {
@@ -106,7 +119,7 @@ serve(async (req: Request) => {
 
   const { data: promptRow, error: promptError } = await supabase
     .from("ai_prompt_registry")
-    .select("id, version, model")
+    .select("id, version, model, max_tokens")
     .eq("task_type", "rag_ask")
     .eq("status", "active")
     .order("version", { ascending: false })
@@ -117,6 +130,7 @@ serve(async (req: Request) => {
     return jsonResponse({ error: "Prompt registry not configured" }, 500, corsHeaders(req));
   }
 
+  const ragModelId = Deno.env.get("RAG_MODEL_ID") ?? "gpt-5-mini";
   const dayKey = utcDayString();
   const monthKey = utcMonthString();
 
@@ -171,14 +185,8 @@ serve(async (req: Request) => {
     return jsonResponse(responsePayload, 200, corsHeaders(req));
   }
 
-  const { data: budgetRow } = await supabase
-    .from("ai_budgets")
-    .select("id, spent_usd, budget_usd, hard_stop")
-    .eq("agency_id", agencyId)
-    .eq("month_yyyy_mm", monthKey)
-    .maybeSingle();
-
-  if (!budgetRow) {
+  let budgetSnapshot = await checkBudget(supabase, agencyId, monthKey);
+  if (!budgetSnapshot.budgetId) {
     await supabase.from("ai_budgets").insert({
       agency_id: agencyId,
       month_yyyy_mm: monthKey,
@@ -189,7 +197,10 @@ serve(async (req: Request) => {
       reset_time_utc: "00:00",
       reset_timezone: "UTC",
     });
-  } else if (budgetRow.hard_stop && budgetRow.spent_usd >= budgetRow.budget_usd) {
+    budgetSnapshot = await checkBudget(supabase, agencyId, monthKey);
+  }
+
+  if (!budgetSnapshot.allowed && budgetSnapshot.hardStop) {
     const latency = Date.now() - startTime;
     const responsePayload = {
       answer: "UNKNOWN",
@@ -217,7 +228,7 @@ serve(async (req: Request) => {
       user_id: user.id,
       prompt_id: promptRow.id,
       prompt_version: promptRow.version,
-      model: promptRow.model,
+      model: ragModelId,
       tokens_in: 0,
       tokens_out: 0,
       cost_usd: 0,
@@ -385,12 +396,67 @@ serve(async (req: Request) => {
     MAX_CONTEXT_CHARS,
   );
 
+  const estimatedInputTokens = estimateTokensForCost(`${question}\n\n${context}`);
+  const estimatedOutputTokens = Math.max(0, Number(promptRow.max_tokens ?? 0));
+  const estimatedCostUsd = calculateCost("openai", ragModelId, estimatedInputTokens, estimatedOutputTokens);
+  const reservation = await incrementBudget(
+    supabase,
+    agencyId,
+    monthKey,
+    estimatedCostUsd,
+    true,
+  );
+
+  if (!reservation.allowed && reservation.hardStop) {
+    const latency = Date.now() - startTime;
+    const responsePayload = {
+      answer: "UNKNOWN",
+      unknown: true,
+      questions: null,
+      confidence: 0,
+      sources: emptySources(),
+      escalate_to_human: true,
+      escalation_reason: "Monthly AI budget exceeded",
+    };
+
+    await supabase.from("ai_escalations").insert({
+      agency_id: agencyId,
+      client_id: clientId ?? null,
+      user_id: user.id,
+      question,
+      reason: "Monthly AI budget exceeded",
+      status: "open",
+      assignee_role: "agency_admin",
+    });
+
+    await supabase.from("ai_runs").insert({
+      agency_id: agencyId,
+      client_id: clientId ?? null,
+      user_id: user.id,
+      prompt_id: promptRow.id,
+      prompt_version: promptRow.version,
+      model: ragModelId,
+      tokens_in: estimatedInputTokens,
+      tokens_out: 0,
+      cost_usd: 0,
+      latency_ms: latency,
+      success: true,
+      citations: responsePayload.sources,
+      unknown: true,
+      escalate_to_human: true,
+      escalation_reason: responsePayload.escalation_reason,
+    });
+
+    return jsonResponse(responsePayload, 200, corsHeaders(req));
+  }
+
   let responsePayload = buildUnknown([
     "What additional details should the agency provide to answer this accurately?",
   ]);
 
+  let aiResult: any = null;
   try {
-    const aiResult = await ai.run({
+    aiResult = await ai.run({
       taskType: TaskType.CLIENT_PORTAL_QA,
       input: question,
       context: {
@@ -435,16 +501,26 @@ serve(async (req: Request) => {
   }
 
   const latency = Date.now() - startTime;
+  const usage = extractUsageFromRaw(aiResult?.raw);
+  const runtimeModel = aiResult?.meta?.model ?? ragModelId;
+  const tokensIn = usage?.inputTokens ?? estimateTokensForCost(`${question}\n\n${context}`);
+  const tokensOut = usage?.outputTokens ?? estimateTokensForCost(responsePayload.answer ?? "");
+  const costUsd = calculateCost("openai", runtimeModel, tokensIn, tokensOut);
+  const deltaAdjustment = costUsd - estimatedCostUsd;
+  if (deltaAdjustment !== 0) {
+    await incrementBudget(supabase, agencyId, monthKey, deltaAdjustment, false);
+  }
+
   await supabase.from("ai_runs").insert({
     agency_id: agencyId,
     client_id: clientId ?? null,
     user_id: user.id,
     prompt_id: promptRow.id,
     prompt_version: promptRow.version,
-    model: promptRow.model,
-    tokens_in: tokenEstimate,
-    tokens_out: 0,
-    cost_usd: 0,
+    model: runtimeModel,
+    tokens_in: tokensIn,
+    tokens_out: tokensOut,
+    cost_usd: costUsd,
     latency_ms: latency,
     success: true,
     citations: responsePayload.sources,
@@ -452,12 +528,6 @@ serve(async (req: Request) => {
     escalate_to_human: responsePayload.escalate_to_human ?? false,
     escalation_reason: responsePayload.escalation_reason ?? null,
   });
-
-  await supabase
-    .from("ai_budgets")
-    .update({ spent_usd: (budgetRow?.spent_usd ?? 0) })
-    .eq("agency_id", agencyId)
-    .eq("month_yyyy_mm", monthKey);
 
   return jsonResponse(responsePayload, 200, corsHeaders(req));
 });

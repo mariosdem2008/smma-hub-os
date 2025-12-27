@@ -46,11 +46,13 @@ async function applyBudgetDelta(
   agencyId: string,
   monthKey: string,
   deltaUsd: number,
+  enforce: boolean,
 ): Promise<BudgetCheckResult> {
   const { data, error } = await supabase.rpc("ai_budget_apply_delta", {
     p_agency_id: agencyId,
     p_month_yyyy_mm: monthKey,
     p_delta_usd: deltaUsd,
+    p_enforce: enforce,
   })
 
   if (error) throw error
@@ -78,7 +80,7 @@ async function applyBudgetDelta(
 }
 
 export async function checkBudget(supabase: MinimalSupabase, agencyId: string, monthKey: string) {
-  return await applyBudgetDelta(supabase, agencyId, monthKey, 0)
+  return await applyBudgetDelta(supabase, agencyId, monthKey, 0, true)
 }
 
 export async function incrementBudget(
@@ -86,6 +88,7 @@ export async function incrementBudget(
   agencyId: string,
   monthKey: string,
   costUsd: number,
+  enforce: boolean = true,
 ) {
-  return await applyBudgetDelta(supabase, agencyId, monthKey, costUsd)
+  return await applyBudgetDelta(supabase, agencyId, monthKey, costUsd, enforce)
 }

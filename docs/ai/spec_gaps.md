@@ -35,9 +35,10 @@
 15) Define model source-of-truth: prompt registry vs model policy, and ensure logged model matches runtime model. **→ RESOLVED in plan_v1.md: log runtime model from provider response, prompt registry is reference only.**
 16) Decide embedding failure behavior in ingestion (hard fail vs zero-vector fallback). **→ RESOLVED in plan_v1.md: fail hard, remove zero-vector fallback in Phase 2.**
 17) Cost estimation fallback formula when provider doesn't return token counts. **→ OPEN: plan_v1.md recommends chars/3 (conservative), needs validation.**
-18) Provider-specific retry policies (should Anthropic use same as OpenAI?). **→ OPEN: plan_v1.md recommends same policy, needs testing if Anthropic used.**
-19) Circuit breaker thresholds for provider outages (what error rate triggers circuit open?). **→ OPEN: plan_v1.md recommends 50% error rate over 5min window, needs tuning.**
-20) RAG doc_type wildcard patterns (allow globs like "strategy_*"?). **→ OPEN: Phase 3 decision, not critical for v1.**
-21) Prompt registry vs model policy conflict resolution (which takes precedence?). **→ OPEN: currently undefined, recommend model policy wins, prompt registry is reference only.**
-22) Timeout values per task type (30s may be too short for complex tasks). **→ OPEN: plan_v1.md suggests configurable per task, default 30s, max 60s - needs implementation in Phase 2.**
-23) Retry queue for failed embeddings (background worker to retry failed chunks). **→ OPEN: Phase 3 enhancement, not critical for v1.**
+18) Where to record cost estimation method (token-based vs estimate) in canonical logs (ai_runs/ai_usage_logs have no metadata field). **�+' OPEN: needs schema decision (metadata column or dedicated field).**
+ ([int]$args[0].Groups[1].Value + 1).ToString() + ')'  Provider-specific retry policies (should Anthropic use same as OpenAI?). **→ OPEN: plan_v1.md recommends same policy, needs testing if Anthropic used.**
+ ([int]$args[0].Groups[1].Value + 1).ToString() + ')'  Circuit breaker thresholds for provider outages (what error rate triggers circuit open?). **→ OPEN: plan_v1.md recommends 50% error rate over 5min window, needs tuning.**
+ ([int]$args[0].Groups[1].Value + 1).ToString() + ')'  RAG doc_type wildcard patterns (allow globs like "strategy_*"?). **→ OPEN: Phase 3 decision, not critical for v1.**
+ ([int]$args[0].Groups[1].Value + 1).ToString() + ')'  Prompt registry vs model policy conflict resolution (which takes precedence?). **→ OPEN: currently undefined, recommend model policy wins, prompt registry is reference only.**
+ ([int]$args[0].Groups[1].Value + 1).ToString() + ')'  Timeout values per task type (30s may be too short for complex tasks). **→ OPEN: plan_v1.md suggests configurable per task, default 30s, max 60s - needs implementation in Phase 2.**
+ ([int]$args[0].Groups[1].Value + 1).ToString() + ')'  Retry queue for failed embeddings (background worker to retry failed chunks). **→ OPEN: Phase 3 enhancement, not critical for v1.**

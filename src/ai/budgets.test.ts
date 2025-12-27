@@ -44,6 +44,7 @@ describe("budget rpc wrappers", () => {
       p_agency_id: "agency-1",
       p_month_yyyy_mm: "2025-01",
       p_delta_usd: 0,
+      p_enforce: true,
     })
     expect(result.remainingUsd).toBe(9)
     expect(result.allowed).toBe(true)
@@ -69,6 +70,7 @@ describe("budget rpc wrappers", () => {
       p_agency_id: "agency-1",
       p_month_yyyy_mm: "2025-01",
       p_delta_usd: 1,
+      p_enforce: true,
     })
     expect(result.spentUsd).toBe(2)
   })
