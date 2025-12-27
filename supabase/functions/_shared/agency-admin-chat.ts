@@ -36,7 +36,7 @@ export type AgencyAdminChatStreamChunk =
   | { event: "meta"; data: Record<string, unknown> }
   | { event: "delta"; data: { text: string } }
   | { event: "done"; data: Record<string, unknown> }
-  | { event: "error"; data: { error: string } };
+  | { event: "error"; data: { error: string; code?: string } };
 
 type MaybeSingleResult<T> = { data: T | null; error?: { message?: string } | null };
 type InsertResult<T> = { data: T | null; error?: { message?: string } | null };
@@ -305,6 +305,17 @@ export async function* handleAgencyAdminChatStream(opts: {
   userId: string;
   body: AgencyAdminChatRequestBody;
 }): AsyncGenerator<AgencyAdminChatStreamChunk> {
+  if (isAdminChatSchemaEnabled()) {
+    yield {
+      event: "error",
+      data: {
+        error: "Schema mode requires buffered admin chat responses.",
+        code: "SCHEMA_MODE_REQUIRES_BUFFERED",
+      },
+    };
+    return;
+  }
+
   const rawMessage = opts.body?.message ?? "";
   const message = rawMessage.trim();
   const threadId = (opts.body?.thread_id ?? "").trim() || null;

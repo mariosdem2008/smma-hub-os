@@ -4,6 +4,8 @@
 - Admin chat schema mode behind AI_ADMIN_CHAT_SCHEMA (default false).
 - Schema-validated JSON output for admin chat with legacy fallback on parse failure.
 - ai_runs metadata for schema mode observability.
+- Legacy mode now logs ai_runs metadata for admin chat output mode.
+- Streaming fails fast when AI_ADMIN_CHAT_SCHEMA=true (buffered only).
 - Tests for schema mode, fallback, and legacy mode.
 
 ## Flag usage

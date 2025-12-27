@@ -40,14 +40,14 @@ describe("agency admin chat schema mode", () => {
       assistant_message: JSON.stringify({
         assistant_message: "Hello team",
         suggestions: ["Draft a weekly plan"],
-        actions: [],
+        actions: [{ type: "notify", payload: { channel: "slack" } }],
         escalated: false,
         unknown: false,
       }),
       json: {
         assistant_message: "Hello team",
         suggestions: ["Draft a weekly plan"],
-        actions: [],
+        actions: [{ type: "notify", payload: { channel: "slack" } }],
         escalated: false,
         unknown: false,
       },
@@ -69,6 +69,7 @@ describe("agency admin chat schema mode", () => {
     expect(result.assistant_message).toBe("Hello team");
     expect(result.suggestions?.length).toBe(1);
     expect(result.suggestions?.[0]?.label).toBe("Draft a weekly plan");
+    expect(result.actions?.[0]?.type).toBe("notify");
     expect(inserts.ai_runs?.length ?? 0).toBe(1);
     const metadata = inserts.ai_runs?.[0]?.metadata as Record<string, unknown>;
     expect(metadata.admin_chat_output_mode).toBe("schema");
@@ -135,6 +136,9 @@ describe("agency admin chat schema mode", () => {
     });
 
     expect(result.assistant_message).toBe("Legacy response");
-    expect(inserts.ai_runs?.length ?? 0).toBe(0);
+    expect(inserts.ai_runs?.length ?? 0).toBe(1);
+    const metadata = inserts.ai_runs?.[0]?.metadata as Record<string, unknown>;
+    expect(metadata.admin_chat_output_mode).toBe("legacy");
+    expect(metadata.admin_chat_schema_failed).toBe(false);
   });
 });

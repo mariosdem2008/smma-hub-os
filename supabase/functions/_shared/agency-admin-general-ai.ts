@@ -9,6 +9,7 @@ export type Suggestion = { id: string; label: string; user_message: string };
 export type GeneralChatOutput = {
   assistant_message: string;
   suggestions?: Suggestion[];
+  actions?: Array<{ type: string; payload?: unknown }>;
   escalated?: boolean;
   unknown?: boolean;
   outputMode?: "schema" | "legacy_fallback" | "legacy";
@@ -198,6 +199,7 @@ export async function runAdminGeneralChatAi(opts: {
       output = {
         assistant_message: parsedSchema.assistant_message,
         suggestions: normalizeSchemaSuggestions(parsedSchema.suggestions ?? []),
+        actions: parsedSchema.actions ?? [],
         escalated: Boolean(parsedSchema.escalated),
         unknown: Boolean(parsedSchema.unknown),
         outputMode,
@@ -249,6 +251,7 @@ export async function runAdminGeneralChatAi(opts: {
     return {
       assistant_message: output.assistant_message,
       suggestions: output.suggestions ?? [],
+      actions: output.actions ?? [],
       escalated: output.escalated ?? false,
       unknown: output.unknown ?? false,
       outputMode,
@@ -258,7 +261,22 @@ export async function runAdminGeneralChatAi(opts: {
   }
 
   const parsed = parseGeneralChatOutputFromText(result?.assistant_message ?? "");
+  const latencyMs = Date.now() - startTime;
   if (!parsed) {
+    await logAdminChatRun({
+      supabase: opts.supabase,
+      agencyId: opts.agencyId,
+      userId: opts.userId,
+      model: result?.meta?.model ?? null,
+      provider: result?.meta?.provider ?? null,
+      latencyMs,
+      assistantMessage: fallbackResponse.assistant_message,
+      unknown: fallbackResponse.assistant_message.trim().startsWith("UNKNOWN"),
+      escalated: false,
+      metadata: { admin_chat_output_mode: "legacy", admin_chat_schema_failed: false },
+      usage: result?.usage ?? null,
+      contextSizeHint: `${opts.conversation}\n\n${opts.message}`,
+    });
     return {
       assistant_message: fallbackResponse.assistant_message,
       suggestions: fallbackResponse.suggestions,
@@ -266,6 +284,21 @@ export async function runAdminGeneralChatAi(opts: {
       outputMode: "legacy",
     };
   }
+
+  await logAdminChatRun({
+    supabase: opts.supabase,
+    agencyId: opts.agencyId,
+    userId: opts.userId,
+    model: result?.meta?.model ?? null,
+    provider: result?.meta?.provider ?? null,
+    latencyMs,
+    assistantMessage: parsed.assistant_message,
+    unknown: parsed.assistant_message.trim().startsWith("UNKNOWN"),
+    escalated: false,
+    metadata: { admin_chat_output_mode: "legacy", admin_chat_schema_failed: false },
+    usage: result?.usage ?? null,
+    contextSizeHint: `${opts.conversation}\n\n${opts.message}`,
+  });
 
   return {
     assistant_message: parsed.assistant_message,
