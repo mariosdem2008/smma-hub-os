@@ -33,7 +33,9 @@ begin
 
   v_new_spent := v_budget.spent_usd + p_delta_usd;
 
-  if p_enforce and v_budget.hard_stop and v_new_spent >= v_budget.budget_usd then
+  if p_enforce
+     and v_budget.hard_stop
+     and (v_budget.spent_usd >= v_budget.budget_usd or v_new_spent > v_budget.budget_usd) then
     return query select false, v_budget.id, v_budget.spent_usd, v_budget.budget_usd, v_budget.hard_stop;
     return;
   end if;
