@@ -42,6 +42,9 @@ export async function runAiTask(input: RunAiTaskInput) {
   return {
     assistant_message: result.text,
     json: result.output,
+    usage: result.usage,
+    rawText: result.rawText,
+    schemaOk: result.schemaOk,
     meta: result.meta,
   };
 }

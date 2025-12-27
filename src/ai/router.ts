@@ -36,6 +36,9 @@ export type AiRunResult = {
   unknown?: boolean;
   error?: string | null;
   raw?: unknown;
+  rawText?: string;
+  schemaOk?: boolean;
+  usage?: GenerateResult["usage"];
   meta?: {
     provider: string;
     model: string;
@@ -93,17 +96,33 @@ async function generateWithRetry(opts: {
   params: any;
   schema?: OutputSchema<unknown>;
   taskType: TaskType;
-}): Promise<{ text: string; output?: unknown; raw?: unknown; usage?: GenerateResult["usage"]; model?: string }> {
+}): Promise<{
+  text: string;
+  output?: unknown;
+  raw?: unknown;
+  rawText?: string;
+  schemaOk?: boolean;
+  usage?: GenerateResult["usage"];
+  model?: string;
+}> {
   const first = await opts.provider.generate(opts.params);
   if (!opts.schema) {
-    return { text: first.text, raw: first.raw, usage: first.usage, model: first.model };
+    return { text: first.text, raw: first.raw, rawText: first.text, schemaOk: true, usage: first.usage, model: first.model };
   }
 
   try {
     const parsed = extractJson(first.text);
     const validated = opts.schema.validate(parsed);
     if (validated.ok) {
-      return { text: first.text, output: validated.data, raw: first.raw, usage: first.usage, model: first.model };
+      return {
+        text: first.text,
+        output: validated.data,
+        raw: first.raw,
+        rawText: first.text,
+        schemaOk: true,
+        usage: first.usage,
+        model: first.model,
+      };
     }
   } catch {
     // fall through to repair
@@ -122,13 +141,23 @@ async function generateWithRetry(opts: {
     const parsed = extractJson(retry.text);
     const validated = opts.schema.validate(parsed);
     if (validated.ok) {
-      return { text: retry.text, output: validated.data, raw: retry.raw, usage: retry.usage, model: retry.model };
+      return {
+        text: retry.text,
+        output: validated.data,
+        raw: retry.raw,
+        rawText: retry.text,
+        schemaOk: true,
+        usage: retry.usage,
+        model: retry.model,
+      };
     }
   } catch {
     return {
       text: "UNKNOWN",
       output: buildUnknownResponse(opts.taskType, "schema_repair_failed"),
       raw: retry.raw,
+      rawText: retry.text,
+      schemaOk: false,
       usage: retry.usage,
       model: retry.model,
     };
@@ -138,6 +167,8 @@ async function generateWithRetry(opts: {
     text: "UNKNOWN",
     output: buildUnknownResponse(opts.taskType, "schema_repair_failed"),
     raw: retry.raw,
+    rawText: retry.text,
+    schemaOk: false,
     usage: retry.usage,
     model: retry.model,
   };
@@ -280,6 +311,9 @@ export function createAiRouter(deps: RouterDeps = {}) {
       text: result.text,
       output: result.output,
       raw: result.raw,
+      rawText: result.rawText,
+      schemaOk: result.schemaOk,
+      usage: result.usage,
       unknown: result.text.startsWith("UNKNOWN"),
       meta: { provider: modelConfig.provider, model: runtimeModel },
     };

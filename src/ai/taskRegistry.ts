@@ -11,7 +11,7 @@ import { buildStrategyPlanPrompt } from "./prompts/strategyPlan.ts"
 import { buildSummarizePrompt } from "./prompts/summarize.ts"
 import { buildToolExecutionPrompt } from "./prompts/toolExecution.ts"
 import { resolveModelPolicy } from "./modelPolicy.ts"
-import { arraySchema, objectSchema, OutputSchema } from "./schema.ts"
+import { adminChatSchema, arraySchema, objectSchema, OutputSchema } from "./schema.ts"
 import { TaskType } from "./taskTypes.ts"
 import type { ChatMessage } from "./providers/types.ts"
 
@@ -63,6 +63,43 @@ type EmbeddingTaskConfig = TaskConfigBase & {
 export type TaskConfig = FreeformTaskConfig | JsonSchemaTaskConfig | EmbeddingTaskConfig;
 
 const DEFAULT_UNKNOWN_RESPONSE = { answer: "UNKNOWN", unknown: true, questions: ["What additional context is required?"], confidence: 0 };
+
+function readEnvFlag(name: string) {
+  if (typeof Deno !== "undefined" && typeof (Deno as any)?.env?.get === "function") {
+    return (Deno as any).env.get(name) as string | undefined;
+  }
+  if (typeof process !== "undefined") {
+    return process.env[name];
+  }
+  return undefined;
+}
+
+function isAdminChatSchemaEnabled() {
+  return readEnvFlag("AI_ADMIN_CHAT_SCHEMA") === "true";
+}
+
+const ADMIN_CHAT_SCHEMA_CONFIG: TaskConfig = {
+  taskType: TaskType.AGENCY_ADMIN_GENERAL_CHAT,
+  outputMode: "json_schema",
+  safetyMode: "strict_unknown",
+  promptBuilder: (args) =>
+    buildAdminGeneralChatPrompt({
+      contextSnapshot: (args.metadata?.contextSnapshot as Record<string, unknown>) ?? {},
+      conversation: (args.metadata?.conversation as string) ?? "",
+      latestUserMessage: (args.metadata?.latestUserMessage as string) ?? "",
+      outputMode: "schema",
+    }),
+  requires: { agency: true, client: false },
+  usageEndpoint: "ai-agency-admin-chat",
+  schema: adminChatSchema(),
+  buildUnknown: () => ({
+    assistant_message: "UNKNOWN. I need more details to answer. What should I help with first?",
+    suggestions: [],
+    actions: [],
+    escalated: false,
+    unknown: true,
+  }),
+};
 
 export const TASK_REGISTRY: Record<TaskType, TaskConfig> = {
   [TaskType.CHAT_GENERAL]: {
@@ -131,6 +168,7 @@ export const TASK_REGISTRY: Record<TaskType, TaskConfig> = {
         contextSnapshot: (args.metadata?.contextSnapshot as Record<string, unknown>) ?? {},
         conversation: (args.metadata?.conversation as string) ?? "",
         latestUserMessage: (args.metadata?.latestUserMessage as string) ?? "",
+        outputMode: "legacy",
       }),
     requires: { agency: true, client: false },
     usageEndpoint: "ai-agency-admin-chat",
@@ -270,6 +308,9 @@ export const TASK_REGISTRY: Record<TaskType, TaskConfig> = {
 };
 
 export function getTaskConfig(taskType: TaskType): TaskConfig {
+  if (taskType === TaskType.AGENCY_ADMIN_GENERAL_CHAT && isAdminChatSchemaEnabled()) {
+    return ADMIN_CHAT_SCHEMA_CONFIG;
+  }
   return TASK_REGISTRY[taskType];
 }
 

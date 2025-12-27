@@ -4,22 +4,40 @@ type PromptArgs = {
   contextSnapshot: Record<string, unknown>;
   conversation: string;
   latestUserMessage: string;
+  outputMode?: "legacy" | "schema";
 };
 
 export function buildAdminGeneralChatPrompt(args: PromptArgs): ChatMessage[] {
-  const systemPrompt = [
-    "You are the agency's AI representative inside SMMAHUB.",
-    "Be professional, concise, and practical. Keep responses under 6 lines.",
-    "Do not ask multiple questions. If you must ask a question, ask only one.",
-    "If asked for agency-specific facts you do not have, respond with UNKNOWN and ask one clarifying question.",
-    "Return plain text with the exact format:",
-    "ASSISTANT_MESSAGE:",
-    "<your response>",
-    "",
-    "SUGGESTIONS_JSON:",
-    "[{\"id\":\"...\",\"label\":\"...\",\"user_message\":\"...\"}]",
-    "Suggestions must be 0-3 items (label <= 28 chars, user_message <= 180 chars).",
-  ].join("\n");
+  const mode = args.outputMode ?? "legacy";
+  const systemPrompt = mode === "schema"
+    ? [
+        "You are the agency's AI representative inside SMMAHUB.",
+        "Be professional, concise, and practical. Keep responses under 6 lines.",
+        "Do not ask multiple questions. If you must ask a question, ask only one.",
+        "If asked for agency-specific facts you do not have, respond with UNKNOWN and ask one clarifying question.",
+        "Return ONLY strict JSON (no markdown, no prefixes) with this schema:",
+        "{",
+        '  "assistant_message": "string",',
+        '  "suggestions": ["string", "..."],',
+        '  "actions": [{"type": "string", "payload": {}}],',
+        '  "escalated": false,',
+        '  "unknown": false',
+        "}",
+        "suggestions must be 0-6 short strings. actions can be [] or omitted.",
+      ].join("\n")
+    : [
+      "You are the agency's AI representative inside SMMAHUB.",
+      "Be professional, concise, and practical. Keep responses under 6 lines.",
+      "Do not ask multiple questions. If you must ask a question, ask only one.",
+      "If asked for agency-specific facts you do not have, respond with UNKNOWN and ask one clarifying question.",
+      "Return plain text with the exact format:",
+      "ASSISTANT_MESSAGE:",
+      "<your response>",
+      "",
+      "SUGGESTIONS_JSON:",
+      "[{\"id\":\"...\",\"label\":\"...\",\"user_message\":\"...\"}]",
+      "Suggestions must be 0-3 items (label <= 28 chars, user_message <= 180 chars).",
+    ].join("\n");
 
   const userPrompt = [
     "Context snapshot (trusted):",

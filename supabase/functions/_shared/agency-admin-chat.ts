@@ -3,6 +3,7 @@ import { buildAgencyContextSnapshot, buildAiContextSummary, fetchAgencyBrain, up
 import {
   extractAssistantMessageFromText,
   parseGeneralChatOutputFromText,
+  isAdminChatSchemaEnabled,
   runAdminGeneralChatAi,
   runAdminGeneralChatAiStream,
 } from "./agency-admin-general-ai.ts";
@@ -484,6 +485,47 @@ export async function* handleAgencyAdminChatStream(opts: {
         // ignore context snapshot write failures for chat response
       }
     }
+  }
+
+  if (isAdminChatSchemaEnabled()) {
+    const aiReply = await runAdminGeneralChatAi({
+      message,
+      agencyId,
+      userId: opts.userId,
+      snapshot,
+      conversation,
+      supabase: opts.supabase,
+    });
+
+    const insertAssistantMsg: InsertResult<{ id: string }> = await opts.supabase
+      .from("agency_ai_chat_messages")
+      .insert({
+        thread_id: effectiveThreadId,
+        role: "assistant",
+        content: aiReply.assistant_message,
+        meta_json: { suggestions: aiReply.suggestions ?? [], provider: aiReply.meta?.provider ?? null, model: aiReply.meta?.model ?? null },
+      })
+      .select("id")
+      .single();
+
+    if (insertAssistantMsg?.error) {
+      yield { event: "error", data: { error: insertAssistantMsg.error.message ?? "Failed to store assistant message" } };
+      return;
+    }
+
+    yield { event: "meta", data: { thread_id: effectiveThreadId } };
+    if (aiReply.assistant_message) {
+      yield { event: "delta", data: { text: aiReply.assistant_message } };
+    }
+    yield {
+      event: "done",
+      data: {
+        thread_id: effectiveThreadId,
+        assistant_message: aiReply.assistant_message,
+        suggestions: aiReply.suggestions ?? [],
+      },
+    };
+    return;
   }
 
   const stream = await runAdminGeneralChatAiStream({
