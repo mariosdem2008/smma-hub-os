@@ -129,3 +129,18 @@
   - `npm run lint` -> PASS.
   - `npx tsc -p .` -> PASS.
   - `npm run build` -> PASS. Browserslist data warning; chunk size warning (existing).
+
+## Follow-up Phase 1 gaps: Commit B (orchestrator fallback paths)
+- Files changed:
+  - `src/data/__tests__/agencyAdminSetupGuided.test.ts`
+- Tests added/updated:
+  - `agency admin setup guided -> flag ON falls back when orchestrator returns invalid JSON`
+  - `agency admin setup guided -> flag ON falls back when orchestrator id is not in registry`
+  - `agency admin setup guided -> flag ON falls back when orchestrator throws`
+- Gaps closed:
+  - Orchestrator error-path fallback exercised; getNextQuestion used when orchestrator fails.
+- Gates:
+  - `npm run test` -> PASS (31 files, 108 tests). React Router future-flag warnings in stderr.
+  - `npm run lint` -> PASS.
+  - `npx tsc -p .` -> PASS.
+  - `npm run build` -> PASS. Browserslist data warning; chunk size warning (existing).
