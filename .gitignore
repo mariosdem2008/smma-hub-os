@@ -11,6 +11,20 @@ node_modules
 dist
 dist-ssr
 *.local
+.next/
+build/
+coverage/
+.vercel/
+*.zip
+*.7z
+*.rar
+*.tar
+*.gz
+*.mp4
+*.mov
+*.psd
+*.ai
+*.blend
 
 # Editor directories and files
 .vscode/*
