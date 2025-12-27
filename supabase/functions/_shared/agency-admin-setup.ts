@@ -702,6 +702,23 @@ export async function handleAgencyAdminSetup(opts: {
   const conversation = buildConversationText(messages);
   const isFirstTurn = !incomingMessage && messages.length === 0;
 
+  let snapshot;
+  try {
+    snapshot = await buildAgencyContextSnapshot({
+      supabase: opts.supabase,
+      agencyId: opts.agencyId,
+      userId: opts.userId,
+      agencyBrain: brain,
+    });
+  } catch {
+    snapshot = {
+      agency: null,
+      admin: null,
+      onboarding_known_facts: null,
+      agency_brain_existing: brain,
+    };
+  }
+
   if (isFirstTurn) {
     const intro = buildIntroPayload();
     const responsePayload: SetupResponse = {
@@ -783,22 +800,6 @@ export async function handleAgencyAdminSetup(opts: {
     intent = "ANSWER_TO_ONBOARDING_QUESTION";
   }
 
-  let snapshot;
-  try {
-    snapshot = await buildAgencyContextSnapshot({
-      supabase: opts.supabase,
-      agencyId: opts.agencyId,
-      userId: opts.userId,
-      agencyBrain: brain,
-    });
-  } catch {
-    snapshot = {
-      agency: null,
-      admin: null,
-      onboarding_known_facts: null,
-      agency_brain_existing: brain,
-    };
-  }
   const contextSummary = buildAiContextSummary(snapshot);
   const contextChanged = JSON.stringify(contextSummary) !== JSON.stringify(brain.ai_context_v1 ?? {});
   const contextPatch = contextChanged ? { ai_context_v1: contextSummary } : null;

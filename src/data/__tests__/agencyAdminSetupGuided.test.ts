@@ -5,10 +5,15 @@ import * as aiRouter from "../../../supabase/functions/_shared/ai-router.ts";
 
 const runAiTaskMock = vi.spyOn(aiRouter, "runAiTask");
 
-function createSupabaseMock() {
+function createSupabaseMock(opts?: {
+  agency?: { id: string; name: string | null; website?: string | null; niche?: string | null } | null;
+}) {
   const messages: Array<any> = [];
   let brain: any = {};
-  const agency = { id: "agency-1", name: "Rocket Agency", website: "https://rocket.test", niche: "SaaS" };
+  const agency =
+    opts?.agency === undefined
+      ? { id: "agency-1", name: "Rocket Agency", website: "https://rocket.test", niche: "SaaS" }
+      : opts.agency;
   const profile = { id: "user-1", full_name: "Mario Rossi" };
   const onboarding = { answers_json: { agency_name: "Rocket Agency", niche: "SaaS" } };
 
@@ -28,7 +33,7 @@ function createSupabaseMock() {
             return { data: { id: "brain-1", brain_json: brain }, error: null };
           }
           if (table === "agencies") {
-            return { data: agency, error: null };
+            return { data: agency ?? null, error: null };
           }
           if (table === "profiles") {
             return { data: profile, error: null };
@@ -158,6 +163,72 @@ describe("agency admin setup guided", () => {
     });
     if ("error" in result.body) throw new Error("Unexpected error response");
     expect(result.body.progress_percent).toBeGreaterThan(0);
+    expect(result.body.assistant_message).toContain(SETUP_QUESTIONS[1].question_text);
+  });
+
+  it("prefills context snapshot with agency name and website for extraction", async () => {
+    const { supabase, messages } = createSupabaseMock();
+    messages.push({
+      role: "assistant",
+      content: SETUP_QUESTIONS[0].question_text,
+      meta_json: { state: { intent: "ANSWER_TO_ONBOARDING_QUESTION", pending_question_key: SETUP_QUESTIONS[0].key, pending_question_text: SETUP_QUESTIONS[0].question_text } },
+      created_at: new Date().toISOString(),
+    });
+    runAiTaskMock.mockResolvedValueOnce({
+      assistant_message: "",
+      json: { value: ["Social media management"] },
+      meta: { provider: "openai", model: "gpt-5-nano" },
+    });
+
+    const result = await handleAgencyAdminSetup({
+      supabase: supabase as any,
+      userId: "user-1",
+      agencyId: "agency-1",
+      threadId: "thread-1",
+      message: "Social media management",
+    });
+
+    expect(result.status).toBe(200);
+    expect(runAiTaskMock).toHaveBeenCalledTimes(1);
+    const call = runAiTaskMock.mock.calls[0]?.[0] as any;
+    const snapshot = call?.metadata?.contextSnapshot as any;
+    expect(snapshot?.agency?.name).toBe("Rocket Agency");
+    expect(snapshot?.agency?.website).toBe("https://rocket.test");
+    if ("error" in result.body) throw new Error("Unexpected error response");
+    expect(result.body.assistant_message).toContain(SETUP_QUESTIONS[1].question_text);
+  });
+
+  it("handles missing agency name and website in context snapshot", async () => {
+    const { supabase, messages } = createSupabaseMock({
+      agency: { id: "agency-1", name: null, website: null, niche: null },
+    });
+    messages.push({
+      role: "assistant",
+      content: SETUP_QUESTIONS[0].question_text,
+      meta_json: { state: { intent: "ANSWER_TO_ONBOARDING_QUESTION", pending_question_key: SETUP_QUESTIONS[0].key, pending_question_text: SETUP_QUESTIONS[0].question_text } },
+      created_at: new Date().toISOString(),
+    });
+    runAiTaskMock.mockResolvedValueOnce({
+      assistant_message: "",
+      json: { value: ["Social media management"] },
+      meta: { provider: "openai", model: "gpt-5-nano" },
+    });
+
+    const result = await handleAgencyAdminSetup({
+      supabase: supabase as any,
+      userId: "user-1",
+      agencyId: "agency-1",
+      threadId: "thread-1",
+      message: "Social media management",
+    });
+
+    expect(result.status).toBe(200);
+    expect(runAiTaskMock).toHaveBeenCalledTimes(1);
+    const call = runAiTaskMock.mock.calls[0]?.[0] as any;
+    const snapshot = call?.metadata?.contextSnapshot as any;
+    expect(snapshot?.agency?.name ?? null).toBeNull();
+    expect(snapshot?.agency?.website ?? null).toBeNull();
+    if ("error" in result.body) throw new Error("Unexpected error response");
     expect(result.body.assistant_message).toContain(SETUP_QUESTIONS[1].question_text);
   });
 
