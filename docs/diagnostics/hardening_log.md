@@ -43,3 +43,17 @@ Documented 10 MB policy and overrides
 > git commit -m "ci: block commits that add files >10MB"
 (committed)
 
+## 2025-12-27 11:21:52 Step 6: gates
+> npm run test
+PASS (vitest)
+> npm run lint
+PASS
+> npx tsc -p .
+PASS
+> npm run build
+PASS (warnings about chunk size/browserslist)
+> git count-objects -vH
+size-pack: 2.63 MiB
+Largest blob: 0.31 MB (322757 bytes)
+Threshold: 10 MB
+
