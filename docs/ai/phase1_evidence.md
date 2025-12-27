@@ -54,3 +54,19 @@
 - `npm run lint` -> PASS.
 - `npx tsc -p .` -> PASS.
 - `npm run build` -> PASS. Browserslist data warning; chunk size warning (existing).
+
+## TASK-004: Expert question registry
+- Files changed:
+  - `supabase/functions/_shared/agency-admin-setup-expert-questions.ts`: Added expert question registry shared by guided setup backend.
+  - `src/data/__tests__/agencyAdminSetupExpertRegistry.test.ts`: Added registry import/schema/uniqueness tests.
+- Rationale:
+  - Provide a shared structured registry for expert questions without changing runtime behavior when orchestration is off.
+- Tests added/updated:
+  - `agency admin setup expert registry -> is importable from the setup handler module area`
+  - `agency admin setup expert registry -> enforces schema sanity for all entries`
+  - `agency admin setup expert registry -> has unique ids`
+- Gates:
+  - `npm run test` -> PASS (29 files, 98 tests). React Router future-flag warnings in stderr.
+  - `npm run lint` -> PASS.
+  - `npx tsc -p .` -> PASS.
+  - `npm run build` -> PASS. Browserslist data warning; chunk size warning (existing).
