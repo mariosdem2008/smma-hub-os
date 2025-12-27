@@ -6,6 +6,8 @@ import { embedText } from "../_shared/embeddings.ts";
 import { calculateCost, checkBudget, incrementBudget } from "../_shared/budgets.ts";
 import { ai } from "../../../src/ai/router.ts";
 import { TaskType } from "../../../src/ai/taskTypes.ts";
+import { applyRagPolicy, getRagConfig, shouldUseRagPolicy } from "../../../src/ai/ragPolicy.ts";
+import { validateCitations } from "../../../src/ai/citations.ts";
 
 const TOKEN_CAP = 6000;
 const DAILY_LIMIT = 20;
@@ -98,6 +100,7 @@ serve(async (req: Request) => {
   }
 
   const startTime = Date.now();
+  const strictSchema = Deno.env.get("AI_SCHEMA_STRICT") === "true";
   const body = await req.json().catch(() => ({}));
   const agencyId = body.agency_id as string | undefined;
   const clientId = body.client_id as string | undefined;
@@ -134,6 +137,8 @@ serve(async (req: Request) => {
   const ragModelId = Deno.env.get("RAG_MODEL_ID") ?? "gpt-5-mini";
   const dayKey = utcDayString();
   const monthKey = utcMonthString();
+  const useRagPolicy = shouldUseRagPolicy({ agencyId, clientId });
+  const ragConfig = getRagConfig(TaskType.CLIENT_PORTAL_QA);
 
   const { data: rateRow } = await supabase
     .from("ai_rate_limits")
@@ -275,7 +280,13 @@ serve(async (req: Request) => {
       unknown: true,
       escalate_to_human: false,
       escalation_reason: null,
-      metadata: { cost_estimation_method: DEFAULT_COST_ESTIMATION_METHOD },
+      metadata: {
+        cost_estimation_method: DEFAULT_COST_ESTIMATION_METHOD,
+        retrieval_count: 0,
+        context_truncated: false,
+        doc_types_used: [],
+        rag_policy_version: useRagPolicy ? "v1" : "legacy",
+      },
     });
 
     return jsonResponse(responsePayload, 200, corsHeaders(req));
@@ -329,28 +340,32 @@ serve(async (req: Request) => {
   const embeddingModel = Deno.env.get("EMBEDDING_MODEL_ID") ?? "text-embedding-3-small";
   const queryEmbedding = await embedText(question, embeddingApiKey, embeddingModel);
 
+  const legacyClientDocTypes = ["client_guidelines", "client_notes", "approved_posts", "ai_artifact", "strategy_draft"];
+  const legacyAgencyDocTypes = ["agency_sop"];
+  const legacyExemplarDocTypes = ["agency_exemplar_strategy"];
+
   const { data: clientMatches } = await supabase.rpc("match_ai_embeddings", {
     p_agency_id: agencyId,
     p_client_id: clientId ?? null,
     p_query_embedding: queryEmbedding,
-    p_match_count: CLIENT_MEMORY_TOP_K,
-    p_doc_types: ["client_guidelines", "client_notes", "approved_posts", "ai_artifact", "strategy_draft"],
+    p_match_count: useRagPolicy ? ragConfig.client_memory_top_k : CLIENT_MEMORY_TOP_K,
+    p_doc_types: useRagPolicy ? ragConfig.client_doc_types : legacyClientDocTypes,
   });
 
   const { data: agencyMatches } = await supabase.rpc("match_ai_embeddings", {
     p_agency_id: agencyId,
     p_client_id: null,
     p_query_embedding: queryEmbedding,
-    p_match_count: AGENCY_MEMORY_TOP_K,
-    p_doc_types: ["agency_sop"],
+    p_match_count: useRagPolicy ? ragConfig.agency_memory_top_k : AGENCY_MEMORY_TOP_K,
+    p_doc_types: useRagPolicy ? ragConfig.agency_doc_types : legacyAgencyDocTypes,
   });
 
   const { data: exemplarMatches } = await supabase.rpc("match_ai_embeddings", {
     p_agency_id: agencyId,
     p_client_id: null,
     p_query_embedding: queryEmbedding,
-    p_match_count: EXEMPLAR_TOP_K,
-    p_doc_types: ["agency_exemplar_strategy"],
+    p_match_count: useRagPolicy ? ragConfig.exemplar_top_k : EXEMPLAR_TOP_K,
+    p_doc_types: useRagPolicy ? ragConfig.exemplar_doc_types : legacyExemplarDocTypes,
   });
 
   const matches = [
@@ -397,10 +412,16 @@ serve(async (req: Request) => {
     return jsonResponse(responsePayload, 200, corsHeaders(req));
   }
 
-  const context = truncateContext(
-    matches.map((row: any) => `(${row.doc_type}) ${row.chunk_text}`).join("\n\n"),
-    MAX_CONTEXT_CHARS,
-  );
+  const fullContext = matches.map((row: any) => `(${row.doc_type}) ${row.chunk_text}`).join("\n\n");
+  const legacyContext = truncateContext(fullContext, MAX_CONTEXT_CHARS);
+  const legacyContextTruncated = fullContext.length > MAX_CONTEXT_CHARS;
+  const ragResult = useRagPolicy ? applyRagPolicy(matches, ragConfig) : null;
+  const context = ragResult?.context ?? legacyContext;
+  const selectedMatches = ragResult?.selectedMatches ?? matches;
+  const contextTruncated = ragResult?.contextTruncated ?? legacyContextTruncated;
+  const retrievalCount = ragResult?.retrievalCount ?? matches.length;
+  const docTypesUsed = ragResult?.docTypesUsed ?? Array.from(new Set(matches.map((row: any) => row.doc_type)));
+  const ragPolicyVersion = useRagPolicy ? "v1" : "legacy";
 
   const estimatedInputTokens = estimateTokensForCost(`${question}\n\n${context}`);
   const estimatedOutputTokens = Math.max(0, Number(promptRow.max_tokens ?? 0));
@@ -491,11 +512,11 @@ serve(async (req: Request) => {
       sources: {
         agency_brain_fields: [],
         client_brain_fields: [],
-        memory_citations: matches.map((row: any) => ({
+        memory_citations: selectedMatches.map((row: any) => ({
           doc_type: row.doc_type,
           document_id: row.document_id,
           chunk_id: row.chunk_id,
-          score: row.score,
+          score: row.score ?? row.similarity ?? 0,
         })),
       },
       escalate_to_human: false,
@@ -519,6 +540,54 @@ serve(async (req: Request) => {
     await incrementBudget(supabase, agencyId, monthKey, deltaAdjustment, false);
   }
 
+  const citations = {
+    memory_citations: selectedMatches
+      .map((row: any) => ({
+        doc_id: row.document_id ?? row.doc_id,
+        chunk_id: row.chunk_id,
+        doc_type: row.doc_type,
+        similarity: row.score ?? row.similarity ?? 0,
+      }))
+      .filter((row: any) => typeof row.doc_id === "string"),
+    client_brain_fields: responsePayload.sources?.client_brain_fields ?? [],
+    agency_brain_fields: responsePayload.sources?.agency_brain_fields ?? [],
+  };
+
+  const citationValidation = validateCitations(
+    { sources: citations, unknown: responsePayload.unknown, escalate_to_human: responsePayload.escalate_to_human ?? false },
+    selectedMatches,
+  );
+
+  if (!citationValidation.valid && strictSchema) {
+    await supabase.from("ai_runs").insert({
+      agency_id: agencyId,
+      client_id: clientId ?? null,
+      user_id: user.id,
+      prompt_id: promptRow.id,
+      prompt_version: promptRow.version,
+      model: runtimeModel,
+      tokens_in: tokensIn,
+      tokens_out: tokensOut,
+      cost_usd: costUsd,
+      latency_ms: latency,
+      success: false,
+      citations,
+      unknown: responsePayload.unknown,
+      escalate_to_human: responsePayload.escalate_to_human ?? false,
+      escalation_reason: responsePayload.escalation_reason ?? null,
+      metadata: {
+        cost_estimation_method: costEstimationMethod,
+        retrieval_count: retrievalCount,
+        context_truncated: contextTruncated,
+        doc_types_used: docTypesUsed,
+        rag_policy_version: ragPolicyVersion,
+        citation_errors: citationValidation.errors,
+      },
+    });
+
+    return jsonResponse({ error: "Citation validation failed", code: "CITATION_VALIDATION_FAILED" }, 500, corsHeaders(req));
+  }
+
   await supabase.from("ai_runs").insert({
     agency_id: agencyId,
     client_id: clientId ?? null,
@@ -531,11 +600,18 @@ serve(async (req: Request) => {
     cost_usd: costUsd,
     latency_ms: latency,
     success: true,
-    citations: responsePayload.sources,
+    citations,
     unknown: responsePayload.unknown,
     escalate_to_human: responsePayload.escalate_to_human ?? false,
     escalation_reason: responsePayload.escalation_reason ?? null,
-    metadata: { cost_estimation_method: costEstimationMethod },
+    metadata: {
+      cost_estimation_method: costEstimationMethod,
+      retrieval_count: retrievalCount,
+      context_truncated: contextTruncated,
+      doc_types_used: docTypesUsed,
+      rag_policy_version: ragPolicyVersion,
+      ...(citationValidation.valid ? {} : { citation_errors: citationValidation.errors }),
+    },
   });
 
   return jsonResponse(responsePayload, 200, corsHeaders(req));
