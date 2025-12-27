@@ -3,6 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
 import { embedText } from "../_shared/embeddings.ts";
+import { getLockdownFailure } from "../_shared/lockdown.ts";
 
 function jsonResponse(body: unknown, status = 200, headers: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
@@ -20,8 +21,18 @@ serve(async (req: Request) => {
     return jsonResponse({ error: "Method not allowed" }, 405, corsHeaders(req));
   }
 
+  const lockdownEnabled = Deno.env.get("AI_LOCKDOWN_UNUSED_ENDPOINTS") === "true";
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) {
+    const lockdown = getLockdownFailure({
+      lockdownEnabled,
+      hasAuthHeader: false,
+      isUserValid: false,
+      hasMembership: false,
+    });
+    if (lockdown) {
+      return jsonResponse(lockdown.body, lockdown.status, corsHeaders(req));
+    }
     return jsonResponse({ error: "Missing Authorization header" }, 401, corsHeaders(req));
   }
 
@@ -32,7 +43,17 @@ serve(async (req: Request) => {
   const token = authHeader.replace("Bearer ", "");
   const { data: userData, error: userError } = await supabase.auth.getUser(token);
   const user = userData?.user;
-  if (userError || !user) {
+  const isUserValid = !userError && !!user;
+  if (!isUserValid) {
+    const lockdown = getLockdownFailure({
+      lockdownEnabled,
+      hasAuthHeader: true,
+      isUserValid: false,
+      hasMembership: false,
+    });
+    if (lockdown) {
+      return jsonResponse(lockdown.body, lockdown.status, corsHeaders(req));
+    }
     return jsonResponse({ error: "Unauthorized" }, 401, corsHeaders(req));
   }
 
@@ -56,6 +77,15 @@ serve(async (req: Request) => {
     .maybeSingle();
 
   if (!membership) {
+    const lockdown = getLockdownFailure({
+      lockdownEnabled,
+      hasAuthHeader: true,
+      isUserValid: true,
+      hasMembership: false,
+    });
+    if (lockdown) {
+      return jsonResponse(lockdown.body, lockdown.status, corsHeaders(req));
+    }
     return jsonResponse({ error: "Forbidden" }, 403, corsHeaders(req));
   }
 
