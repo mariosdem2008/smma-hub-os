@@ -157,3 +157,16 @@
   - `npm run lint` -> PASS.
   - `npx tsc -p .` -> PASS.
   - `npm run build` -> PASS. Browserslist data warning; chunk size warning (existing).
+
+## Follow-up Phase 1 gaps: Commit D (registry coverage)
+- Files changed:
+  - `src/data/__tests__/agencyAdminSetupExpertRegistry.test.ts`
+- Tests added/updated:
+  - `agency admin setup expert registry -> meets registry coverage expectations`
+- Gaps closed:
+  - Registry coverage assertions added (>=10 entries, >=2 per depth level).
+- Gates:
+  - `npm run test` -> PASS (31 files, 110 tests). React Router future-flag warnings in stderr.
+  - `npm run lint` -> PASS.
+  - `npx tsc -p .` -> PASS.
+  - `npm run build` -> PASS. Browserslist data warning; chunk size warning (existing).

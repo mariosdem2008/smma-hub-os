@@ -30,4 +30,15 @@ describe("agency admin setup expert registry", () => {
     const unique = new Set(ids);
     expect(unique.size).toBe(ids.length);
   });
+
+  it("meets registry coverage expectations", () => {
+    expect(EXPERT_QUESTION_REGISTRY.length).toBeGreaterThanOrEqual(10);
+    const byDepth = new Map<number, number>();
+    for (const entry of EXPERT_QUESTION_REGISTRY) {
+      byDepth.set(entry.depthLevel, (byDepth.get(entry.depthLevel) ?? 0) + 1);
+    }
+    for (const level of [1, 2, 3, 4, 5]) {
+      expect(byDepth.get(level) ?? 0).toBeGreaterThanOrEqual(2);
+    }
+  });
 });
