@@ -3,6 +3,8 @@ import { calculateCost } from "./budgets.ts";
 import { TaskType } from "../../../src/ai/taskTypes.ts";
 import type { AdminChatSchema } from "../../../src/ai/schema.ts";
 import type { AgencyContextSnapshot } from "./ai-context.ts";
+import { embedText } from "./embeddings.ts";
+import { executeToolAction } from "./tool-executor.ts";
 
 export type Suggestion = { id: string; label: string; user_message: string };
 
@@ -99,6 +101,62 @@ function normalizeSchemaSuggestions(suggestions: string[]): Suggestion[] {
     });
 }
 
+type ToolActionResult = {
+  type: string;
+  success: boolean;
+  result?: any;
+  error?: string;
+};
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function normalizeActionPayload(payload: unknown): Record<string, unknown> {
+  return isPlainObject(payload) ? payload : {};
+}
+
+function buildActionSummary(results: ToolActionResult[]) {
+  const successLines = results.filter((result) => result.success).map((result) => {
+    const payload = result.result ?? {};
+    switch (result.type) {
+      case "create_client": {
+        const name = payload.name ?? "client";
+        return `- create_client: ${payload.existing ? "existing" : "created"} ${name}`;
+      }
+      case "draft_offer": {
+        const serviceType = payload.service_type ?? "offer";
+        return `- draft_offer: drafted ${serviceType}`;
+      }
+      case "update_brain": {
+        const field = payload.field ?? "field";
+        return `- update_brain: updated ${field}`;
+      }
+      case "schedule_task": {
+        const title = payload.title ?? "task";
+        const dueDate = payload.due_date ? ` (due ${payload.due_date})` : "";
+        return `- schedule_task: created ${title}${dueDate}`;
+      }
+      default:
+        return `- ${result.type}: completed`;
+    }
+  });
+
+  const errorLines = results.filter((result) => !result.success).map((result) => {
+    const error = result.error ?? "failed";
+    return `- ${result.type}: ${error}`;
+  });
+
+  const sections: string[] = [];
+  if (successLines.length) {
+    sections.push(["Actions completed:", ...successLines].join("\n"));
+  }
+  if (errorLines.length) {
+    sections.push(["Actions failed:", ...errorLines].join("\n"));
+  }
+  return sections.join("\n\n");
+}
+
 function estimateTokensForCost(text: string) {
   return Math.ceil(text.length / 3);
 }
@@ -149,6 +207,45 @@ async function logAdminChatRun(opts: {
   }
 }
 
+async function fetchAgencyRagContext(opts: {
+  supabase: any;
+  agencyId: string;
+  query: string;
+}): Promise<string> {
+  try {
+    const embeddingApiKey = typeof Deno !== "undefined" ? Deno.env.get("OPENAI_API_KEY") : process.env.OPENAI_API_KEY;
+    const embeddingModel = typeof Deno !== "undefined"
+      ? Deno.env.get("EMBEDDING_MODEL_ID") ?? "text-embedding-3-small"
+      : process.env.EMBEDDING_MODEL_ID ?? "text-embedding-3-small";
+
+    if (!embeddingApiKey) {
+      console.warn("admin_chat_rag_no_api_key");
+      return "";
+    }
+
+    const queryEmbedding = await embedText(opts.query, embeddingApiKey, embeddingModel);
+
+    const { data: matches } = await opts.supabase.rpc("match_ai_embeddings", {
+      query_embedding: queryEmbedding.vector,
+      match_threshold: 0.7,
+      match_count: 5,
+      filter_agency_id: opts.agencyId,
+      filter_client_id: null,
+    });
+
+    if (!matches || matches.length === 0) {
+      return "";
+    }
+
+    return matches.map((m: any, i: number) => `[${i + 1}] ${m.chunk_text}`).join("\n\n");
+  } catch (error) {
+    console.error("admin_chat_rag_failed", {
+      message: error instanceof Error ? error.message : String(error),
+    });
+    return "";
+  }
+}
+
 export async function runAdminGeneralChatAi(opts: {
   message: string;
   agencyId: string;
@@ -166,6 +263,13 @@ export async function runAdminGeneralChatAi(opts: {
   const mode = envMode === "dev" ? "dev" : "prod";
   const schemaEnabled = isAdminChatSchemaEnabled();
   const startTime = Date.now();
+
+  const ragContext = await fetchAgencyRagContext({
+    supabase: opts.supabase,
+    agencyId: opts.agencyId,
+    query: opts.message,
+  });
+
   const result = await runAiTask({
     task_type: TaskType.AGENCY_ADMIN_GENERAL_CHAT,
     mode,
@@ -175,6 +279,7 @@ export async function runAdminGeneralChatAi(opts: {
       contextSnapshot: opts.snapshot,
       conversation: opts.conversation,
       latestUserMessage: opts.message,
+      ragContext,
     },
     supabase: opts.supabase,
   });
@@ -225,12 +330,49 @@ export async function runAdminGeneralChatAi(opts: {
           };
     }
 
+    const actionResults: ToolActionResult[] = [];
+    if (output.actions && output.actions.length > 0) {
+      for (const action of output.actions) {
+        try {
+          const result = await executeToolAction({
+            tool: { type: action.type, payload: normalizeActionPayload(action.payload) },
+            supabase: opts.supabase,
+            agencyId: opts.agencyId,
+            userId: opts.userId,
+          });
+          actionResults.push({ type: action.type, ...result });
+          if (!result.success) {
+            console.warn("admin_chat_tool_failed", { tool: action.type, error: result.error });
+          }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          actionResults.push({ type: action.type, success: false, error: message });
+          console.error("admin_chat_tool_exception", { tool: action.type, error: message });
+        }
+      }
+    }
+
+    if (actionResults.length > 0) {
+      const summary = buildActionSummary(actionResults);
+      if (summary) {
+        output.assistant_message = `${output.assistant_message}\n\n${summary}`;
+      }
+      console.info("admin_chat_tool_results", {
+        agency_id: opts.agencyId,
+        user_id: opts.userId,
+        results: actionResults,
+      });
+    }
+
     const latencyMs = Date.now() - startTime;
     const metadata: Record<string, unknown> = {
       admin_chat_output_mode: outputMode,
     };
     if (schemaFailed) {
       metadata.admin_chat_schema_failed = true;
+    }
+    if (actionResults.length > 0) {
+      metadata.admin_chat_tool_results = actionResults;
     }
 
     await logAdminChatRun({
@@ -324,6 +466,12 @@ export async function runAdminGeneralChatAiStream(opts: {
       : undefined;
   const mode = envMode === "dev" ? "dev" : "prod";
 
+  const ragContext = await fetchAgencyRagContext({
+    supabase: opts.supabase,
+    agencyId: opts.agencyId,
+    query: opts.message,
+  });
+
   return runAiTaskStream({
     task_type: TaskType.AGENCY_ADMIN_GENERAL_CHAT,
     mode,
@@ -333,6 +481,7 @@ export async function runAdminGeneralChatAiStream(opts: {
       contextSnapshot: opts.snapshot,
       conversation: opts.conversation,
       latestUserMessage: opts.message,
+      ragContext,
     },
     supabase: opts.supabase,
   });

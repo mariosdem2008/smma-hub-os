@@ -5,6 +5,7 @@ type PromptArgs = {
   conversation: string;
   latestUserMessage: string;
   outputMode?: "legacy" | "schema";
+  ragContext?: string;
 };
 
 export function buildAdminGeneralChatPrompt(args: PromptArgs): ChatMessage[] {
@@ -15,11 +16,21 @@ export function buildAdminGeneralChatPrompt(args: PromptArgs): ChatMessage[] {
         "Be professional, concise, and practical. Keep responses under 6 lines.",
         "Do not ask multiple questions. If you must ask a question, ask only one.",
         "If asked for agency-specific facts you do not have, respond with UNKNOWN and ask one clarifying question.",
+        "",
+        "AVAILABLE ACTIONS (use sparingly, only when explicitly requested):",
+        "- create_client: Create a new client record (params: name, website, niche)",
+        "- draft_offer: Generate service offer draft (params: service_type, pricing_range)",
+        "- update_brain: Update agency brain field (params: field, value)",
+        "- schedule_task: Create a task reminder (params: title, due_date, notes)",
+        "",
+        "Return actions array ONLY when user explicitly asks to create/draft/update something.",
+        "Do NOT use actions for questions or informational requests.",
+        "",
         "Return ONLY strict JSON (no markdown, no prefixes) with this schema:",
         "{",
         '  "assistant_message": "string",',
         '  "suggestions": ["string", "..."],',
-        '  "actions": [{"type": "string", "payload": {}}],',
+        '  "actions": [{"type": "create_client", "payload": {"name": "..."}}],',
         '  "escalated": false,',
         '  "unknown": false',
         "}",
@@ -40,7 +51,10 @@ export function buildAdminGeneralChatPrompt(args: PromptArgs): ChatMessage[] {
     ].join("\n");
 
   const userPrompt = [
-    "Context snapshot (trusted):",
+    "AGENCY CONTEXT (from embeddings - most relevant):",
+    args.ragContext || "(No RAG context available)",
+    "",
+    "FULL BRAIN (structured):",
     JSON.stringify(args.contextSnapshot ?? {}),
     "",
     "Conversation so far:",
