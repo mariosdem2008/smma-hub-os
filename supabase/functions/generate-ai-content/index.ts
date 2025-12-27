@@ -4,6 +4,8 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
 import { ai } from "../../../src/ai/router.ts";
 import { TaskType } from "../../../src/ai/taskTypes.ts";
+import { logUsage } from "../../../src/ai/logging.ts";
+import { calculateCost, incrementBudget } from "../_shared/budgets.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -17,6 +19,18 @@ const PLAN_QUOTAS: Record<string, number> = {
   pro: 500,
   agency_plus: 1500,
 };
+
+function estimateTokensForCost(text: string) {
+  return Math.ceil(text.length / 3);
+}
+
+function extractUsageFromRaw(raw: unknown) {
+  const usage = (raw as any)?.usage;
+  const inputTokens = usage?.prompt_tokens ?? usage?.input_tokens;
+  const outputTokens = usage?.completion_tokens ?? usage?.output_tokens;
+  if (typeof inputTokens !== "number" && typeof outputTokens !== "number") return undefined;
+  return { inputTokens, outputTokens };
+}
 
 serve(async (req: { method: string; headers: { get: (arg0: string) => any; }; json: () => PromiseLike<{ mode: any; project_id: any; client_id: any; platform: any; brand_context: any; input_text: any; }> | { mode: any; project_id: any; client_id: any; platform: any; brand_context: any; input_text: any; }; }) => {
   if (req.method === 'OPTIONS') {
@@ -173,9 +187,11 @@ serve(async (req: { method: string; headers: { get: (arg0: string) => any; }; js
     }
 
     console.log('[AI-CONTENT] Calling AI router...');
+    const startTime = Date.now();
     let suggestions;
+    let aiResult: any = null;
     try {
-      const aiResult = await ai.run({
+      aiResult = await ai.run({
         taskType: TaskType.CONTENT_IDEAS,
         input: "",
         context: { agencyId: agency_id, clientId: client_id, userId: user.id, environment: "prod", supabase: supabaseClient },
@@ -196,6 +212,60 @@ serve(async (req: { method: string; headers: { get: (arg0: string) => any; }; js
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    const latencyMs = Date.now() - startTime;
+    const usage = extractUsageFromRaw(aiResult?.raw);
+    const runtimeModel = aiResult?.meta?.model ?? "gpt-5-mini";
+    const inputText = `${input_text ?? ""}\n\n${brand_context ?? ""}`;
+    const outputText = JSON.stringify(suggestions ?? []);
+    const tokensIn = usage?.inputTokens ?? estimateTokensForCost(inputText);
+    const tokensOut = usage?.outputTokens ?? estimateTokensForCost(outputText);
+    const costUsd = calculateCost("openai", runtimeModel, tokensIn, tokensOut);
+
+    await logUsage(supabaseClient, {
+      taskType: TaskType.CONTENT_IDEAS,
+      endpoint: "generate-ai-content",
+      provider: "openai",
+      model: runtimeModel,
+      agencyId: agency_id,
+      clientId: client_id,
+      latencyMs,
+      tokensIn,
+      tokensOut,
+      unknown: false,
+      success: true,
+      errorCode: null,
+    });
+
+    await supabaseClient.from("ai_runs").insert({
+      agency_id,
+      client_id,
+      user_id: user.id,
+      prompt_id: null,
+      prompt_version: null,
+      model: runtimeModel,
+      tokens_in: tokensIn,
+      tokens_out: tokensOut,
+      cost_usd: costUsd,
+      latency_ms: latencyMs,
+      success: true,
+      citations: {},
+      unknown: false,
+      escalate_to_human: false,
+      escalation_reason: null,
+    });
+
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    const { data: budgetRow } = await supabaseClient
+      .from("ai_budgets")
+      .select("id")
+      .eq("agency_id", agency_id)
+      .eq("month_yyyy_mm", currentMonth)
+      .maybeSingle();
+
+    if (budgetRow?.id) {
+      await incrementBudget(supabaseClient, agency_id, currentMonth, costUsd, false);
     }
 
     // Store in ai_history for audit
@@ -229,7 +299,6 @@ serve(async (req: { method: string; headers: { get: (arg0: string) => any; }; js
     }
 
     // Track usage
-    const currentMonth = new Date().toISOString().slice(0, 7);
     const { error: usageError } = await supabaseClient.from('ai_generation_usage').insert({
       user_id: user.id,
       agency_id,
