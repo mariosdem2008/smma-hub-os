@@ -25,6 +25,7 @@ coverage/
 *.psd
 *.ai
 *.blend
+docs/ai/audit_artifacts/
 
 # Editor directories and files
 .vscode/*
