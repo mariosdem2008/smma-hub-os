@@ -116,3 +116,16 @@
   - `npm run lint` -> PASS.
   - `npx tsc -p .` -> PASS.
   - `npm run build` -> PASS. Browserslist data warning; chunk size warning (existing).
+
+## Follow-up Phase 1 gaps: Commit A (prompt invariants)
+- Files changed:
+  - `src/ai/__tests__/adminSetupGuidedPrompt.test.ts`
+- Tests added/updated:
+  - `admin setup guided prompt -> keeps required structure invariants`
+- Gaps closed:
+  - Prompt structure invariants validated (bootstrap block, depth levels, orchestration disclaimer, name/website rules).
+- Gates:
+  - `npm run test` -> PASS (31 files, 105 tests). React Router future-flag warnings in stderr.
+  - `npm run lint` -> PASS.
+  - `npx tsc -p .` -> PASS.
+  - `npm run build` -> PASS. Browserslist data warning; chunk size warning (existing).
