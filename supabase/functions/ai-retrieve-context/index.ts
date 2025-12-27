@@ -3,7 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
 import { embedText } from "../_shared/embeddings.ts";
-import { getLockdownFailure } from "../_shared/lockdown.ts";
+import { getLockdownFailure, logLockdownAttempt } from "../_shared/lockdown.ts";
 
 function jsonResponse(body: unknown, status = 200, headers: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
@@ -22,6 +22,12 @@ serve(async (req: Request) => {
   }
 
   const lockdownEnabled = Deno.env.get("AI_LOCKDOWN_UNUSED_ENDPOINTS") === "true";
+  const body = await req.json().catch(() => ({}));
+  const agencyId = body.agency_id as string | undefined;
+  const clientId = body.client_id as string | undefined;
+  const query = (body.query as string | undefined)?.trim();
+  const topK = Number(body.top_k ?? 8);
+  const docTypes = Array.isArray(body.doc_types) ? body.doc_types : null;
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) {
     const lockdown = getLockdownFailure({
@@ -31,6 +37,15 @@ serve(async (req: Request) => {
       hasMembership: false,
     });
     if (lockdown) {
+      const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+        auth: { persistSession: false },
+      });
+      await logLockdownAttempt({
+        supabase,
+        endpoint: "ai-retrieve-context",
+        agencyId,
+        clientId,
+      });
       return jsonResponse(lockdown.body, lockdown.status, corsHeaders(req));
     }
     return jsonResponse({ error: "Missing Authorization header" }, 401, corsHeaders(req));
@@ -52,18 +67,18 @@ serve(async (req: Request) => {
       hasMembership: false,
     });
     if (lockdown) {
+      await logLockdownAttempt({
+        supabase,
+        endpoint: "ai-retrieve-context",
+        agencyId,
+        clientId,
+      });
       return jsonResponse(lockdown.body, lockdown.status, corsHeaders(req));
     }
     return jsonResponse({ error: "Unauthorized" }, 401, corsHeaders(req));
   }
 
   const startTime = Date.now();
-  const body = await req.json().catch(() => ({}));
-  const agencyId = body.agency_id as string | undefined;
-  const clientId = body.client_id as string | undefined;
-  const query = (body.query as string | undefined)?.trim();
-  const topK = Number(body.top_k ?? 8);
-  const docTypes = Array.isArray(body.doc_types) ? body.doc_types : null;
 
   if (!agencyId || !query) {
     return jsonResponse({ error: "agency_id and query are required" }, 400, corsHeaders(req));
@@ -84,6 +99,12 @@ serve(async (req: Request) => {
       hasMembership: false,
     });
     if (lockdown) {
+      await logLockdownAttempt({
+        supabase,
+        endpoint: "ai-retrieve-context",
+        agencyId,
+        clientId,
+      });
       return jsonResponse(lockdown.body, lockdown.status, corsHeaders(req));
     }
     return jsonResponse({ error: "Forbidden" }, 403, corsHeaders(req));

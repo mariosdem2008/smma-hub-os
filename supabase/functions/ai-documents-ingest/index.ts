@@ -4,7 +4,7 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
 import { buildChunks, DEFAULT_EMBEDDING_DIM, embedText, tokenize } from "../_shared/embeddings.ts";
 import { embedWithPolicy } from "../_shared/embedding-policy.ts";
-import { getLockdownFailure } from "../_shared/lockdown.ts";
+import { getLockdownFailure, logLockdownAttempt } from "../_shared/lockdown.ts";
 
 const ALLOWED_DOC_TYPES = [
   "agency_exemplar_strategy",
@@ -39,6 +39,16 @@ serve(async (req: Request) => {
   }
 
   const lockdownEnabled = Deno.env.get("AI_LOCKDOWN_UNUSED_ENDPOINTS") === "true";
+  const body = await req.json().catch(() => ({}));
+  const agencyId = body.agency_id as string | undefined;
+  const clientId = body.client_id as string | undefined;
+  const docType = body.doc_type as string | undefined;
+  const title = body.title as string | undefined;
+  const content = body.content as string | undefined;
+  const sourceType = body.source_type as string | undefined;
+  const sourceRef = body.source_ref as string | undefined;
+  const fileName = body.file_name as string | undefined;
+  const fileSizeMb = body.file_size_mb as number | undefined;
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) {
     const lockdown = getLockdownFailure({
@@ -48,6 +58,15 @@ serve(async (req: Request) => {
       hasMembership: false,
     });
     if (lockdown) {
+      const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+        auth: { persistSession: false },
+      });
+      await logLockdownAttempt({
+        supabase,
+        endpoint: "ai-documents-ingest",
+        agencyId,
+        clientId,
+      });
       return jsonResponse(lockdown.body, lockdown.status, corsHeaders(req));
     }
     return jsonResponse({ error: "Missing Authorization header" }, 401, corsHeaders(req));
@@ -69,6 +88,12 @@ serve(async (req: Request) => {
       hasMembership: false,
     });
     if (lockdown) {
+      await logLockdownAttempt({
+        supabase,
+        endpoint: "ai-documents-ingest",
+        agencyId,
+        clientId,
+      });
       return jsonResponse(lockdown.body, lockdown.status, corsHeaders(req));
     }
     return jsonResponse({ error: "Unauthorized" }, 401, corsHeaders(req));
@@ -76,16 +101,6 @@ serve(async (req: Request) => {
 
   const startTime = Date.now();
   const failHard = Deno.env.get("AI_EMBEDDING_FAIL_HARD") === "true";
-  const body = await req.json().catch(() => ({}));
-  const agencyId = body.agency_id as string | undefined;
-  const clientId = body.client_id as string | undefined;
-  const docType = body.doc_type as string | undefined;
-  const title = body.title as string | undefined;
-  const content = body.content as string | undefined;
-  const sourceType = body.source_type as string | undefined;
-  const sourceRef = body.source_ref as string | undefined;
-  const fileName = body.file_name as string | undefined;
-  const fileSizeMb = body.file_size_mb as number | undefined;
 
   if (!agencyId || !docType || !title || !content || !sourceType || !sourceRef) {
     return jsonResponse({ error: "Missing required fields" }, 400, corsHeaders(req));
@@ -121,6 +136,12 @@ serve(async (req: Request) => {
       hasMembership: false,
     });
     if (lockdown) {
+      await logLockdownAttempt({
+        supabase,
+        endpoint: "ai-documents-ingest",
+        agencyId,
+        clientId,
+      });
       return jsonResponse(lockdown.body, lockdown.status, corsHeaders(req));
     }
     return jsonResponse({ error: "Forbidden" }, 403, corsHeaders(req));

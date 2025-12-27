@@ -15,6 +15,16 @@
 - When true: unauthenticated or non-member requests return 403 with code ENDPOINT_LOCKED_DOWN.
 - When false: existing 401/403 behavior remains unchanged.
 
+## Lockdown logging
+- Log location: public.ai_usage_logs with status_code=403 and error_code="ENDPOINT_LOCKED_DOWN".
+- Query:
+```sql
+select *
+from public.ai_usage_logs
+where error_code = 'ENDPOINT_LOCKED_DOWN'
+order by created_at desc;
+```
+
 ## Rollback steps
 1. Set AI_LOCKDOWN_UNUSED_ENDPOINTS=false (immediate rollback).
 2. Re-deploy edge functions if needed (ai-retrieve-context, ai-documents-ingest).
