@@ -42,3 +42,4 @@
 22) Prompt registry vs model policy conflict resolution (which takes precedence?). **ƒ+' OPEN: currently undefined, recommend model policy wins, prompt registry is reference only.**
 23) Timeout values per task type (30s may be too short for complex tasks). **ƒ+' OPEN: plan_v1.md suggests configurable per task, default 30s, max 60s - needs implementation in Phase 2.**
 24) Retry queue for failed embeddings (background worker to retry failed chunks). **ƒ+' OPEN: Phase 3 enhancement, not critical for v1.**
+25) Decide streaming behavior for admin chat when AI_ADMIN_CHAT_SCHEMA=true (delta extraction vs buffered response). **OPEN: Phase 5 safe default buffers and sends full message.**
