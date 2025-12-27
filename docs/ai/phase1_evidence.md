@@ -70,3 +70,16 @@
   - `npm run lint` -> PASS.
   - `npx tsc -p .` -> PASS.
   - `npm run build` -> PASS. Browserslist data warning; chunk size warning (existing).
+
+## TASK-001: Adaptive guided setup prompt
+- Files changed:
+  - `src/ai/prompts/adminSetupGuided.ts`: Added bootstrap-aware rules with safe access, restored depth-level framing, and removed orchestration claims.
+  - `src/ai/__tests__/adminSetupGuidedPrompt.test.ts`: Added prompt rule tests for bootstrap name/website.
+- Tests added/updated:
+  - `admin setup guided prompt -> forbids re-asking name/website when present in snapshot`
+  - `admin setup guided prompt -> allows asking name/website when missing in snapshot`
+- Gates:
+  - `npm run test` -> PASS (30 files, 100 tests). React Router future-flag warnings in stderr.
+  - `npm run lint` -> PASS.
+  - `npx tsc -p .` -> PASS.
+  - `npm run build` -> PASS. Browserslist data warning; chunk size warning (existing).
