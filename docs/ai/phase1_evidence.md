@@ -144,3 +144,16 @@
   - `npm run lint` -> PASS.
   - `npx tsc -p .` -> PASS.
   - `npm run build` -> PASS. Browserslist data warning; chunk size warning (existing).
+
+## Follow-up Phase 1 gaps: Commit C (DB failure paths)
+- Files changed:
+  - `src/data/__tests__/agencyAdminSetupGuided.test.ts`
+- Tests added/updated:
+  - `agency admin setup guided -> handles agency fetch failure without leaking secrets`
+- Gaps closed:
+  - DB failure-path handling validated with null snapshot and continued flow; no secret leakage in logs.
+- Gates:
+  - `npm run test` -> PASS (31 files, 109 tests). React Router future-flag warnings in stderr.
+  - `npm run lint` -> PASS.
+  - `npx tsc -p .` -> PASS.
+  - `npm run build` -> PASS. Browserslist data warning; chunk size warning (existing).

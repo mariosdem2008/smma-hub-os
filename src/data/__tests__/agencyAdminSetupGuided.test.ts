@@ -11,6 +11,7 @@ const getNextQuestionMock = vi.spyOn(setupQuestions, "getNextQuestion");
 
 function createSupabaseMock(opts?: {
   agency?: { id: string; name: string | null; website?: string | null; niche?: string | null } | null;
+  agencyErrorMessage?: string | null;
 }) {
   const messages: Array<any> = [];
   let brain: any = {};
@@ -37,6 +38,9 @@ function createSupabaseMock(opts?: {
             return { data: { id: "brain-1", brain_json: brain }, error: null };
           }
           if (table === "agencies") {
+            if (opts?.agencyErrorMessage) {
+              throw new Error(opts.agencyErrorMessage);
+            }
             return { data: agency ?? null, error: null };
           }
           if (table === "profiles") {
@@ -391,6 +395,47 @@ describe("agency admin setup guided", () => {
     expect(snapshot?.agency?.website ?? null).toBeNull();
     if ("error" in result.body) throw new Error("Unexpected error response");
     expect(result.body.assistant_message).toContain(SETUP_QUESTIONS[1].question_text);
+  });
+
+  it("handles agency fetch failure without leaking secrets", async () => {
+    const secret = "secret_token=shh";
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { supabase, messages } = createSupabaseMock({
+      agencyErrorMessage: `DB failure: ${secret}`,
+    });
+    messages.push({
+      role: "assistant",
+      content: SETUP_QUESTIONS[0].question_text,
+      meta_json: { state: { intent: "ANSWER_TO_ONBOARDING_QUESTION", pending_question_key: SETUP_QUESTIONS[0].key, pending_question_text: SETUP_QUESTIONS[0].question_text } },
+      created_at: new Date().toISOString(),
+    });
+    runAiTaskMock.mockResolvedValueOnce({
+      assistant_message: "",
+      json: { value: ["Social media management"] },
+      meta: { provider: "openai", model: "gpt-5-nano" },
+    });
+
+    const result = await handleAgencyAdminSetup({
+      supabase: supabase as any,
+      userId: "user-1",
+      agencyId: "agency-1",
+      threadId: "thread-1",
+      message: "Social media management",
+    });
+
+    expect(runAiTaskMock).toHaveBeenCalledTimes(1);
+    const call = runAiTaskMock.mock.calls[0]?.[0] as any;
+    const snapshot = call?.metadata?.contextSnapshot as any;
+    expect(snapshot?.agency ?? null).toBeNull();
+    if ("error" in result.body) throw new Error("Unexpected error response");
+    expect(result.body.assistant_message).toContain(SETUP_QUESTIONS[1].question_text);
+    const errorOutput = errorSpy.mock.calls.flat().join(" ");
+    const warnOutput = warnSpy.mock.calls.flat().join(" ");
+    expect(errorOutput).not.toContain(secret);
+    expect(warnOutput).not.toContain(secret);
+    errorSpy.mockRestore();
+    warnSpy.mockRestore();
   });
 
   it("invalid JSON extraction triggers deterministic parse failure", async () => {
