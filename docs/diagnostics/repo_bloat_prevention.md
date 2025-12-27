@@ -19,4 +19,4 @@ If a large binary must be stored:
 Do not commit large binaries directly into Git history.
 
 ## Current Status
-- Latest scan found no tracked files >10 MB (see `docs/diagnostics/largest_blobs_current.txt`).
+- Latest scan found no tracked files >10 MB.

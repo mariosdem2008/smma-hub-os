@@ -6,8 +6,8 @@
 - Added `.gitignore` guardrails to prevent reintroducing large artifacts.
 
 ## Size Metrics
-- Before rewrite: `size-pack` = 901.64 MiB (from `docs/diagnostics/push_408_before.txt`)
-- After rewrite: `size-pack` = 2.21 MiB (from `docs/diagnostics/push_408_after_rewrite.txt`)
+- Before rewrite: `size-pack` = 901.64 MiB
+- After rewrite: `size-pack` = 2.21 MiB
 
 ## Largest Blobs
 - Before: 3,974,738,482 bytes (3790.61 MB) at `docs/ai/audit_artifacts/rg_memory_brains_db.txt`
@@ -19,5 +19,5 @@
 3) Added `.gitignore` entries for audit artifacts and build/binary files.
 
 ## Notes
-- Remote HEAD was verified unchanged before force-with-lease (see `docs/diagnostics/remote_head_compare.txt`).
+- Remote HEAD was verified unchanged before force-with-lease.
 - SSH authentication succeeded (`ssh -T git@github.com`).

@@ -58,3 +58,21 @@ feat/ai-onboarding-v2-migration-2025-12-23 (recent feature work)
 feature/ai-streaming (feature branch)
 fix/team-invites-canonical (fix branch, recent)
 
+## Inventory 2025-12-27 11:52:23
+| Path | KB | Last Commit |
+| --- | --- | --- |
+| docs\diagnostics\backup_created.txt | 0.1 | 2c62fa6 2025-12-27 11:10:03 +0200 docs(diagnostics): add push 408 diagnostics |
+| docs\diagnostics\branch_cleanup_log.md | 1.94 | 6129bbf 2025-12-27 11:46:25 +0200 docs(diagnostics): log branch cleanup |
+| docs\diagnostics\hardening_log.md | 1.57 | 789e0c7 2025-12-27 11:22:30 +0200 docs(diagnostics): log push and final status |
+| docs\diagnostics\largest_blobs.txt | 1.75 | 2c62fa6 2025-12-27 11:10:03 +0200 docs(diagnostics): add push 408 diagnostics |
+| docs\diagnostics\largest_blobs_after.txt | 1.65 | 46f4813 2025-12-27 11:13:23 +0200 docs(diagnostics): add push 408 resolution |
+| docs\diagnostics\largest_blobs_current.txt | 1.61 | a4df703 2025-12-27 11:20:52 +0200 docs(diagnostics): add repo bloat prevention guidance |
+| docs\diagnostics\push_408_after_gc.txt | 0.2 | 2c62fa6 2025-12-27 11:10:03 +0200 docs(diagnostics): add push 408 diagnostics |
+| docs\diagnostics\push_408_after_rewrite.txt | 0.19 | 4905b0a 2025-12-27 11:11:46 +0200 docs(diagnostics): add rewrite stats |
+| docs\diagnostics\push_408_before.txt | 1.73 | 2c62fa6 2025-12-27 11:10:03 +0200 docs(diagnostics): add push 408 diagnostics |
+| docs\diagnostics\push_408_resolution.md | 1.16 | 46f4813 2025-12-27 11:13:23 +0200 docs(diagnostics): add push 408 resolution |
+| docs\diagnostics\remote_head_after.txt | 0.06 | 4905b0a 2025-12-27 11:11:46 +0200 docs(diagnostics): add rewrite stats |
+| docs\diagnostics\remote_head_before.txt | 0.06 | 2c62fa6 2025-12-27 11:10:03 +0200 docs(diagnostics): add push 408 diagnostics |
+| docs\diagnostics\remote_head_compare.txt | 0.16 | 4905b0a 2025-12-27 11:11:46 +0200 docs(diagnostics): add rewrite stats |
+| docs\diagnostics\repo_bloat_prevention.md | 0.84 | a4df703 2025-12-27 11:20:52 +0200 docs(diagnostics): add repo bloat prevention guidance |
+
