@@ -122,21 +122,20 @@ export function validateStrategicOutput(output: unknown): ValidationResult {
     return { ok: false, errors: ["Output must be an object"] };
   }
 
-  {
-    const output = output as AdminChatStrategicOutput;
+  const parsed = output as AdminChatStrategicOutput;
 
   const playbooks: AdminChatPlaybook[] = ["core_offer", "strategy", "copywriting"];
-  if (!playbooks.includes(output.playbook)) {
+  if (!playbooks.includes(parsed.playbook)) {
     errors.push("playbook must be core_offer, strategy, or copywriting");
   }
 
-  if (!Array.isArray(output.clarifying_questions)) {
+  if (!Array.isArray(parsed.clarifying_questions)) {
     errors.push("clarifying_questions must be an array of strings");
   } else {
-    if (output.clarifying_questions.length > 3) {
+    if (parsed.clarifying_questions.length > 3) {
       errors.push("clarifying_questions must have <= 3 items");
     }
-    output.clarifying_questions.forEach((item, index) => {
+    parsed.clarifying_questions.forEach((item, index) => {
       if (typeof item !== "string" || !item.trim()) {
         errors.push(`clarifying_questions[${index}] must be a non-empty string`);
       } else if (item.trim().length > 160) {
@@ -145,14 +144,14 @@ export function validateStrategicOutput(output: unknown): ValidationResult {
     });
   }
 
-  if (output.suggestions) {
-    if (!Array.isArray(output.suggestions)) {
+  if (parsed.suggestions) {
+    if (!Array.isArray(parsed.suggestions)) {
       errors.push("suggestions must be an array");
     } else {
-      if (output.suggestions.length > 3) {
+      if (parsed.suggestions.length > 3) {
         errors.push("suggestions must have <= 3 items");
       }
-      output.suggestions.forEach((item, index) => {
+      parsed.suggestions.forEach((item, index) => {
         if (typeof item !== "string" || !item.trim()) {
           errors.push(`suggestions[${index}] must be a non-empty string`);
         } else if (item.trim().length > 120) {
@@ -162,14 +161,14 @@ export function validateStrategicOutput(output: unknown): ValidationResult {
     }
   }
 
-  if (output.assumptions) {
-    if (!Array.isArray(output.assumptions)) {
+  if (parsed.assumptions) {
+    if (!Array.isArray(parsed.assumptions)) {
       errors.push("assumptions must be an array");
     } else {
-      if (output.assumptions.length > 8) {
+      if (parsed.assumptions.length > 8) {
         errors.push("assumptions must have <= 8 items");
       }
-      output.assumptions.forEach((item, index) => {
+      parsed.assumptions.forEach((item, index) => {
         if (typeof item !== "string" || !item.trim()) {
           errors.push(`assumptions[${index}] must be a non-empty string`);
         } else if (item.trim().length > 140) {
@@ -180,10 +179,10 @@ export function validateStrategicOutput(output: unknown): ValidationResult {
   }
 
   const payloads = {
-    unknown: output.unknown ?? null,
-    core_offer: output.core_offer ?? null,
-    strategy: output.strategy ?? null,
-    copywriting: output.copywriting ?? null,
+    unknown: parsed.unknown ?? null,
+    core_offer: parsed.core_offer ?? null,
+    strategy: parsed.strategy ?? null,
+    copywriting: parsed.copywriting ?? null,
   };
   const payloadKeys = Object.entries(payloads).filter(([, value]) => value !== null && value !== undefined).map(([key]) => key);
   if (payloadKeys.length !== 1) {
@@ -193,8 +192,8 @@ export function validateStrategicOutput(output: unknown): ValidationResult {
     errors.push("unknown payload cannot be combined with other payloads");
   }
 
-  if (output.unknown) {
-    const missing = output.unknown.missing ?? [];
+  if (parsed.unknown) {
+    const missing = parsed.unknown.missing ?? [];
     if (!Array.isArray(missing) || missing.length < 1 || missing.length > 10) {
       errors.push("unknown.missing must be an array with 1-10 items");
     } else {
@@ -206,18 +205,18 @@ export function validateStrategicOutput(output: unknown): ValidationResult {
         }
       });
     }
-    if (typeof output.unknown.question !== "string" || !output.unknown.question.trim()) {
+    if (typeof parsed.unknown.question !== "string" || !parsed.unknown.question.trim()) {
       errors.push("unknown.question must be a non-empty string");
-    } else if (output.unknown.question.trim().length > 180) {
+    } else if (parsed.unknown.question.trim().length > 180) {
       errors.push("unknown.question must be <= 180 chars");
     }
   }
 
-  if (output.playbook === "core_offer") {
-    if (output.strategy || output.copywriting) {
+  if (parsed.playbook === "core_offer") {
+    if (parsed.strategy || parsed.copywriting) {
       errors.push("strategy/copywriting payloads must be absent for core_offer");
     }
-    const payload = output.core_offer;
+    const payload = parsed.core_offer;
     if (!payload) {
       errors.push("core_offer payload is required");
     } else {
@@ -311,11 +310,11 @@ export function validateStrategicOutput(output: unknown): ValidationResult {
     }
   }
 
-  if (output.playbook === "strategy") {
-    if (output.core_offer || output.copywriting) {
+  if (parsed.playbook === "strategy") {
+    if (parsed.core_offer || parsed.copywriting) {
       errors.push("core_offer/copywriting payloads must be absent for strategy");
     }
-    const payload = output.strategy;
+    const payload = parsed.strategy;
     if (!payload) {
       errors.push("strategy payload is required");
     } else {
@@ -364,11 +363,11 @@ export function validateStrategicOutput(output: unknown): ValidationResult {
     }
   }
 
-  if (output.playbook === "copywriting") {
-    if (output.core_offer || output.strategy) {
+  if (parsed.playbook === "copywriting") {
+    if (parsed.core_offer || parsed.strategy) {
       errors.push("core_offer/strategy payloads must be absent for copywriting");
     }
-    const payload = output.copywriting;
+    const payload = parsed.copywriting;
     if (!payload) {
       errors.push("copywriting payload is required");
     } else {
@@ -403,8 +402,6 @@ export function validateStrategicOutput(output: unknown): ValidationResult {
         errors.push("copywriting.next_action must be 1-160 chars");
       }
     }
-  }
-
   }
 
   return errors.length ? { ok: false, errors } : { ok: true };
