@@ -8,8 +8,8 @@ type PromptArgs = {
 };
 
 export function buildAdminSetupGuidedPrompt(args: PromptArgs): ChatMessage[] {
-  const agencyName = args.contextSnapshot?.agency?.name ?? null;
-  const agencyWebsite = args.contextSnapshot?.agency?.website ?? null;
+  const agencyName = (args.contextSnapshot?.agency as Record<string, unknown>)?.name ?? null;
+  const agencyWebsite = (args.contextSnapshot?.agency as Record<string, unknown>)?.website ?? null;
   const agencyNameRule = agencyName
     ? `Agency name is already known ("${agencyName}"). Do NOT ask for the agency name.`
     : "Agency name is missing. You MAY ask for the agency name if needed.";

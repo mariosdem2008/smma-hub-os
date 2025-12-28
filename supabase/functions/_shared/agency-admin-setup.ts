@@ -3,6 +3,8 @@ import { TaskType } from "../../../src/ai/taskTypes.ts";
 import {
   SETUP_QUESTIONS,
   computeProgress,
+  computeSmartProgress,
+  evaluateDependencies,
   getFirstQuestion,
   getMissingKeys,
   getNextQuestion,
@@ -44,6 +46,13 @@ type RepPolicy = {
   default_cta_style?: string[];
 };
 
+type EditHistoryEntry = {
+  question_key: string;
+  old_value: unknown;
+  new_value: unknown;
+  timestamp: string;
+};
+
 type SetupProgress = {
   status?: "not_started" | "in_progress" | "paused" | "completed";
   started_at?: string;
@@ -53,6 +62,7 @@ type SetupProgress = {
   missing_fields?: string[];
   current_step_key?: string | null;
   completed_keys?: string[];
+  edit_history?: EditHistoryEntry[];
 };
 
 type AgencyBrain = {
@@ -384,6 +394,89 @@ function hasMeaningfulValue(value: unknown) {
   return true;
 }
 
+type ValidationResult = {
+  valid: boolean;
+  error?: string;
+};
+
+function validateExtractedValue(value: unknown, question: SetupQuestion): ValidationResult {
+  // If no validation rules, just check if meaningful
+  if (!question.validation) {
+    if (!hasMeaningfulValue(value)) {
+      return {
+        valid: false,
+        error: question.validation?.errorMessages?.required ?? "Please provide an answer to continue.",
+      };
+    }
+    return { valid: true };
+  }
+
+  const rules = question.validation;
+
+  // Check required
+  if (!hasMeaningfulValue(value)) {
+    return {
+      valid: false,
+      error: rules.errorMessages?.required ?? "This field is required.",
+    };
+  }
+
+  // Validate arrays
+  if (rules.type === "array" && Array.isArray(value)) {
+    const filteredValue = value.filter((v) => String(v ?? "").trim().length > 0);
+
+    if (rules.minItems !== undefined && filteredValue.length < rules.minItems) {
+      return {
+        valid: false,
+        error: rules.errorMessages?.minItems ?? `Please provide at least ${rules.minItems} items.`,
+      };
+    }
+
+    if (rules.maxItems !== undefined && filteredValue.length > rules.maxItems) {
+      return {
+        valid: false,
+        error: rules.errorMessages?.maxItems ?? `Please provide no more than ${rules.maxItems} items.`,
+      };
+    }
+
+    return { valid: true };
+  }
+
+  // Validate strings
+  if (rules.type === "string" && typeof value === "string") {
+    const trimmedValue = value.trim();
+
+    if (rules.minLength !== undefined && trimmedValue.length < rules.minLength) {
+      return {
+        valid: false,
+        error: rules.errorMessages?.minLength ?? `Please provide at least ${rules.minLength} characters.`,
+      };
+    }
+
+    if (rules.maxLength !== undefined && trimmedValue.length > rules.maxLength) {
+      return {
+        valid: false,
+        error: rules.errorMessages?.maxLength ?? `Please keep your answer under ${rules.maxLength} characters.`,
+      };
+    }
+
+    if (rules.pattern) {
+      const regex = new RegExp(rules.pattern);
+      if (!regex.test(trimmedValue)) {
+        return {
+          valid: false,
+          error: rules.errorMessages?.pattern ?? "Please provide a valid format.",
+        };
+      }
+    }
+
+    return { valid: true };
+  }
+
+  // Default: value is meaningful
+  return { valid: true };
+}
+
 function extractAnsweredKeys(brain: AgencyBrain) {
   const answered = new Set<string>();
   for (const q of SETUP_QUESTIONS) {
@@ -395,6 +488,28 @@ function extractAnsweredKeys(brain: AgencyBrain) {
     if (hasMeaningfulValue(value)) answered.add(q.key);
   }
   return answered;
+}
+
+/**
+ * Extract answered values from agency brain (Phase 2: for dependency evaluation)
+ * @param brain - Agency brain object
+ * @returns Map of question keys to their answered values
+ */
+function extractAnsweredValues(brain: AgencyBrain): Map<string, unknown> {
+  const values = new Map<string, unknown>();
+  for (const q of SETUP_QUESTIONS) {
+    if (q.target_path === "faq_v1") {
+      if (Array.isArray(brain.faq_v1) && brain.faq_v1.length > 0) {
+        values.set(q.key, brain.faq_v1);
+      }
+      continue;
+    }
+    const value = getValueByPath(brain as Record<string, unknown>, q.target_path);
+    if (hasMeaningfulValue(value)) {
+      values.set(q.key, value);
+    }
+  }
+  return values;
 }
 
 function parseListAnswer(message: string) {
@@ -784,7 +899,8 @@ export async function handleAgencyAdminSetup(opts: {
 
   const setupStatus = brain.setup_progress_v1?.status ?? "not_started";
   const answeredKeys = extractAnsweredKeys(brain);
-  const nextQuestion = getNextQuestion(answeredKeys);
+  const answeredValues = extractAnsweredValues(brain); // Phase 2: for dependency evaluation
+  const nextQuestion = getNextQuestion(answeredKeys, answeredValues);
 
   const readinessQuestionText = "Are you ready to start? Reply READY.";
   if (!latestState && setupStatus === "not_started") {
@@ -1141,63 +1257,116 @@ export async function handleAgencyAdminSetup(opts: {
 
   if (intent === "ANSWER_TO_ONBOARDING_QUESTION" && pendingQuestion) {
     let extractedValue: unknown = null;
+    let aiProvider: string | null = null;
+    let aiModel: string | null = null;
+
     try {
-      const result = await runAiTask({
-        task_type: TaskType.AGENCY_ADMIN_SETUP_EXTRACT,
-        mode: getAiMode(),
-        tenant: { agency_id: opts.agencyId, user_id: opts.userId },
-        input: { message: incomingMessage },
-        metadata: {
-          questionKey: pendingQuestion.key,
-          questionText: pendingQuestion.question_text,
-          targetPath: pendingQuestion.target_path,
-          contextSnapshot: snapshot,
-        },
-        supabase: opts.supabase,
-      });
-      extractedValue = (result?.json as any)?.value ?? null;
-      if (!hasMeaningfulValue(extractedValue)) {
-        logSetupEvent("setup_parse_failure", {
+      // Skip AI extraction for structured inputs (multiselect, dropdown, tags)
+      if (pendingQuestion.skipAiExtraction) {
+        // Parse structured value directly from message (expected to be JSON)
+        try {
+          const parsed = JSON.parse(incomingMessage);
+          extractedValue = parsed.value ?? parsed;
+        } catch {
+          // If not JSON, treat as string
+          extractedValue = incomingMessage.trim();
+        }
+      } else {
+        // Use AI extraction for free-text answers
+        const result = await runAiTask({
+          task_type: TaskType.AGENCY_ADMIN_SETUP_EXTRACT,
+          mode: getAiMode(),
+          tenant: { agency_id: opts.agencyId, user_id: opts.userId },
+          input: { message: incomingMessage },
+          metadata: {
+            questionKey: pendingQuestion.key,
+            questionText: pendingQuestion.question_text,
+            targetPath: pendingQuestion.target_path,
+            contextSnapshot: snapshot,
+          },
+          supabase: opts.supabase,
+        });
+        extractedValue = (result?.json as any)?.value ?? null;
+        aiProvider = result?.meta?.provider ?? null;
+        aiModel = result?.meta?.model ?? null;
+      }
+
+      // Validate extracted value against question rules
+      const validation = validateExtractedValue(extractedValue, pendingQuestion);
+
+      if (!validation.valid) {
+        logSetupEvent("setup_validation_failure", {
           thread_id: opts.threadId,
           question_key: pendingQuestion.key,
-          reason: "empty_value",
+          reason: "validation_error",
+          error: validation.error,
         });
-        const fallback = buildParseFailureResponse(pendingKey, pendingQuestion.question_text);
-        await insertAssistantMessage(opts.supabase, opts.threadId, fallback.assistant_message, {
+
+        // Return validation error with specific message
+        const validationError = {
+          assistant_message: validation.error ?? "I couldn't parse that response. Please try again.",
+          expects: pendingQuestion.expects,
+          choices: pendingQuestion.options?.map((opt) => ({ id: opt.id, label: opt.label })) ?? [],
+          suggestions: buildSuggestionsForPendingQuestion(pendingKey, pendingQuestion.question_text),
+          progress_percent: computeProgress(answeredKeys),
+          done: false,
+          state: {
+            intent: "ANSWER_TO_ONBOARDING_QUESTION",
+            pending_question_key: pendingKey,
+            pending_question_text: pendingQuestion.question_text,
+          },
+        };
+
+        await insertAssistantMessage(opts.supabase, opts.threadId, validationError.assistant_message, {
           task_type: "AGENCY_ADMIN_SETUP_GUIDED_V2",
-          provider: result?.meta?.provider ?? null,
-          model: result?.meta?.model ?? null,
-          progress_percent: fallback.progress_percent,
+          provider: aiProvider,
+          model: aiModel,
+          progress_percent: validationError.progress_percent,
           updated_fields: [],
           done: false,
-          intent: fallback.state.intent,
-          pending_question_key: fallback.state.pending_question_key,
-          pending_question_text: fallback.state.pending_question_text,
-          state: fallback.state,
-          suggestions: fallback.suggestions ?? [],
+          intent: validationError.state.intent,
+          pending_question_key: validationError.state.pending_question_key,
+          pending_question_text: validationError.state.pending_question_text,
+          state: validationError.state,
+          suggestions: validationError.suggestions ?? [],
         });
+
         return jsonResponse(
           {
             thread_id: opts.threadId,
-            assistant_message: fallback.assistant_message,
-            expects: fallback.expects,
-            choices: fallback.choices,
-            suggestions: fallback.suggestions,
-            progress_percent: fallback.progress_percent,
-            done: fallback.done,
-            step_id: fallback.state.pending_question_key ?? undefined,
-            state: fallback.state,
+            assistant_message: validationError.assistant_message,
+            expects: validationError.expects,
+            choices: validationError.choices,
+            suggestions: validationError.suggestions,
+            progress_percent: validationError.progress_percent,
+            done: validationError.done,
+            step_id: validationError.state.pending_question_key ?? undefined,
+            state: validationError.state,
           },
           200,
         );
       }
-    } catch {
+    } catch (error) {
       logSetupEvent("setup_parse_failure", {
         thread_id: opts.threadId,
         question_key: pendingQuestion.key,
         reason: "extract_error",
+        error: error instanceof Error ? error.message : String(error),
       });
       const fallback = buildParseFailureResponse(pendingKey, pendingQuestion.question_text);
+      await insertAssistantMessage(opts.supabase, opts.threadId, fallback.assistant_message, {
+        task_type: "AGENCY_ADMIN_SETUP_GUIDED_V2",
+        provider: aiProvider,
+        model: aiModel,
+        progress_percent: fallback.progress_percent,
+        updated_fields: [],
+        done: false,
+        intent: fallback.state.intent,
+        pending_question_key: fallback.state.pending_question_key,
+        pending_question_text: fallback.state.pending_question_text,
+        state: fallback.state,
+        suggestions: fallback.suggestions ?? [],
+      });
       return jsonResponse(
         {
           thread_id: opts.threadId,
@@ -1221,9 +1390,36 @@ export async function handleAgencyAdminSetup(opts: {
     });
     const updatedAnsweredKeys = new Set(answeredKeys);
     updatedAnsweredKeys.add(pendingQuestion.key);
-    const updatedProgress = computeProgress(updatedAnsweredKeys);
+
+    // Phase 2: Update answered values map with newly extracted value
+    const updatedAnsweredValues = new Map(answeredValues);
+    updatedAnsweredValues.set(pendingQuestion.key, extractedValue);
+
+    // Phase 2: Track skipped questions for notification
+    const skippedQuestions: Array<{ key: string; reason: string }> = [];
+
+    // Find all questions between current and next that were skipped
+    let foundCurrent = false;
+    for (const q of SETUP_QUESTIONS) {
+      if (q.key === pendingQuestion.key) {
+        foundCurrent = true;
+        continue;
+      }
+      if (!foundCurrent) continue;
+      if (updatedAnsweredKeys.has(q.key)) continue;
+
+      const evaluation = evaluateDependencies(q, updatedAnsweredValues);
+      if (!evaluation.shouldShow && evaluation.reason) {
+        skippedQuestions.push({ key: q.key, reason: evaluation.reason });
+      } else if (evaluation.shouldShow) {
+        break; // Found next question to ask, stop checking
+      }
+    }
+
+    // Phase 2: Use smart progress that accounts for skipped questions
+    const updatedProgress = computeSmartProgress(updatedAnsweredKeys, updatedAnsweredValues);
     const remaining = getMissingKeys(updatedAnsweredKeys);
-    let upcoming = getNextQuestion(updatedAnsweredKeys);
+    let upcoming = getNextQuestion(updatedAnsweredKeys, updatedAnsweredValues);
     if (isGuidedSetupOrchestrationEnabled()) {
       try {
         const selection = await selectNextAdminSetupQuestion({
@@ -1318,11 +1514,18 @@ export async function handleAgencyAdminSetup(opts: {
       return jsonResponse(responsePayload, 200);
     }
 
+    // Phase 2: Include skip notification in intro if questions were skipped
+    let intro = "Got it.";
+    if (skippedQuestions.length > 0) {
+      const skippedCount = skippedQuestions.length;
+      intro = `Got it. (Skipped ${skippedCount} question${skippedCount === 1 ? "" : "s"} based on your answers)`;
+    }
+
     const nextResponse = buildQuestionResponse({
       questionKey: upcoming.key,
       questionText: upcoming.question_text,
       progressPercent: updatedProgress,
-      intro: "Got it.",
+      intro,
     });
 
     await insertAssistantMessage(opts.supabase, opts.threadId, nextResponse.assistant_message, {

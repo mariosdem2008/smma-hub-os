@@ -7,15 +7,35 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getActiveAgencyId } from "@/lib/active-agency";
+import { MultiSelect, type MultiSelectOption } from "@/components/ai/MultiSelect";
+import { TagSelector, type TagOption } from "@/components/ai/TagSelector";
+import { validateValue, validateTextLength, type ValidationRule } from "@/lib/validation";
 
 type ThreadRow = { id: string; title: string; created_at: string; kind?: string | null };
 type Suggestion = { id: string; label: string; user_message: string };
-type MessageRow = { id: string; role: string; content: string; created_at: string; suggestions?: Suggestion[] };
+type MessageRow = {
+  id: string;
+  role: string;
+  content: string;
+  created_at: string;
+  suggestions?: Suggestion[];
+  questionKey?: string;
+};
+
+type SetupQuestionMetadata = {
+  key: string;
+  inputType?: "text" | "multiselect" | "dropdown" | "tags";
+  options?: Array<{ id: string; label: string; value: string; description?: string }>;
+  validation?: ValidationRule;
+  skipAiExtraction?: boolean;
+};
+
 type SetupMeta = {
   stepId: string;
   progressPercent: number;
   done?: boolean;
   choices?: Array<{ id: string; label: string }>;
+  questionMeta?: SetupQuestionMetadata;
 };
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -24,6 +44,89 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY ?? import.meta.
 function isStreamingEnabled() {
   return !(globalThis as any).__SMMAHUB_STREAMING_DISABLED__;
 }
+
+// Question metadata for structured inputs (Phase 1 improvements)
+const SETUP_QUESTION_METADATA: Record<string, SetupQuestionMetadata> = {
+  "agency.primary_services": {
+    key: "agency.primary_services",
+    inputType: "multiselect",
+    skipAiExtraction: true,
+    validation: {
+      type: "array",
+      minItems: 3,
+      maxItems: 6,
+      errorMessages: {
+        minItems: "Please select at least 3 services to help me understand your core offerings.",
+        maxItems: "Please select no more than 6 services to keep your positioning focused.",
+        required: "I need to know your primary services to set up your agency profile.",
+      },
+    },
+    options: [
+      { id: "smm", label: "Social Media Management", value: "Social media management", description: "Monthly social media management retainer" },
+      { id: "content", label: "Content Creation", value: "Content creation", description: "Reels, Posts, Stories, Videos" },
+      { id: "ads", label: "Paid Ads", value: "Paid ads management", description: "Meta Ads, Google Ads, TikTok Ads" },
+      { id: "lead_gen", label: "Lead Generation", value: "Lead generation", description: "DM outreach, booking systems" },
+      { id: "ugc", label: "UGC Sourcing", value: "UGC sourcing + editing", description: "User-generated content curation" },
+      { id: "strategy", label: "Strategy Consulting", value: "Strategy consulting", description: "Social media strategy and planning" },
+      { id: "design", label: "Graphic Design", value: "Graphic design", description: "Brand design, graphics, visuals" },
+      { id: "video", label: "Video Production", value: "Video production", description: "Professional video creation" },
+    ],
+  },
+  "agency.niche_industries": {
+    key: "agency.niche_industries",
+    inputType: "multiselect",
+    skipAiExtraction: true,
+    validation: {
+      type: "array",
+      minItems: 1,
+      maxItems: 3,
+      errorMessages: {
+        minItems: "Please select at least 1 niche to help me understand your target market.",
+        maxItems: "Please select no more than 3 niches to maintain your positioning clarity.",
+        required: "I need to know your target niches to tailor your agency brain.",
+      },
+    },
+    options: [
+      { id: "realestate", label: "Real Estate", value: "Real estate", description: "Agents, brokers, property management" },
+      { id: "ecommerce", label: "E-commerce", value: "Ecommerce", description: "Online stores, product brands" },
+      { id: "local_services", label: "Local Services", value: "Local services", description: "Restaurants, salons, home services" },
+      { id: "coaches", label: "Coaches & Consultants", value: "Coaches/consultants", description: "Business coaches, life coaches, consultants" },
+      { id: "saas", label: "SaaS", value: "SaaS", description: "Software companies, tech startups" },
+      { id: "fitness", label: "Fitness & Wellness", value: "Fitness", description: "Gyms, trainers, wellness brands" },
+      { id: "healthcare", label: "Healthcare", value: "Healthcare", description: "Medical practices, clinics, dentists" },
+      { id: "finance", label: "Finance & Insurance", value: "Finance", description: "Financial advisors, insurance agencies" },
+      { id: "hospitality", label: "Hospitality", value: "Hospitality", description: "Hotels, restaurants, tourism" },
+      { id: "other", label: "Other", value: "Other", description: "Describe your niche" },
+    ],
+  },
+  "brand.voice_adjectives": {
+    key: "brand.voice_adjectives",
+    inputType: "tags",
+    skipAiExtraction: true,
+    validation: {
+      type: "array",
+      minItems: 3,
+      maxItems: 3,
+      errorMessages: {
+        minItems: "Please select exactly 3 adjectives to define your brand voice.",
+        maxItems: "Please select exactly 3 adjectives to keep your voice consistent.",
+        required: "I need to know your brand voice to communicate like you.",
+      },
+    },
+    options: [
+      { id: "bold", label: "Bold", value: "Bold", description: "Confident, assertive, direct" },
+      { id: "friendly", label: "Friendly", value: "Friendly", description: "Warm, approachable, helpful" },
+      { id: "professional", label: "Professional", value: "Professional", description: "Polished, formal, expert" },
+      { id: "premium", label: "Premium", value: "Premium", description: "High-end, sophisticated, exclusive" },
+      { id: "creative", label: "Creative", value: "Creative", description: "Innovative, artistic, imaginative" },
+      { id: "data_driven", label: "Data-Driven", value: "Data-driven", description: "Analytical, metrics-focused" },
+      { id: "conversational", label: "Conversational", value: "Conversational", description: "Casual, relatable, down-to-earth" },
+      { id: "authoritative", label: "Authoritative", value: "Authoritative", description: "Expert, credible, knowledgeable" },
+      { id: "playful", label: "Playful", value: "Playful", description: "Fun, lighthearted, energetic" },
+      { id: "empathetic", label: "Empathetic", value: "Empathetic", description: "Understanding, supportive, caring" },
+    ],
+  },
+};
 
 export default function AgencyAiAdmin() {
   const { isAdmin, loading: roleLoading } = useRole();
@@ -49,6 +152,16 @@ export default function AgencyAiAdmin() {
   const [sending, setSending] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const streamingAbortRef = useRef<AbortController | null>(null);
+
+  // Structured input state (Phase 1)
+  const [structuredValue, setStructuredValue] = useState<string[]>([]);
+  const [validationError, setValidationError] = useState<string | null>(null);
+
+  // Edit functionality state (Phase 2)
+  const [editingQuestionKey, setEditingQuestionKey] = useState<string | null>(null);
+  const [answeredQuestions, setAnsweredQuestions] = useState<Map<string, { answer: string; displayText: string }>>(
+    new Map(),
+  );
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -251,6 +364,8 @@ export default function AgencyAiAdmin() {
           },
           onDone: (assistantId, data) => {
             const assistant = (data?.assistant_message as string | undefined) ?? "UNKNOWN";
+            const stepId = (data?.step_id as string | undefined) ?? "guided_setup";
+
             setMessages((prev) =>
               prev.map((msg) =>
                 msg.id === assistantId
@@ -258,6 +373,7 @@ export default function AgencyAiAdmin() {
                       ...msg,
                       content: assistant,
                       suggestions: Array.isArray(data?.suggestions) ? (data.suggestions as Suggestion[]) : [],
+                      questionKey: stepId, // Store question key for edit functionality
                     }
                   : msg,
               ),
@@ -265,12 +381,19 @@ export default function AgencyAiAdmin() {
 
             setPrimedSetupThreadId(threadId);
             if (typeof data?.progress_percent === "number" || typeof data?.done === "boolean" || data?.step_id) {
+              const questionMeta = SETUP_QUESTION_METADATA[stepId] ?? undefined;
+
               setSetupMeta({
-                stepId: (data?.step_id as string | undefined) ?? "guided_setup",
+                stepId,
                 progressPercent: Number(data.progress_percent ?? 0),
                 choices: (data.choices as SetupMeta["choices"]) ?? [],
                 done: Boolean(data.done),
+                questionMeta,
               });
+
+              // Reset structured input state for new question
+              setStructuredValue([]);
+              setValidationError(null);
             }
           },
         });
@@ -290,24 +413,73 @@ export default function AgencyAiAdmin() {
   );
 
   const sendUserMessage = useCallback(
-    async (nextText?: string) => {
-      const text = (nextText ?? input).trim();
-      if (!text || sending) return;
+    async (nextText?: string, structuredData?: { value: string[] }) => {
+      // Determine if this is a structured input or text input
+      const isStructuredInput = Boolean(structuredData);
+      const text = isStructuredInput ? "" : (nextText ?? input).trim();
+
+      if (!isStructuredInput && !text) return;
+      if (sending) return;
+
+      // Validate structured inputs before sending
+      if (isStructuredInput && setupMeta?.questionMeta) {
+        const { questionMeta } = setupMeta;
+        const validation = validateValue(structuredData?.value ?? [], questionMeta.validation);
+
+        if (!validation.valid) {
+          setValidationError(validation.error ?? "Validation failed");
+          return;
+        }
+      }
 
       setSending(true);
       setInput("");
+      setValidationError(null);
+
+      // Prepare the message to send
+      const messageToSend = isStructuredInput
+        ? JSON.stringify({ value: structuredData?.value ?? [] })
+        : text;
+
+      // Display message for user (show selected labels for structured inputs)
+      const displayContent = isStructuredInput
+        ? structuredData?.value.join(", ") ?? ""
+        : text;
 
       const optimisticUserMsg: MessageRow = {
         id: `tmp-user-${Date.now()}`,
         role: "user",
-        content: text,
+        content: displayContent,
         created_at: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, optimisticUserMsg]);
 
+      // Track answered question (Phase 2 Edit Functionality)
+      if (isSetupActive && setupMeta?.stepId && !editingQuestionKey) {
+        setAnsweredQuestions((prev) => {
+          const updated = new Map(prev);
+          updated.set(setupMeta.stepId, {
+            answer: messageToSend,
+            displayText: displayContent,
+          });
+          return updated;
+        });
+      } else if (editingQuestionKey) {
+        // Update existing answer if editing
+        setAnsweredQuestions((prev) => {
+          const updated = new Map(prev);
+          updated.set(editingQuestionKey, {
+            answer: messageToSend,
+            displayText: displayContent,
+          });
+          return updated;
+        });
+        setEditingQuestionKey(null);
+      }
+
       try {
         const next = await streamAgencyAdminChat({
-          payload: { thread_id: activeThreadId ?? undefined, message: text },
+          payload: { thread_id: activeThreadId ?? undefined, message: messageToSend },
           onStart: (assistantId) => {
             setMessages((prev) => [
               ...prev,
@@ -331,6 +503,7 @@ export default function AgencyAiAdmin() {
           onDone: async (assistantId, data) => {
             const nextThreadId = (data?.thread_id as string | undefined) ?? null;
             const assistant = (data?.assistant_message as string | undefined) ?? "UNKNOWN";
+            const stepId = (data?.step_id as string | undefined) ?? "guided_setup";
 
             if (nextThreadId && nextThreadId !== activeThreadId) {
               setActiveThreadId(nextThreadId);
@@ -344,6 +517,7 @@ export default function AgencyAiAdmin() {
                       ...msg,
                       content: assistant,
                       suggestions: Array.isArray(data?.suggestions) ? (data.suggestions as Suggestion[]) : [],
+                      questionKey: stepId, // Store question key for edit functionality
                     }
                   : msg,
               ),
@@ -351,12 +525,21 @@ export default function AgencyAiAdmin() {
 
             const resolvedThreadId = nextThreadId ?? activeThreadId;
             if (setupThread?.id && resolvedThreadId === setupThread.id) {
+              const questionMeta = SETUP_QUESTION_METADATA[stepId] ?? undefined;
+
               setSetupMeta({
-                stepId: (data?.step_id as string | undefined) ?? "guided_setup",
+                stepId,
                 progressPercent: Number(data.progress_percent ?? 0),
                 choices: (data.choices as SetupMeta["choices"]) ?? [],
                 done: Boolean(data.done),
+                questionMeta,
               });
+
+              // Reset structured input state for new question (unless in edit mode)
+              if (!editingQuestionKey) {
+                setStructuredValue([]);
+                setValidationError(null);
+              }
             }
           },
         });
@@ -381,7 +564,7 @@ export default function AgencyAiAdmin() {
         setSending(false);
       }
     },
-    [activeThreadId, agencyId, input, loadThreads, sending, setupThread?.id, toast],
+    [activeThreadId, agencyId, input, loadThreads, sending, setupMeta, setupThread?.id, toast],
   );
 
   async function streamAgencyAdminChat({
@@ -490,6 +673,43 @@ export default function AgencyAiAdmin() {
     },
     [sendUserMessage],
   );
+
+  // Handle edit button click (Phase 2 Edit Functionality)
+  const handleEditQuestion = useCallback(
+    (questionKey: string) => {
+      const previousAnswer = answeredQuestions.get(questionKey);
+      if (!previousAnswer) return;
+
+      setEditingQuestionKey(questionKey);
+
+      // Pre-fill input based on answer type
+      try {
+        const parsed = JSON.parse(previousAnswer.answer);
+        if (parsed.value && Array.isArray(parsed.value)) {
+          // Structured input (array)
+          setStructuredValue(parsed.value);
+          setInput("");
+        } else {
+          // Text input
+          setStructuredValue([]);
+          setInput(previousAnswer.answer);
+        }
+      } catch {
+        // Plain text answer
+        setStructuredValue([]);
+        setInput(previousAnswer.answer);
+      }
+    },
+    [answeredQuestions],
+  );
+
+  // Cancel edit mode (Phase 2 Edit Functionality)
+  const handleCancelEdit = useCallback(() => {
+    setEditingQuestionKey(null);
+    setInput("");
+    setStructuredValue([]);
+    setValidationError(null);
+  }, []);
 
   useEffect(() => {
     if (!agencyId || !isAdmin) return;
@@ -632,6 +852,22 @@ export default function AgencyAiAdmin() {
         </aside>
 
         <main className="flex h-full flex-1 flex-col">
+          {/* Setup progress indicator */}
+          {isSetupActive && setupMeta && !setupMeta.done ? (
+            <div className="mb-3 rounded-2xl border bg-background/70 p-3 backdrop-blur">
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-medium">Setup Progress</span>
+                <span className="text-muted-foreground">{setupMeta.progressPercent}%</span>
+              </div>
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-700">
+                <div
+                  className="h-full bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] transition-all duration-500"
+                  style={{ width: `${setupMeta.progressPercent}%` }}
+                />
+              </div>
+            </div>
+          ) : null}
+
           <div className="flex-1 overflow-auto rounded-2xl border bg-background p-6 shadow-sm">
             {loadingMessages ? (
               <div className="text-sm text-muted-foreground">Loading messages...</div>
@@ -641,34 +877,60 @@ export default function AgencyAiAdmin() {
               </div>
             ) : (
               <div className="space-y-4">
-                {messages.map((m) => (
-                  <div key={m.id} className="space-y-2">
-                    <div
-                      className={cn(
-                        "max-w-[80%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-base leading-relaxed",
-                        m.role === "user"
-                          ? "ml-auto bg-primary text-primary-foreground shadow"
-                          : "mr-auto bg-muted text-foreground",
-                      )}
-                    >
-                      {m.content}
-                    </div>
-                    {m.role === "assistant" && m.suggestions && m.suggestions.length > 0 ? (
-                      <div className="flex flex-wrap gap-2">
-                        {m.suggestions.map((suggestion) => (
-                          <button
-                            key={suggestion.id}
-                            onClick={() => sendUserMessage(suggestion.user_message)}
-                            className="rounded-full border px-3 py-1 text-xs text-muted-foreground transition-transform hover:scale-[1.02] hover:bg-muted active:scale-[0.98]"
-                            disabled={sending}
+                {messages.map((m, idx) => {
+                  // Check if this question has been answered (Phase 2 Edit Functionality)
+                  const hasBeenAnswered =
+                    isSetupActive &&
+                    m.role === "assistant" &&
+                    m.questionKey &&
+                    answeredQuestions.has(m.questionKey) &&
+                    // Only show Edit button if it's not the current question
+                    idx < messages.length - 1;
+
+                  return (
+                    <div key={m.id} className="space-y-2">
+                      <div className="flex items-start gap-2">
+                        <div
+                          className={cn(
+                            "max-w-[80%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-base leading-relaxed",
+                            m.role === "user"
+                              ? "ml-auto bg-primary text-primary-foreground shadow"
+                              : "mr-auto bg-muted text-foreground",
+                          )}
+                        >
+                          {m.content}
+                        </div>
+                        {/* Edit button for answered questions (Phase 2) */}
+                        {hasBeenAnswered && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditQuestion(m.questionKey!)}
+                            disabled={sending || editingQuestionKey !== null}
+                            className="mt-1 h-8 shrink-0 text-xs"
+                            title="Edit your answer"
                           >
-                            {suggestion.label}
-                          </button>
-                        ))}
+                            Edit
+                          </Button>
+                        )}
                       </div>
-                    ) : null}
-                  </div>
-                ))}
+                      {m.role === "assistant" && m.suggestions && m.suggestions.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {m.suggestions.map((suggestion) => (
+                            <button
+                              key={suggestion.id}
+                              onClick={() => sendUserMessage(suggestion.user_message)}
+                              className="rounded-full border px-3 py-1 text-xs text-muted-foreground transition-transform hover:scale-[1.02] hover:bg-muted active:scale-[0.98]"
+                              disabled={sending}
+                            >
+                              {suggestion.label}
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
                 {sending ? (
                   <div className="mr-auto w-fit max-w-[80%] rounded-2xl bg-muted px-4 py-3 text-base text-foreground">
                     <span className="animate-pulse">Thinking...</span>
@@ -678,7 +940,20 @@ export default function AgencyAiAdmin() {
             )}
           </div>
 
-          {isSetupActive && setupMeta?.choices && setupMeta.choices.length > 0 ? (
+          {/* Edit mode indicator (Phase 2 Edit Functionality) */}
+          {editingQuestionKey ? (
+            <div className="mt-3 flex items-center justify-between rounded-xl border border-amber-500/50 bg-amber-500/10 px-4 py-2">
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-amber-400">✏️</span>
+                <span className="font-medium text-amber-300">Editing your previous answer</span>
+              </div>
+              <Button variant="ghost" size="sm" onClick={handleCancelEdit} className="h-7 text-xs">
+                Cancel Edit
+              </Button>
+            </div>
+          ) : null}
+
+          {isSetupActive && setupMeta?.choices && setupMeta.choices.length > 0 && !editingQuestionKey ? (
             <div className="mt-3 flex flex-wrap gap-2">
               {setupMeta.choices.map((choice) => (
                 <Button
@@ -694,17 +969,137 @@ export default function AgencyAiAdmin() {
             </div>
           ) : null}
 
-          <div className="mt-3 flex gap-2">
-            <textarea
-              className="min-h-[60px] w-full rounded-2xl border border-input bg-background px-4 py-3 text-base outline-none focus:ring-2 focus:ring-ring"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Message the agency AI"
-            />
-            <Button onClick={() => sendUserMessage()} disabled={sending || input.trim().length === 0} className="px-6">
-              Send
-            </Button>
-          </div>
+          {/* Conditional input based on question type (Phase 1 + Phase 2 Edit Functionality) */}
+          {(() => {
+            const activeQuestionMeta = editingQuestionKey
+              ? SETUP_QUESTION_METADATA[editingQuestionKey]
+              : setupMeta?.questionMeta;
+
+            if (!isSetupActive || !activeQuestionMeta) {
+              return null; // Will render default text input
+            }
+
+            if (activeQuestionMeta.inputType === "multiselect") {
+              return (
+                <div className="mt-3 space-y-3">
+                  <MultiSelect
+                    options={(activeQuestionMeta.options as MultiSelectOption[]) ?? []}
+                    value={structuredValue}
+                    onChange={setStructuredValue}
+                    validation={activeQuestionMeta.validation}
+                    error={validationError}
+                    disabled={sending}
+                  />
+                  <Button
+                    onClick={() => sendUserMessage(undefined, { value: structuredValue })}
+                    disabled={sending || structuredValue.length === 0}
+                    className="w-full"
+                  >
+                    {editingQuestionKey ? "Update Answer" : "Submit"}
+                  </Button>
+                </div>
+              );
+            }
+
+            if (activeQuestionMeta.inputType === "tags") {
+              return (
+                <div className="mt-3 space-y-3">
+                  <TagSelector
+                    options={(activeQuestionMeta.options as TagOption[]) ?? []}
+                    value={structuredValue}
+                    onChange={setStructuredValue}
+                    validation={activeQuestionMeta.validation}
+                    error={validationError}
+                    disabled={sending}
+                  />
+                  <Button
+                    onClick={() => sendUserMessage(undefined, { value: structuredValue })}
+                    disabled={sending || structuredValue.length === 0}
+                    className="w-full"
+                  >
+                    {editingQuestionKey ? "Update Answer" : "Submit"}
+                  </Button>
+                </div>
+              );
+            }
+
+            return null; // Will render text input
+          })() ?? (
+            <div className="mt-3 space-y-2">
+              <div className="flex gap-2">
+                <textarea
+                  className="min-h-[60px] w-full rounded-2xl border border-input bg-background px-4 py-3 text-base outline-none focus:ring-2 focus:ring-ring"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder="Message the agency AI"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      sendUserMessage();
+                    }
+                  }}
+                />
+                <Button onClick={() => sendUserMessage()} disabled={sending || input.trim().length === 0} className="px-6">
+                  {editingQuestionKey ? "Update Answer" : "Send"}
+                </Button>
+              </div>
+
+              {/* Real-time validation hint for text inputs with validation rules */}
+              {(() => {
+                const activeQuestionMeta = editingQuestionKey
+                  ? SETUP_QUESTION_METADATA[editingQuestionKey]
+                  : setupMeta?.questionMeta;
+
+                if (!isSetupActive || !activeQuestionMeta?.validation || activeQuestionMeta.validation.type !== "string") {
+                  return null;
+                }
+
+                const { minLength, maxLength } = activeQuestionMeta.validation;
+                const currentLength = input.trim().length;
+                const { error, remaining } = validateTextLength(input, minLength, maxLength);
+
+                // Determine if validation passes
+                const isValid = !error && currentLength >= (minLength ?? 0);
+                const hasContent = currentLength > 0;
+
+                return (
+                  <div
+                    className={cn(
+                      "text-xs font-medium transition-colors",
+                      isValid && hasContent ? "text-emerald-500" : "text-muted-foreground",
+                    )}
+                  >
+                    {maxLength !== undefined && (
+                      <span>
+                        {error ? (
+                          <span className="text-red-400">{error}</span>
+                        ) : (
+                          <>
+                            <span className="font-semibold">{currentLength}</span> / {maxLength} characters
+                            {remaining !== undefined && remaining <= 20 && remaining > 0 && (
+                              <span className="ml-2 text-amber-400">({remaining} remaining)</span>
+                            )}
+                          </>
+                        )}
+                      </span>
+                    )}
+                    {minLength !== undefined && !maxLength && (
+                      <span>
+                        {currentLength < minLength ? (
+                          <span className="text-amber-400">
+                            At least {minLength} characters required (<span className="font-semibold">{currentLength}</span>/{minLength})
+                          </span>
+                        ) : (
+                          <span className="font-semibold">{currentLength} characters</span>
+                        )}
+                      </span>
+                    )}
+                    {isValid && hasContent && <span className="ml-2">✓</span>}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
         </main>
       </div>
     </div>
