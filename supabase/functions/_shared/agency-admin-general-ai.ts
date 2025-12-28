@@ -137,6 +137,36 @@ function buildActionSummary(results: ToolActionResult[]) {
         const dueDate = payload.due_date ? ` (due ${payload.due_date})` : "";
         return `- schedule_task: created ${title}${dueDate}`;
       }
+      case "create_project": {
+        const title = payload.title ?? "project";
+        return `- create_project: ${payload.existing ? "existing" : "created"} "${title}"`;
+      }
+      case "update_project_status": {
+        const status = payload.status ?? "status";
+        return `- update_project_status: moved to ${status}`;
+      }
+      case "assign_project_asset": {
+        return `- assign_project_asset: linked asset to project`;
+      }
+      case "schedule_post": {
+        const platform = payload.platform ?? "platform";
+        const scheduledFor = payload.scheduled_for ? new Date(payload.scheduled_for).toLocaleDateString() : "";
+        return `- schedule_post: scheduled for ${platform}${scheduledFor ? ` on ${scheduledFor}` : ""}`;
+      }
+      case "update_task_status": {
+        const status = payload.status ?? "status";
+        return `- update_task_status: ${payload.changed ? `changed to ${status}` : `already ${status}`}`;
+      }
+      case "update_task_priority": {
+        const priority = payload.priority ?? "priority";
+        return `- update_task_priority: ${payload.changed ? `changed to ${priority}` : `already ${priority}`}`;
+      }
+      case "request_approval": {
+        return `- request_approval: ${payload.existing ? "existing" : "created"} approval request`;
+      }
+      case "send_message": {
+        return `- send_message: sent to conversation`;
+      }
       default:
         return `- ${result.type}: completed`;
     }

@@ -2,12 +2,24 @@ import { describe, it, expect } from "vitest";
 import { ToolType, TOOL_REGISTRY } from "../toolSchemas.ts";
 
 describe("tool schemas", () => {
-  it("exports all 4 tool types", () => {
-    expect(Object.keys(TOOL_REGISTRY)).toHaveLength(4);
+  it("exports all 12 tool types", () => {
+    expect(Object.keys(TOOL_REGISTRY)).toHaveLength(12);
+    // Original 4 tools
     expect(TOOL_REGISTRY[ToolType.CREATE_CLIENT]).toBeDefined();
     expect(TOOL_REGISTRY[ToolType.DRAFT_OFFER]).toBeDefined();
     expect(TOOL_REGISTRY[ToolType.UPDATE_BRAIN]).toBeDefined();
     expect(TOOL_REGISTRY[ToolType.SCHEDULE_TASK]).toBeDefined();
+    // TASK-017: Project Management (3 tools)
+    expect(TOOL_REGISTRY[ToolType.CREATE_PROJECT]).toBeDefined();
+    expect(TOOL_REGISTRY[ToolType.UPDATE_PROJECT_STATUS]).toBeDefined();
+    expect(TOOL_REGISTRY[ToolType.ASSIGN_PROJECT_ASSET]).toBeDefined();
+    // TASK-018: Scheduling & Tasks (3 tools)
+    expect(TOOL_REGISTRY[ToolType.SCHEDULE_POST]).toBeDefined();
+    expect(TOOL_REGISTRY[ToolType.UPDATE_TASK_STATUS]).toBeDefined();
+    expect(TOOL_REGISTRY[ToolType.UPDATE_TASK_PRIORITY]).toBeDefined();
+    // TASK-019: Approvals & Communication (2 tools)
+    expect(TOOL_REGISTRY[ToolType.REQUEST_APPROVAL]).toBeDefined();
+    expect(TOOL_REGISTRY[ToolType.SEND_MESSAGE]).toBeDefined();
   });
 
   it("enforces schema structure for all entries", () => {

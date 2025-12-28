@@ -43,6 +43,22 @@ export async function executeToolAction(opts: ExecuteToolOptions): Promise<ToolE
       return await executeUpdateBrain(opts);
     case ToolType.SCHEDULE_TASK:
       return await executeScheduleTask(opts);
+    case ToolType.CREATE_PROJECT:
+      return await executeCreateProject(opts);
+    case ToolType.UPDATE_PROJECT_STATUS:
+      return await executeUpdateProjectStatus(opts);
+    case ToolType.ASSIGN_PROJECT_ASSET:
+      return await executeAssignProjectAsset(opts);
+    case ToolType.SCHEDULE_POST:
+      return await executeSchedulePost(opts);
+    case ToolType.UPDATE_TASK_STATUS:
+      return await executeUpdateTaskStatus(opts);
+    case ToolType.UPDATE_TASK_PRIORITY:
+      return await executeUpdateTaskPriority(opts);
+    case ToolType.REQUEST_APPROVAL:
+      return await executeRequestApproval(opts);
+    case ToolType.SEND_MESSAGE:
+      return await executeSendMessage(opts);
     default:
       return { success: false, error: "Not implemented" };
   }
@@ -324,6 +340,649 @@ async function executeScheduleTask(opts: ExecuteToolOptions): Promise<ToolExecut
         client_name: clientName,
         existing: false,
         defaulted_client: defaultedClient,
+      },
+    };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+async function executeCreateProject(opts: ExecuteToolOptions): Promise<ToolExecutionResult> {
+  const title = String(opts.tool.payload.title ?? "").trim();
+  const clientId = String(opts.tool.payload.client_id ?? "").trim();
+  const description = String(opts.tool.payload.description ?? "").trim();
+  const platformsStr = String(opts.tool.payload.platforms ?? "").trim();
+
+  if (!title) {
+    return { success: false, error: "Project title is required" };
+  }
+  if (!clientId) {
+    return { success: false, error: "client_id is required" };
+  }
+
+  try {
+    // Verify client belongs to agency
+    const { data: client, error: clientError } = await opts.supabase
+      .from("clients")
+      .select("id, agency_id, name")
+      .eq("id", clientId)
+      .single();
+
+    if (clientError || !client) {
+      return { success: false, error: "Client not found" };
+    }
+
+    if (client.agency_id !== opts.agencyId) {
+      return { success: false, error: "Client not found or unauthorized" };
+    }
+
+    // Parse platforms
+    const platforms = platformsStr
+      ? platformsStr.split(",").map((p) => p.trim()).filter(Boolean)
+      : [];
+
+    // Check for existing project (idempotency)
+    const { data: existing, error: existingError } = await opts.supabase
+      .from("projects")
+      .select("id")
+      .eq("client_id", clientId)
+      .ilike("title", title)
+      .maybeSingle();
+
+    if (existingError) {
+      return { success: false, error: existingError.message ?? "Failed to check existing project" };
+    }
+
+    if (existing?.id) {
+      return {
+        success: true,
+        result: {
+          project_id: existing.id,
+          title,
+          client_id: clientId,
+          existing: true,
+        },
+      };
+    }
+
+    // Create project
+    const { data, error } = await opts.supabase
+      .from("projects")
+      .insert({
+        client_id: clientId,
+        agency_id: opts.agencyId,
+        title,
+        description: description || null,
+        status: "idea",
+        platforms: platforms.length > 0 ? platforms : null,
+      })
+      .select("id")
+      .single();
+
+    if (error) {
+      return { success: false, error: error.message ?? "Failed to create project" };
+    }
+
+    return {
+      success: true,
+      result: {
+        project_id: data?.id ?? null,
+        title,
+        client_id: clientId,
+        platforms,
+        existing: false,
+      },
+    };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+async function executeUpdateProjectStatus(opts: ExecuteToolOptions): Promise<ToolExecutionResult> {
+  const projectId = String(opts.tool.payload.project_id ?? "").trim();
+  const status = String(opts.tool.payload.status ?? "").trim();
+
+  if (!projectId) {
+    return { success: false, error: "project_id is required" };
+  }
+  if (!status) {
+    return { success: false, error: "status is required" };
+  }
+
+  const VALID_STATUSES = [
+    "idea",
+    "scripting",
+    "production",
+    "internal_review",
+    "client_review",
+    "approved",
+    "scheduled",
+    "published",
+  ];
+
+  if (!VALID_STATUSES.includes(status)) {
+    return {
+      success: false,
+      error: `Invalid status. Must be one of: ${VALID_STATUSES.join(", ")}`,
+    };
+  }
+
+  try {
+    // Verify project belongs to agency
+    const { data: project, error: projectError } = await opts.supabase
+      .from("projects")
+      .select("id, status, agency_id")
+      .eq("id", projectId)
+      .single();
+
+    if (projectError || !project) {
+      return { success: false, error: "Project not found" };
+    }
+
+    if (project.agency_id !== opts.agencyId) {
+      return { success: false, error: "Project not found or unauthorized" };
+    }
+
+    // Idempotency: already in target status
+    if (project.status === status) {
+      return {
+        success: true,
+        result: {
+          project_id: projectId,
+          status,
+          changed: false,
+        },
+      };
+    }
+
+    // Update status
+    const { error } = await opts.supabase
+      .from("projects")
+      .update({ status })
+      .eq("id", projectId);
+
+    if (error) {
+      return { success: false, error: error.message ?? "Failed to update project status" };
+    }
+
+    return {
+      success: true,
+      result: {
+        project_id: projectId,
+        status,
+        previous_status: project.status,
+        changed: true,
+      },
+    };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+async function executeAssignProjectAsset(opts: ExecuteToolOptions): Promise<ToolExecutionResult> {
+  const projectId = String(opts.tool.payload.project_id ?? "").trim();
+  const assetId = String(opts.tool.payload.asset_id ?? "").trim();
+  const isFinalStr = String(opts.tool.payload.is_final_content ?? "false").trim().toLowerCase();
+
+  if (!projectId) {
+    return { success: false, error: "project_id is required" };
+  }
+  if (!assetId) {
+    return { success: false, error: "asset_id is required" };
+  }
+
+  const isFinal = isFinalStr === "true";
+
+  try {
+    // Verify project belongs to agency
+    const { data: project, error: projectError } = await opts.supabase
+      .from("projects")
+      .select("id, agency_id")
+      .eq("id", projectId)
+      .single();
+
+    if (projectError || !project) {
+      return { success: false, error: "Project not found" };
+    }
+
+    if (project.agency_id !== opts.agencyId) {
+      return { success: false, error: "Project not found or unauthorized" };
+    }
+
+    // Verify asset belongs to agency (via client)
+    const { data: asset, error: assetError } = await opts.supabase
+      .from("assets")
+      .select("id, client_id, clients!inner(agency_id)")
+      .eq("id", assetId)
+      .single();
+
+    if (assetError || !asset || asset.clients?.agency_id !== opts.agencyId) {
+      return { success: false, error: "Asset not found or unauthorized" };
+    }
+
+    // Upsert project_assets (handles idempotency via unique constraint)
+    const { data, error } = await opts.supabase
+      .from("project_assets")
+      .upsert(
+        {
+          project_id: projectId,
+          asset_id: assetId,
+          is_final_content: isFinal,
+        },
+        { onConflict: "project_id,asset_id" }
+      )
+      .select("id")
+      .single();
+
+    if (error) {
+      return { success: false, error: error.message ?? "Failed to assign asset to project" };
+    }
+
+    return {
+      success: true,
+      result: {
+        project_asset_id: data?.id ?? null,
+        project_id: projectId,
+        asset_id: assetId,
+        is_final_content: isFinal,
+      },
+    };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+async function executeSchedulePost(opts: ExecuteToolOptions): Promise<ToolExecutionResult> {
+  const projectId = String(opts.tool.payload.project_id ?? "").trim();
+  const platform = String(opts.tool.payload.platform ?? "").trim();
+  const scheduledForInput = String(opts.tool.payload.scheduled_for ?? "").trim();
+  const caption = String(opts.tool.payload.caption ?? "").trim();
+  const hashtags = String(opts.tool.payload.hashtags ?? "").trim();
+
+  if (!projectId) {
+    return { success: false, error: "project_id is required" };
+  }
+  if (!platform) {
+    return { success: false, error: "platform is required" };
+  }
+
+  const VALID_PLATFORMS = ["instagram", "facebook", "linkedin", "tiktok", "youtube"];
+
+  if (!VALID_PLATFORMS.includes(platform)) {
+    return {
+      success: false,
+      error: `Invalid platform. Must be one of: ${VALID_PLATFORMS.join(", ")}`,
+    };
+  }
+
+  const scheduledFor = new Date(scheduledForInput);
+  if (!scheduledForInput || Number.isNaN(scheduledFor.getTime())) {
+    return { success: false, error: "scheduled_for must be a valid ISO date string" };
+  }
+
+  const scheduledForIso = scheduledFor.toISOString();
+
+  try {
+    // Verify project belongs to agency
+    const { data: project, error: projectError } = await opts.supabase
+      .from("projects")
+      .select("id, agency_id")
+      .eq("id", projectId)
+      .single();
+
+    if (projectError || !project) {
+      return { success: false, error: "Project not found" };
+    }
+
+    if (project.agency_id !== opts.agencyId) {
+      return { success: false, error: "Project not found or unauthorized" };
+    }
+
+    // Check for existing scheduled post (idempotency within 1 minute window)
+    const scheduledForDate = new Date(scheduledForIso);
+    const windowStart = new Date(scheduledForDate.getTime() - 60000).toISOString();
+    const windowEnd = new Date(scheduledForDate.getTime() + 60000).toISOString();
+
+    const { data: existing, error: existingError } = await opts.supabase
+      .from("scheduled_posts")
+      .select("id")
+      .eq("project_id", projectId)
+      .eq("platform", platform)
+      .gte("scheduled_for", windowStart)
+      .lte("scheduled_for", windowEnd)
+      .maybeSingle();
+
+    if (existingError) {
+      return { success: false, error: existingError.message ?? "Failed to check existing scheduled post" };
+    }
+
+    if (existing?.id) {
+      return {
+        success: true,
+        result: {
+          scheduled_post_id: existing.id,
+          project_id: projectId,
+          platform,
+          scheduled_for: scheduledForIso,
+          existing: true,
+        },
+      };
+    }
+
+    // Create scheduled post
+    const { data, error } = await opts.supabase
+      .from("scheduled_posts")
+      .insert({
+        project_id: projectId,
+        platform,
+        scheduled_for: scheduledForIso,
+        caption: caption || null,
+        hashtags: hashtags || null,
+        status: "pending",
+      })
+      .select("id")
+      .single();
+
+    if (error) {
+      return { success: false, error: error.message ?? "Failed to schedule post" };
+    }
+
+    return {
+      success: true,
+      result: {
+        scheduled_post_id: data?.id ?? null,
+        project_id: projectId,
+        platform,
+        scheduled_for: scheduledForIso,
+        existing: false,
+      },
+    };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+async function executeUpdateTaskStatus(opts: ExecuteToolOptions): Promise<ToolExecutionResult> {
+  const taskId = String(opts.tool.payload.task_id ?? "").trim();
+  const status = String(opts.tool.payload.status ?? "").trim();
+
+  if (!taskId) {
+    return { success: false, error: "task_id is required" };
+  }
+  if (!status) {
+    return { success: false, error: "status is required" };
+  }
+
+  const VALID_STATUSES = ["todo", "in_progress", "completed", "cancelled"];
+
+  if (!VALID_STATUSES.includes(status)) {
+    return {
+      success: false,
+      error: `Invalid status. Must be one of: ${VALID_STATUSES.join(", ")}`,
+    };
+  }
+
+  try {
+    // Verify task belongs to agency (via client relationship)
+    const { data: task, error: taskError } = await opts.supabase
+      .from("tasks")
+      .select("id, status, agency_id")
+      .eq("id", taskId)
+      .single();
+
+    if (taskError || !task) {
+      return { success: false, error: "Task not found" };
+    }
+
+    if (task.agency_id !== opts.agencyId) {
+      return { success: false, error: "Task not found or unauthorized" };
+    }
+
+    // Idempotency: already in target status
+    if (task.status === status) {
+      return {
+        success: true,
+        result: {
+          task_id: taskId,
+          status,
+          changed: false,
+        },
+      };
+    }
+
+    // Update status
+    const { error } = await opts.supabase
+      .from("tasks")
+      .update({ status })
+      .eq("id", taskId);
+
+    if (error) {
+      return { success: false, error: error.message ?? "Failed to update task status" };
+    }
+
+    return {
+      success: true,
+      result: {
+        task_id: taskId,
+        status,
+        previous_status: task.status,
+        changed: true,
+      },
+    };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+async function executeUpdateTaskPriority(opts: ExecuteToolOptions): Promise<ToolExecutionResult> {
+  const taskId = String(opts.tool.payload.task_id ?? "").trim();
+  const priority = String(opts.tool.payload.priority ?? "").trim();
+
+  if (!taskId) {
+    return { success: false, error: "task_id is required" };
+  }
+  if (!priority) {
+    return { success: false, error: "priority is required" };
+  }
+
+  const VALID_PRIORITIES = ["low", "medium", "high", "urgent"];
+
+  if (!VALID_PRIORITIES.includes(priority)) {
+    return {
+      success: false,
+      error: `Invalid priority. Must be one of: ${VALID_PRIORITIES.join(", ")}`,
+    };
+  }
+
+  try {
+    // Verify task belongs to agency
+    const { data: task, error: taskError } = await opts.supabase
+      .from("tasks")
+      .select("id, priority, agency_id")
+      .eq("id", taskId)
+      .single();
+
+    if (taskError || !task) {
+      return { success: false, error: "Task not found" };
+    }
+
+    if (task.agency_id !== opts.agencyId) {
+      return { success: false, error: "Task not found or unauthorized" };
+    }
+
+    // Idempotency: already at target priority
+    if (task.priority === priority) {
+      return {
+        success: true,
+        result: {
+          task_id: taskId,
+          priority,
+          changed: false,
+        },
+      };
+    }
+
+    // Update priority
+    const { error } = await opts.supabase
+      .from("tasks")
+      .update({ priority })
+      .eq("id", taskId);
+
+    if (error) {
+      return { success: false, error: error.message ?? "Failed to update task priority" };
+    }
+
+    return {
+      success: true,
+      result: {
+        task_id: taskId,
+        priority,
+        previous_priority: task.priority,
+        changed: true,
+      },
+    };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+async function executeRequestApproval(opts: ExecuteToolOptions): Promise<ToolExecutionResult> {
+  const assetVersionId = String(opts.tool.payload.asset_version_id ?? "").trim();
+  const approverId = String(opts.tool.payload.approver_id ?? "").trim();
+  const comments = String(opts.tool.payload.comments ?? "").trim();
+
+  if (!assetVersionId) {
+    return { success: false, error: "asset_version_id is required" };
+  }
+  if (!approverId) {
+    return { success: false, error: "approver_id is required" };
+  }
+
+  try {
+    // Verify asset_version belongs to agency via asset → client → agency chain
+    const { data: assetVersion, error: assetVersionError } = await opts.supabase
+      .from("asset_versions")
+      .select("id, asset_id, assets!inner(id, client_id, clients!inner(agency_id))")
+      .eq("id", assetVersionId)
+      .single();
+
+    if (assetVersionError || !assetVersion || assetVersion.assets?.clients?.agency_id !== opts.agencyId) {
+      return { success: false, error: "Asset version not found or unauthorized" };
+    }
+
+    // Check for existing approval request (idempotency)
+    const { data: existing, error: existingError } = await opts.supabase
+      .from("approval_tasks")
+      .select("id")
+      .eq("asset_version_id", assetVersionId)
+      .eq("approver_id", approverId)
+      .maybeSingle();
+
+    if (existingError) {
+      return { success: false, error: existingError.message ?? "Failed to check existing approval" };
+    }
+
+    if (existing?.id) {
+      return {
+        success: true,
+        result: {
+          approval_task_id: existing.id,
+          asset_version_id: assetVersionId,
+          approver_id: approverId,
+          existing: true,
+        },
+      };
+    }
+
+    // Create approval request
+    const { data, error } = await opts.supabase
+      .from("approval_tasks")
+      .insert({
+        asset_version_id: assetVersionId,
+        approver_id: approverId,
+        comments: comments || null,
+        status: "pending",
+      })
+      .select("id")
+      .single();
+
+    if (error) {
+      return { success: false, error: error.message ?? "Failed to create approval request" };
+    }
+
+    return {
+      success: true,
+      result: {
+        approval_task_id: data?.id ?? null,
+        asset_version_id: assetVersionId,
+        approver_id: approverId,
+        existing: false,
+      },
+    };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+async function executeSendMessage(opts: ExecuteToolOptions): Promise<ToolExecutionResult> {
+  const conversationId = String(opts.tool.payload.conversation_id ?? "").trim();
+  const body = String(opts.tool.payload.body ?? "").trim();
+  const relatedProjectId = String(opts.tool.payload.related_project_id ?? "").trim();
+
+  if (!conversationId) {
+    return { success: false, error: "conversation_id is required" };
+  }
+  if (!body) {
+    return { success: false, error: "body is required" };
+  }
+
+  try {
+    // Verify conversation exists
+    const { data: conversation, error: conversationError } = await opts.supabase
+      .from("conversations")
+      .select("id")
+      .eq("id", conversationId)
+      .single();
+
+    if (conversationError || !conversation) {
+      return { success: false, error: "Conversation not found" };
+    }
+
+    // Verify user is a participant in the conversation
+    const { data: participant, error: participantError } = await opts.supabase
+      .from("conversation_participants")
+      .select("id")
+      .eq("conversation_id", conversationId)
+      .eq("user_id", opts.userId)
+      .maybeSingle();
+
+    if (participantError || !participant) {
+      return { success: false, error: "User not authorized for this conversation" };
+    }
+
+    // Insert message (no idempotency - append-only)
+    const { data, error } = await opts.supabase
+      .from("messages")
+      .insert({
+        conversation_id: conversationId,
+        sender_id: opts.userId,
+        sender_type: "agency_member",
+        body,
+        related_project_id: relatedProjectId || null,
+      })
+      .select("id")
+      .single();
+
+    if (error) {
+      return { success: false, error: error.message ?? "Failed to send message" };
+    }
+
+    return {
+      success: true,
+      result: {
+        message_id: data?.id ?? null,
+        conversation_id: conversationId,
+        body,
       },
     };
   } catch (error) {
