@@ -156,6 +156,7 @@ export default function AgencyAiAdmin() {
   // Structured input state (Phase 1)
   const [structuredValue, setStructuredValue] = useState<string[]>([]);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [closingStructuredQuestion, setClosingStructuredQuestion] = useState<string | null>(null);
 
   // Edit functionality state (Phase 2)
   const [editingQuestionKey, setEditingQuestionKey] = useState<string | null>(null);
@@ -432,6 +433,11 @@ export default function AgencyAiAdmin() {
         }
       }
 
+      if (isStructuredInput) {
+        const closingKey = editingQuestionKey ?? setupMeta?.stepId ?? null;
+        if (closingKey) setClosingStructuredQuestion(closingKey);
+      }
+
       setSending(true);
       setInput("");
       setValidationError(null);
@@ -564,7 +570,7 @@ export default function AgencyAiAdmin() {
         setSending(false);
       }
     },
-    [activeThreadId, agencyId, input, loadThreads, sending, setupMeta, setupThread?.id, toast],
+    [activeThreadId, agencyId, editingQuestionKey, input, loadThreads, sending, setupMeta, setupThread?.id, toast],
   );
 
   async function streamAgencyAdminChat({
@@ -732,6 +738,35 @@ export default function AgencyAiAdmin() {
 
     primeSetupThread(activeThreadId);
   }, [activeThreadId, loadingMessages, messages.length, primeSetupThread, primedSetupThreadId, setupThread?.id]);
+
+  const activeQuestionMeta = editingQuestionKey
+    ? SETUP_QUESTION_METADATA[editingQuestionKey]
+    : setupMeta?.questionMeta;
+  const activeQuestionKey = editingQuestionKey ?? setupMeta?.stepId ?? activeQuestionMeta?.key ?? null;
+  const latestAssistantMessage = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      const msg = messages[i];
+      if (msg.role === "assistant") return msg;
+    }
+    return null;
+  }, [messages]);
+  const activeQuestionTitle = useMemo(() => {
+    if (editingQuestionKey) {
+      const match = messages.find((msg) => msg.role === "assistant" && msg.questionKey === editingQuestionKey);
+      return match?.content ?? "";
+    }
+    return latestAssistantMessage?.content ?? "";
+  }, [editingQuestionKey, latestAssistantMessage, messages]);
+  const isStructuredInputActive =
+    isSetupActive &&
+    activeQuestionMeta &&
+    (activeQuestionMeta.inputType === "multiselect" || activeQuestionMeta.inputType === "tags");
+  const isStructuredClosing = Boolean(activeQuestionKey && closingStructuredQuestion === activeQuestionKey);
+
+  useEffect(() => {
+    if (!activeQuestionKey) return;
+    setClosingStructuredQuestion(null);
+  }, [activeQuestionKey]);
 
   if (roleLoading) {
     return (
@@ -931,6 +966,53 @@ export default function AgencyAiAdmin() {
                     </div>
                   );
                 })}
+                {isStructuredInputActive && activeQuestionMeta ? (
+                  <div
+                    className={cn(
+                      "mr-auto w-full max-w-[80%] origin-top overflow-hidden transition-all duration-300 ease-out",
+                      isStructuredClosing
+                        ? "max-h-0 -translate-y-2 scale-95 opacity-0 pointer-events-none"
+                        : "max-h-[1200px] translate-y-0 scale-100 opacity-100",
+                    )}
+                  >
+                    <div className="rounded-2xl border bg-muted/70 p-4 shadow-sm">
+                      {activeQuestionMeta.inputType === "multiselect" ? (
+                        <MultiSelect
+                          title={activeQuestionTitle || "Select your options"}
+                          options={(activeQuestionMeta.options as MultiSelectOption[]) ?? []}
+                          value={structuredValue}
+                          onChange={setStructuredValue}
+                          validation={activeQuestionMeta.validation}
+                          error={validationError}
+                          disabled={sending}
+                        />
+                      ) : (
+                        <div className="space-y-3">
+                          {activeQuestionTitle ? (
+                            <div className="rounded-lg border border-slate-700 bg-slate-900/40 px-3 py-2 text-sm font-semibold text-slate-100">
+                              {activeQuestionTitle}
+                            </div>
+                          ) : null}
+                          <TagSelector
+                            options={(activeQuestionMeta.options as TagOption[]) ?? []}
+                            value={structuredValue}
+                            onChange={setStructuredValue}
+                            validation={activeQuestionMeta.validation}
+                            error={validationError}
+                            disabled={sending}
+                          />
+                        </div>
+                      )}
+                      <Button
+                        onClick={() => sendUserMessage(undefined, { value: structuredValue })}
+                        disabled={sending || structuredValue.length === 0}
+                        className="mt-4 w-full"
+                      >
+                        {editingQuestionKey ? "Update Answer" : "Submit"}
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
                 {sending ? (
                   <div className="mr-auto w-fit max-w-[80%] rounded-2xl bg-muted px-4 py-3 text-base text-foreground">
                     <span className="animate-pulse">Thinking...</span>
@@ -969,62 +1051,7 @@ export default function AgencyAiAdmin() {
             </div>
           ) : null}
 
-          {/* Conditional input based on question type (Phase 1 + Phase 2 Edit Functionality) */}
-          {(() => {
-            const activeQuestionMeta = editingQuestionKey
-              ? SETUP_QUESTION_METADATA[editingQuestionKey]
-              : setupMeta?.questionMeta;
-
-            if (!isSetupActive || !activeQuestionMeta) {
-              return null; // Will render default text input
-            }
-
-            if (activeQuestionMeta.inputType === "multiselect") {
-              return (
-                <div className="mt-3 space-y-3">
-                  <MultiSelect
-                    options={(activeQuestionMeta.options as MultiSelectOption[]) ?? []}
-                    value={structuredValue}
-                    onChange={setStructuredValue}
-                    validation={activeQuestionMeta.validation}
-                    error={validationError}
-                    disabled={sending}
-                  />
-                  <Button
-                    onClick={() => sendUserMessage(undefined, { value: structuredValue })}
-                    disabled={sending || structuredValue.length === 0}
-                    className="w-full"
-                  >
-                    {editingQuestionKey ? "Update Answer" : "Submit"}
-                  </Button>
-                </div>
-              );
-            }
-
-            if (activeQuestionMeta.inputType === "tags") {
-              return (
-                <div className="mt-3 space-y-3">
-                  <TagSelector
-                    options={(activeQuestionMeta.options as TagOption[]) ?? []}
-                    value={structuredValue}
-                    onChange={setStructuredValue}
-                    validation={activeQuestionMeta.validation}
-                    error={validationError}
-                    disabled={sending}
-                  />
-                  <Button
-                    onClick={() => sendUserMessage(undefined, { value: structuredValue })}
-                    disabled={sending || structuredValue.length === 0}
-                    className="w-full"
-                  >
-                    {editingQuestionKey ? "Update Answer" : "Submit"}
-                  </Button>
-                </div>
-              );
-            }
-
-            return null; // Will render text input
-          })() ?? (
+          {!isStructuredInputActive ? (
             <div className="mt-3 space-y-2">
               <div className="flex gap-2">
                 <textarea
@@ -1099,7 +1126,7 @@ export default function AgencyAiAdmin() {
                 );
               })()}
             </div>
-          )}
+          ) : null}
         </main>
       </div>
     </div>

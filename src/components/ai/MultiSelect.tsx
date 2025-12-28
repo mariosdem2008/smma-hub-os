@@ -22,6 +22,7 @@ type ValidationRule = {
 };
 
 type MultiSelectProps = {
+  title?: string;
   options: MultiSelectOption[];
   value: string[];
   onChange: (value: string[]) => void;
@@ -32,6 +33,7 @@ type MultiSelectProps = {
 };
 
 export function MultiSelect({
+  title,
   options,
   value,
   onChange,
@@ -93,6 +95,11 @@ export function MultiSelect({
 
   return (
     <div className={cn("space-y-3", className)}>
+      {title ? (
+        <div className="rounded-lg border border-slate-700 bg-slate-900/40 px-3 py-2 text-sm font-semibold text-slate-100">
+          {title}
+        </div>
+      ) : null}
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {options.map((option) => {
           const isSelected = value.includes(option.value);
