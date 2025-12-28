@@ -9,6 +9,7 @@ import {
   getMissingKeys,
   getNextQuestion,
   getQuestionByKey,
+  type SetupQuestion,
 } from "./agency-admin-setup-questions.ts";
 import { selectNextAdminSetupQuestion } from "./agency-admin-setup-orchestrator.ts";
 import { buildAgencyContextSnapshot, buildAiContextSummary, fetchAgencyBrain, upsertAgencyBrain } from "./ai-context.ts";
@@ -63,6 +64,13 @@ type SetupProgress = {
   current_step_key?: string | null;
   completed_keys?: string[];
   edit_history?: EditHistoryEntry[];
+};
+
+type SetupChatSummary = {
+  content: string;
+  last_message_at: string;
+  message_count: number;
+  updated_at: string;
 };
 
 type AgencyBrain = {
@@ -154,6 +162,9 @@ const READY_PHRASES = new Set([
   "resume",
   "continue",
 ]);
+
+const SUMMARY_MIN_MESSAGES = 12;
+const SUMMARY_KEEP_RECENT = 6;
 
 export function isReadyConfirmation(message: string) {
   const normalized = normalizeForIntent(message);
@@ -630,6 +641,54 @@ function buildConversationText(messages: Array<{ role: string; content: string }
   return messages.map((m) => `${m.role.toUpperCase()}: ${m.content}`).join("\n\n");
 }
 
+function extractSetupChatSummary(aiContext?: Record<string, unknown> | null): SetupChatSummary | null {
+  if (!aiContext || typeof aiContext !== "object") return null;
+  const raw = (aiContext as Record<string, unknown>)["setup_chat_summary"];
+  if (!raw || typeof raw !== "object") return null;
+  const summary = raw as Record<string, unknown>;
+  const content = typeof summary.content === "string" ? summary.content.trim() : "";
+  const lastMessageAt = typeof summary.last_message_at === "string" ? summary.last_message_at : "";
+  const messageCount = typeof summary.message_count === "number" ? summary.message_count : 0;
+  const updatedAt = typeof summary.updated_at === "string" ? summary.updated_at : "";
+  if (!content || !lastMessageAt) return null;
+  return {
+    content,
+    last_message_at: lastMessageAt,
+    message_count: messageCount,
+    updated_at: updatedAt || lastMessageAt,
+  };
+}
+
+function buildConversationTextWithSummary(
+  messages: Array<{ role: string; content: string; created_at?: string }>,
+  summary: SetupChatSummary | null,
+) {
+  const recentMessages = summary?.last_message_at
+    ? messages.filter((m) => (m.created_at ?? "") > summary.last_message_at)
+    : messages;
+  const recentText = buildConversationText(recentMessages);
+
+  if (summary?.content) {
+    const parts = [`SUMMARY SO FAR:\n${summary.content}`];
+    if (recentText) parts.push(`RECENT MESSAGES:\n${recentText}`);
+    return parts.join("\n\n");
+  }
+
+  return recentText;
+}
+
+function shouldSummarizeConversation(
+  messages: Array<{ role: string; content: string; created_at?: string }>,
+  summary: SetupChatSummary | null,
+) {
+  if (messages.length < SUMMARY_MIN_MESSAGES) return false;
+  const cutoff = Math.max(0, messages.length - SUMMARY_KEEP_RECENT);
+  if (cutoff === 0) return false;
+  if (!summary) return true;
+  const newMessages = messages.filter((m) => (m.created_at ?? "") > summary.last_message_at);
+  return newMessages.length >= SUMMARY_KEEP_RECENT;
+}
+
 function extractPendingQuestionFromMessages(messages: Array<{ role: string; content: string }>) {
   for (let i = messages.length - 1; i >= 0; i--) {
     const row = messages[i];
@@ -722,6 +781,57 @@ function readEnvFlag(name: string) {
     return process.env[name];
   }
   return undefined;
+}
+
+function isSetupSummaryEnabled() {
+  const flag = readEnvFlag("AI_SETUP_SUMMARY");
+  if (flag === undefined) return true;
+  return flag === "true";
+}
+
+async function summarizeConversationIfNeeded(opts: {
+  messages: Array<{ role: string; content: string; created_at?: string }>;
+  summary: SetupChatSummary | null;
+  agencyId: string;
+  userId: string;
+  supabase: MinimalSupabase;
+}): Promise<SetupChatSummary | null> {
+  if (!isSetupSummaryEnabled()) return null;
+  if (!shouldSummarizeConversation(opts.messages, opts.summary)) return null;
+
+  const cutoff = Math.max(0, opts.messages.length - SUMMARY_KEEP_RECENT);
+  const messagesToSummarize = opts.messages.slice(0, cutoff);
+  if (messagesToSummarize.length === 0) return null;
+
+  const summaryInput = buildConversationText(messagesToSummarize);
+  if (!summaryInput) return null;
+
+  const summaryPrompt = [
+    "Summarize this onboarding conversation in concise bullet points.",
+    "Focus on concrete facts, preferences, and open questions.",
+    "Exclude filler, greetings, or repeated prompts.",
+    "Keep it under 1200 characters.",
+  ].join(" ");
+
+  const result = await runAiTask({
+    task_type: TaskType.SUMMARIZE,
+    mode: getAiMode(),
+    tenant: { agency_id: opts.agencyId, user_id: opts.userId },
+    input: { message: summaryInput },
+    metadata: { systemPrompt: summaryPrompt },
+    supabase: opts.supabase,
+  });
+
+  const summaryText = (result?.assistant_message ?? "").trim();
+  if (!summaryText) return null;
+
+  const lastMessageAt = messagesToSummarize[messagesToSummarize.length - 1]?.created_at ?? nowIso();
+  return {
+    content: summaryText,
+    last_message_at: lastMessageAt,
+    message_count: messagesToSummarize.length,
+    updated_at: nowIso(),
+  };
 }
 
 function isGuidedSetupOrchestrationEnabled() {
@@ -821,15 +931,39 @@ export async function handleAgencyAdminSetup(opts: {
 
   const incomingMessage = (opts.message ?? "").trim();
 
-  let messages: Array<{ role: string; content: string }> = [];
+  let messages: Array<{ role: string; content: string; created_at?: string }> = [];
   try {
     const rows = await fetchThreadMessages(opts.supabase, opts.threadId);
-    messages = rows.map((row) => ({ role: row.role, content: row.content }));
+    messages = rows.map((row) => ({ role: row.role, content: row.content, created_at: row.created_at }));
   } catch (error: any) {
     return jsonResponse({ error: error.message ?? "Failed to load messages" }, 500);
   }
 
-  const conversation = buildConversationText(messages);
+  const existingSummary = extractSetupChatSummary((brain.ai_context_v1 ?? {}) as Record<string, unknown>);
+  let summaryForConversation = existingSummary;
+  try {
+    const nextSummary = await summarizeConversationIfNeeded({
+      messages,
+      summary: existingSummary,
+      agencyId: opts.agencyId,
+      userId: opts.userId,
+      supabase: opts.supabase,
+    });
+    if (nextSummary) {
+      summaryForConversation = nextSummary;
+      const { next } = applyMemoryPatch(brain, { ai_context_v1: { setup_chat_summary: nextSummary } });
+      brain = next;
+      await upsertAgencyBrain(opts.supabase, opts.agencyId, brainId, brain);
+    }
+  } catch (error) {
+    console.warn("setup_summary_failed", {
+      thread_id: opts.threadId,
+      agency_id: opts.agencyId,
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  const conversation = buildConversationTextWithSummary(messages, summaryForConversation);
   const isFirstTurn = !incomingMessage && messages.length === 0;
 
   let snapshot;
@@ -893,7 +1027,11 @@ export async function handleAgencyAdminSetup(opts: {
   if (!latestState) {
     const pendingText = extractPendingQuestionFromMessages(messages);
     if (pendingText) {
-      latestState = { intent: "OFFTOPIC_QUESTION", pending_question_key: null, pending_question_text: pendingText };
+      latestState = {
+        intent: "OFFTOPIC_QUESTION" as GuidedIntent,
+        pending_question_key: null,
+        pending_question_text: pendingText,
+      };
     }
   }
 

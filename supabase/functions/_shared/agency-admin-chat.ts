@@ -4,6 +4,7 @@ import {
   extractAssistantMessageFromText,
   parseGeneralChatOutputFromText,
   isAdminChatSchemaEnabled,
+  isAdminChatStrategicEnabled,
   runAdminGeneralChatAi,
   runAdminGeneralChatAiStream,
 } from "./agency-admin-general-ai.ts";
@@ -45,6 +46,12 @@ type MinimalSupabase = {
   from: (table: string) => any;
 };
 
+function mergeAiContext(
+  existing: Record<string, unknown>,
+  patch: Record<string, unknown>,
+): Record<string, unknown> {
+  return { ...existing, ...patch };
+}
 
 function inferTitleFromFirstMessage(message: string) {
   const trimmed = message.trim().replace(/\s+/g, " ");
@@ -153,8 +160,9 @@ async function handleGeneralChat(opts: {
   const contextSummary = buildAiContextSummary(snapshot);
   if (brain) {
     const existing = (brain as any).ai_context_v1 ?? {};
-    if (JSON.stringify(existing) !== JSON.stringify(contextSummary)) {
-      const nextBrain = { ...brain, ai_context_v1: contextSummary };
+    const nextContext = mergeAiContext(existing, contextSummary);
+    if (JSON.stringify(existing) !== JSON.stringify(nextContext)) {
+      const nextBrain = { ...brain, ai_context_v1: nextContext };
       try {
         await upsertAgencyBrain(opts.supabase, opts.agencyId, brainId, nextBrain);
         brain = nextBrain;
@@ -169,9 +177,22 @@ async function handleGeneralChat(opts: {
     agencyId: opts.agencyId,
     userId: opts.userId,
     snapshot,
+    brain,
     conversation,
     supabase: opts.supabase,
   });
+
+  if (aiReply.statePatch && brain) {
+    const existingContext = (brain as any).ai_context_v1 ?? {};
+    const nextContext = mergeAiContext(existingContext, aiReply.statePatch);
+    const nextBrain = { ...brain, ai_context_v1: nextContext };
+    try {
+      await upsertAgencyBrain(opts.supabase, opts.agencyId, brainId, nextBrain);
+      brain = nextBrain;
+    } catch {
+      // ignore state patch failures
+    }
+  }
 
   const insertAssistantMsg: InsertResult<{ id: string }> = await opts.supabase
     .from("agency_ai_chat_messages")
@@ -305,7 +326,7 @@ export async function* handleAgencyAdminChatStream(opts: {
   userId: string;
   body: AgencyAdminChatRequestBody;
 }): AsyncGenerator<AgencyAdminChatStreamChunk> {
-  if (isAdminChatSchemaEnabled()) {
+  if (isAdminChatSchemaEnabled() || isAdminChatStrategicEnabled()) {
     yield {
       event: "error",
       data: {
@@ -487,8 +508,9 @@ export async function* handleAgencyAdminChatStream(opts: {
   const contextSummary = buildAiContextSummary(snapshot);
   if (brain) {
     const existing = (brain as any).ai_context_v1 ?? {};
-    if (JSON.stringify(existing) !== JSON.stringify(contextSummary)) {
-      const nextBrain = { ...brain, ai_context_v1: contextSummary };
+    const nextContext = mergeAiContext(existing, contextSummary);
+    if (JSON.stringify(existing) !== JSON.stringify(nextContext)) {
+      const nextBrain = { ...brain, ai_context_v1: nextContext };
       try {
         await upsertAgencyBrain(opts.supabase, agencyId, brainId, nextBrain);
         brain = nextBrain;
@@ -498,15 +520,28 @@ export async function* handleAgencyAdminChatStream(opts: {
     }
   }
 
-  if (isAdminChatSchemaEnabled()) {
+  if (isAdminChatSchemaEnabled() || isAdminChatStrategicEnabled()) {
     const aiReply = await runAdminGeneralChatAi({
       message,
       agencyId,
       userId: opts.userId,
       snapshot,
+      brain,
       conversation,
       supabase: opts.supabase,
     });
+
+    if (aiReply.statePatch && brain) {
+      const existingContext = (brain as any).ai_context_v1 ?? {};
+      const nextContext = mergeAiContext(existingContext, aiReply.statePatch);
+      const nextBrain = { ...brain, ai_context_v1: nextContext };
+      try {
+        await upsertAgencyBrain(opts.supabase, agencyId, brainId, nextBrain);
+        brain = nextBrain;
+      } catch {
+        // ignore state patch failures
+      }
+    }
 
     const insertAssistantMsg: InsertResult<{ id: string }> = await opts.supabase
       .from("agency_ai_chat_messages")

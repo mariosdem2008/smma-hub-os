@@ -3,6 +3,14 @@ import { calculateCost } from "./budgets.ts";
 import { TaskType } from "../../../src/ai/taskTypes.ts";
 import type { AdminChatSchema } from "../../../src/ai/schema.ts";
 import type { AgencyContextSnapshot } from "./ai-context.ts";
+import {
+  clampClarifyingQuestions,
+  formatStrategicAssistantMessage,
+  routeAdminChatPlaybook,
+  validateStrategicOutput,
+  type AdminChatPlaybook,
+  type AdminChatStrategicOutput,
+} from "../../../src/ai/adminChatStrategic.ts";
 import { embedText } from "./embeddings.ts";
 import { executeToolAction } from "./tool-executor.ts";
 
@@ -16,10 +24,38 @@ export type GeneralChatOutput = {
   unknown?: boolean;
   outputMode?: "schema" | "legacy_fallback" | "legacy";
   schemaFailed?: boolean;
+  playbook?: AdminChatPlaybook;
+  statePatch?: Record<string, unknown> | null;
+};
+
+type AdminChatState = {
+  playbook?: AdminChatPlaybook;
+  goal?: string | null;
+  stage?: "discover" | "define" | "design" | "decide" | "deliver";
+  clarifying_questions_asked?: number;
+  open_questions?: string[];
+  last_decision?: string;
+};
+
+type AdminChatSummary = {
+  summary: string;
+  key_facts: string[];
+  decisions: string[];
+  updated_at: string;
 };
 
 const ASSISTANT_PREFIX = "ASSISTANT_MESSAGE:";
 const SUGGESTIONS_PREFIX = "SUGGESTIONS_JSON:";
+
+const MAX_SUMMARY_CHARS = 900;
+const MAX_KEY_FACTS = 10;
+const MAX_DECISIONS = 8;
+const MAX_OPEN_QUESTIONS = 6;
+const MAX_RAG_SNIPPET_CHARS = 2000;
+
+function nowIso() {
+  return new Date().toISOString();
+}
 function validateSuggestions(suggestions?: Suggestion[]) {
   if (!suggestions) return true;
   if (!Array.isArray(suggestions)) return false;
@@ -44,6 +80,210 @@ function readEnvFlag(name: string) {
 
 export function isAdminChatSchemaEnabled() {
   return readEnvFlag("AI_ADMIN_CHAT_SCHEMA") === "true";
+}
+
+export function isAdminChatStrategicEnabled() {
+  return readEnvFlag("AI_ADMIN_CHAT_STRATEGIC") === "true";
+}
+
+function extractAdminChatState(brain?: Record<string, unknown> | null): AdminChatState {
+  if (!brain || typeof brain !== "object") return {};
+  const context = (brain as Record<string, unknown>).ai_context_v1 as Record<string, unknown> | null | undefined;
+  const state = context?.admin_chat_state_v1 as Record<string, unknown> | undefined;
+  if (!state || typeof state !== "object") return {};
+  return {
+    playbook: (state.playbook as AdminChatPlaybook | undefined) ?? undefined,
+    goal: typeof state.goal === "string" ? state.goal : null,
+    stage: typeof state.stage === "string" ? (state.stage as AdminChatState["stage"]) : undefined,
+    clarifying_questions_asked: typeof state.clarifying_questions_asked === "number" ? state.clarifying_questions_asked : 0,
+    open_questions: Array.isArray(state.open_questions) ? (state.open_questions as string[]) : undefined,
+    last_decision: typeof state.last_decision === "string" ? state.last_decision : undefined,
+  };
+}
+
+function extractAdminChatSummary(brain?: Record<string, unknown> | null): AdminChatSummary | null {
+  if (!brain || typeof brain !== "object") return null;
+  const context = (brain as Record<string, unknown>).ai_context_v1 as Record<string, unknown> | null | undefined;
+  const summary = context?.admin_chat_summary_v1 as Record<string, unknown> | undefined;
+  if (!summary || typeof summary !== "object") return null;
+  return {
+    summary: typeof summary.summary === "string" ? summary.summary : "",
+    key_facts: Array.isArray(summary.key_facts) ? (summary.key_facts as string[]) : [],
+    decisions: Array.isArray(summary.decisions) ? (summary.decisions as string[]) : [],
+    updated_at: typeof summary.updated_at === "string" ? summary.updated_at : "",
+  };
+}
+
+function clampList(items: string[], maxItems: number) {
+  return items.filter((item) => typeof item === "string" && item.trim().length > 0).slice(0, maxItems);
+}
+
+function truncateText(text: string, maxChars: number) {
+  if (text.length <= maxChars) return text;
+  return text.slice(0, maxChars).trim();
+}
+
+function pickStageFromOutput(output: AdminChatStrategicOutput): AdminChatState["stage"] {
+  if (output.unknown) return "discover";
+  switch (output.playbook) {
+    case "strategy":
+      return "design";
+    case "copywriting":
+      return "deliver";
+    case "core_offer":
+    default:
+      return "define";
+  }
+}
+
+function buildSummaryFromOutput(output: AdminChatStrategicOutput): AdminChatSummary {
+  if (output.unknown) {
+    const missing = output.unknown.missing?.length ? output.unknown.missing.join(", ") : "missing details";
+    return {
+      summary: truncateText(`UNKNOWN: Missing ${missing}.`, MAX_SUMMARY_CHARS),
+      key_facts: [],
+      decisions: [],
+      updated_at: nowIso(),
+    };
+  }
+
+  const keyFacts: string[] = [];
+  let summaryText = `Playbook: ${output.playbook}.`;
+  let nextAction = "";
+
+  if (output.playbook === "core_offer" && output.core_offer) {
+    keyFacts.push(`ICP: ${output.core_offer.icp_primary}`);
+    keyFacts.push(`Promise: ${output.core_offer.pain_promise}`);
+    keyFacts.push(`Mechanism: ${output.core_offer.offer_mechanism}`);
+    keyFacts.push(`Tiers: ${output.core_offer.tiers.map((tier) => tier.name).join(", ")}`);
+    nextAction = output.core_offer.next_action;
+  }
+
+  if (output.playbook === "strategy" && output.strategy) {
+    keyFacts.push(`Goal: ${output.strategy.goal_metric}`);
+    keyFacts.push(`Pillars: ${output.strategy.content_pillars.join(", ")}`);
+    nextAction = output.strategy.next_action;
+  }
+
+  if (output.playbook === "copywriting" && output.copywriting) {
+    keyFacts.push(`Hooks: ${output.copywriting.hooks.slice(0, 3).join(" | ")}`);
+    nextAction = output.copywriting.next_action;
+  }
+
+  if (nextAction) {
+    summaryText = `${summaryText} Next action: ${nextAction}`;
+  }
+
+  return {
+    summary: truncateText(summaryText, MAX_SUMMARY_CHARS),
+    key_facts: clampList(keyFacts, MAX_KEY_FACTS),
+    decisions: clampList(nextAction ? [`Next action: ${nextAction}`] : [], MAX_DECISIONS),
+    updated_at: nowIso(),
+  };
+}
+
+function mergeAdminChatSummary(previous: AdminChatSummary | null, next: AdminChatSummary): AdminChatSummary {
+  const mergedFacts = new Set<string>([...(previous?.key_facts ?? []), ...next.key_facts]);
+  const mergedDecisions = new Set<string>([...(previous?.decisions ?? []), ...next.decisions]);
+  const summaryText = previous?.summary
+    ? `${previous.summary} ${next.summary}`.trim()
+    : next.summary;
+
+  return {
+    summary: truncateText(summaryText, MAX_SUMMARY_CHARS),
+    key_facts: Array.from(mergedFacts).slice(0, MAX_KEY_FACTS),
+    decisions: Array.from(mergedDecisions).slice(0, MAX_DECISIONS),
+    updated_at: next.updated_at,
+  };
+}
+
+function buildFallbackStrategicPatch(opts: {
+  playbook: AdminChatPlaybook;
+  previousState: AdminChatState;
+  previousSummary: AdminChatSummary | null;
+  missingReason: string;
+  question: string;
+}) {
+  const fallbackOutput: AdminChatStrategicOutput = {
+    playbook: opts.playbook,
+    clarifying_questions: [],
+    unknown: { missing: [opts.missingReason], question: opts.question },
+  };
+  const nextSummary = mergeAdminChatSummary(opts.previousSummary, buildSummaryFromOutput(fallbackOutput));
+  const nextState = {
+    ...opts.previousState,
+    playbook: opts.playbook,
+    stage: opts.previousState.stage ?? "discover",
+  };
+  return {
+    admin_chat_state_v1: nextState,
+    admin_chat_summary_v1: nextSummary,
+  };
+}
+
+function buildNextAdminChatState(previous: AdminChatState, output: AdminChatStrategicOutput): AdminChatState {
+  const askedSoFar = previous.clarifying_questions_asked ?? 0;
+  const askedNow = output.clarifying_questions?.length ?? 0;
+  const nextStage = pickStageFromOutput(output);
+  const nextGoal = output.playbook === "strategy" ? output.strategy?.goal_metric ?? null : previous.goal ?? null;
+  return {
+    playbook: output.playbook,
+    goal: nextGoal,
+    stage: nextStage,
+    clarifying_questions_asked: Math.min(3, askedSoFar + askedNow),
+    open_questions: clampList(output.clarifying_questions ?? [], MAX_OPEN_QUESTIONS),
+    last_decision: output.playbook,
+  };
+}
+
+function buildAdminChatContextBlob(opts: {
+  snapshot: AgencyContextSnapshot;
+  brain: Record<string, unknown> | null;
+  playbook: AdminChatPlaybook;
+  state: AdminChatState;
+  memorySnippets: Array<Record<string, unknown>>;
+  summary: AdminChatSummary | null;
+}) {
+  const setupProfile = (opts.brain as any)?.setup_profile_v1 ?? {};
+  const agency = setupProfile?.agency ?? {};
+  const brand = setupProfile?.brand ?? {};
+  const ai = setupProfile?.ai ?? {};
+
+  return {
+    context_version: "v1",
+    agency_profile: {
+      name: opts.snapshot.agency?.name ?? null,
+      website: opts.snapshot.agency?.website ?? null,
+      niche: opts.snapshot.agency?.niche ?? null,
+      positioning: agency.core_offer_outcome ?? null,
+      tone: brand.voice_adjectives ?? null,
+      offers: agency.primary_services ?? null,
+      proof: agency.proof ?? null,
+      constraints: ai.boundaries ?? null,
+    },
+    client_profile: null,
+    agency_policies: {
+      rep_policy_v1: (opts.brain as any)?.rep_policy_v1 ?? null,
+      faq_v1: (opts.brain as any)?.faq_v1 ?? null,
+      dos_donts: brand.dos_donts ?? null,
+      escalation_rules: ai.escalation_rules ?? null,
+    },
+    memory_snippets: opts.memorySnippets,
+    conversation_state: {
+      goal: opts.state.goal ?? null,
+      stage: opts.state.stage ?? null,
+      last_decision: opts.state.last_decision ?? null,
+      open_questions: opts.state.open_questions ?? [],
+      clarifying_questions_asked: opts.state.clarifying_questions_asked ?? 0,
+      playbook: opts.playbook,
+      summary: opts.summary ?? null,
+    },
+    safety_rules: {
+      unknown_policy: "UNKNOWN + missing info + 1 question",
+      escalation_policy: "Escalate only with explicit constraint in context.",
+      no_hallucinations: true,
+    },
+  };
 }
 
 function parseSuggestions(raw: string): Suggestion[] {
@@ -204,6 +444,7 @@ async function logAdminChatRun(opts: {
   metadata: Record<string, unknown>;
   usage?: { inputTokens?: number; outputTokens?: number } | null;
   contextSizeHint?: string;
+  promptVersion?: number;
 }) {
   if (!opts.supabase) return;
   const tokensIn = opts.usage?.inputTokens ?? estimateTokensForCost(opts.contextSizeHint ?? "");
@@ -217,7 +458,7 @@ async function logAdminChatRun(opts: {
       client_id: null,
       user_id: opts.userId,
       prompt_id: null,
-      prompt_version: null,
+      prompt_version: opts.promptVersion ?? null,
       model,
       tokens_in: tokensIn,
       tokens_out: tokensOut,
@@ -237,12 +478,13 @@ async function logAdminChatRun(opts: {
   }
 }
 
-async function fetchAgencyRagContext(opts: {
+async function fetchAgencyRagSnippets(opts: {
   supabase: any;
   agencyId: string;
   query: string;
-}): Promise<string> {
+}): Promise<Array<Record<string, unknown>>> {
   try {
+    if (!opts.supabase?.rpc) return [];
     const embeddingApiKey = typeof Deno !== "undefined" ? Deno.env.get("OPENAI_API_KEY") : process.env.OPENAI_API_KEY;
     const embeddingModel = typeof Deno !== "undefined"
       ? Deno.env.get("EMBEDDING_MODEL_ID") ?? "text-embedding-3-small"
@@ -250,13 +492,13 @@ async function fetchAgencyRagContext(opts: {
 
     if (!embeddingApiKey) {
       console.warn("admin_chat_rag_no_api_key");
-      return "";
+      return [];
     }
 
     const queryEmbedding = await embedText(opts.query, embeddingApiKey, embeddingModel);
 
     const { data: matches } = await opts.supabase.rpc("match_ai_embeddings", {
-      query_embedding: queryEmbedding.vector,
+      query_embedding: queryEmbedding,
       match_threshold: 0.7,
       match_count: 5,
       filter_agency_id: opts.agencyId,
@@ -264,16 +506,46 @@ async function fetchAgencyRagContext(opts: {
     });
 
     if (!matches || matches.length === 0) {
-      return "";
+      return [];
     }
 
-    return matches.map((m: any, i: number) => `[${i + 1}] ${m.chunk_text}`).join("\n\n");
+    const mapped = matches.map((match: any, index: number) => ({
+      rank: index + 1,
+      text: match.chunk_text ?? "",
+      doc_type: match.doc_type ?? null,
+      title: match.title ?? null,
+      score: match.score ?? null,
+      source: match.source ?? null,
+      source_url: match.source_url ?? null,
+    }));
+    return trimMemorySnippets(mapped);
   } catch (error) {
     console.error("admin_chat_rag_failed", {
       message: error instanceof Error ? error.message : String(error),
     });
-    return "";
+    return [];
   }
+}
+
+function formatRagSnippets(snippets: Array<Record<string, unknown>>) {
+  if (!snippets.length) return "";
+  return snippets
+    .map((snippet, index) => `[${index + 1}] ${(snippet.text as string) ?? ""}`)
+    .join("\n\n");
+}
+
+function trimMemorySnippets(snippets: Array<Record<string, unknown>>) {
+  if (!snippets.length) return [];
+  const trimmed: Array<Record<string, unknown>> = [];
+  let remaining = MAX_RAG_SNIPPET_CHARS;
+  for (const snippet of snippets.slice(0, 5)) {
+    if (remaining <= 0) break;
+    const text = String(snippet.text ?? "");
+    const clipped = text.length > remaining ? text.slice(0, remaining) : text;
+    trimmed.push({ ...snippet, text: clipped });
+    remaining -= clipped.length;
+  }
+  return trimmed;
 }
 
 export async function runAdminGeneralChatAi(opts: {
@@ -281,6 +553,7 @@ export async function runAdminGeneralChatAi(opts: {
   agencyId: string;
   userId: string;
   snapshot: AgencyContextSnapshot;
+  brain?: Record<string, unknown> | null;
   conversation: string;
   supabase: any;
 }) {
@@ -291,14 +564,30 @@ export async function runAdminGeneralChatAi(opts: {
       ? process.env.AI_MODE
       : undefined;
   const mode = envMode === "dev" ? "dev" : "prod";
-  const schemaEnabled = isAdminChatSchemaEnabled();
+  const schemaEnabled = isAdminChatSchemaEnabled() || isAdminChatStrategicEnabled();
   const startTime = Date.now();
 
-  const ragContext = await fetchAgencyRagContext({
+  const ragSnippets = await fetchAgencyRagSnippets({
     supabase: opts.supabase,
     agencyId: opts.agencyId,
     query: opts.message,
   });
+  const ragContext = formatRagSnippets(ragSnippets);
+
+  const strategicEnabled = isAdminChatStrategicEnabled();
+  const playbook = strategicEnabled ? routeAdminChatPlaybook(opts.message) : null;
+  const previousState = strategicEnabled ? extractAdminChatState(opts.brain ?? null) : {};
+  const previousSummary = strategicEnabled ? extractAdminChatSummary(opts.brain ?? null) : null;
+  const contextBlob = strategicEnabled
+    ? buildAdminChatContextBlob({
+        snapshot: opts.snapshot,
+        brain: opts.brain ?? null,
+        playbook: playbook ?? "core_offer",
+        state: previousState,
+        memorySnippets: ragSnippets,
+        summary: previousSummary,
+      })
+    : undefined;
 
   const result = await runAiTask({
     task_type: TaskType.AGENCY_ADMIN_GENERAL_CHAT,
@@ -310,6 +599,8 @@ export async function runAdminGeneralChatAi(opts: {
       conversation: opts.conversation,
       latestUserMessage: opts.message,
       ragContext,
+      contextBlob,
+      playbook,
     },
     supabase: opts.supabase,
   });
@@ -330,16 +621,59 @@ export async function runAdminGeneralChatAi(opts: {
     let output: GeneralChatOutput;
 
     if (schemaOk) {
-      const parsedSchema = result?.json as AdminChatSchema;
-      output = {
-        assistant_message: parsedSchema.assistant_message,
-        suggestions: normalizeSchemaSuggestions(parsedSchema.suggestions ?? []),
-        actions: parsedSchema.actions ?? [],
-        escalated: Boolean(parsedSchema.escalated),
-        unknown: Boolean(parsedSchema.unknown),
-        outputMode,
-        schemaFailed: false,
-      };
+      if (strategicEnabled) {
+        const parsedStrategic = result?.json as AdminChatStrategicOutput;
+        parsedStrategic.clarifying_questions = clampClarifyingQuestions(parsedStrategic.clarifying_questions ?? []);
+
+        const validation = validateStrategicOutput(parsedStrategic);
+        if (!validation.ok) {
+          outputMode = "legacy_fallback";
+          schemaFailed = true;
+          output = {
+            assistant_message: "UNKNOWN\n\nNeed: valid strategic output\n\nNext Question: What should I help with first?",
+            suggestions: [],
+            outputMode,
+            schemaFailed,
+            unknown: true,
+            statePatch: buildFallbackStrategicPatch({
+              playbook: playbook ?? "core_offer",
+              previousState,
+              previousSummary,
+              missingReason: "valid strategic output",
+              question: "What should I help with first?",
+            }),
+          };
+        } else {
+          const nextSummary = mergeAdminChatSummary(previousSummary, buildSummaryFromOutput(parsedStrategic));
+          const assistantMessage = formatStrategicAssistantMessage(parsedStrategic);
+          const nextState = buildNextAdminChatState(previousState, parsedStrategic);
+          output = {
+            assistant_message: assistantMessage,
+            suggestions: normalizeSchemaSuggestions(parsedStrategic.suggestions ?? []),
+            actions: [],
+            escalated: false,
+            unknown: Boolean(parsedStrategic.unknown),
+            outputMode,
+            schemaFailed: false,
+            playbook: parsedStrategic.playbook,
+            statePatch: {
+              admin_chat_state_v1: nextState,
+              admin_chat_summary_v1: nextSummary,
+            },
+          };
+        }
+      } else {
+        const parsedSchema = result?.json as AdminChatSchema;
+        output = {
+          assistant_message: parsedSchema.assistant_message,
+          suggestions: normalizeSchemaSuggestions(parsedSchema.suggestions ?? []),
+          actions: parsedSchema.actions ?? [],
+          escalated: Boolean(parsedSchema.escalated),
+          unknown: Boolean(parsedSchema.unknown),
+          outputMode,
+          schemaFailed: false,
+        };
+      }
     } else {
       outputMode = "legacy_fallback";
       schemaFailed = true;
@@ -358,6 +692,15 @@ export async function runAdminGeneralChatAi(opts: {
             outputMode,
             schemaFailed,
           };
+      if (strategicEnabled) {
+        output.statePatch = buildFallbackStrategicPatch({
+          playbook: playbook ?? "core_offer",
+          previousState,
+          previousSummary,
+          missingReason: "valid strategic output",
+          question: "What should I help with first?",
+        });
+      }
     }
 
     const actionResults: ToolActionResult[] = [];
@@ -398,6 +741,10 @@ export async function runAdminGeneralChatAi(opts: {
     const metadata: Record<string, unknown> = {
       admin_chat_output_mode: outputMode,
     };
+    if (strategicEnabled) {
+      metadata.admin_chat_prompt_version = 1;
+      metadata.admin_chat_playbook = output.playbook ?? playbook ?? null;
+    }
     if (schemaFailed) {
       metadata.admin_chat_schema_failed = true;
     }
@@ -418,6 +765,7 @@ export async function runAdminGeneralChatAi(opts: {
       metadata,
       usage: result?.usage ?? null,
       contextSizeHint: `${opts.conversation}\n\n${opts.message}`,
+      promptVersion: strategicEnabled ? 1 : undefined,
     });
 
     return {
@@ -428,6 +776,8 @@ export async function runAdminGeneralChatAi(opts: {
       unknown: output.unknown ?? false,
       outputMode,
       schemaFailed,
+      playbook: output.playbook,
+      statePatch: output.statePatch,
       meta: result?.meta ?? null,
     };
   }
@@ -496,11 +846,12 @@ export async function runAdminGeneralChatAiStream(opts: {
       : undefined;
   const mode = envMode === "dev" ? "dev" : "prod";
 
-  const ragContext = await fetchAgencyRagContext({
+  const ragSnippets = await fetchAgencyRagSnippets({
     supabase: opts.supabase,
     agencyId: opts.agencyId,
     query: opts.message,
   });
+  const ragContext = formatRagSnippets(ragSnippets);
 
   return runAiTaskStream({
     task_type: TaskType.AGENCY_ADMIN_GENERAL_CHAT,

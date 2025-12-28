@@ -11,7 +11,7 @@ import { buildStrategyPlanPrompt } from "./prompts/strategyPlan.ts"
 import { buildSummarizePrompt } from "./prompts/summarize.ts"
 import { buildToolExecutionPrompt } from "./prompts/toolExecution.ts"
 import { resolveModelPolicy } from "./modelPolicy.ts"
-import { adminChatSchema, arraySchema, objectSchema, OutputSchema } from "./schema.ts"
+import { adminChatSchema, adminChatStrategicSchema, arraySchema, objectSchema, OutputSchema } from "./schema.ts"
 import { TaskType } from "./taskTypes.ts"
 import type { ChatMessage } from "./providers/types.ts"
 
@@ -78,6 +78,10 @@ function isAdminChatSchemaEnabled() {
   return readEnvFlag("AI_ADMIN_CHAT_SCHEMA") === "true";
 }
 
+function isAdminChatStrategicEnabled() {
+  return readEnvFlag("AI_ADMIN_CHAT_STRATEGIC") === "true";
+}
+
 const ADMIN_CHAT_SCHEMA_CONFIG: TaskConfig = {
   taskType: TaskType.AGENCY_ADMIN_GENERAL_CHAT,
   outputMode: "json_schema",
@@ -98,6 +102,35 @@ const ADMIN_CHAT_SCHEMA_CONFIG: TaskConfig = {
     actions: [],
     escalated: false,
     unknown: true,
+  }),
+};
+
+const ADMIN_CHAT_STRATEGIC_CONFIG: TaskConfig = {
+  taskType: TaskType.AGENCY_ADMIN_GENERAL_CHAT,
+  outputMode: "json_schema",
+  safetyMode: "strict_unknown",
+  promptBuilder: (args) =>
+    buildAdminGeneralChatPrompt({
+      contextSnapshot: (args.metadata?.contextSnapshot as Record<string, unknown>) ?? {},
+      conversation: (args.metadata?.conversation as string) ?? "",
+      latestUserMessage: (args.metadata?.latestUserMessage as string) ?? "",
+      outputMode: "strategic",
+      ragContext: (args.metadata?.ragContext as string | undefined) ?? undefined,
+      contextBlob: (args.metadata?.contextBlob as Record<string, unknown> | undefined) ?? undefined,
+      playbook: (args.metadata?.playbook as any) ?? undefined,
+    }),
+  requires: { agency: true, client: false },
+  usageEndpoint: "ai-agency-admin-chat",
+  schema: adminChatStrategicSchema(),
+  buildUnknown: () => ({
+    playbook: "core_offer",
+    clarifying_questions: [],
+    assumptions: [],
+    core_offer: null,
+    strategy: null,
+    copywriting: null,
+    unknown: { missing: ["context"], question: "What should I help with first?" },
+    suggestions: [],
   }),
 };
 
@@ -308,6 +341,9 @@ export const TASK_REGISTRY: Record<TaskType, TaskConfig> = {
 };
 
 export function getTaskConfig(taskType: TaskType): TaskConfig {
+  if (taskType === TaskType.AGENCY_ADMIN_GENERAL_CHAT && isAdminChatStrategicEnabled()) {
+    return ADMIN_CHAT_STRATEGIC_CONFIG;
+  }
   if (taskType === TaskType.AGENCY_ADMIN_GENERAL_CHAT && isAdminChatSchemaEnabled()) {
     return ADMIN_CHAT_SCHEMA_CONFIG;
   }

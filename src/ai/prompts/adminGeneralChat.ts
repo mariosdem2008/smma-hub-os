@@ -1,15 +1,54 @@
 import type { ChatMessage } from "../providers/types.ts";
+import { loadPromptText } from "../promptRegistry.ts";
 
 type PromptArgs = {
   contextSnapshot: Record<string, unknown>;
   conversation: string;
   latestUserMessage: string;
-  outputMode?: "legacy" | "schema";
+  outputMode?: "legacy" | "schema" | "strategic";
   ragContext?: string;
+  contextBlob?: Record<string, unknown>;
+  playbook?: "core_offer" | "strategy" | "copywriting";
 };
 
 export function buildAdminGeneralChatPrompt(args: PromptArgs): ChatMessage[] {
   const mode = args.outputMode ?? "legacy";
+  const isStrategic = mode === "strategic";
+  const systemRegistry = isStrategic ? loadPromptText("admin_chat/system_v1.md") : "";
+  const developerRegistry = isStrategic ? loadPromptText("admin_chat/developer_v1.md") : "";
+  const contractsRegistry = isStrategic ? loadPromptText("admin_chat/output_contracts_v1.md") : "";
+  const PLAYBOOK_FILES: Record<NonNullable<PromptArgs["playbook"]>, string> = {
+    core_offer: "admin_chat/playbooks/offer_core_offer_v1.md",
+    strategy: "admin_chat/playbooks/strategy_v1.md",
+    copywriting: "admin_chat/playbooks/copywriting_v1.md",
+  };
+  const selectedPlaybook = args.playbook ?? "core_offer";
+  const playbookRegistry = isStrategic ? loadPromptText(PLAYBOOK_FILES[selectedPlaybook]) : "";
+
+  if (isStrategic) {
+    const contextBlob = JSON.stringify(args.contextBlob ?? {}, null, 2);
+    const playbook = selectedPlaybook;
+    const systemPrompt = [systemRegistry, contractsRegistry, playbookRegistry].filter(Boolean).join("\n\n");
+    const developerPrompt = developerRegistry;
+    const userPrompt = [
+      "context_blob:",
+      contextBlob,
+      "",
+      "playbook:",
+      playbook,
+      "",
+      "latest_user_message:",
+      args.latestUserMessage || "(none)",
+      "",
+      "Return JSON only.",
+    ].join("\n");
+
+    return [
+      { role: "system", content: systemPrompt },
+      { role: "developer", content: developerPrompt },
+      { role: "user", content: userPrompt },
+    ];
+  }
   const systemPrompt = mode === "schema"
     ? [
         "You are the agency's AI representative inside SMMAHUB.",
