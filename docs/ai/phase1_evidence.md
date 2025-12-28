@@ -170,3 +170,66 @@
   - `npm run lint` -> PASS.
   - `npx tsc -p .` -> PASS.
   - `npm run build` -> PASS. Browserslist data warning; chunk size warning (existing).
+
+## TASK-STRATEGIC: Admin Chat prompting overhaul + strategic assistant mode
+- Files changed:
+  - `docs/ai/admin_chat_prompting_map.md`: Full prompting audit map with flow diagram and callsite inventory.
+  - `docs/ai/admin_chat_context_contract.md`: Structured context blob contract.
+  - `docs/ai/spec_gaps.md`: Logged ambiguity/TODOs per spec non-negotiables.
+  - `prompts/admin_chat/system_v1.md`, `prompts/admin_chat/developer_v1.md`, `prompts/admin_chat/output_contracts_v1.md`.
+  - `prompts/admin_chat/playbooks/offer_core_offer_v1.md`, `prompts/admin_chat/playbooks/strategy_v1.md`, `prompts/admin_chat/playbooks/copywriting_v1.md`.
+  - `src/ai/promptRegistry.ts`: File-based prompt registry loader.
+  - `src/ai/adminChatStrategic.ts`: Strategic router + output formatter + validation helpers.
+  - `src/ai/prompts/adminGeneralChat.ts`: Strategic prompt assembly path.
+  - `src/ai/taskRegistry.ts`, `src/ai/schema.ts`: Strategic output schema + feature flag.
+  - `supabase/functions/_shared/agency-admin-general-ai.ts`: Strategic mode wiring, context blob, prompt version logging.
+  - `supabase/functions/_shared/agency-admin-chat.ts`: Strategic gating + state patch merge.
+  - `src/data/__tests__/adminChatStrategicPlaybooks.test.ts`: Playbook behavior tests.
+  - `src/data/__tests__/agencyAdminSetupGuided.test.ts`: Updated tests for structured extraction + state handling.
+- Rationale:
+  - Centralize prompts in versioned files, inject structured context, enforce output contracts, and gate behavioral changes behind a feature flag.
+  - Add strategic task routing and deterministic formatting with UNKNOWN policy enforcement.
+- Gates:
+  - `npm test` -> PASS (36 files, 189 tests). React Router future-flag warnings in stderr.
+  - `npm run lint` -> PASS.
+  - `npx tsc -p .` -> PASS.
+  - `npm run build` -> PASS. Browserslist data warning; chunk size warning (existing).
+
+## TASK-STRATEGIC: P0-P2 hardening (context merge, summary/state, prompt routing)
+- Files changed:
+  - `src/ai/prompts/adminGeneralChat.ts`: Deterministic playbook file mapping.
+  - `src/ai/schema.ts`: Stronger strategic schema validation.
+  - `src/ai/adminChatStrategic.ts`: Deliver-first ordering in formatted output.
+  - `supabase/functions/_shared/agency-admin-general-ai.ts`: Summary/state persistence, caps, and fallback patches.
+  - `supabase/functions/_shared/agency-admin-chat.ts`: Non-destructive ai_context_v1 merges + statePatch merge.
+  - `prompts/admin_chat/*`: Strategy behavior upgrades + recommendation guidance.
+  - `docs/ai/admin_chat_prompting_map.md`, `docs/ai/admin_chat_context_contract.md`, `docs/ai/spec_gaps.md`: Updated docs.
+  - Tests: `src/ai/__tests__/adminGeneralChatPrompt.test.ts`, `src/ai/__tests__/adminChatStrategicSchema.test.ts`, `src/data/__tests__/agencyAdminChatHandler.test.ts`.
+- Rationale:
+  - Enforce deterministic prompt routing, stricter output validation, safe context merging, and rolling summaries without raw transcripts.
+- Gates:
+  - `npm test` -> PASS (38 files, 193 tests). React Router future-flag warnings in stderr.
+  - `npm run lint` -> PASS.
+  - `npx tsc -p .` -> PASS.
+  - `npm run build` -> PASS. Browserslist data warning; chunk size warning (existing).
+
+## TASK-STRATEGIC: Strategic Mode v1.1 upgrades (validator, router, loader)
+- Files changed:
+  - `src/ai/adminChatStrategic.ts`: Scored playbook router + stricter validator + deliver-first formatting + copywriting phrase coverage.
+  - `src/ai/promptRegistry.ts`: Prompt path resolution via cwd + Node/Deno-safe file reads + empty cache guard.
+  - `docs/ai/admin_chat_prompting_map.md`: Discovery + upgraded strategic mode notes.
+  - `docs/ai/admin_chat_context_contract.md`: Summary/state max lengths and merge rules.
+  - `docs/ai/spec_gaps.md`: Added TODOs for remaining ambiguities.
+  - `src/data/__tests__/adminChatStrategicValidator.test.ts`: Invalid payload/limits tests.
+  - `src/data/__tests__/adminChatStrategicRouter.test.ts`: Scored routing examples.
+  - `src/data/__tests__/adminChatStrategicPlaybooks.test.ts`: Deliver-first format assertion.
+  - `src/ai/__tests__/promptRegistry.test.ts`: Empty prompt cache guard.
+  - `src/ai/__tests__/adminGeneralChatPrompt.test.ts`: Deterministic playbook prompt mapping (revalidated).
+  - `prompts/admin_chat/empty_test.md`: Empty prompt fixture for loader test.
+- Rationale:
+  - Make strategic routing deterministic, enforce strict output contracts, and guarantee prompt loader correctness across runtime environments.
+- Gates:
+  - `npm test` -> PASS (41 files, 201 tests). React Router future-flag warnings in stderr.
+  - `npm run lint` -> PASS.
+  - `npx tsc -p .` -> PASS.
+  - `npm run build` -> PASS. Browserslist data warning; chunk size warning (existing).
