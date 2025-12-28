@@ -233,3 +233,12 @@
   - `npm run lint` -> PASS.
   - `npx tsc -p .` -> PASS.
   - `npm run build` -> PASS. Browserslist data warning; chunk size warning (existing).
+
+## TASK-STRATEGIC: Validator runtime fix (post-split)
+- Files changed:
+  - `src/ai/adminChatStrategic.ts`: Fix runtime validator parsing for unknown input.
+- Gates:
+  - `npm test` -> PASS (41 files, 201 tests). React Router future-flag warnings in stderr.
+  - `npm run lint` -> PASS.
+  - `npx tsc -p .` -> PASS.
+  - `npm run build` -> PASS. Browserslist data warning; chunk size warning (existing).
