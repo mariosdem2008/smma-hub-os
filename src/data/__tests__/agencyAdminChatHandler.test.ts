@@ -8,12 +8,14 @@ function createSupabaseMock(opts: {
   adminAgencyId?: string | null;
   threadAgencyIdById?: Record<string, string>;
   threadKindById?: Record<string, string>;
+  initialBrain?: Record<string, unknown>;
 }) {
   const inserts: Array<{ table: string; payload: any }> = [];
-  let brain: any = {};
+  let brain: any = opts.initialBrain ? { ...opts.initialBrain } : {};
 
   const supabase = {
     inserts,
+    _getBrain: () => brain,
     from: (table: string) => {
       const state: { filters: Record<string, any>; table: string } = { filters: {}, table };
 
@@ -236,5 +238,75 @@ describe("handleAgencyAdminChat", () => {
     if ("error" in result.body) throw new Error("Unexpected error response");
     expect(result.body.step_id).toBeUndefined();
     expect(result.body.suggestions?.length).toBeGreaterThan(0);
+  });
+
+  it("merges ai_context_v1 without overwriting existing keys", async () => {
+    runAiTaskMock.mockResolvedValueOnce({
+      assistant_message: "ASSISTANT_MESSAGE: ok\n\nSUGGESTIONS_JSON: []",
+      meta: { provider: "openai", model: "gpt-5-nano" },
+    });
+    const supabase = createSupabaseMock({
+      adminAgencyId: "agency-1",
+      initialBrain: { ai_context_v1: { existing_key: "keep" } },
+    });
+
+    const result = await handleAgencyAdminChat({
+      supabase: supabase as any,
+      userId: "user-1",
+      body: { message: "status update" },
+    });
+
+    expect(result.status).toBe(200);
+    const brain = (supabase as any)._getBrain();
+    expect(brain.ai_context_v1.existing_key).toBe("keep");
+  });
+
+  it("persists summary and state patch when strategic flag is ON", async () => {
+    process.env.AI_ADMIN_CHAT_STRATEGIC = "true";
+    runAiTaskMock.mockResolvedValueOnce({
+      json: {
+        playbook: "core_offer",
+        clarifying_questions: [],
+        assumptions: [],
+        core_offer: {
+          icp_primary: "Local gyms",
+          icp_secondary: ["Studios", "Wellness clinics"],
+          pain_promise: "More memberships in 90 days.",
+          offer_mechanism: "Organic + paid social with weekly optimizations.",
+          tiers: [
+            { name: "Starter", price_range: "$2k-$3k", deliverables: ["8 posts"], timeline_days: 30 },
+            { name: "Growth (Recommended)", price_range: "$4k-$6k", deliverables: ["12 posts"], timeline_days: 30 },
+            { name: "Scale", price_range: "$7k-$9k", deliverables: ["16 posts"], timeline_days: 30 },
+          ],
+          process_timeline: ["Discovery", "Launch", "Optimize"],
+          pricing_guidance: "Anchor at Growth tier.",
+          risk_reversal: ["First 30 days cancel any time."],
+          client_inputs: ["Brand assets", "Offer details"],
+          proof_options: ["Before/after metrics"],
+          proof_collection_7d: "Collect baselines + 3 testimonials.",
+          next_action: "Confirm budget ceiling.",
+        },
+        strategy: null,
+        copywriting: null,
+        unknown: null,
+        suggestions: ["Draft ICP", "Refine tiers"],
+      },
+      meta: { provider: "openai", model: "gpt-5-nano" },
+    });
+    const supabase = createSupabaseMock({ adminAgencyId: "agency-1" });
+
+    const result = await handleAgencyAdminChat({
+      supabase: supabase as any,
+      userId: "user-1",
+      body: { message: "Need a core offer" },
+    });
+
+    expect(result.status).toBe(200);
+    const brain = (supabase as any)._getBrain();
+    const context = brain.ai_context_v1 ?? {};
+    expect(context.admin_chat_state_v1?.playbook).toBe("core_offer");
+    expect(context.admin_chat_state_v1?.stage).toBeDefined();
+    expect(context.admin_chat_summary_v1?.summary).toBeTypeOf("string");
+    delete process.env.AI_ADMIN_CHAT_STRATEGIC;
   });
 });

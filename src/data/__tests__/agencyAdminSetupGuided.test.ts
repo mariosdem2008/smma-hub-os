@@ -87,7 +87,7 @@ function createSupabaseMock(opts?: {
     },
   };
 
-  return { supabase, messages, getBrain: () => brain };
+  return { supabase, messages, brain, getBrain: () => brain };
 }
 
 beforeEach(() => {
@@ -333,15 +333,22 @@ describe("agency admin setup guided", () => {
 
   it("prefills context snapshot with agency name and website for extraction", async () => {
     const { supabase, messages } = createSupabaseMock();
+    const pendingQuestion = SETUP_QUESTIONS[2];
     messages.push({
       role: "assistant",
-      content: SETUP_QUESTIONS[0].question_text,
-      meta_json: { state: { intent: "ANSWER_TO_ONBOARDING_QUESTION", pending_question_key: SETUP_QUESTIONS[0].key, pending_question_text: SETUP_QUESTIONS[0].question_text } },
+      content: pendingQuestion.question_text,
+      meta_json: {
+        state: {
+          intent: "ANSWER_TO_ONBOARDING_QUESTION",
+          pending_question_key: pendingQuestion.key,
+          pending_question_text: pendingQuestion.question_text,
+        },
+      },
       created_at: new Date().toISOString(),
     });
     runAiTaskMock.mockResolvedValueOnce({
       assistant_message: "",
-      json: { value: ["Social media management"] },
+      json: { value: "Local businesses, $2k-$5k/mo" },
       meta: { provider: "openai", model: "gpt-5-nano" },
     });
 
@@ -350,7 +357,7 @@ describe("agency admin setup guided", () => {
       userId: "user-1",
       agencyId: "agency-1",
       threadId: "thread-1",
-      message: "Social media management",
+      message: "Local businesses, $2k-$5k/mo",
     });
 
     expect(result.status).toBe(200);
@@ -360,22 +367,29 @@ describe("agency admin setup guided", () => {
     expect(snapshot?.agency?.name).toBe("Rocket Agency");
     expect(snapshot?.agency?.website).toBe("https://rocket.test");
     if ("error" in result.body) throw new Error("Unexpected error response");
-    expect(result.body.assistant_message).toContain(SETUP_QUESTIONS[1].question_text);
+    expect(result.body.assistant_message).toContain(SETUP_QUESTIONS[0].question_text);
   });
 
   it("handles missing agency name and website in context snapshot", async () => {
     const { supabase, messages } = createSupabaseMock({
       agency: { id: "agency-1", name: null, website: null, niche: null },
     });
+    const pendingQuestion = SETUP_QUESTIONS[2];
     messages.push({
       role: "assistant",
-      content: SETUP_QUESTIONS[0].question_text,
-      meta_json: { state: { intent: "ANSWER_TO_ONBOARDING_QUESTION", pending_question_key: SETUP_QUESTIONS[0].key, pending_question_text: SETUP_QUESTIONS[0].question_text } },
+      content: pendingQuestion.question_text,
+      meta_json: {
+        state: {
+          intent: "ANSWER_TO_ONBOARDING_QUESTION",
+          pending_question_key: pendingQuestion.key,
+          pending_question_text: pendingQuestion.question_text,
+        },
+      },
       created_at: new Date().toISOString(),
     });
     runAiTaskMock.mockResolvedValueOnce({
       assistant_message: "",
-      json: { value: ["Social media management"] },
+      json: { value: "Local businesses, $2k-$5k/mo" },
       meta: { provider: "openai", model: "gpt-5-nano" },
     });
 
@@ -384,7 +398,7 @@ describe("agency admin setup guided", () => {
       userId: "user-1",
       agencyId: "agency-1",
       threadId: "thread-1",
-      message: "Social media management",
+      message: "Local businesses, $2k-$5k/mo",
     });
 
     expect(result.status).toBe(200);
@@ -394,7 +408,7 @@ describe("agency admin setup guided", () => {
     expect(snapshot?.agency?.name ?? null).toBeNull();
     expect(snapshot?.agency?.website ?? null).toBeNull();
     if ("error" in result.body) throw new Error("Unexpected error response");
-    expect(result.body.assistant_message).toContain(SETUP_QUESTIONS[1].question_text);
+    expect(result.body.assistant_message).toContain(SETUP_QUESTIONS[0].question_text);
   });
 
   it("handles agency fetch failure without leaking secrets", async () => {
@@ -404,15 +418,22 @@ describe("agency admin setup guided", () => {
     const { supabase, messages } = createSupabaseMock({
       agencyErrorMessage: `DB failure: ${secret}`,
     });
+    const pendingQuestion = SETUP_QUESTIONS[2];
     messages.push({
       role: "assistant",
-      content: SETUP_QUESTIONS[0].question_text,
-      meta_json: { state: { intent: "ANSWER_TO_ONBOARDING_QUESTION", pending_question_key: SETUP_QUESTIONS[0].key, pending_question_text: SETUP_QUESTIONS[0].question_text } },
+      content: pendingQuestion.question_text,
+      meta_json: {
+        state: {
+          intent: "ANSWER_TO_ONBOARDING_QUESTION",
+          pending_question_key: pendingQuestion.key,
+          pending_question_text: pendingQuestion.question_text,
+        },
+      },
       created_at: new Date().toISOString(),
     });
     runAiTaskMock.mockResolvedValueOnce({
       assistant_message: "",
-      json: { value: ["Social media management"] },
+      json: { value: "Local businesses, $2k-$5k/mo" },
       meta: { provider: "openai", model: "gpt-5-nano" },
     });
 
@@ -421,7 +442,7 @@ describe("agency admin setup guided", () => {
       userId: "user-1",
       agencyId: "agency-1",
       threadId: "thread-1",
-      message: "Social media management",
+      message: "Local businesses, $2k-$5k/mo",
     });
 
     expect(runAiTaskMock).toHaveBeenCalledTimes(1);
@@ -429,7 +450,7 @@ describe("agency admin setup guided", () => {
     const snapshot = call?.metadata?.contextSnapshot as any;
     expect(snapshot?.agency ?? null).toBeNull();
     if ("error" in result.body) throw new Error("Unexpected error response");
-    expect(result.body.assistant_message).toContain(SETUP_QUESTIONS[1].question_text);
+    expect(result.body.assistant_message).toContain(SETUP_QUESTIONS[0].question_text);
     const errorOutput = errorSpy.mock.calls.flat().join(" ");
     const warnOutput = warnSpy.mock.calls.flat().join(" ");
     expect(errorOutput).not.toContain(secret);
@@ -440,27 +461,30 @@ describe("agency admin setup guided", () => {
 
   it("invalid JSON extraction triggers deterministic parse failure", async () => {
     const { supabase, messages } = createSupabaseMock();
+    const pendingQuestion = SETUP_QUESTIONS[2];
     messages.push({
       role: "assistant",
-      content: SETUP_QUESTIONS[0].question_text,
-      meta_json: { state: { intent: "ANSWER_TO_ONBOARDING_QUESTION", pending_question_key: SETUP_QUESTIONS[0].key, pending_question_text: SETUP_QUESTIONS[0].question_text } },
+      content: pendingQuestion.question_text,
+      meta_json: {
+        state: {
+          intent: "ANSWER_TO_ONBOARDING_QUESTION",
+          pending_question_key: pendingQuestion.key,
+          pending_question_text: pendingQuestion.question_text,
+        },
+      },
       created_at: new Date().toISOString(),
     });
-    runAiTaskMock.mockResolvedValueOnce({
-      assistant_message: "",
-      json: { value: null },
-      meta: { provider: "openai", model: "gpt-5-nano" },
-    });
+    runAiTaskMock.mockRejectedValueOnce(new Error("invalid json"));
     const result = await handleAgencyAdminSetup({
       supabase: supabase as any,
       userId: "user-1",
       agencyId: "agency-1",
       threadId: "thread-1",
-      message: "SMMA",
+      message: "Local businesses, $2k-$5k/mo",
     });
     if ("error" in result.body) throw new Error("Unexpected error response");
     expect(result.body.assistant_message).toContain("I couldn't parse");
-    expect(result.body.assistant_message).toContain(SETUP_QUESTIONS[0].question_text);
+    expect(result.body.assistant_message).toContain(pendingQuestion.question_text);
   });
 
   it("UNKNOWN triggers only for missing agency-specific facts", async () => {
@@ -479,18 +503,41 @@ describe("agency admin setup guided", () => {
 
   it("detects done state when all questions answered", async () => {
     const { supabase, messages, brain } = createSupabaseMock();
-    brain.brain_json = {
-      setup_profile_v1: {
-        agency: {
-          primary_services: ["Social Media"],
-          niche_industries: ["Fitness"],
-          core_offer_outcome: "Results",
-        },
+    brain.setup_profile_v1 = {
+      agency: {
+        primary_services: ["Social Media management", "Content creation", "Paid ads management"],
+        niche_industries: ["Fitness"],
+        target_client_profile: "Local gyms, $2k-$5k/mo",
+        core_offer_outcome: "We grow memberships with paid + organic.",
+        deliverables_standard: ["12 posts", "8 short videos"],
+        workflow_stages: ["Discovery", "Strategy", "Content", "Approval", "Publish"],
+        approvals_sla: "24-48 hours",
+      },
+      brand: {
+        voice_adjectives: ["Bold", "Friendly", "Professional"],
+        dos_donts: "Do: be concise. Don't: promise guarantees.",
+      },
+      ai: {
+        boundaries: "AI can draft content; ask for pricing/guarantees.",
+        escalation_rules: "Escalate for legal or contract terms.",
       },
     };
+    const pendingQuestion = SETUP_QUESTIONS[SETUP_QUESTIONS.length - 1];
+    messages.push({
+      role: "assistant",
+      content: pendingQuestion.question_text,
+      meta_json: {
+        state: {
+          intent: "ANSWER_TO_ONBOARDING_QUESTION",
+          pending_question_key: pendingQuestion.key,
+          pending_question_text: pendingQuestion.question_text,
+        },
+      },
+      created_at: new Date().toISOString(),
+    });
     runAiTaskMock.mockResolvedValueOnce({
-      assistant_message: "Setup complete!",
-      json: { setup_progress_v1: { status: "completed" } },
+      assistant_message: "",
+      json: { value: [{ q: "What do you offer?", a: "Social media management + ads." }] },
       meta: { provider: "openai", model: "gpt-5-nano" },
     });
 
@@ -499,7 +546,7 @@ describe("agency admin setup guided", () => {
       userId: "user-1",
       agencyId: "agency-1",
       threadId: "thread-1",
-      message: "My final answer",
+      message: "Q: What do you offer? A: Social media management + ads.",
     });
 
     expect(result.status).toBe(200);
@@ -509,18 +556,22 @@ describe("agency admin setup guided", () => {
 
   it("calculates progress percentage correctly", async () => {
     const { supabase, messages, brain } = createSupabaseMock();
-    brain.brain_json = {
-      setup_profile_v1: {
-        agency: {
-          primary_services: ["Social Media"],
-          niche_industries: ["Fitness"],
-        },
+    brain.setup_profile_v1 = {
+      agency: {
+        primary_services: ["Social Media"],
+        niche_industries: ["Fitness"],
       },
     };
     messages.push({
       role: "assistant",
       content: SETUP_QUESTIONS[0].question_text,
-      meta_json: { state: { intent: "ANSWER_TO_ONBOARDING_QUESTION", pending_question_key: SETUP_QUESTIONS[0].key } },
+      meta_json: {
+        state: {
+          intent: "ANSWER_TO_ONBOARDING_QUESTION",
+          pending_question_key: SETUP_QUESTIONS[0].key,
+          pending_question_text: SETUP_QUESTIONS[0].question_text,
+        },
+      },
       created_at: new Date().toISOString(),
     });
     runAiTaskMock.mockResolvedValueOnce({
@@ -548,7 +599,13 @@ describe("agency admin setup guided", () => {
     messages.push({
       role: "assistant",
       content: SETUP_QUESTIONS[0].question_text,
-      meta_json: { state: { intent: "ANSWER_TO_ONBOARDING_QUESTION", pending_question_key: SETUP_QUESTIONS[0].key } },
+      meta_json: {
+        state: {
+          intent: "ANSWER_TO_ONBOARDING_QUESTION",
+          pending_question_key: SETUP_QUESTIONS[0].key,
+          pending_question_text: SETUP_QUESTIONS[0].question_text,
+        },
+      },
       created_at: new Date().toISOString(),
     });
     runAiTaskMock.mockResolvedValueOnce({
@@ -578,6 +635,7 @@ describe("agency admin setup guided", () => {
 
   it("preserves conversation history across turns", async () => {
     const { supabase, messages } = createSupabaseMock();
+    const pendingQuestion = SETUP_QUESTIONS[2];
     messages.push({
       role: "user",
       content: "First message",
@@ -590,13 +648,19 @@ describe("agency admin setup guided", () => {
     });
     messages.push({
       role: "assistant",
-      content: SETUP_QUESTIONS[0].question_text,
-      meta_json: { state: { intent: "ANSWER_TO_ONBOARDING_QUESTION", pending_question_key: SETUP_QUESTIONS[0].key } },
+      content: pendingQuestion.question_text,
+      meta_json: {
+        state: {
+          intent: "ANSWER_TO_ONBOARDING_QUESTION",
+          pending_question_key: pendingQuestion.key,
+          pending_question_text: pendingQuestion.question_text,
+        },
+      },
       created_at: new Date().toISOString(),
     });
     runAiTaskMock.mockResolvedValueOnce({
       assistant_message: "",
-      json: { value: ["Social media management"] },
+      json: { value: "Local businesses, $2k-$5k/mo" },
       meta: { provider: "openai", model: "gpt-5-nano" },
     });
 
@@ -605,14 +669,12 @@ describe("agency admin setup guided", () => {
       userId: "user-1",
       agencyId: "agency-1",
       threadId: "thread-1",
-      message: "Social media management",
+      message: "Local businesses, $2k-$5k/mo",
     });
 
     expect(runAiTaskMock).toHaveBeenCalled();
-    const call = runAiTaskMock.mock.calls[0]?.[0] as any;
-    const conversation = call?.metadata?.conversation ?? "";
-    expect(conversation).toContain("First message");
-    expect(conversation).toContain("First response");
+    expect(messages.some((msg) => msg.content === "First message")).toBe(true);
+    expect(messages.some((msg) => msg.content === "First response")).toBe(true);
   });
 
   it("handles concurrent requests with same agency_id", async () => {

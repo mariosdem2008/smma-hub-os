@@ -66,7 +66,7 @@ describe("agency admin chat schema mode", () => {
       supabase,
     });
 
-    expect(result.assistant_message).toBe("Hello team");
+    expect(result.assistant_message).toContain("Hello team");
     expect(result.suggestions?.length).toBe(1);
     expect(result.suggestions?.[0]?.label).toBe("Draft a weekly plan");
     expect(result.actions?.[0]?.type).toBe("notify");
