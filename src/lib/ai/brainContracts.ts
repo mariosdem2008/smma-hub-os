@@ -1,3 +1,61 @@
+// Re-export new brain document types for convenience
+export * from "./brainModules";
+export * from "./brainDocuments";
+
+/**
+ * Calibration State for idempotent setup flow (Phase 3)
+ *
+ * Server-side tracking of calibration progress to prevent
+ * duplicate questions and ensure exactly-once semantics.
+ */
+export interface CalibrationState {
+  /** Unique session identifier for this calibration run */
+  session_id: string;
+  /** Current step/question key being asked (null if complete) */
+  current_step: string | null;
+  /** Array of question keys that have been answered */
+  answered_keys: string[];
+  /** ID of the last question asked */
+  last_question_id: string | null;
+  /** Hash of the last question for deduplication */
+  last_question_hash: string | null;
+  /** Timestamp when calibration was completed (null if in progress) */
+  completed_at: string | null;
+}
+
+/**
+ * Default empty calibration state
+ */
+export const EMPTY_CALIBRATION_STATE: CalibrationState = {
+  session_id: "",
+  current_step: null,
+  answered_keys: [],
+  last_question_id: null,
+  last_question_hash: null,
+  completed_at: null,
+};
+
+/**
+ * Check if calibration is complete
+ */
+export function isCalibrationComplete(state: CalibrationState): boolean {
+  return state.completed_at !== null;
+}
+
+/**
+ * Check if a question has already been answered
+ */
+export function isQuestionAnswered(
+  state: CalibrationState,
+  questionKey: string
+): boolean {
+  return state.answered_keys.includes(questionKey);
+}
+
+/**
+ * Legacy AgencyBrain type (kept for backward compatibility)
+ * @deprecated Use modular BrainDocument types instead
+ */
 export type AgencyBrain = {
   identity: {
     name: string;

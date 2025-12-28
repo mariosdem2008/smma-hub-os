@@ -4,6 +4,7 @@ import { resolveTaskModel, getTaskConfig } from "./taskRegistry.ts"
 import { TaskType } from "./taskTypes.ts"
 import { nowMs } from "./utils.ts"
 import { providers as defaultProviders } from "./providers/index.ts"
+import { createBrainResolver, type CalibrationRequirement, type ResolvedBrainContext } from "./brainResolver.ts"
 import type { ChatMessage, GenerateResult } from "./providers/types.ts"
 import type { OutputSchema } from "./schema.ts"
 
@@ -43,6 +44,10 @@ export type AiRunResult = {
     provider: string;
     model: string;
   };
+  /** Present when on-demand calibration is needed */
+  calibrationNeeded?: CalibrationRequirement;
+  /** Resolved brain context used for the request */
+  resolvedContext?: ResolvedBrainContext;
 };
 
 export type AiStreamChunk =
@@ -54,6 +59,8 @@ type ProviderMap = typeof defaultProviders;
 type RouterDeps = {
   providers?: ProviderMap;
   now?: () => number;
+  /** Enable brain resolver for on-demand calibration */
+  useBrainResolver?: boolean;
 };
 
 function extractJson(text: string) {
@@ -177,6 +184,7 @@ async function generateWithRetry(opts: {
 export function createAiRouter(deps: RouterDeps = {}) {
   const providers = deps.providers ?? defaultProviders;
   const now = deps.now ?? nowMs;
+  const useBrainResolver = deps.useBrainResolver ?? false;
 
   async function run(options: AiRunOptions): Promise<AiRunResult> {
     const start = now();
@@ -211,13 +219,43 @@ export function createAiRouter(deps: RouterDeps = {}) {
 
     let agencyBrain: Record<string, unknown> | null = null;
     let clientBrain: Record<string, unknown> | null = null;
-    if (taskConfig.requires.agency && context.agencyId && supabase) {
+    let resolvedContext: ResolvedBrainContext | undefined;
+
+    // Use Brain Resolver when enabled (v2 modular documents)
+    if (useBrainResolver && context.agencyId && supabase) {
+      const resolver = createBrainResolver(supabase);
+      const resolveResult = await resolver.resolveContext(options.taskType, context.agencyId);
+
+      if (resolveResult.status === "calibration_needed") {
+        // Return early with calibration requirement - caller handles on-demand calibration
+        return {
+          text: "",
+          calibrationNeeded: resolveResult.calibration,
+          unknown: false,
+        };
+      }
+
+      if (resolveResult.status === "error") {
+        return {
+          text: "UNKNOWN",
+          output: buildUnknownResponse(options.taskType, "brain_resolver_error"),
+          unknown: true,
+          error: resolveResult.error,
+        };
+      }
+
+      // Use resolved context
+      resolvedContext = resolveResult.context;
+      agencyBrain = resolver.flattenContext(resolveResult.context);
+    } else if (taskConfig.requires.agency && context.agencyId && supabase) {
+      // Legacy: use monolithic brain_json
       const res = await getAgencyBrainContext(supabase, context.agencyId);
       agencyBrain = res.data;
       if (!res.data && shouldReturnUnknown(true, taskConfig.safetyMode)) {
         return { text: "UNKNOWN", output: buildUnknownResponse(options.taskType, "agency_brain_missing"), unknown: true };
       }
     }
+
     if (taskConfig.requires.client && context.clientId && supabase) {
       const res = await getClientBrainContext(supabase, context.clientId);
       clientBrain = res.data;
@@ -316,6 +354,7 @@ export function createAiRouter(deps: RouterDeps = {}) {
       usage: result.usage,
       unknown: result.text.startsWith("UNKNOWN"),
       meta: { provider: modelConfig.provider, model: runtimeModel },
+      resolvedContext,
     };
   }
 

@@ -14,6 +14,16 @@ import {
 import { selectNextAdminSetupQuestion } from "./agency-admin-setup-orchestrator.ts";
 import { buildAgencyContextSnapshot, buildAiContextSummary, fetchAgencyBrain, upsertAgencyBrain } from "./ai-context.ts";
 import { runAdminGeneralChatAi } from "./agency-admin-general-ai.ts";
+import {
+  type CalibrationState,
+  initializeCalibrationSession,
+  transitionToQuestion,
+  transitionToAnswered,
+  completeCalibration,
+  getNextUnansweredQuestion,
+  calculateProgress as calculateCalibrationProgress,
+  isQuestionAnswered as isCalibrationQuestionAnswered,
+} from "./calibration-state.ts";
 
 type MaybeSingleResult<T> = { data: T | null; error?: { message?: string } | null };
 
@@ -1018,29 +1028,68 @@ export async function handleAgencyAdminSetup(opts: {
     return jsonResponse(responsePayload, 200);
   }
 
-  let latestState: GuidedState | null = null;
+  // PHASE 3 FIX: Use server-side calibration state for idempotency
+  // This replaces the fragile message-parsing fallback that caused duplicate questions
+  let calibrationState: CalibrationState;
   try {
-    latestState = await fetchLatestAssistantState(opts.supabase, opts.threadId);
-  } catch {
-    latestState = null;
+    calibrationState = await initializeCalibrationSession(opts.supabase, opts.agencyId);
+  } catch (error: any) {
+    console.error("[CalibrationState] Failed to initialize:", error);
+    // Fall back to empty state if calibration state fails
+    calibrationState = {
+      session_id: "",
+      current_step: null,
+      answered_keys: [],
+      last_question_id: null,
+      last_question_hash: null,
+      completed_at: null,
+    };
   }
+
+  // Merge calibration state answered_keys with brain-derived answered keys
+  // This provides both server-side tracking AND content-based verification
+  const brainAnsweredKeys = extractAnsweredKeys(brain);
+  const calibrationAnsweredKeys = new Set(calibrationState.answered_keys);
+  const mergedAnsweredKeys = new Set([...brainAnsweredKeys, ...calibrationAnsweredKeys]);
+
+  const answeredValues = extractAnsweredValues(brain); // Phase 2: for dependency evaluation
+
+  // Use merged answered keys for determining next question
+  const nextQuestion = getNextQuestion(mergedAnsweredKeys, answeredValues);
+
+  // Build latest state from calibration state (server-side source of truth)
+  let latestState: GuidedState | null = null;
+  const setupStatus = brain.setup_progress_v1?.status ?? "not_started";
+  const readinessQuestionText = "Are you ready to start? Reply READY.";
+
+  // Restore state from calibration state first (server-side truth)
+  if (calibrationState.current_step) {
+    const currentQuestion = getQuestionByKey(calibrationState.current_step);
+    latestState = {
+      intent: "ANSWER_TO_ONBOARDING_QUESTION",
+      pending_question_key: calibrationState.current_step,
+      pending_question_text: currentQuestion?.question_text ?? null,
+    };
+  } else if (calibrationState.completed_at) {
+    // Calibration is complete
+    latestState = {
+      intent: "READY_CONFIRMATION",
+      pending_question_key: null,
+      pending_question_text: null,
+    };
+  }
+
+  // Fall back to message-based state only if calibration state is empty
+  // This maintains backward compatibility during migration
   if (!latestState) {
-    const pendingText = extractPendingQuestionFromMessages(messages);
-    if (pendingText) {
-      latestState = {
-        intent: "OFFTOPIC_QUESTION" as GuidedIntent,
-        pending_question_key: null,
-        pending_question_text: pendingText,
-      };
+    try {
+      latestState = await fetchLatestAssistantState(opts.supabase, opts.threadId);
+    } catch {
+      latestState = null;
     }
   }
 
-  const setupStatus = brain.setup_progress_v1?.status ?? "not_started";
-  const answeredKeys = extractAnsweredKeys(brain);
-  const answeredValues = extractAnsweredValues(brain); // Phase 2: for dependency evaluation
-  const nextQuestion = getNextQuestion(answeredKeys, answeredValues);
-
-  const readinessQuestionText = "Are you ready to start? Reply READY.";
+  // Final fallback: derive from setup status and next question
   if (!latestState && setupStatus === "not_started") {
     latestState = {
       intent: "READY_CONFIRMATION",
@@ -1054,6 +1103,9 @@ export async function handleAgencyAdminSetup(opts: {
       pending_question_text: nextQuestion.question_text,
     };
   }
+
+  // Use merged answered keys for all subsequent operations
+  const answeredKeys = mergedAnsweredKeys;
 
   const pendingKey = latestState?.pending_question_key ?? null;
   const pendingText = latestState?.pending_question_text ?? (nextQuestion?.question_text ?? null);
@@ -1394,6 +1446,50 @@ export async function handleAgencyAdminSetup(opts: {
   }
 
   if (intent === "ANSWER_TO_ONBOARDING_QUESTION" && pendingQuestion) {
+    // PHASE 3 FIX: Idempotency check - skip if already answered
+    if (isCalibrationQuestionAnswered(calibrationState, pendingQuestion.key)) {
+      logSetupEvent("setup_idempotency_skip", {
+        thread_id: opts.threadId,
+        question_key: pendingQuestion.key,
+        reason: "already_answered_in_calibration_state",
+      });
+
+      // Skip to next question without re-processing
+      const nextUnansweredKey = getNextUnansweredQuestion(
+        calibrationState,
+        SETUP_QUESTIONS.map((q) => q.key)
+      );
+
+      if (nextUnansweredKey) {
+        const nextQ = getQuestionByKey(nextUnansweredKey);
+        // Transition to the next question
+        await transitionToQuestion(opts.supabase, opts.agencyId, {
+          questionKey: nextUnansweredKey,
+          questionText: nextQ?.question_text ?? "",
+        });
+
+        const skipResponse: SetupResponse = {
+          thread_id: opts.threadId,
+          assistant_message: `Got it! ${nextQ?.question_text ?? "What else would you like to share?"}`,
+          expects: nextQ?.expects ?? "text",
+          choices: nextQ?.choices ?? [],
+          suggestions: buildSuggestionsForPendingQuestion(nextUnansweredKey, nextQ?.question_text ?? ""),
+          progress_percent: calculateCalibrationProgress(calibrationState, SETUP_QUESTIONS.length),
+          done: false,
+          step_id: nextUnansweredKey,
+          state: {
+            intent: "ANSWER_TO_ONBOARDING_QUESTION",
+            pending_question_key: nextUnansweredKey,
+            pending_question_text: nextQ?.question_text ?? null,
+          },
+        };
+        return jsonResponse(skipResponse, 200);
+      } else {
+        // All questions answered - mark calibration complete
+        await completeCalibration(opts.supabase, opts.agencyId);
+      }
+    }
+
     let extractedValue: unknown = null;
     let aiProvider: string | null = null;
     let aiModel: string | null = null;
@@ -1611,6 +1707,44 @@ export async function handleAgencyAdminSetup(opts: {
         await upsertAgencyBrain(opts.supabase, opts.agencyId, brainId, next);
       } catch (error: any) {
         return jsonResponse({ error: error.message ?? "Failed to update agency brain" }, 500);
+      }
+    }
+
+    // PHASE 3 FIX: Mark question as answered in calibration state for idempotency
+    try {
+      await transitionToAnswered(opts.supabase, opts.agencyId, {
+        questionKey: pendingQuestion.key,
+        answerValue: extractedValue,
+      });
+      logSetupEvent("calibration_answer_recorded", {
+        thread_id: opts.threadId,
+        question_key: pendingQuestion.key,
+      });
+    } catch (error: any) {
+      console.error("[CalibrationState] Failed to record answer:", error);
+      // Non-fatal: continue even if calibration state update fails
+    }
+
+    // Transition to next question in calibration state
+    if (upcoming) {
+      try {
+        await transitionToQuestion(opts.supabase, opts.agencyId, {
+          questionKey: upcoming.key,
+          questionText: upcoming.question_text,
+        });
+      } catch (error: any) {
+        console.error("[CalibrationState] Failed to transition to next question:", error);
+      }
+    } else {
+      // Mark calibration as complete
+      try {
+        await completeCalibration(opts.supabase, opts.agencyId);
+        logSetupEvent("calibration_complete", {
+          thread_id: opts.threadId,
+          agency_id: opts.agencyId,
+        });
+      } catch (error: any) {
+        console.error("[CalibrationState] Failed to complete calibration:", error);
       }
     }
 

@@ -6,6 +6,7 @@ import {
   LogOut,
   CreditCard,
   Bot,
+  Brain,
   ArrowUpCircle /*MessageSquare*/,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
@@ -56,6 +57,7 @@ export function AppSidebar() {
     //    { title: "Messages", url: "/messages", icon: MessageSquare },
     { title: "Team", url: "/team", icon: UsersRound },
     ...(isAdmin ? [{ title: "Agency AI", url: "/ai/admin", icon: Bot }] : []),
+    ...(isAdmin ? [{ title: "Agency Brain", url: "/agency/brain", icon: Brain }] : []),
     // Billing: Show different links based on role
     ...(isOwner
       ? [{ title: "Billing", url: "/billing", icon: CreditCard }]

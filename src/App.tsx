@@ -37,6 +37,7 @@ import AiOnboardingAgency from "./pages/ai/AiOnboardingAgency";
 import AiOnboardingClient from "./pages/ai/AiOnboardingClient";
 import AiFieldDemo from "./pages/ai/AiFieldDemo";
 import AgencyAiAdmin from "./pages/ai/AgencyAiAdmin";
+import AgencyBrain from "./pages/agency/AgencyBrain";
 import Bootstrap from "./pages/Bootstrap";
 import Welcome from "./pages/Welcome";
 import SelectAgency from "./pages/SelectAgency";
@@ -240,6 +241,7 @@ const App = () => {
                 <Route path="/billing" element={<Billing />} />
                 <Route path="/billing/overview" element={<BillingOverview />} />
                 <Route path="/settings" element={<Settings />} />
+                <Route path="/agency/brain" element={<AgencyBrain />} />
                 <Route path="/ai/admin" element={<AgencyAiAdmin />} />
                 <Route path="/ai/onboarding/agency" element={<AiOnboardingAgency />} />
                 <Route path="/ai/onboarding/client" element={<AiOnboardingClient />} />
