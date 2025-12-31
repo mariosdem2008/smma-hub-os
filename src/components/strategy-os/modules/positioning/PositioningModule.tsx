@@ -1,5 +1,5 @@
 // Strategy OS - Positioning Module (Redesigned) - FIXED VERSION
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useStrategyOS } from '../../StrategyOSContext';
 import { useUpdateModuleContent } from '@/hooks/useStrategyModules';
 import { useAddHistoryEvent } from '@/hooks/useStrategyHistory';
@@ -16,7 +16,6 @@ import { toast } from 'sonner';
 import { 
   Lock, 
   Unlock, 
-  Save, 
   Target, 
   Shield, 
   TrendingUp, 
@@ -36,6 +35,21 @@ import {
   TabsList, 
   TabsTrigger 
 } from '@/components/ui/tabs';
+
+type SaveStatusInput = {
+  dirty: boolean;
+  pending: boolean;
+  success: boolean;
+  error: boolean;
+};
+
+export function getSaveStatusLabel({ dirty, pending, success, error }: SaveStatusInput) {
+  if (pending) return 'Saving...';
+  if (error) return 'Save failed';
+  if (dirty) return 'Unsaved changes';
+  if (success) return 'All changes saved';
+  return 'Unsaved changes';
+}
 
 export function PositioningModule() {
   const { clientId, strategyId, getModuleData, isModuleLocked, modules } = useStrategyOS();
@@ -100,11 +114,16 @@ export function PositioningModule() {
   });
   
   const [hasChanges, setHasChanges] = useState(false);
+  const [lastSaveSucceeded, setLastSaveSucceeded] = useState(true);
+  const [saveError, setSaveError] = useState(false);
   const [activeTab, setActiveTab] = useState('sentence');
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const updateLocal = (updates: Partial<PositioningContent>) => {
     setLocalContent((prev) => ({ ...prev, ...updates }));
     setHasChanges(true);
+    setLastSaveSucceeded(false);
+    setSaveError(false);
   };
 
   // Helper function to safely update nested properties
@@ -148,15 +167,44 @@ export function PositioningModule() {
       });
 
       setHasChanges(false);
+      setLastSaveSucceeded(true);
+      setSaveError(false);
       toast.success('Positioning strategy updated', {
         description: 'Your positioning framework has been saved.'
       });
     } catch (err) {
+      setSaveError(true);
+      setLastSaveSucceeded(false);
       toast.error('Save failed', {
         description: 'Please check your connection and try again.'
       });
     }
   };
+
+  useEffect(() => {
+    if (!hasChanges || isLocked || updateContent.isPending || saveError) return;
+
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+    }
+
+    autosaveTimerRef.current = setTimeout(() => {
+      handleSave();
+    }, 750);
+
+    return () => {
+      if (autosaveTimerRef.current) {
+        clearTimeout(autosaveTimerRef.current);
+      }
+    };
+  }, [hasChanges, isLocked, updateContent.isPending, localContent, saveError]);
+
+  const statusLabel = getSaveStatusLabel({
+    dirty: hasChanges,
+    pending: updateContent.isPending,
+    success: lastSaveSucceeded,
+    error: saveError
+  });
 
   return (
     <div className="p-6 space-y-8">
@@ -612,7 +660,7 @@ export function PositioningModule() {
           <div className="text-sm">
             <div className="font-medium">Positioning Strategy</div>
             <div className="text-muted-foreground">
-              {hasChanges ? 'Unsaved changes' : 'All changes saved'}
+              {statusLabel}
               {localContent.decisions?.sentenceLocked && ' • Sentence locked'}
               {localContent.decisions?.differentiatorsLocked && ' • Differentiators locked'}
             </div>
@@ -623,20 +671,23 @@ export function PositioningModule() {
               onClick={() => {
                 setLocalContent(content);
                 setHasChanges(false);
+                setLastSaveSucceeded(true);
+                setSaveError(false);
               }}
               disabled={!hasChanges || isLocked}
               className="h-10"
             >
               Reset
             </Button>
-            <Button
-              onClick={handleSave}
-              disabled={!hasChanges || isLocked || updateContent.isPending}
-              className="h-10 px-6"
-            >
-              <Save className="h-4 w-4 mr-2" />
-              {updateContent.isPending ? 'Saving...' : 'Save Positioning'}
-            </Button>
+            {saveError && !updateContent.isPending && (
+              <Button
+                onClick={handleSave}
+                disabled={isLocked}
+                className="h-10 px-6"
+              >
+                Retry
+              </Button>
+            )}
           </div>
         </div>
       </div>
