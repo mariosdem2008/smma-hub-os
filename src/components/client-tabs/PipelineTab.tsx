@@ -45,8 +45,8 @@ interface Project {
   last_moved_at: string | null;
 }
 
-// Canonical 8-stage pipeline
-const PIPELINE_STAGES = [
+// Canonical 9-stage pipeline
+export const PIPELINE_STAGES = [
   { key: 'idea', label: 'Idea', color: '220 70% 50%' },
   { key: 'script_copy', label: 'Script/Copy', color: '250 70% 50%' },
   { key: 'raw_assets', label: 'Raw Assets', color: '280 70% 50%' },
@@ -404,7 +404,9 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
               {userTimezone}
             </Badge>
           </div>
-          <p className="text-sm text-muted-foreground">Manage projects through the 8-stage production workflow</p>
+          <p className="text-sm text-muted-foreground">
+            Manage projects through the {PIPELINE_STAGES.length}-stage production workflow
+          </p>
         </div>
         <div className="flex items-center gap-2">
           {canBulkApprove && (
