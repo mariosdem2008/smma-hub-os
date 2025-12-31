@@ -30,6 +30,8 @@ import TasksTab from "@/components/client-tabs/TasksTab";
 import ReportsTab from "@/components/client-tabs/ReportsTab";
 import AdsTab from "@/components/client-tabs/AdsTab";
 import StrategyHubTab from "@/components/client-tabs/StrategyHubTab";
+import IdeaScriptingTab from "@/components/client-tabs/IdeaScriptingTab";
+import { ClientRightPanel, ClientRightPanelTrigger } from "@/components/client-detail/ClientRightPanel";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
@@ -47,6 +49,11 @@ import {
   Lightbulb,
   MoreHorizontal,
   ChevronDown,
+  Target,
+  Layers,
+  Calendar,
+  CalendarDays,
+  Shield,
 } from "lucide-react";
 
 interface Client {
@@ -71,6 +78,7 @@ interface Client {
 const primaryTabs = [
   { id: "strategy", label: "Strategy", icon: Lightbulb },
   { id: "pipeline", label: "Pipeline", icon: Workflow },
+  { id: "idea-scripting", label: "Idea/Scripting", icon: FileText },
   { id: "calendar", label: "Calendar", icon: CalendarIcon },
   { id: "library", label: "Library", icon: FolderOpen },
   { id: "portal", label: "Portal", icon: Users },
@@ -86,6 +94,19 @@ const secondaryTabs = [
   { id: "uploads", label: "Client Uploads", icon: Upload },
   { id: "tasks", label: "Tasks", icon: CheckSquare },
 ];
+
+// Strategy sub-tabs (shown when Strategy is selected)
+const strategySubTabs = [
+  { id: "mission-control", label: "Overview", icon: LayoutDashboard },
+  { id: "positioning", label: "Positioning", icon: Target },
+  { id: "pillars", label: "Pillars", icon: Layers },
+  { id: "campaign_plan", label: "Campaign", icon: Calendar },
+  { id: "weekly_plan", label: "Weekly", icon: CalendarDays },
+  { id: "channel_adaptations", label: "Channels", icon: Share2 },
+  { id: "rules_constraints", label: "Rules", icon: Shield },
+];
+
+type StrategySubTab = typeof strategySubTabs[number]["id"];
 
 const allTabs = [...primaryTabs, ...secondaryTabs];
 
@@ -107,10 +128,12 @@ export default function ClientDetail() {
   } | null>(null);
   const [gateNoAccess, setGateNoAccess] = useState(false);
   const [activeTab, setActiveTab] = useState("strategy");
+  const [activeStrategySubTab, setActiveStrategySubTab] = useState<StrategySubTab>("mission-control");
   const [agencyId, setAgencyId] = useState<string>("");
   const lastFocusRef = useRef<string | null>(null);
   const lastActionRef = useRef<string | null>(null);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
+  const [rightPanelOpen, setRightPanelOpen] = useState(false);
 
   // FIX: Clean the client ID by removing query parameters
   const clientId = rawClientId?.split("?")[0] || "";
@@ -191,6 +214,7 @@ export default function ClientDetail() {
   // Handle URL-based tab navigation
   useEffect(() => {
     const tab = searchParams.get("tab");
+    const subTab = searchParams.get("subTab");
     const normalizedTab = tab === "planning" ? "strategy" : tab;
     if (normalizedTab && allTabs.some((t) => t.id === normalizedTab)) {
       setActiveTab(normalizedTab);
@@ -199,6 +223,10 @@ export default function ClientDetail() {
       const nextParams = new URLSearchParams(searchParams);
       nextParams.set("tab", "strategy");
       setSearchParams(nextParams);
+    }
+    // Handle strategy sub-tab from URL
+    if (subTab && strategySubTabs.some((t) => t.id === subTab)) {
+      setActiveStrategySubTab(subTab as StrategySubTab);
     }
   }, [searchParams, setSearchParams]);
 
@@ -244,6 +272,19 @@ export default function ClientDetail() {
     setActiveTab(nextTab);
     const nextParams = new URLSearchParams(searchParams);
     nextParams.set("tab", nextTab);
+    // Clear subTab when switching away from strategy
+    if (nextTab !== "strategy") {
+      nextParams.delete("subTab");
+    }
+    setSearchParams(nextParams);
+    hapticSelection();
+  };
+
+  const handleStrategySubTabChange = (subTabId: StrategySubTab) => {
+    setActiveStrategySubTab(subTabId);
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set("tab", "strategy");
+    nextParams.set("subTab", subTabId);
     setSearchParams(nextParams);
     hapticSelection();
   };
@@ -291,16 +332,17 @@ export default function ClientDetail() {
       typeof gateStatus?.missingFieldsCount === "number"
         ? gateStatus.missingFieldsCount
         : gateStatus?.missingFields?.length;
-    const onboardingUrl = `/onboarding/ai/client/${clientId}`;
+    // V4 Onboarding URL
+    const onboardingUrl = `/onboarding/client/${clientId}`;
 
     return (
       <div className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center p-6">
         <Card className="w-full max-w-xl">
           <CardContent className="space-y-5 py-10 text-center">
             <div className="space-y-2">
-              <h1 className="text-2xl font-semibold">AI Client Onboarding required</h1>
+              <h1 className="text-2xl font-semibold">Client Onboarding Required</h1>
               <p className="text-sm text-muted-foreground">
-                Complete AI onboarding before accessing the client workspace.
+                Complete the client onboarding wizard to set up strategy and content planning.
               </p>
               {typeof missingCount === "number" && (
                 <p className="text-xs text-muted-foreground">
@@ -312,11 +354,11 @@ export default function ClientDetail() {
               <Button
                 onClick={() =>
                   navigate(
-                    `/onboarding/ai/client/${clientId}?returnTo=${encodeURIComponent(returnTo)}`,
+                    `/onboarding/client/${clientId}?returnTo=${encodeURIComponent(returnTo)}`,
                   )
                 }
               >
-                Start AI Client Onboarding
+                Start Client Onboarding
               </Button>
               {client.email && (
                 <Button
@@ -342,7 +384,15 @@ export default function ClientDetail() {
     switch (activeTab) {
       case "strategy":
       case "planning":
-        return <StrategyHubTab clientId={clientId} agencyId={agencyId} client={client} />;
+        return (
+          <StrategyHubTab
+            clientId={clientId}
+            agencyId={agencyId}
+            client={client}
+            activeView={activeStrategySubTab}
+            onViewChange={handleStrategySubTabChange}
+          />
+        );
       case "overview":
         return <OverviewTab clientId={clientId} client={client} onNotesUpdate={handleNotesUpdate} />;
       case "analytics":
@@ -357,6 +407,8 @@ export default function ClientDetail() {
         return <SocialProfilesTab clientId={clientId} />;
       case "pipeline":
         return <PipelineTab clientId={clientId} agencyId={agencyId} />;
+      case "idea-scripting":
+        return <IdeaScriptingTab clientId={clientId} />;
       case "calendar":
         return <CalendarTab clientId={clientId} />;
       case "library":
@@ -406,23 +458,52 @@ export default function ClientDetail() {
               onClientUpdate={handleClientUpdate}
             />
           </div>
-          <nav className="p-2 space-y-2">
+          <nav className="p-2 space-y-1">
             {primaryTabs.map((tab) => {
               const Icon = tab.icon;
+              const isStrategy = tab.id === "strategy";
+              const isActive = activeTab === tab.id;
+
               return (
-                <button
-                  key={tab.id}
-                  onClick={() => handleTabChange(tab.id)}
-                  className={cn(
-                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-left",
-                    activeTab === tab.id
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                <div key={tab.id}>
+                  <button
+                    onClick={() => handleTabChange(tab.id)}
+                    className={cn(
+                      "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-left",
+                      isActive
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                    )}
+                  >
+                    <Icon className="h-4 w-4 flex-shrink-0" />
+                    <span className="truncate">{tab.label}</span>
+                  </button>
+
+                  {/* Strategy sub-tabs - shown when Strategy is active */}
+                  {isStrategy && isActive && (
+                    <div className="ml-4 mt-1 space-y-0.5 border-l border-border/50 pl-2">
+                      {strategySubTabs.map((subTab) => {
+                        const SubIcon = subTab.icon;
+                        const isSubActive = activeStrategySubTab === subTab.id;
+                        return (
+                          <button
+                            key={subTab.id}
+                            onClick={() => handleStrategySubTabChange(subTab.id as StrategySubTab)}
+                            className={cn(
+                              "w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs font-medium transition-colors text-left",
+                              isSubActive
+                                ? "bg-primary/10 text-primary"
+                                : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+                            )}
+                          >
+                            <SubIcon className="h-3.5 w-3.5 flex-shrink-0" />
+                            <span className="truncate">{subTab.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   )}
-                >
-                  <Icon className="h-4 w-4 flex-shrink-0" />
-                  <span className="truncate">{tab.label}</span>
-                </button>
+                </div>
               );
             })}
 
@@ -537,6 +618,33 @@ export default function ClientDetail() {
           </div>
         )}
 
+        {/* Mobile Strategy Sub-tabs - shown when Strategy is active */}
+        {isMobile && activeTab === "strategy" && (
+          <div className="mb-4 -mx-4 px-4 overflow-x-auto scrollbar-hide">
+            <div className="flex gap-1 pb-2 min-w-max">
+              {strategySubTabs.map((subTab) => {
+                const SubIcon = subTab.icon;
+                const isSubActive = activeStrategySubTab === subTab.id;
+                return (
+                  <button
+                    key={subTab.id}
+                    onClick={() => handleStrategySubTabChange(subTab.id as StrategySubTab)}
+                    className={cn(
+                      "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap",
+                      isSubActive
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted/50 text-muted-foreground hover:bg-muted",
+                    )}
+                  >
+                    <SubIcon className="h-3.5 w-3.5" />
+                    {subTab.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {(focusParam || actionParam) && (
           <div className="mb-4 rounded-lg border border-border/70 bg-card/40 p-3 text-sm">
             {focusParam && <div className="text-muted-foreground">Focused: {focusParam}</div>}
@@ -546,6 +654,16 @@ export default function ClientDetail() {
 
         <div className="space-y-4">{renderTabContent()}</div>
       </main>
+
+      {/* Global Right Panel Trigger */}
+      <ClientRightPanelTrigger onClick={() => setRightPanelOpen(true)} />
+
+      {/* Global Right Panel (AI Chat, Decisions, History, Tasks) */}
+      <ClientRightPanel
+        open={rightPanelOpen}
+        onOpenChange={setRightPanelOpen}
+        clientId={clientId}
+      />
     </div>
   );
 }

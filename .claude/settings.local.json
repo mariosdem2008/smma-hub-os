@@ -17,7 +17,20 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git push:*)",
-      "Bash(supabase functions deploy:*)"
+      "Bash(supabase functions deploy:*)",
+      "Bash(cat:*)",
+      "Bash(xargs ls:*)",
+      "Bash(npx vitest:*)",
+      "Bash(ls -la \"c:\\\\Users\\\\mario\\\\Desktop\\\\SMMAHUB\\\\smmahub\\\\2\\\\smma-hub-os\\\\src\\\\lib\\\\brain\"\" 2>/dev/null || dir \"c:UsersmarioDesktopSMMAHUBsmmahub2smma-hub-ossrclibbrain \")",
+      "Bash(npm run test)",
+      "Bash(npm run lint:*)",
+      "Bash(supabase db push:*)",
+      "Bash(supabase db diff:*)",
+      "Bash(supabase migration:*)",
+      "Bash(npx supabase db push)",
+      "Bash(npx supabase migration list:*)",
+      "Bash(npx vite --clearScreen false)",
+      "Bash(timeout 10 npx vite:*)"
     ]
   }
 }

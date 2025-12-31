@@ -250,7 +250,7 @@ export default function Clients() {
       setFormData({ name: "", email: "", phone: "", company: "", status: "active", onboardingMode: "agency" });
 
       if (formData.onboardingMode === "agency") {
-        navigate(`/onboarding/ai/client/${newClient.id}`);
+        navigate(`/onboarding/client/${newClient.id}`);
       } else {
         navigate(`/clients/${newClient.id}?tab=portal`);
       }
@@ -408,8 +408,8 @@ export default function Clients() {
             const readiness = getReadinessSignals(client);
             const strategyHint = getStrategyHint(readiness);
             const nextStep = getNextStep(readiness);
-            const assetCountLabel = countsAvailable ? client.assetCount ?? 0 : "GÇö";
-            const publishedLabel = countsAvailable ? client.publishedVideoCount ?? 0 : "GÇö";
+            const assetCountLabel = countsAvailable ? client.assetCount ?? 0 : "Gï¿½ï¿½";
+            const publishedLabel = countsAvailable ? client.publishedVideoCount ?? 0 : "Gï¿½ï¿½";
 
             return (
               <Card key={client.id} className="border-border/70 bg-card/50">

@@ -34,10 +34,11 @@ import InviteAccept from "./pages/InviteAccept";
 import Messages from "./pages/Messages";
 import NotFound from "./pages/NotFound";
 import AiOnboardingAgency from "./pages/ai/AiOnboardingAgency";
-import AiOnboardingClient from "./pages/ai/AiOnboardingClient";
+import AiOnboardingClient from "./pages/ai/AiOnboardingClientV4";
 import AiFieldDemo from "./pages/ai/AiFieldDemo";
 import AgencyAiAdmin from "./pages/ai/AgencyAiAdmin";
 import AgencyBrain from "./pages/agency/AgencyBrain";
+import BrainLayerDetail from "./pages/agency/BrainLayerDetail";
 import Bootstrap from "./pages/Bootstrap";
 import Welcome from "./pages/Welcome";
 import SelectAgency from "./pages/SelectAgency";
@@ -242,11 +243,13 @@ const App = () => {
                 <Route path="/billing/overview" element={<BillingOverview />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/agency/brain" element={<AgencyBrain />} />
+                <Route path="/agency/brain/:layer" element={<BrainLayerDetail />} />
                 <Route path="/ai/admin" element={<AgencyAiAdmin />} />
                 <Route path="/ai/onboarding/agency" element={<AiOnboardingAgency />} />
-                <Route path="/ai/onboarding/client" element={<AiOnboardingClient />} />
+                {/* Client Onboarding Routes */}
+                <Route path="/onboarding/client/:clientId" element={<AiOnboardingClient />} />
+                {/* Legacy route redirects for backwards compatibility */}
                 <Route path="/ai/onboarding/client/:clientId" element={<AiOnboardingClient />} />
-                <Route path="/onboarding/ai/client" element={<AiOnboardingClient />} />
                 <Route path="/onboarding/ai/client/:clientId" element={<AiOnboardingClient />} />
                 <Route path="/ai/field-demo" element={<AiFieldDemo />} />
               </Route>

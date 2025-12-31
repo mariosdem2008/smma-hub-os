@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { format } from "date-fns";
 import { useAuth } from "@/lib/auth";
 import { useRole } from "@/hooks/useRole";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
@@ -51,7 +52,30 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Users, Copy, Trash2, AlertCircle, ArrowRight, MessageSquare } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
+import {
+  Users,
+  Copy,
+  Trash2,
+  AlertCircle,
+  ArrowRight,
+  MessageSquare,
+  Shield,
+  Crown,
+  UserPlus,
+  Mail,
+  Clock,
+  CheckCircle,
+  XCircle,
+  MoreVertical,
+  Settings,
+  BarChart3,
+  UserCog,
+  Building,
+} from "lucide-react";
 
 interface TeamMember {
   id: string;
@@ -61,6 +85,7 @@ interface TeamMember {
   profile: {
     email: string;
     full_name: string | null;
+    avatar_url?: string | null;
   } | null;
 }
 
@@ -75,6 +100,13 @@ interface PendingInvite {
 }
 
 const ROLES = ["admin", "manager", "member"];
+
+const ROLE_DESCRIPTIONS = {
+  owner: "Full system access, billing management, and agency ownership",
+  admin: "Full management permissions including team, clients, and content",
+  manager: "Can manage clients and content, limited team permissions",
+  member: "Content creation and client management only",
+};
 
 export default function Team() {
   const { user } = useAuth();
@@ -98,8 +130,10 @@ export default function Team() {
   const [showInviteLink, setShowInviteLink] = useState(false);
   const [memberToRemove, setMemberToRemove] = useState<string | null>(null);
   const [inviteToCancel, setInviteToCancel] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("members");
 
   const isAtLimit = limits?.teamMembers !== null && teamMembers.length >= limits.teamMembers;
+  const teamUtilization = limits?.teamMembers ? (teamMembers.length / limits.teamMembers) * 100 : 0;
 
   useEffect(() => {
     fetchTeamData();
@@ -110,22 +144,17 @@ export default function Team() {
 
     setLoading(true);
     try {
-      // Get agency using data layer
       const agency = await getMyAgency();
-
       setAgencyId(agency.id);
       setAgencyName(agency.name);
       setIsOwner(agency.user_id === user.id);
       
-      // Get owner's subscription plan
       const plan = await getOwnerSubscriptionPlan(agency.user_id);
       setCurrentUserPlan(plan);
 
-      // Fetch team members using data layer
       const membersWithProfiles = await listAgencyMembersWithProfiles();
       setTeamMembers(membersWithProfiles as TeamMember[]);
 
-      // Fetch pending invites using data layer
       const invites = await listPendingAgencyInvites();
       setPendingInvites(invites as PendingInvite[]);
     } catch (error: any) {
@@ -150,7 +179,6 @@ export default function Team() {
       return;
     }
 
-    // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(inviteEmail)) {
       toast({
@@ -163,7 +191,6 @@ export default function Team() {
 
     setSubmitting(true);
     try {
-      // Check if user is already a member by looking up email in profiles
       const existingProfile = await getProfileByEmail(inviteEmail);
 
       if (existingProfile) {
@@ -180,14 +207,11 @@ export default function Team() {
         }
       }
 
-      // Create invite using data layer
       const inviteRow = await createAgencyInvite(inviteEmail, inviteRole);
-
       const link = inviteRow.token ? `${window.location.origin}/invite/${inviteRow.token}` : "";
       setInviteLink(link);
       setShowInviteLink(Boolean(inviteRow.token));
 
-      // Send email invitation using data layer
       const emailResult = inviteRow.token
         ? await sendTeamInviteEmail({
             inviteToken: inviteRow.token,
@@ -247,12 +271,10 @@ export default function Team() {
   const handleCancelInvite = async (inviteId: string) => {
     try {
       await cancelAgencyInvite(inviteId);
-
       toast({
         title: "Success",
         description: "Invitation cancelled",
       });
-
       setInviteToCancel(null);
       fetchTeamData();
     } catch (error: any) {
@@ -272,7 +294,6 @@ export default function Team() {
   };
 
   const handleRoleChange = async (memberId: string, newRole: string) => {
-    // Check if trying to promote to admin and user doesn't have Agency Plus
     if (newRole === 'admin' && currentUserPlan !== 'agency_plus') {
       toast({
         title: "Upgrade Required",
@@ -285,12 +306,10 @@ export default function Team() {
 
     try {
       await updateAgencyMemberRole(memberId, newRole);
-
       toast({
         title: "Success",
         description: "Member role updated",
       });
-
       fetchTeamData();
     } catch (error: any) {
       if (error.message?.includes('Multi-admin feature requires Agency Plus plan')) {
@@ -313,12 +332,10 @@ export default function Team() {
   const handleRemoveMember = async (memberId: string) => {
     try {
       await removeAgencyMember(memberId);
-
       toast({
         title: "Success",
         description: "Team member removed",
       });
-
       setMemberToRemove(null);
       fetchTeamData();
     } catch (error: any) {
@@ -340,138 +357,259 @@ export default function Team() {
         return "secondary";
       case "member":
         return "outline";
-      // Back-compat display for older roles
-      case "creator":
-      case "viewer":
-        return "outline";
       default:
         return "outline";
     }
   };
 
+  const getInitials = (name: string | null, email: string) => {
+    if (name) {
+      return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    }
+    return email.slice(0, 2).toUpperCase();
+  };
+
   if (loading || roleLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-pulse text-muted-foreground">Loading team...</div>
+      <div className="min-h-screen ">
+        <div className="animate-pulse space-y-6">
+          <div className="h-8 "></div>
+          <div className="grid grid-cols-3 gap-6">
+            <div className="h-32  rounded-lg"></div>
+            <div className="h-32  rounded-lg"></div>
+            <div className="h-32  rounded-lg"></div>
+          </div>
+          <div className="h-64  rounded-lg"></div>
+        </div>
       </div>
     );
   }
 
   if (!canManageTeam) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <p className="text-lg text-muted-foreground">You don't have permission to manage team members.</p>
+      <div className="min-h-screen  p-6">
+        <div className="flex items-center justify-center h-96">
+          <Card className="max-w-md">
+            <CardContent className="pt-6 text-center">
+              <Shield className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Access Restricted</h3>
+              <p className="text-slate-600 mb-4">
+                Team management permissions are required to view this page.
+              </p>
+              <Button onClick={() => navigate("/")}>Return to Dashboard</Button>
+            </CardContent>
+          </Card>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Team Management</h1>
-        <p className="text-muted-foreground">Manage your agency team members and invitations</p>
+    <div className="min-h-screen ">
+      {/* Header */}
+      <div className="border-b ">
+        <div className="px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-3">
+                <Building className="h-8 w-8 text-slate-900" />
+                <div>
+                  <h1 className="text-2xl font-bold  text-white">Team Management</h1>
+                  <p className="text-sm text-slate-600">
+                    {agencyName} • {teamMembers.length} team members
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <Button 
+                variant="outline" 
+                onClick={() => setActiveTab("invite")}
+                className="gap-2"
+              >
+                <UserPlus className="h-4 w-4" />
+                Invite Team Member
+              </Button>
+              <Button 
+                onClick={() => openUpgradeModal({ feature: 'Team expansion' })}
+                className="bg-emerald-600 hover:bg-emerald-700"
+              >
+                Upgrade Team
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Multi-Admin Feature Info for Agency Plus */}
-      {currentUserPlan === 'agency_plus' && (
-        <Card className="border-primary bg-primary/5">
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-4">
-              <Users className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
-              <div>
-                <h3 className="font-semibold text-lg mb-1">Multi-Admin Enabled</h3>
-                <p className="text-sm text-muted-foreground">
-                  Your Agency Plus plan allows you to promote team members to Admin role. 
-                  Admins have full management permissions including inviting members, managing roles, and editing agency settings.
-                </p>
+      <div className="p-6">
+        {/* Team Overview Cards */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+          <Card className="bg-gradient-to-br from-slate-900  text-white">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-slate-300">Team Members</p>
+                  <p className="text-3xl font-bold mt-2">{teamMembers.length}</p>
+                </div>
+                <Users className="h-10 w-10 text-slate-400" />
               </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+              <Progress value={teamUtilization} className="mt-4 h-2 bg-slate-700" />
+              <p className="text-xs text-slate-400 mt-2">
+                {limits?.teamMembers ? `${teamMembers.length} / ${limits.teamMembers} limit` : 'Unlimited'}
+              </p>
+            </CardContent>
+          </Card>
 
-      {/* Upgrade Prompt - Team Member Limit Reached */}
-      {isAtLimit && (
-        <Card className="border-primary bg-primary/5 animate-fade-in">
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-4">
-              <AlertCircle className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
-              <div className="flex-1">
-                <h3 className="font-semibold text-lg mb-1">Team member limit reached</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Add unlimited team members with Pro or Agency Plus plans.
-                </p>
-                <Button onClick={() => openUpgradeModal({ feature: 'More team members' })} size="sm">
-                  Upgrade Now
-                  <ArrowRight className="ml-2 h-4 w-4" />
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-slate-600">Active Roles</p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <Badge className="bg-blue-100 text-blue-700 border-blue-200">
+                      {teamMembers.filter(m => m.role === 'admin').length} Admin
+                    </Badge>
+                    <Badge className="bg-slate-100 text-slate-700 border-slate-200">
+                      {teamMembers.filter(m => m.role === 'manager').length} Manager
+                    </Badge>
+                  </div>
+                </div>
+                <Shield className="h-10 w-10 text-slate-400" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-slate-600">Pending Invites</p>
+                  <p className="text-3xl font-bold mt-2">{pendingInvites.length}</p>
+                </div>
+                <Mail className="h-10 w-10 text-slate-400" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-slate-600">Plan Status</p>
+                  <p className="text-lg font-semibold mt-2 capitalize">{currentUserPlan?.replace('_', ' ') || 'Free'}</p>
+                </div>
+                <Crown className="h-10 w-10 text-amber-500" />
+              </div>
+              {isAtLimit && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full mt-4"
+                  onClick={() => openUpgradeModal({ feature: 'Team limit reached' })}
+                >
+                  Upgrade to add more
                 </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+              )}
+            </CardContent>
+          </Card>
+        </div>
 
-      {/* Current Team Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            Current Team
-          </CardTitle>
-          <CardDescription>View and manage your agency team members</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {teamMembers.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">
-              No team members yet. Invite your first member below!
-            </p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Role</TableHead>
-                  {canManageTeam && <TableHead className="text-right">Actions</TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {teamMembers.map((member) => {
-                  const isCurrentUser = member.user_id === user?.id;
-                  const isOwnerMember = member.role === "owner";
-                  const canEditThisMember = canManageTeam && !isOwnerMember;
-                  const canRemoveThisMember = canRemoveTeamMembers && !isOwnerMember && !isCurrentUser;
+        {/* Main Content with Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className=" p-1">
+            <TabsTrigger value="members" >
+              <Users className="h-4 w-4 mr-2" />
+              Team Members
+            </TabsTrigger>
+            <TabsTrigger value="invite" >
+              <UserPlus className="h-4 w-4 mr-2" />
+              Invite Members
+            </TabsTrigger>
+            <TabsTrigger value="roles" >
+              <UserCog className="h-4 w-4 mr-2" />
+              Role Permissions
+            </TabsTrigger>
+            <TabsTrigger value="analytics" >
+              <BarChart3 className="h-4 w-4 mr-2" />
+              Team Analytics
+            </TabsTrigger>
+          </TabsList>
 
-                  return (
-                    <TableRow key={member.id}>
-                      <TableCell className="font-medium">
-                        {member.profile?.email || "N/A"}
-                      </TableCell>
-                      <TableCell>
-                        {member.profile?.full_name || "-"}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={getRoleBadgeVariant(member.role)}>
-                          {member.role}
-                        </Badge>
-                      </TableCell>
-                      {canManageTeam && (
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
+          <TabsContent value="members" className="space-y-6">
+            {/* Team Members Table */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Team Members</CardTitle>
+                    <CardDescription>
+                      Manage permissions and roles for your agency team
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm">
+                      Export
+                    </Button>
+                    <Button variant="outline" size="sm">
+                      <Settings className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {teamMembers.length === 0 ? (
+                  <div className="text-center py-12 border rounded-lg">
+                    <Users className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">No Team Members</h3>
+                    <p className="text-slate-600 mb-4">Start building your team by inviting members</p>
+                    <Button onClick={() => setActiveTab("invite")}>
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Invite Your First Member
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {teamMembers.map((member) => {
+                      const isCurrentUser = member.user_id === user?.id;
+                      const isOwnerMember = member.role === "owner";
+                      const canEditThisMember = canManageTeam && !isOwnerMember;
+                      const canRemoveThisMember = canRemoveTeamMembers && !isOwnerMember && !isCurrentUser;
+
+                      return (
+                        <div key={member.id} className="flex items-center justify-between p-4 rounded-lg border hover:text-slate-700 transition-colors">
+                          <div className="flex items-center gap-4">
+                            <Avatar>
+                              <AvatarImage src={member.profile?.avatar_url || undefined} />
+                              <AvatarFallback className="bg-slate-200 text-slate-700">
+                                {getInitials(member.profile?.full_name, member.profile?.email || '')}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <p className="font-semibold">
+                                  {member.profile?.full_name || "Unnamed User"}
+                                  {isCurrentUser && (
+                                    <span className="ml-2 text-xs font-normal text-slate-500">(You)</span>
+                                  )}
+                                </p>
+                                <Badge variant={getRoleBadgeVariant(member.role)}>
+                                  {member.role}
+                                </Badge>
+                              </div>
+                              <p className="text-sm text-slate-600">{member.profile?.email}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
                             <Button
                               variant="ghost"
-                              size="icon"
+                              size="sm"
                               onClick={async () => {
                                 if (!agencyId || isCurrentUser) return;
-
                                 try {
                                   const memberIds = await getAgencyMemberIdsByUserIds(
                                     agencyId,
                                     [user!.id, member.user_id]
                                   );
-
                                   if (memberIds.length !== 2) {
                                     toast({
                                       title: "Error",
@@ -480,12 +618,10 @@ export default function Team() {
                                     });
                                     return;
                                   }
-
                                   await createConversation.mutateAsync({
                                     type: "direct",
                                     member_ids: memberIds,
                                   });
-
                                   navigate("/messages");
                                 } catch (error) {
                                   console.error("Error creating conversation:", error);
@@ -501,7 +637,7 @@ export default function Team() {
                                 value={member.role}
                                 onValueChange={(value) => handleRoleChange(member.id, value)}
                               >
-                                <SelectTrigger className="w-[130px]">
+                                <SelectTrigger className="w-[140px]">
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -514,10 +650,12 @@ export default function Team() {
                                         role === "owner"
                                       }
                                     >
-                                      {role.charAt(0).toUpperCase() + role.slice(1)}
-                                      {role === "admin" && currentUserPlan !== "agency_plus" && (
-                                        <span className="text-xs text-muted-foreground ml-1">(Agency Plus)</span>
-                                      )}
+                                      <div className="flex items-center justify-between">
+                                        <span>{role.charAt(0).toUpperCase() + role.slice(1)}</span>
+                                        {role === "admin" && currentUserPlan !== "agency_plus" && (
+                                          <Crown className="h-3 w-3 text-amber-500" />
+                                        )}
+                                      </div>
                                     </SelectItem>
                                   ))}
                                 </SelectContent>
@@ -526,219 +664,377 @@ export default function Team() {
                             {canRemoveThisMember && (
                               <Button
                                 variant="ghost"
-                                size="icon"
+                                size="sm"
                                 onClick={() => setMemberToRemove(member.id)}
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
                               >
-                                <Trash2 className="h-4 w-4 text-destructive" />
+                                <Trash2 className="h-4 w-4" />
                               </Button>
                             )}
-                            {member.role === "admin" && (
-                              <Badge variant="secondary" className="ml-2">
-                                Agency Plus Feature
-                              </Badge>
-                            )}
+                            <Button variant="ghost" size="sm">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
                           </div>
-                        </TableCell>
-                      )}
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Pending Invites Section */}
-      {canManageTeam && pendingInvites.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Pending Invites</CardTitle>
-            <CardDescription>Manage outstanding team invitations</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pendingInvites.map((invite) => {
-                  const status = getInviteStatus(invite.expires_at);
-                  return (
-                    <TableRow key={invite.id}>
-                      <TableCell className="font-medium">{invite.email}</TableCell>
-                      <TableCell>
-                        <Badge variant={getRoleBadgeVariant(invite.role)}>
-                          {invite.role}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={status === "Expired" ? "destructive" : "secondary"}>
-                          {status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleCopyInviteLink(invite.token)}
-                            title="Copy invite link"
-                          >
-                            <Copy className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setInviteToCancel(invite.id)}
-                            title="Cancel invite"
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
                         </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Invite Team Member Section */}
-      {canManageTeam && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Invite Team Member</CardTitle>
-            <CardDescription>Send an invitation to join your agency</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="invite-email">
-                  Email Address <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="invite-email"
-                  type="email"
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  placeholder="colleague@example.com"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="invite-role">Role</Label>
-                <Select value={inviteRole} onValueChange={setInviteRole}>
-                  <SelectTrigger id="invite-role">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ROLES.map((role) => (
-                      <SelectItem
-                        key={role}
-                        value={role}
-                        disabled={role === "admin" && currentUserPlan !== "agency_plus"}
-                      >
-                        {role.charAt(0).toUpperCase() + role.slice(1)}
-                        {role === "admin" && currentUserPlan !== "agency_plus" && (
-                          <span className="text-xs text-muted-foreground ml-1">(Agency Plus)</span>
-                        )}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {inviteRole === "admin" && currentUserPlan === "agency_plus" && (
-                  <p className="text-xs text-muted-foreground">
-                    Admins have full management permissions like owners
-                  </p>
+                      );
+                    })}
+                  </div>
                 )}
-              </div>
-            </div>
+              </CardContent>
+            </Card>
 
-            <PlanGuard feature="teamMembers" requiredPlan="starter">
-              <Button onClick={handleInvite} disabled={submitting}>
-                {submitting ? "Sending..." : "Send Invitation"}
-              </Button>
-            </PlanGuard>
-
-            {showInviteLink && (
-              <Card className="bg-muted">
-                <CardContent className="pt-6">
-                  <div className="space-y-2">
-                    <Label>Invitation Link</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        value={inviteLink}
-                        readOnly
-                        className="font-mono text-sm"
-                      />
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={handleCopyLink}
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Share this link with your team member. It expires in 7 days.
-                    </p>
+            {/* Pending Invites */}
+            {pendingInvites.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Pending Invitations</CardTitle>
+                  <CardDescription>Invites awaiting acceptance</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {pendingInvites.map((invite) => {
+                      const status = getInviteStatus(invite.expires_at);
+                      const isExpired = status === "Expired";
+                      
+                      return (
+                        <div key={invite.id} className="flex items-center justify-between p-3 rounded-lg border">
+                          <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center">
+                              <Mail className="h-5 w-5 text-slate-600" />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <p className="font-medium">{invite.email}</p>
+                                <Badge variant={isExpired ? "destructive" : "secondary"}>
+                                  {isExpired ? "Expired" : "Pending"}
+                                </Badge>
+                              </div>
+                              <div className="flex items-center gap-2 text-sm text-slate-600">
+                                <Badge variant="outline">{invite.role}</Badge>
+                                <span>•</span>
+                                <span>Sent {format(new Date(invite.created_at), 'MMM d')}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleCopyInviteLink(invite.token)}
+                              disabled={isExpired}
+                            >
+                              <Copy className="h-4 w-4 mr-2" />
+                              Copy Link
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setInviteToCancel(invite.id)}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <XCircle className="h-4 w-4 mr-2" />
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>
             )}
-          </CardContent>
-        </Card>
-      )}
+          </TabsContent>
 
-      {/* Remove Member Confirmation Dialog */}
-      <AlertDialog open={!!memberToRemove} onOpenChange={() => setMemberToRemove(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remove Team Member</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to remove this team member? They will lose access to the agency and all its clients.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => memberToRemove && handleRemoveMember(memberToRemove)}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Remove
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+          <TabsContent value="invite" className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <Card className="lg:col-span-2">
+                <CardHeader>
+                  <CardTitle>Invite Team Member</CardTitle>
+                  <CardDescription>
+                    Add new members to collaborate on client work
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="invite-email">
+                        Email Address <span className="text-red-600">*</span>
+                      </Label>
+                      <Input
+                        id="invite-email"
+                        type="email"
+                        value={inviteEmail}
+                        onChange={(e) => setInviteEmail(e.target.value)}
+                        placeholder="colleague@example.com"
+                        className="mt-2"
+                      />
+                    </div>
 
-      {/* Cancel Invite Confirmation Dialog */}
-      <AlertDialog open={!!inviteToCancel} onOpenChange={() => setInviteToCancel(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Cancel Invitation</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to cancel this invitation? The invite link will no longer work.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => inviteToCancel && handleCancelInvite(inviteToCancel)}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Cancel Invite
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+                    <div>
+                      <Label htmlFor="invite-role">Team Role</Label>
+                      <Select value={inviteRole} onValueChange={setInviteRole}>
+                        <SelectTrigger id="invite-role" className="mt-2">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ROLES.map((role) => (
+                            <SelectItem
+                              key={role}
+                              value={role}
+                              disabled={role === "admin" && currentUserPlan !== "agency_plus"}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span>{role.charAt(0).toUpperCase() + role.slice(1)}</span>
+                                {role === "admin" && currentUserPlan !== "agency_plus" && (
+                                  <Badge variant="outline" className="text-xs">
+                                    Agency Plus
+                                  </Badge>
+                                )}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-sm text-slate-600 mt-2">
+                        {ROLE_DESCRIPTIONS[inviteRole as keyof typeof ROLE_DESCRIPTIONS] || "Standard team member permissions"}
+                      </p>
+                    </div>
+
+                    <PlanGuard feature="teamMembers" requiredPlan="starter">
+                      <Button 
+                        onClick={handleInvite} 
+                        disabled={submitting}
+                        className="w-full"
+                      >
+                        {submitting ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                            Sending Invitation...
+                          </>
+                        ) : (
+                          <>
+                            <UserPlus className="h-4 w-4 mr-2" />
+                            Send Invitation
+                          </>
+                        )}
+                      </Button>
+                    </PlanGuard>
+                  </div>
+
+                  {showInviteLink && (
+                    <Card className="bg-slate-50 border-slate-200">
+                      <CardContent className="pt-6">
+                        <div className="space-y-3">
+                          <Label>Invitation Link</Label>
+                          <div className="flex gap-2">
+                            <Input
+                              value={inviteLink}
+                              readOnly
+                              className="font-mono text-sm bg-white"
+                            />
+                            <Button
+                              variant="outline"
+                              onClick={handleCopyLink}
+                              className="shrink-0"
+                            >
+                              <Copy className="h-4 w-4 mr-2" />
+                              Copy
+                            </Button>
+                          </div>
+                          <p className="text-xs text-slate-500">
+                            Share this link with your team member. The link expires in 7 days.
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Role Permissions</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {Object.entries(ROLE_DESCRIPTIONS).map(([role, description]) => (
+                    <div key={role} className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium capitalize">{role}</span>
+                        {role === 'admin' && currentUserPlan !== 'agency_plus' && (
+                          <Badge variant="outline" className="text-xs">
+                            Upgrade Required
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-slate-600">{description}</p>
+                      <Separator />
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="roles">
+            <Card>
+              <CardHeader>
+                <CardTitle>Role-Based Permissions</CardTitle>
+                <CardDescription>Configure access levels for your team</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="rounded-lg border overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="">
+                        <TableHead>Permission</TableHead>
+                        <TableHead className="text-center">Owner</TableHead>
+                        <TableHead className="text-center">Admin</TableHead>
+                        <TableHead className="text-center">Manager</TableHead>
+                        <TableHead className="text-center">Member</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {[
+                        { permission: 'Manage Team Members', owner: true, admin: true, manager: false, member: false },
+                        { permission: 'Invite New Members', owner: true, admin: true, manager: false, member: false },
+                        { permission: 'Manage Client Accounts', owner: true, admin: true, manager: true, member: true },
+                        { permission: 'Create & Edit Content', owner: true, admin: true, manager: true, member: true },
+                        { permission: 'Approve Content', owner: true, admin: true, manager: true, member: false },
+                        { permission: 'Access Billing', owner: true, admin: false, manager: false, member: false },
+                        { permission: 'View Analytics', owner: true, admin: true, manager: true, member: true },
+                        { permission: 'Export Data', owner: true, admin: true, manager: true, member: false },
+                      ].map((row) => (
+                        <TableRow key={row.permission}>
+                          <TableCell className="font-medium">{row.permission}</TableCell>
+                          <TableCell className="text-center">
+                            <CheckCircle className="h-5 w-5 text-emerald-600 mx-auto" />
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {row.admin ? (
+                              <CheckCircle className="h-5 w-5 text-emerald-600 mx-auto" />
+                            ) : (
+                              <XCircle className="h-5 w-5 text-slate-300 mx-auto" />
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {row.manager ? (
+                              <CheckCircle className="h-5 w-5 text-emerald-600 mx-auto" />
+                            ) : (
+                              <XCircle className="h-5 w-5 text-slate-300 mx-auto" />
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {row.member ? (
+                              <CheckCircle className="h-5 w-5 text-emerald-600 mx-auto" />
+                            ) : (
+                              <XCircle className="h-5 w-5 text-slate-300 mx-auto" />
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="analytics">
+            <Card>
+              <CardHeader>
+                <CardTitle>Team Analytics</CardTitle>
+                <CardDescription>Performance and engagement metrics</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-12">
+                  <BarChart3 className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">Team Analytics Coming Soon</h3>
+                  <p className="text-slate-600">
+                    Detailed team performance metrics and engagement analytics will be available soon.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+
+        {/* Upgrade Banner */}
+        {isAtLimit && (
+          <Card className="border-emerald-200 bg-gradient-to-r from-emerald-50 to-emerald-100/50">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-start gap-4">
+                  <AlertCircle className="h-6 w-6 text-emerald-600 flex-shrink-0 mt-1" />
+                  <div>
+                    <h3 className="font-semibold text-lg mb-1">Team Member Limit Reached</h3>
+                    <p className="text-emerald-700 mb-2">
+                      Upgrade to add unlimited team members and unlock advanced collaboration features.
+                    </p>
+                    <div className="flex items-center gap-4">
+                      <Button 
+                        onClick={() => openUpgradeModal({ feature: 'Team expansion' })}
+                        className="bg-emerald-600 hover:bg-emerald-700"
+                      >
+                        Upgrade Plan
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="sm" className="text-emerald-700">
+                        Learn about enterprise plans
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Confirmation Dialogs */}
+        <AlertDialog open={!!memberToRemove} onOpenChange={() => setMemberToRemove(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Remove Team Member</AlertDialogTitle>
+              <AlertDialogDescription className="space-y-2">
+                <p>This action cannot be undone. The team member will:</p>
+                <ul className="list-disc pl-5 text-sm space-y-1">
+                  <li>Lose access to all agency clients and content</li>
+                  <li>Be removed from all team conversations</li>
+                  <li>Need to be re-invited to regain access</li>
+                </ul>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => memberToRemove && handleRemoveMember(memberToRemove)}
+                className="bg-red-600 text-white hover:bg-red-700"
+              >
+                Remove Member
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={!!inviteToCancel} onOpenChange={() => setInviteToCancel(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Cancel Invitation</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to cancel this invitation? The invite link will become invalid immediately.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Keep Invite</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => inviteToCancel && handleCancelInvite(inviteToCancel)}
+                className="bg-red-600 text-white hover:bg-red-700"
+              >
+                Cancel Invitation
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Building2,
   Shield,
@@ -15,6 +16,7 @@ import {
   AlertCircle,
   Clock,
   Sparkles,
+  ChevronRight,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -57,6 +59,19 @@ const STATUS_CONFIG: Record<BrainDocumentStatus, { label: string; variant: "defa
   archived: { label: "Archived", variant: "destructive", icon: AlertCircle },
 };
 
+// Map BrainModule to URL param
+const MODULE_URL_PARAMS: Record<BrainModule, string> = {
+  bootstrap: "bootstrap_profile",
+  rep_policy: "rep_policy",
+  sop_strategy: "strategy_sop",
+  sop_scripting: "scripting_sop",
+  tone_voice: "tone_voice",
+  faq_objections: "faq_objections",
+  ai_permissions: "ai_permissions",
+  offer_stack: "offer_stack",
+  quality_bar: "quality_bar",
+};
+
 interface BrainModuleCardProps {
   module: BrainModule;
   document: BrainDocument | null;
@@ -74,6 +89,7 @@ export function BrainModuleCard({
   onApprove,
   onImprove,
 }: BrainModuleCardProps) {
+  const navigate = useNavigate();
   const [editorOpen, setEditorOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
 
@@ -81,6 +97,11 @@ export function BrainModuleCard({
   const label = BRAIN_MODULE_LABELS[module];
   const description = BRAIN_MODULE_DESCRIPTIONS[module];
   const isReadOnly = isReadOnlyModule(module);
+  const urlParam = MODULE_URL_PARAMS[module];
+
+  const handleCardClick = () => {
+    navigate(`/agency/brain/${urlParam}`);
+  };
 
   const status = document?.status;
   const statusConfig = status ? STATUS_CONFIG[status] : null;
@@ -97,7 +118,15 @@ export function BrainModuleCard({
     : "Not configured";
 
   return (
-    <Card className={`relative transition-all hover:shadow-md ${isEmpty ? "border-dashed" : ""}`}>
+    <Card
+      className={`relative transition-all hover:shadow-md cursor-pointer group ${isEmpty ? "border-dashed" : ""}`}
+      onClick={handleCardClick}
+    >
+      {/* Open detail indicator */}
+      <div className="absolute top-3 left-3 opacity-0 group-hover:opacity-100 transition-opacity">
+        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+      </div>
+
       {/* Status badge */}
       {statusConfig && (
         <div className="absolute top-3 right-3">
@@ -140,12 +169,12 @@ export function BrainModuleCard({
         </div>
 
         {/* Action buttons */}
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
           {/* Edit button */}
           {!isReadOnly && (
             <Dialog open={editorOpen} onOpenChange={setEditorOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline" size="sm" onClick={onEdit}>
+                <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); onEdit?.(); }}>
                   <Edit className="h-4 w-4 mr-1" />
                   {isEmpty ? "Configure" : "Edit"}
                 </Button>
