@@ -31,7 +31,8 @@ import { cn } from "@/lib/utils";
 import { getActiveAgencyId } from "@/lib/active-agency";
 import { PostCreateAgencyCta } from "@/components/PostCreateAgencyCta";
 import { Progress } from "@/components/ui/progress";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 import {
   Plus,
@@ -657,6 +658,65 @@ export default function Dashboard() {
     ? (clients.length / teamMembers.length).toFixed(1)
     : "0.0";
 
+  const nextBestAction = useMemo(() => {
+    if (signals.approvalsPending > 0) {
+      return {
+        title: "Review pending approvals",
+        description: approvalsTarget?.client?.name
+          ? `Approval waiting for ${approvalsTarget.client.name}.`
+          : "Client approvals are waiting for your review.",
+        ctaLabel: "Review approvals",
+        type: "approval",
+      };
+    }
+    if (signals.overdueContent > 0) {
+      return {
+        title: "Reschedule overdue content",
+        description: overdueContentTarget?.client?.name
+          ? `Overdue post for ${overdueContentTarget.client.name}.`
+          : "Overdue posts need to be rescheduled.",
+        ctaLabel: "Reschedule",
+        type: "overdue",
+      };
+    }
+    if (readinessTargets.length > 0) {
+      return {
+        title: "Complete client readiness",
+        description: `${readinessTargets[0].name} is missing onboarding signals.`,
+        ctaLabel: "Complete setup",
+        type: "readiness",
+      };
+    }
+    return {
+      title: "Create a priority task",
+      description: "Capture the most important action for this week.",
+      ctaLabel: "Create task",
+      type: "task",
+    };
+  }, [
+    signals.approvalsPending,
+    signals.overdueContent,
+    approvalsTarget?.client?.name,
+    overdueContentTarget?.client?.name,
+    readinessTargets,
+  ]);
+
+  const handleNextBestAction = () => {
+    if (nextBestAction.type === "approval" && approvalsTarget?.client?.id) {
+      navigate(`/clients/${approvalsTarget.client.id}?tab=pipeline&focus=review`);
+      return;
+    }
+    if (nextBestAction.type === "overdue" && overdueContentTarget?.client?.id) {
+      navigate(`/clients/${overdueContentTarget.client.id}?tab=pipeline&focus=publish`);
+      return;
+    }
+    if (nextBestAction.type === "readiness" && readinessTargets[0]) {
+      handleReadinessCta(readinessTargets[0]);
+      return;
+    }
+    setShowTaskDialog(true);
+  };
+
   return (
     <div className="min-h-screen  ai-glow">
       {/* Executive Header */}
@@ -694,8 +754,6 @@ export default function Dashboard() {
       </div>
 
       <div className="p-6">
-        <PostCreateAgencyCta isAdmin={isAdmin} aiSetupComplete={aiSetupComplete} />
-
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <div className="text-center space-y-3">
@@ -703,8 +761,107 @@ export default function Dashboard() {
               <p className="text-muted-foreground">Loading dashboard...</p>
             </div>
           </div>
-        ) : viewMode === "executive" ? (
+        ) : (
           <>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+              <Card>
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-2">
+                    <Target className="h-5 w-5" />
+                    Next Best Action
+                  </CardTitle>
+                  <CardDescription>{nextBestAction.title}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-slate-600 mb-4">
+                    {nextBestAction.description}
+                  </p>
+                  <Button className="w-full" onClick={handleNextBestAction}>
+                    {nextBestAction.ctaLabel}
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5 text-amber-500" />
+                    Risks
+                  </CardTitle>
+                  <CardDescription>Items needing attention</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-2xl font-bold">{signals.approvalsPending}</p>
+                      <p className="text-sm text-slate-600">Pending approvals</p>
+                    </div>
+                    <Badge variant={signals.oldestApprovalAgeDays > 2 ? "destructive" : "secondary"}>
+                      {signals.oldestApprovalAgeDays}d oldest
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-2xl font-bold">{signals.reviewStuck48h}</p>
+                      <p className="text-sm text-slate-600">Stuck in review 48h+</p>
+                    </div>
+                    <Badge variant={signals.reviewStuck48h > 3 ? "destructive" : "secondary"}>
+                      48h
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-2xl font-bold">{signals.overdueContent}</p>
+                      <p className="text-sm text-slate-600">Overdue content</p>
+                    </div>
+                    <Badge variant={signals.overdueContent > 0 ? "destructive" : "secondary"}>
+                      {signals.overdueContent > 0 ? "Overdue" : "Clear"}
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-emerald-500" />
+                    Wins
+                  </CardTitle>
+                  <CardDescription>Momentum across clients</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-2xl font-bold">{signals.pipelineCounts.published}</p>
+                      <p className="text-sm text-slate-600">Published</p>
+                    </div>
+                    <Badge variant="secondary">Live</Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-2xl font-bold">{signals.pipelineCounts.approved}</p>
+                      <p className="text-sm text-slate-600">Approved</p>
+                    </div>
+                    <Badge variant="secondary">Ready</Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-2xl font-bold">{signals.projectsScheduled7d}</p>
+                      <p className="text-sm text-slate-600">Scheduled this week</p>
+                    </div>
+                    <Badge variant="secondary">Queued</Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {viewMode === "executive" ? (
+              <Accordion type="single" collapsible className="w-full">
+                <AccordionItem value="insights">
+                  <AccordionTrigger>More insights</AccordionTrigger>
+                  <AccordionContent>
+                    <div className="space-y-8 pt-4">
+                      <PostCreateAgencyCta isAdmin={isAdmin} aiSetupComplete={aiSetupComplete} />
             {/* Capacity Multiplier Scoreboard */}
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
               <Card className="lg:col-span-2 bg-gradient-to-br from-slate-900  text-white">
@@ -1012,10 +1169,20 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
             </div>
-          </>
-        ) : (
-          /* Operations View */
-          <div className="space-y-6">
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            ) : (
+              <Accordion type="single" collapsible className="w-full">
+                <AccordionItem value="insights">
+                  <AccordionTrigger>More insights</AccordionTrigger>
+                  <AccordionContent>
+                    <div className="space-y-6 pt-4">
+                      <PostCreateAgencyCta isAdmin={isAdmin} aiSetupComplete={aiSetupComplete} />
+
+                      {/* Operations View */}
+                      <div className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <Card>
                 <CardHeader className="pb-4">
@@ -1157,7 +1324,11 @@ export default function Dashboard() {
               </Card>
             </div>
           </div>
-        )}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          )}
 
         {/* Dialogs (unchanged but kept for functionality) */}
         <Dialog open={showNewClientDialog} onOpenChange={setShowNewClientDialog}>
