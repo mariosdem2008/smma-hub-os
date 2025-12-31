@@ -49,11 +49,6 @@ import {
   Lightbulb,
   MoreHorizontal,
   ChevronDown,
-  Target,
-  Layers,
-  Calendar,
-  CalendarDays,
-  Shield,
 } from "lucide-react";
 
 interface Client {
@@ -95,19 +90,6 @@ const secondaryTabs = [
   { id: "tasks", label: "Tasks", icon: CheckSquare },
 ];
 
-// Strategy sub-tabs (shown when Strategy is selected)
-const strategySubTabs = [
-  { id: "mission-control", label: "Overview", icon: LayoutDashboard },
-  { id: "positioning", label: "Positioning", icon: Target },
-  { id: "pillars", label: "Pillars", icon: Layers },
-  { id: "campaign_plan", label: "Campaign", icon: Calendar },
-  { id: "weekly_plan", label: "Weekly", icon: CalendarDays },
-  { id: "channel_adaptations", label: "Channels", icon: Share2 },
-  { id: "rules_constraints", label: "Rules", icon: Shield },
-];
-
-type StrategySubTab = typeof strategySubTabs[number]["id"];
-
 const allTabs = [...primaryTabs, ...secondaryTabs];
 
 export default function ClientDetail() {
@@ -128,7 +110,6 @@ export default function ClientDetail() {
   } | null>(null);
   const [gateNoAccess, setGateNoAccess] = useState(false);
   const [activeTab, setActiveTab] = useState("strategy");
-  const [activeStrategySubTab, setActiveStrategySubTab] = useState<StrategySubTab>("mission-control");
   const [agencyId, setAgencyId] = useState<string>("");
   const lastFocusRef = useRef<string | null>(null);
   const lastActionRef = useRef<string | null>(null);
@@ -214,7 +195,6 @@ export default function ClientDetail() {
   // Handle URL-based tab navigation
   useEffect(() => {
     const tab = searchParams.get("tab");
-    const subTab = searchParams.get("subTab");
     const normalizedTab = tab === "planning" ? "strategy" : tab;
     if (normalizedTab && allTabs.some((t) => t.id === normalizedTab)) {
       setActiveTab(normalizedTab);
@@ -223,10 +203,6 @@ export default function ClientDetail() {
       const nextParams = new URLSearchParams(searchParams);
       nextParams.set("tab", "strategy");
       setSearchParams(nextParams);
-    }
-    // Handle strategy sub-tab from URL
-    if (subTab && strategySubTabs.some((t) => t.id === subTab)) {
-      setActiveStrategySubTab(subTab as StrategySubTab);
     }
   }, [searchParams, setSearchParams]);
 
@@ -279,19 +255,6 @@ export default function ClientDetail() {
     setActiveTab(nextTab);
     const nextParams = new URLSearchParams(searchParams);
     nextParams.set("tab", nextTab);
-    // Clear subTab when switching away from strategy
-    if (nextTab !== "strategy") {
-      nextParams.delete("subTab");
-    }
-    setSearchParams(nextParams);
-    hapticSelection();
-  };
-
-  const handleStrategySubTabChange = (subTabId: StrategySubTab) => {
-    setActiveStrategySubTab(subTabId);
-    const nextParams = new URLSearchParams(searchParams);
-    nextParams.set("tab", "strategy");
-    nextParams.set("subTab", subTabId);
     setSearchParams(nextParams);
     hapticSelection();
   };
@@ -444,8 +407,6 @@ export default function ClientDetail() {
             clientId={clientId}
             agencyId={agencyId}
             client={client}
-            activeView={activeStrategySubTab}
-            onViewChange={handleStrategySubTabChange}
           />
         );
       case "overview":
@@ -516,7 +477,6 @@ export default function ClientDetail() {
           <nav className="p-2 space-y-1">
             {primaryTabs.map((tab) => {
               const Icon = tab.icon;
-              const isStrategy = tab.id === "strategy";
               const isActive = activeTab === tab.id;
 
               return (
@@ -533,31 +493,6 @@ export default function ClientDetail() {
                     <Icon className="h-4 w-4 flex-shrink-0" />
                     <span className="truncate">{tab.label}</span>
                   </button>
-
-                  {/* Strategy sub-tabs - shown when Strategy is active */}
-                  {isStrategy && isActive && (
-                    <div className="ml-4 mt-1 space-y-0.5 border-l border-border/50 pl-2">
-                      {strategySubTabs.map((subTab) => {
-                        const SubIcon = subTab.icon;
-                        const isSubActive = activeStrategySubTab === subTab.id;
-                        return (
-                          <button
-                            key={subTab.id}
-                            onClick={() => handleStrategySubTabChange(subTab.id as StrategySubTab)}
-                            className={cn(
-                              "w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs font-medium transition-colors text-left",
-                              isSubActive
-                                ? "bg-primary/10 text-primary"
-                                : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
-                            )}
-                          >
-                            <SubIcon className="h-3.5 w-3.5 flex-shrink-0" />
-                            <span className="truncate">{subTab.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
                 </div>
               );
             })}
@@ -670,33 +605,6 @@ export default function ClientDetail() {
               primaryColor={primaryColor}
               onClientUpdate={handleClientUpdate}
             />
-          </div>
-        )}
-
-        {/* Mobile Strategy Sub-tabs - shown when Strategy is active */}
-        {isMobile && activeTab === "strategy" && (
-          <div className="mb-4 -mx-4 px-4 overflow-x-auto scrollbar-hide">
-            <div className="flex gap-1 pb-2 min-w-max">
-              {strategySubTabs.map((subTab) => {
-                const SubIcon = subTab.icon;
-                const isSubActive = activeStrategySubTab === subTab.id;
-                return (
-                  <button
-                    key={subTab.id}
-                    onClick={() => handleStrategySubTabChange(subTab.id as StrategySubTab)}
-                    className={cn(
-                      "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap",
-                      isSubActive
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted/50 text-muted-foreground hover:bg-muted",
-                    )}
-                  >
-                    <SubIcon className="h-3.5 w-3.5" />
-                    {subTab.label}
-                  </button>
-                );
-              })}
-            </div>
           </div>
         )}
 
