@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Upload, X } from "lucide-react";
+import { Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { UploadDropzone } from "@/components/shared/UploadDropzone";
 
 interface RawUploadZoneProps {
   clientId: string;
@@ -29,7 +30,6 @@ const CONTENT_TYPES = [
 ];
 
 export default function RawUploadZone({ clientId, agencyId, onUploadComplete }: RawUploadZoneProps) {
-  const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -38,37 +38,13 @@ export default function RawUploadZone({ clientId, agencyId, onUploadComplete }: 
   const [uploading, setUploading] = useState(false);
   const { toast } = useToast();
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = () => {
-    setIsDragging(false);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    
-    const files = Array.from(e.dataTransfer.files);
-    if (files.length > 0) {
-      setSelectedFile(files[0]);
-      // Auto-generate title from filename if not set
-      if (!title) {
-        setTitle(files[0].name.split('.')[0].replace(/-|_/g, ' '));
-      }
-    }
-  };
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      setSelectedFile(files[0]);
-      // Auto-generate title from filename if not set
-      if (!title) {
-        setTitle(files[0].name.split('.')[0].replace(/-|_/g, ' '));
-      }
+  const handleFileSelect = (files: File[]) => {
+    if (files.length === 0) return;
+    const file = files[0];
+    setSelectedFile(file);
+    // Auto-generate title from filename if not set
+    if (!title) {
+      setTitle(file.name.split('.')[0].replace(/-|_/g, ' '));
     }
   };
 
@@ -205,56 +181,16 @@ export default function RawUploadZone({ clientId, agencyId, onUploadComplete }: 
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Drag & Drop Zone */}
-        <div
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-            isDragging 
-              ? 'border-primary bg-primary/5' 
-              : 'border-border hover:border-primary/50'
-          }`}
-        >
-          {selectedFile ? (
-            <div className="space-y-2">
-              <div className="flex items-center justify-center gap-2">
-                <Upload className="h-5 w-5 text-primary" />
-                <span className="font-medium">{selectedFile.name}</span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSelectedFile(null)}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <Upload className="h-12 w-12 mx-auto text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">
-                Drag & drop your file here, or click to browse
-              </p>
-              <Input
-                type="file"
-                onChange={handleFileSelect}
-                className="hidden"
-                id="file-upload"
-                accept="video/*,image/*,audio/*,.pdf,.doc,.docx"
-              />
-              <Button
-                variant="outline"
-                onClick={() => document.getElementById('file-upload')?.click()}
-              >
-                Select File
-              </Button>
-            </div>
-          )}
-        </div>
+        <UploadDropzone
+          files={selectedFile ? [selectedFile] : []}
+          onFilesSelected={handleFileSelect}
+          onClearFiles={() => setSelectedFile(null)}
+          uploading={uploading}
+          accept="video/*,image/*,audio/*,.pdf,.doc,.docx"
+          browseLabel="Select file"
+          description="Drag & drop your file here, or click to browse"
+          helperText={selectedFile ? `${(selectedFile.size / 1024 / 1024).toFixed(2)} MB` : undefined}
+        />
 
         {/* Metadata Form */}
         <div className="space-y-4">

@@ -2,12 +2,12 @@ import { useOutletContext } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Upload, FileIcon, Clock, CheckCircle, XCircle } from "lucide-react";
+import { FileIcon, Clock, CheckCircle, XCircle } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useClientAuth } from "@/lib/client-auth";
+import { UploadDropzone } from "@/components/shared/UploadDropzone";
 
 const DEBUG_RELOAD = true;
 
@@ -29,6 +29,7 @@ export default function PortalUploads() {
   const [uploads, setUploads] = useState<ClientUpload[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
   useEffect(() => {
     fetchUploads();
@@ -194,9 +195,12 @@ export default function PortalUploads() {
     return null;
   };
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file || !clientUser) return;
+  const handleFileUpload = async (files: File[]) => {
+    const file = files[0];
+    if (!file || !clientUser) {
+      setSelectedFiles([]);
+      return;
+    }
 
     setUploading(true);
     try {
@@ -249,7 +253,7 @@ export default function PortalUploads() {
       });
     } finally {
       setUploading(false);
-      event.target.value = "";
+      setSelectedFiles([]);
     }
   };
 
@@ -297,19 +301,18 @@ export default function PortalUploads() {
           <CardTitle>Upload New File</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
-            <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground mb-4">Click to upload or drag and drop files here</p>
-            <input type="file" id="file-upload" className="hidden" onChange={handleFileUpload} disabled={uploading} />
-            <Button asChild disabled={uploading}>
-              <label htmlFor="file-upload" className="cursor-pointer">
-                {uploading ? "Uploading..." : "Choose File"}
-              </label>
-            </Button>
-            <p className="text-xs text-muted-foreground mt-2">
-              Max file size: 50MB. Allowed types: images, videos, PDFs, documents
-            </p>
-          </div>
+          <UploadDropzone
+            files={selectedFiles}
+            onFilesSelected={(files) => {
+              setSelectedFiles(files);
+              void handleFileUpload(files);
+            }}
+            uploading={uploading}
+            accept="image/*,video/*,.pdf,.doc,.docx"
+            browseLabel="Upload file"
+            description="Drag & drop your file here, or click to browse"
+            helperText="Max file size: 50MB. Allowed types: images, videos, PDFs, documents."
+          />
         </CardContent>
       </Card>
 

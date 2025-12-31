@@ -53,6 +53,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { AssetDetailModal } from "@/components/assets/AssetDetailModal";
+import { UploadDropzone } from "@/components/shared/UploadDropzone";
 
 interface AssetsTabProps {
   clientId: string;
@@ -87,6 +88,7 @@ export default function AssetsTab({ clientId, agencyId }: AssetsTabProps) {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [filter, setFilter] = useState<FilterType>("all");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [previewAsset, setPreviewAsset] = useState<Asset | null>(null);
@@ -123,8 +125,7 @@ export default function AssetsTab({ clientId, agencyId }: AssetsTabProps) {
     setLoading(false);
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
+  const handleFileUpload = async (files: File[]) => {
     if (!files || files.length === 0) return;
 
     setUploading(true);
@@ -132,7 +133,7 @@ export default function AssetsTab({ clientId, agencyId }: AssetsTabProps) {
     try {
       const { data: { user } } = await supabase.auth.getUser();
 
-      for (const file of Array.from(files)) {
+      for (const file of files) {
         // Upload to storage
         const fileExt = file.name.split(".").pop();
         const fileName = `${clientId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
@@ -199,7 +200,7 @@ export default function AssetsTab({ clientId, agencyId }: AssetsTabProps) {
       });
     } finally {
       setUploading(false);
-      if (e.target) e.target.value = "";
+      setSelectedFiles([]);
     }
   };
 
@@ -401,32 +402,29 @@ export default function AssetsTab({ clientId, agencyId }: AssetsTabProps) {
 
   return (
     <div className="space-y-4">
-      {/* Header with Upload */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-2">
           <FolderOpen className="h-5 w-5" />
           <h2 className="text-lg font-semibold">Assets Library</h2>
         </div>
-        {canCreateContent && !isViewer && (
-          <div>
-            <input
-              type="file"
-              id="file-upload"
-              multiple
-              accept="image/*,video/*,.pdf,.doc,.docx,.csv,.txt"
-              onChange={handleFileUpload}
-              className="hidden"
-            />
-            <Button
-              onClick={() => document.getElementById("file-upload")?.click()}
-              disabled={uploading}
-            >
-              <Upload className="mr-2 h-4 w-4" />
-              {uploading ? "Uploading..." : "Upload Files"}
-            </Button>
-          </div>
-        )}
       </div>
+
+      {canCreateContent && !isViewer && (
+        <UploadDropzone
+          files={selectedFiles}
+          onFilesSelected={(files) => {
+            setSelectedFiles(files);
+            void handleFileUpload(files);
+          }}
+          uploading={uploading}
+          multiple
+          accept="image/*,video/*,.pdf,.doc,.docx,.csv,.txt"
+          browseLabel="Upload files"
+          description="Drag & drop files here, or click to browse"
+          helperText="Accepted types: images, videos, PDFs, docs, CSV, TXT."
+        />
+      )}
 
       {/* Viewer Notice */}
       {isViewer && (
@@ -691,12 +689,6 @@ export default function AssetsTab({ clientId, agencyId }: AssetsTabProps) {
             <p className="text-sm text-muted-foreground mb-4">
               Upload your first asset to get started
             </p>
-            <Button
-              onClick={() => document.getElementById("file-upload")?.click()}
-            >
-              <Upload className="mr-2 h-4 w-4" />
-              Upload Files
-            </Button>
           </CardContent>
         </Card>
       )}
