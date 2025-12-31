@@ -1,6 +1,7 @@
 // Strategy OS - AI Assistant Tab
 
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useStrategyOS } from '../StrategyOSContext';
 import { GenerateStrategyButton } from '../shared/GenerateStrategyButton';
 import { AI_COPILOT_MODES } from '@/lib/strategy/constants';
@@ -66,7 +67,7 @@ In ${aiCopilotMode} mode, I would ${
             : 'automatically apply changes (requires confirmation)'
         }.
 
-This is a placeholder response. Full AI integration coming soon.`,
+AI is not configured yet. Complete Agency Brain to enable this assistant.`,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, assistantMessage]);
@@ -111,6 +112,15 @@ This is a placeholder response. Full AI integration coming soon.`,
       {/* Chat Messages */}
       <ScrollArea className="flex-1 p-3">
         <div className="space-y-4">
+          <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
+            <div className="text-sm font-semibold">AI is not configured yet</div>
+            <p className="text-xs text-muted-foreground">
+              Complete the Agency Brain to activate AI copilots and tailored strategy guidance.
+            </p>
+            <Button size="sm" asChild>
+              <Link to="/agency/brain">Complete Agency Brain</Link>
+            </Button>
+          </div>
           {messages.map((message) => (
             <div
               key={message.id}

@@ -801,7 +801,7 @@ export default function Landing() {
           <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
             <div className="text-center">
               <Play className="mx-auto h-16 w-16 text-primary mb-4" />
-              <p className="text-muted-foreground">Demo video placeholder</p>
+              <p className="text-muted-foreground">Walkthrough video</p>
               <p className="text-sm text-muted-foreground mt-2">Replace with actual video embed</p>
             </div>
           </div>

@@ -2,6 +2,7 @@
 // Accessible from all ClientDetail tabs as a slide-in panel
 
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -118,7 +119,7 @@ What would you like help with?`,
         role: 'assistant',
         content: `I understand you want help with: "${userMessage.content}".
 
-This is a placeholder response. Full AI integration coming soon.`,
+AI is not configured yet. Complete Agency Brain to enable this assistant.`,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, assistantMessage]);
@@ -195,6 +196,15 @@ This is a placeholder response. Full AI integration coming soon.`,
               <TabsContent value="ai" className="h-full m-0 p-0 flex flex-col">
                 <ScrollArea className="flex-1 p-3">
                   <div className="space-y-4">
+                    <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
+                      <div className="text-sm font-semibold">AI is not configured yet</div>
+                      <p className="text-xs text-muted-foreground">
+                        Finish configuring your Agency Brain to unlock AI assistance, insights, and client guidance.
+                      </p>
+                      <Button size="sm" asChild>
+                        <Link to="/agency/brain">Complete Agency Brain</Link>
+                      </Button>
+                    </div>
                     {messages.map((message) => (
                       <div
                         key={message.id}

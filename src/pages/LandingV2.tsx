@@ -344,7 +344,7 @@ export default function LandingV2() {
                 <div
                   key={i}
                   className="h-12 w-28 rounded-lg border bg-card/50"
-                  aria-label="Pilot agency logo placeholder"
+                  aria-label="Pilot agency logo"
                 />
               ))}
             </div>
@@ -506,7 +506,7 @@ export default function LandingV2() {
           <div className="mx-auto max-w-6xl">
             <div className="mx-auto max-w-3xl text-center">
               <p className="text-sm font-semibold uppercase tracking-[0.22em] text-muted-foreground">Demo</p>
-              <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">Screenshots (placeholders)</h2>
+              <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">Product preview</h2>
               <p className="mt-4 text-muted-foreground">
                 Replace these with real product shots when ready: [Screenshots].
               </p>
