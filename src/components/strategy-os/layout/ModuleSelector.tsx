@@ -105,7 +105,6 @@ function ModuleSelectorItem({
 
   return (
     <button
-      type="button"
       onClick={onClick}
       className={cn(
         'group relative flex items-center gap-2 rounded-lg transition-all duration-200',
