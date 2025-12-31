@@ -12,6 +12,7 @@ import { StepLayout } from '../components/StepLayout';
 import { useOnboarding } from '../OnboardingContext';
 import { calculateReadiness, getBlockers, areBlockersCleared, getReadinessLevel } from '@/lib/onboarding/readiness';
 import { useToast } from '@/hooks/use-toast';
+import { getMissingFieldMeta } from '@/data';
 import {
   Target,
   Layers,
@@ -86,7 +87,7 @@ const STRATEGY_MODULES = [
 ];
 
 export function ReviewStep() {
-  const { state, prevStep, completeOnboarding } = useOnboarding();
+  const { state, prevStep, completeOnboarding, goToStep } = useOnboarding();
   const navigate = useNavigate();
   const { toast } = useToast();
   const currentStep = state.steps.find((s) => s.id === 'review');
@@ -140,6 +141,29 @@ export function ReviewStep() {
       (field) => state.profile[field as keyof typeof state.profile] === 'ai_assumed'
     ).length;
   }, [state.profile]);
+
+  const getStepIdFromHref = (href: string | null | undefined) => {
+    if (!href) return null;
+    const [prefix, value] = href.split(':');
+    if (prefix === 'onboarding') return value || null;
+    return null;
+  };
+
+  const handleFixNow = (href: string) => {
+    const stepId = getStepIdFromHref(href);
+    const targetStepId = stepId === 'start' ? state.steps[0]?.id : stepId;
+    if (targetStepId) {
+      const targetIndex = state.steps.findIndex((step) => step.id === targetStepId);
+      if (targetIndex >= 0) {
+        goToStep(targetIndex);
+        return;
+      }
+    }
+
+    if (state.profile.client_id) {
+      navigate(`/onboarding/client/${state.profile.client_id}`);
+    }
+  };
 
   const handleGenerateStrategy = async () => {
     if (!canComplete) return;
@@ -285,15 +309,42 @@ export function ReviewStep() {
                     className="h-1 mt-3"
                   />
 
-                  {/* Missing fields hint */}
+                  {/* Missing fields */}
                   {module.missingFields.length > 0 && module.completion < 100 && (
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Missing: {module.missingFields
-                        .map((f) => f.replace(/^q\d+_/, '').replace(/_/g, ' '))
-                        .slice(0, 2)
-                        .join(', ')}
-                      {module.missingFields.length > 2 && ` +${module.missingFields.length - 2}`}
-                    </p>
+                    <div className="mt-3 space-y-2">
+                      {module.missingFields.map((field) => {
+                        const meta = getMissingFieldMeta(field) ?? {
+                          label: "Required information",
+                          reason: "Complete this step to finish the strategy setup.",
+                          ctaLabel: "Fix now",
+                          href: "onboarding:start",
+                        };
+
+                        return (
+                          <div
+                            key={`${module.key}-${field}`}
+                            className="flex items-center justify-between gap-2 rounded-md border border-border/60 bg-muted/30 px-2 py-2 text-left"
+                          >
+                            <div className="min-w-0">
+                              <div className="text-xs font-medium text-foreground">
+                                {meta.label}
+                              </div>
+                              <div className="text-[11px] text-muted-foreground">
+                                {meta.reason}
+                              </div>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-2 text-xs"
+                              onClick={() => handleFixNow(meta.href)}
+                            >
+                              {meta.ctaLabel || "Fix now"}
+                            </Button>
+                          </div>
+                        );
+                      })}
+                    </div>
                   )}
                 </CardContent>
               </Card>

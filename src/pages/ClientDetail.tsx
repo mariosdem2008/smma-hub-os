@@ -14,7 +14,7 @@ import { useClientFonts } from "@/hooks/useClientFonts";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { hapticSelection } from "@/lib/haptics";
-import { getClientBrainStatus, getClientById, getClientBrandingPrimaryColor } from "@/data";
+import { getClientBrainStatus, getClientById, getClientBrandingPrimaryColor, getMissingFieldMeta } from "@/data";
 import { isPermissionError } from "@/data/supabase";
 import ClientHeader from "@/components/ClientHeader";
 import OverviewTab from "@/components/client-tabs/OverviewTab";
@@ -267,6 +267,13 @@ export default function ClientDetail() {
     }
   };
 
+  const getStepIdFromHref = (href: string | null | undefined) => {
+    if (!href) return null;
+    const [prefix, value] = href.split(":");
+    if (prefix === "onboarding") return value || null;
+    return null;
+  };
+
   const handleTabChange = (tabId: string) => {
     const nextTab = tabId === "planning" ? "strategy" : tabId;
     setActiveTab(nextTab);
@@ -334,6 +341,27 @@ export default function ClientDetail() {
         : gateStatus?.missingFields?.length;
     // V4 Onboarding URL
     const onboardingUrl = `/onboarding/client/${clientId}`;
+    const missingFields = gateStatus?.missingFields ?? [];
+    const missingFieldItems = missingFields.map((field) => {
+      const meta = getMissingFieldMeta(field) ?? {
+        label: "Required information",
+        reason: "Complete this step to unlock strategy and content tools.",
+        ctaLabel: "Fix now",
+        href: "onboarding:start",
+      };
+      return { field, meta };
+    });
+
+    const buildOnboardingHref = (href: string) => {
+      const stepId = getStepIdFromHref(href);
+      const params = new URLSearchParams();
+      if (returnTo) params.set("returnTo", returnTo);
+      if (stepId && stepId !== "start") {
+        params.set("step", stepId);
+      }
+      const query = params.toString();
+      return query ? `/onboarding/client/${clientId}?${query}` : `/onboarding/client/${clientId}`;
+    };
 
     return (
       <div className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center p-6">
@@ -350,6 +378,33 @@ export default function ClientDetail() {
                 </p>
               )}
             </div>
+            {missingFieldItems.length > 0 && (
+              <div className="space-y-2 text-left">
+                {missingFieldItems.map((item) => (
+                  <div
+                    key={`missing-${item.field}`}
+                    className="flex items-center justify-between gap-3 rounded-md border border-border/60 bg-muted/30 px-3 py-2"
+                  >
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-foreground">
+                        {item.meta.label}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {item.meta.reason}
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 px-3 text-xs"
+                      onClick={() => navigate(buildOnboardingHref(item.meta.href))}
+                    >
+                      {item.meta.ctaLabel || "Fix now"}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
               <Button
                 onClick={() =>

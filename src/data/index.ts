@@ -24,6 +24,144 @@ export {
   type DbError,
 } from "./supabase";
 
+export type MissingFieldMeta = {
+  label: string;
+  reason: string;
+  ctaLabel: string;
+  href: string;
+};
+
+export const missingFieldMeta: Record<string, MissingFieldMeta> = {
+  enabled_channels: {
+    label: "Connect channels",
+    reason: "Select at least one channel to build a channel-aware strategy.",
+    ctaLabel: "Fix now",
+    href: "onboarding:q16_enabled_channels",
+  },
+  cadence: {
+    label: "Set posting cadence",
+    reason: "Define weekly posting volume for each enabled channel.",
+    ctaLabel: "Fix now",
+    href: "onboarding:q18_cadence",
+  },
+  primary_goal: {
+    label: "Set primary goal",
+    reason: "Clarify the main outcome this strategy should drive.",
+    ctaLabel: "Fix now",
+    href: "onboarding:q17_primary_goal",
+  },
+  offer_details: {
+    label: "Add offer details",
+    reason: "Provide your core offer and CTA so messaging is aligned.",
+    ctaLabel: "Fix now",
+    href: "onboarding:q6_offer_details",
+  },
+  ideal_customer: {
+    label: "Define ideal customer",
+    reason: "Describe who this strategy is built for.",
+    ctaLabel: "Fix now",
+    href: "onboarding:q8_ideal_customer",
+  },
+  pain_points: {
+    label: "Add pain points",
+    reason: "List the key challenges your audience is trying to solve.",
+    ctaLabel: "Fix now",
+    href: "onboarding:q9_pain_points",
+  },
+  desired_outcome: {
+    label: "Set desired outcome",
+    reason: "Specify the outcome this strategy should deliver.",
+    ctaLabel: "Fix now",
+    href: "onboarding:q10_desired_outcome",
+  },
+  differentiators: {
+    label: "Add differentiators",
+    reason: "Capture what makes the offer distinct in the market.",
+    ctaLabel: "Fix now",
+    href: "onboarding:q13_differentiators",
+  },
+  proof_level: {
+    label: "Set proof level",
+    reason: "Choose the strength of proof behind your claims.",
+    ctaLabel: "Fix now",
+    href: "onboarding:q14_proof_level",
+  },
+  proof_points: {
+    label: "Add proof points",
+    reason: "Provide evidence to support your positioning claims.",
+    ctaLabel: "Fix now",
+    href: "onboarding:q15_proof_points",
+  },
+  competitors: {
+    label: "Add competitors",
+    reason: "List competitors to shape positioning and differentiation.",
+    ctaLabel: "Fix now",
+    href: "onboarding:q12_competitors",
+  },
+  sales_cycle: {
+    label: "Define sales cycle",
+    reason: "Clarify how long it takes prospects to convert.",
+    ctaLabel: "Fix now",
+    href: "onboarding:q11_sales_cycle",
+  },
+  business_name: {
+    label: "Add business name",
+    reason: "We need the business name to personalize the strategy.",
+    ctaLabel: "Fix now",
+    href: "onboarding:q1_business_name",
+  },
+  website: {
+    label: "Add website or socials",
+    reason: "Provide at least one URL so the strategy has context.",
+    ctaLabel: "Fix now",
+    href: "onboarding:q2_website_socials",
+  },
+  onboarding_not_started: {
+    label: "Start onboarding",
+    reason: "No onboarding details are available for this client yet.",
+    ctaLabel: "Start now",
+    href: "onboarding:start",
+  },
+};
+
+const missingFieldAliases: Record<string, string> = {
+  enabled_channels: "enabled_channels",
+  cadence: "cadence",
+  primary_goal: "primary_goal",
+  ideal_customer: "ideal_customer",
+  differentiators: "differentiators",
+  proof_points: "proof_points",
+  proof_level: "proof_level",
+  offer_name: "offer_details",
+  main_cta: "offer_details",
+  offer_details: "offer_details",
+  business_name: "business_name",
+  website: "website",
+  website_socials: "website",
+  social_links: "website",
+  pain_points: "pain_points",
+  desired_outcome: "desired_outcome",
+  competitors: "competitors",
+  sales_cycle: "sales_cycle",
+  brand_basics_name: "business_name",
+  brand_basics: "business_name",
+  goals: "primary_goal",
+  onboarding_not_started: "onboarding_not_started",
+};
+
+export function normalizeMissingFieldKey(rawKey: string): string {
+  const trimmed = rawKey?.trim().toLowerCase();
+  if (!trimmed) return trimmed;
+  const withoutPrefix = trimmed.replace(/^q\d+_/, "");
+  const normalized = withoutPrefix.replace(/\./g, "_");
+  return missingFieldAliases[normalized] ?? normalized;
+}
+
+export function getMissingFieldMeta(rawKey: string): MissingFieldMeta | undefined {
+  const canonicalKey = normalizeMissingFieldKey(rawKey);
+  return missingFieldMeta[canonicalKey];
+}
+
 async function getAccessToken(): Promise<string> {
   const {
     data: { session },
