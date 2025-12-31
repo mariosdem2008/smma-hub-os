@@ -31,6 +31,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
+import { getDisplayName } from "@/lib/displayName";
 import { useRole } from "@/hooks/useRole";
 import { Plus, Pencil, Trash2, CalendarIcon, Clock, Filter, ArrowUpDown, BookTemplate } from "lucide-react";
 import { format, isPast } from "date-fns";
@@ -319,9 +320,9 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
   };
 
   const getAssignedMemberName = (userId: string | null) => {
-    if (!userId) return "Unassigned";
+    if (!userId) return getDisplayName(null, { unassigned: true });
     const member = teamMembers.find((m) => m.user_id === userId);
-    return member?.profiles?.full_name || member?.profiles?.email || "Unknown";
+    return getDisplayName(member?.profiles);
   };
 
   // Apply filters and sorting
@@ -542,7 +543,7 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
                           <SelectItem value="unassigned">Unassigned</SelectItem>
                           {teamMembers.map((member) => (
                             <SelectItem key={member.user_id} value={member.user_id}>
-                              {member.profiles?.full_name || member.profiles?.email || "Unknown"}
+                              {getDisplayName(member.profiles)}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -605,7 +606,7 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
                 <SelectItem value="unassigned">Unassigned</SelectItem>
                 {teamMembers.map((member) => (
                   <SelectItem key={member.user_id} value={member.user_id}>
-                    {member.profiles?.full_name || member.profiles?.email || "Unknown"}
+                    {getDisplayName(member.profiles)}
                   </SelectItem>
                 ))}
               </SelectContent>

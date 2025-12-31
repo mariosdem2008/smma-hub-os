@@ -5,6 +5,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle, XCircle, Send, FileEdit } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { getDisplayName } from "@/lib/displayName";
 
 interface Activity {
   id: string;
@@ -15,7 +16,7 @@ interface Activity {
   created_at: string;
   actor: {
     full_name: string | null;
-    email: string;
+    email: string | null;
   };
 }
 
@@ -61,7 +62,7 @@ export default function ContentActivityFeed({
 
       const activitiesWithActors = activitiesData?.map(activity => ({
         ...activity,
-        actor: profilesMap.get(activity.actor_id) || { full_name: null, email: "Unknown" }
+        actor: profilesMap.get(activity.actor_id) || { full_name: null, email: null }
       })) || [];
 
       setActivities(activitiesWithActors as any);
@@ -158,7 +159,7 @@ export default function ContentActivityFeed({
                   <div className="flex-1 space-y-1">
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-sm">
-                        {activity.actor.full_name || activity.actor.email}
+                        {getDisplayName(activity.actor)}
                       </span>
                       <Badge variant={getActionColor(activity.action) as any}>
                         {activity.action}

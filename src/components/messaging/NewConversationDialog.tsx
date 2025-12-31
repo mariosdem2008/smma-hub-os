@@ -8,6 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { getDisplayName } from "@/lib/displayName";
 import { useRole } from "@/hooks/useRole";
 import { useCreateConversation } from "@/hooks/useCreateConversation";
 import { Search, MessageSquare, Users } from "lucide-react";
@@ -235,7 +236,7 @@ export function NewConversationDialog({ open, onOpenChange }: NewConversationDia
                             </AvatarFallback>
                           </Avatar>
                           <div className="flex-1 text-left">
-                            <div className="font-medium">{member.profile?.full_name || "Unknown"}</div>
+                            <div className="font-medium">{getDisplayName(member.profile)}</div>
                             <div className="text-xs text-muted-foreground">{member.profile?.email}</div>
                           </div>
                           <Badge variant="outline" className="text-xs">

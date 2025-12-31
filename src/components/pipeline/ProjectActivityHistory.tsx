@@ -5,6 +5,7 @@ import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, CheckCircle, XCircle, Clock, User } from "lucide-react";
 import { format } from "date-fns";
+import { getDisplayName } from "@/lib/displayName";
 
 interface Activity {
   id: string;
@@ -65,10 +66,12 @@ export default function ProjectActivityHistory({
       // Fetch actor details
       const activitiesWithActors = await Promise.all(
         (data || []).map(async (activity) => {
-          let actorName = "Unknown";
+          let actorName = getDisplayName(null);
           let actorEmail = "";
 
-          if (activity.actor_type === "agency") {
+          if (activity.actor_type === "system") {
+            actorName = "System";
+          } else if (activity.actor_type === "agency") {
             const { data: profile } = await supabase
               .from("profiles")
               .select("full_name, email")
@@ -76,7 +79,7 @@ export default function ProjectActivityHistory({
               .single();
 
             if (profile) {
-              actorName = profile.full_name || profile.email;
+              actorName = getDisplayName(profile);
               actorEmail = profile.email;
             }
           } else if (activity.actor_type === "client") {
@@ -87,7 +90,7 @@ export default function ProjectActivityHistory({
               .single();
 
             if (clientUser) {
-              actorName = clientUser.full_name || clientUser.email;
+              actorName = getDisplayName(clientUser);
               actorEmail = clientUser.email;
             }
           }
