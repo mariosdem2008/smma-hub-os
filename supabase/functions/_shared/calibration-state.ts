@@ -22,6 +22,8 @@ import {
   isQuestionAnswered,
 } from "./brain-documents.ts";
 
+export { isQuestionAnswered };
+
 type MinimalSupabase = {
   from: (table: string) => any;
 };

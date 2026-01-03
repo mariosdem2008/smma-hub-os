@@ -15,6 +15,14 @@ interface DocumentViewerProps {
 }
 
 export function DocumentViewer({ document, contentMode, searchQuery }: DocumentViewerProps) {
+  const label = document ? BRAIN_MODULE_LABELS[document.module] : "";
+  const hasWarnings = false; // TODO: Add warnings from AI analysis
+  const outlineItems = useMemo(
+    () => (document ? buildOutline(document.content_json) : []),
+    [document?.content_json],
+  );
+  const normalizedQuery = searchQuery?.trim() ?? "";
+
   if (!document) {
     return (
       <Card className="border-dashed">
@@ -28,11 +36,6 @@ export function DocumentViewer({ document, contentMode, searchQuery }: DocumentV
       </Card>
     );
   }
-
-  const label = BRAIN_MODULE_LABELS[document.module];
-  const hasWarnings = false; // TODO: Add warnings from AI analysis
-  const outlineItems = useMemo(() => buildOutline(document.content_json), [document.content_json]);
-  const normalizedQuery = searchQuery?.trim() ?? "";
 
   return (
     <Card>

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,6 +34,7 @@ import StrategyHubTab from "@/components/client-tabs/StrategyHubTab";
 import IdeaScriptingTab from "@/components/client-tabs/IdeaScriptingTab";
 import { ClientRightPanel, ClientRightPanelTrigger } from "@/components/client-detail/ClientRightPanel";
 import { cn } from "@/lib/utils";
+import { isFeatureEnabled } from "@/lib/featureFlags";
 import {
   LayoutDashboard,
   BarChart3,
@@ -49,11 +51,7 @@ import {
   Lightbulb,
   MoreHorizontal,
   ChevronDown,
-  Target,
-  Layers,
-  Calendar,
-  CalendarDays,
-  Shield,
+  ChevronLeft,
 } from "lucide-react";
 
 interface Client {
@@ -64,6 +62,7 @@ interface Client {
   company: string | null;
   status: string;
   created_at: string;
+  updated_at?: string;
   logo_url: string | null;
   niche: string | null;
   website: string | null;
@@ -81,7 +80,8 @@ const primaryTabs = [
   { id: "idea-scripting", label: "Idea/Scripting", icon: FileText },
   { id: "calendar", label: "Calendar", icon: CalendarIcon },
   { id: "library", label: "Library", icon: FolderOpen },
-  { id: "portal", label: "Portal", icon: Users },
+  { id: "tasks", label: "Tasks", icon: CheckSquare },
+  { id: "portal", label: "Approvals & Access", icon: Users },
 ];
 
 const secondaryTabs = [
@@ -91,22 +91,8 @@ const secondaryTabs = [
   { id: "reports", label: "Reports", icon: FileText },
   { id: "brand", label: "Brand Identity", icon: Palette },
   { id: "social", label: "Social Profiles", icon: Share2 },
-  { id: "uploads", label: "Client Uploads", icon: Upload },
-  { id: "tasks", label: "Tasks", icon: CheckSquare },
+  { id: "uploads", label: "Client Submissions", icon: Upload },
 ];
-
-// Strategy sub-tabs (shown when Strategy is selected)
-const strategySubTabs = [
-  { id: "mission-control", label: "Overview", icon: LayoutDashboard },
-  { id: "positioning", label: "Positioning", icon: Target },
-  { id: "pillars", label: "Pillars", icon: Layers },
-  { id: "campaign_plan", label: "Campaign", icon: Calendar },
-  { id: "weekly_plan", label: "Weekly", icon: CalendarDays },
-  { id: "channel_adaptations", label: "Channels", icon: Share2 },
-  { id: "rules_constraints", label: "Rules", icon: Shield },
-];
-
-type StrategySubTab = typeof strategySubTabs[number]["id"];
 
 const allTabs = [...primaryTabs, ...secondaryTabs];
 
@@ -128,12 +114,16 @@ export default function ClientDetail() {
   } | null>(null);
   const [gateNoAccess, setGateNoAccess] = useState(false);
   const [activeTab, setActiveTab] = useState("strategy");
-  const [activeStrategySubTab, setActiveStrategySubTab] = useState<StrategySubTab>("mission-control");
   const [agencyId, setAgencyId] = useState<string>("");
   const lastFocusRef = useRef<string | null>(null);
   const lastActionRef = useRef<string | null>(null);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
+
+  // Tab notification badges (behind feature flag)
+  const [tabBadgeCounts, setTabBadgeCounts] = useState<Record<string, number>>({});
+  const showTabBadges = isFeatureEnabled("CLIENTDETAIL_TAB_BADGES");
+  const showRightPanel = isFeatureEnabled("CLIENTDETAIL_RIGHT_PANEL");
 
   // FIX: Clean the client ID by removing query parameters
   const clientId = rawClientId?.split("?")[0] || "";
@@ -153,6 +143,7 @@ export default function ClientDetail() {
       setClient({
         ...data,
         status: data.status || "active",
+        updated_at: data.updated_at,
         brand_colors: Array.isArray(data.brand_colors) ? (data.brand_colors as string[]) : null,
       });
       setAgencyId(data.agency_id);
@@ -214,7 +205,6 @@ export default function ClientDetail() {
   // Handle URL-based tab navigation
   useEffect(() => {
     const tab = searchParams.get("tab");
-    const subTab = searchParams.get("subTab");
     const normalizedTab = tab === "planning" ? "strategy" : tab;
     if (normalizedTab && allTabs.some((t) => t.id === normalizedTab)) {
       setActiveTab(normalizedTab);
@@ -223,10 +213,6 @@ export default function ClientDetail() {
       const nextParams = new URLSearchParams(searchParams);
       nextParams.set("tab", "strategy");
       setSearchParams(nextParams);
-    }
-    // Handle strategy sub-tab from URL
-    if (subTab && strategySubTabs.some((t) => t.id === subTab)) {
-      setActiveStrategySubTab(subTab as StrategySubTab);
     }
   }, [searchParams, setSearchParams]);
 
@@ -279,19 +265,6 @@ export default function ClientDetail() {
     setActiveTab(nextTab);
     const nextParams = new URLSearchParams(searchParams);
     nextParams.set("tab", nextTab);
-    // Clear subTab when switching away from strategy
-    if (nextTab !== "strategy") {
-      nextParams.delete("subTab");
-    }
-    setSearchParams(nextParams);
-    hapticSelection();
-  };
-
-  const handleStrategySubTabChange = (subTabId: StrategySubTab) => {
-    setActiveStrategySubTab(subTabId);
-    const nextParams = new URLSearchParams(searchParams);
-    nextParams.set("tab", "strategy");
-    nextParams.set("subTab", subTabId);
     setSearchParams(nextParams);
     hapticSelection();
   };
@@ -443,9 +416,6 @@ export default function ClientDetail() {
           <StrategyHubTab
             clientId={clientId}
             agencyId={agencyId}
-            client={client}
-            activeView={activeStrategySubTab}
-            onViewChange={handleStrategySubTabChange}
           />
         );
       case "overview":
@@ -501,7 +471,14 @@ export default function ClientDetail() {
       {/* Left Sidebar Navigation */}
       {!isMobile && (
         <aside className="w-56 border-r bg-muted/30 flex-shrink-0">
-          <div className="p-4 border-b">
+          <div className="p-4 border-b space-y-3">
+            <button
+              onClick={() => navigate("/clients")}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ChevronLeft className="h-3 w-3" />
+              <span>Clients</span>
+            </button>
             <ClientHeader
               clientId={clientId}
               name={client.name}
@@ -509,6 +486,8 @@ export default function ClientDetail() {
               niche={client.niche}
               website={client.website}
               primaryColor={primaryColor}
+              status={client.status}
+              updatedAt={client.updated_at}
               compact
               onClientUpdate={handleClientUpdate}
             />
@@ -516,8 +495,8 @@ export default function ClientDetail() {
           <nav className="p-2 space-y-1">
             {primaryTabs.map((tab) => {
               const Icon = tab.icon;
-              const isStrategy = tab.id === "strategy";
               const isActive = activeTab === tab.id;
+              const badgeCount = showTabBadges ? tabBadgeCounts[tab.id] ?? 0 : 0;
 
               return (
                 <div key={tab.id}>
@@ -531,33 +510,16 @@ export default function ClientDetail() {
                     )}
                   >
                     <Icon className="h-4 w-4 flex-shrink-0" />
-                    <span className="truncate">{tab.label}</span>
+                    <span className="truncate flex-1">{tab.label}</span>
+                    {badgeCount > 0 && (
+                      <Badge
+                        variant="destructive"
+                        className="h-5 min-w-[20px] px-1.5 text-[10px] font-semibold"
+                      >
+                        {badgeCount > 99 ? "99+" : badgeCount}
+                      </Badge>
+                    )}
                   </button>
-
-                  {/* Strategy sub-tabs - shown when Strategy is active */}
-                  {isStrategy && isActive && (
-                    <div className="ml-4 mt-1 space-y-0.5 border-l border-border/50 pl-2">
-                      {strategySubTabs.map((subTab) => {
-                        const SubIcon = subTab.icon;
-                        const isSubActive = activeStrategySubTab === subTab.id;
-                        return (
-                          <button
-                            key={subTab.id}
-                            onClick={() => handleStrategySubTabChange(subTab.id as StrategySubTab)}
-                            className={cn(
-                              "w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs font-medium transition-colors text-left",
-                              isSubActive
-                                ? "bg-primary/10 text-primary"
-                                : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
-                            )}
-                          >
-                            <SubIcon className="h-3.5 w-3.5 flex-shrink-0" />
-                            <span className="truncate">{subTab.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
                 </div>
               );
             })}
@@ -599,16 +561,24 @@ export default function ClientDetail() {
           <div className="flex overflow-x-auto scrollbar-hide py-2 px-2 gap-1">
             {primaryTabs.map((tab) => {
               const Icon = tab.icon;
+              const badgeCount = showTabBadges ? tabBadgeCounts[tab.id] ?? 0 : 0;
               return (
                 <button
                   key={tab.id}
                   onClick={() => handleTabChange(tab.id)}
                   className={cn(
-                    "flex flex-col items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium transition-colors flex-shrink-0 min-w-[60px]",
+                    "relative flex flex-col items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium transition-colors flex-shrink-0 min-w-[60px]",
                     activeTab === tab.id ? "bg-primary text-primary-foreground" : "text-muted-foreground",
                   )}
                 >
-                  <Icon className="h-4 w-4" />
+                  <div className="relative">
+                    <Icon className="h-4 w-4" />
+                    {badgeCount > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 h-4 min-w-[16px] px-1 text-[9px] font-bold bg-destructive text-destructive-foreground rounded-full flex items-center justify-center">
+                        {badgeCount > 9 ? "9+" : badgeCount}
+                      </span>
+                    )}
+                  </div>
                   <span className="truncate max-w-[60px]">{tab.label}</span>
                 </button>
               );
@@ -660,7 +630,14 @@ export default function ClientDetail() {
       <main className={cn("flex-1 overflow-auto", isMobile ? "pb-24 p-4" : "p-6")}>
         {/* Show client header on mobile */}
         {isMobile && (
-          <div className="mb-4">
+          <div className="mb-4 space-y-3">
+            <button
+              onClick={() => navigate("/clients")}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ChevronLeft className="h-3 w-3" />
+              <span>Clients</span>
+            </button>
             <ClientHeader
               clientId={clientId}
               name={client.name}
@@ -668,35 +645,10 @@ export default function ClientDetail() {
               niche={client.niche}
               website={client.website}
               primaryColor={primaryColor}
+              status={client.status}
+              updatedAt={client.updated_at}
               onClientUpdate={handleClientUpdate}
             />
-          </div>
-        )}
-
-        {/* Mobile Strategy Sub-tabs - shown when Strategy is active */}
-        {isMobile && activeTab === "strategy" && (
-          <div className="mb-4 -mx-4 px-4 overflow-x-auto scrollbar-hide">
-            <div className="flex gap-1 pb-2 min-w-max">
-              {strategySubTabs.map((subTab) => {
-                const SubIcon = subTab.icon;
-                const isSubActive = activeStrategySubTab === subTab.id;
-                return (
-                  <button
-                    key={subTab.id}
-                    onClick={() => handleStrategySubTabChange(subTab.id as StrategySubTab)}
-                    className={cn(
-                      "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap",
-                      isSubActive
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted/50 text-muted-foreground hover:bg-muted",
-                    )}
-                  >
-                    <SubIcon className="h-3.5 w-3.5" />
-                    {subTab.label}
-                  </button>
-                );
-              })}
-            </div>
           </div>
         )}
 
@@ -710,15 +662,19 @@ export default function ClientDetail() {
         <div className="space-y-4">{renderTabContent()}</div>
       </main>
 
-      {/* Global Right Panel Trigger */}
-      <ClientRightPanelTrigger onClick={() => setRightPanelOpen(true)} />
+      {/* Global Right Panel Trigger - Hidden when feature flag is OFF */}
+      {showRightPanel && (
+        <ClientRightPanelTrigger onClick={() => setRightPanelOpen(true)} />
+      )}
 
-      {/* Global Right Panel (AI Chat, Decisions, History, Tasks) */}
-      <ClientRightPanel
-        open={rightPanelOpen}
-        onOpenChange={setRightPanelOpen}
-        clientId={clientId}
-      />
+      {/* Global Right Panel (AI Chat, Decisions, History, Tasks) - Hidden when feature flag is OFF */}
+      {showRightPanel && (
+        <ClientRightPanel
+          open={rightPanelOpen}
+          onOpenChange={setRightPanelOpen}
+          clientId={clientId}
+        />
+      )}
     </div>
   );
 }

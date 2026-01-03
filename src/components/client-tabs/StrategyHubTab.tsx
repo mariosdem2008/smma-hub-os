@@ -1,4 +1,4 @@
-import { StrategyOS } from "@/components/strategy-os/StrategyOS";
+import { StrategyOSV3 } from "@/components/strategy-os/StrategyOSV3";
 import type { ActiveView } from "@/lib/strategy/types";
 
 interface StrategyHubTabProps {
@@ -16,9 +16,6 @@ interface StrategyHubTabProps {
 export default function StrategyHubTab({
   clientId,
   agencyId,
-  client,
-  activeView = "mission-control",
-  onViewChange,
 }: StrategyHubTabProps) {
   // If no agencyId, show a minimal error state
   if (!agencyId) {
@@ -31,12 +28,5 @@ export default function StrategyHubTab({
     );
   }
 
-  return (
-    <StrategyOS
-      clientId={clientId}
-      agencyId={agencyId}
-      activeView={activeView}
-      onViewChange={onViewChange}
-    />
-  );
+  return <StrategyOSV3 clientId={clientId} agencyId={agencyId} />;
 }

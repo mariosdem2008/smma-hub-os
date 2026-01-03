@@ -26,7 +26,9 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useRole } from "@/hooks/useRole";
-import { ExternalLink, Upload, Trash2, Check, X } from "lucide-react";
+import { ExternalLink, Upload, Trash2, Check, X, Clock } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import ClientSearchBar from "./ClientSearchBar";
 
@@ -37,9 +39,17 @@ interface ClientHeaderProps {
   niche: string | null;
   website: string | null;
   primaryColor: string | null | undefined;
+  status?: string;
+  updatedAt?: string;
   compact?: boolean;
   onClientUpdate?: () => void;
 }
+
+const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; tooltip: string }> = {
+  active: { label: "Active", variant: "default", tooltip: "Client is actively being managed" },
+  paused: { label: "Paused", variant: "secondary", tooltip: "Client work is temporarily paused" },
+  churned: { label: "Churned", variant: "destructive", tooltip: "Client relationship has ended" },
+};
 
 export default function ClientHeader({
   clientId,
@@ -48,9 +58,14 @@ export default function ClientHeader({
   niche,
   website,
   primaryColor,
+  status,
+  updatedAt,
   compact = false,
   onClientUpdate,
 }: ClientHeaderProps) {
+  // Get status config with safe fallback
+  const normalizedStatus = (status?.toLowerCase() || "active") as keyof typeof STATUS_CONFIG;
+  const statusConfig = STATUS_CONFIG[normalizedStatus] ?? STATUS_CONFIG.active;
   const navigate = useNavigate();
   const { toast } = useToast();
   const { canCreateContent, role, canDeleteClients } = useRole();
@@ -343,10 +358,30 @@ export default function ClientHeader({
 
         <div className="flex-1 space-y-3 w-full">
           <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] bg-clip-text text-transparent">
-                {name}
-              </h1>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <div className="flex items-center gap-3">
+                <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] bg-clip-text text-transparent">
+                  {name}
+                </h1>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Badge variant={statusConfig.variant} className="text-xs">
+                        {statusConfig.label}
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{statusConfig.tooltip}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              {updatedAt && (
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Clock className="h-3 w-3" />
+                  <span>Updated {formatDistanceToNow(new Date(updatedAt), { addSuffix: true })}</span>
+                </div>
+              )}
             </div>
 
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">

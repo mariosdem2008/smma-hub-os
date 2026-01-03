@@ -10,6 +10,8 @@ import { useToast } from "@/hooks/use-toast";
 import { convertToLocal } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import ScheduledPostDetailModal from "@/components/pipeline/ScheduledPostDetailModal";
+import ClientTabEmptyState from "./shared/ClientTabEmptyState";
+import { useNavigate } from "react-router-dom";
 
 interface CalendarTabProps {
   clientId: string;
@@ -37,8 +39,18 @@ const stageColors: Record<string, string> = {
   cancelled: "bg-gray-500",
 };
 
+const statusLabels: Record<string, string> = {
+  pending: "Pending",
+  queued: "Queued",
+  publishing: "Publishing",
+  published: "Published",
+  failed: "Failed",
+  cancelled: "Cancelled",
+};
+
 export default function CalendarTab({ clientId }: CalendarTabProps) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [items, setItems] = useState<ScheduledItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<"week" | "month" | "queue">("week");
@@ -194,6 +206,17 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
         </div>
       </div>
 
+      {/* Status Legend */}
+      <div className="flex flex-wrap items-center gap-3 text-xs">
+        <span className="text-muted-foreground font-medium">Status:</span>
+        {Object.entries(stageColors).map(([status, color]) => (
+          <div key={status} className="flex items-center gap-1.5">
+            <div className={`w-2.5 h-2.5 rounded-full ${color}`} />
+            <span className="text-muted-foreground">{statusLabels[status]}</span>
+          </div>
+        ))}
+      </div>
+
       <Tabs value={view} onValueChange={(v) => setView(v as "week" | "month" | "queue")}>
         <TabsList>
           <TabsTrigger value="week">Week View</TabsTrigger>
@@ -326,9 +349,15 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
 
           <div className="space-y-3">
             {items.length === 0 ? (
-              <Card className="p-8 text-center">
-                <p className="text-muted-foreground">No scheduled posts yet</p>
-              </Card>
+              <ClientTabEmptyState
+                icon={<Clock className="h-12 w-12" />}
+                title="No scheduled posts yet"
+                description="Create content in the Pipeline and schedule it to see posts here."
+                primaryAction={{
+                  label: "Go to Pipeline",
+                  onClick: () => navigate(`/clients/${clientId}?tab=pipeline`),
+                }}
+              />
             ) : (
               items
                 .filter((item) => item.scheduled_for)

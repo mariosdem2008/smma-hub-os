@@ -510,9 +510,19 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
                   <ScrollArea className="max-h-[500px]">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                       {stageProjects.length === 0 ? (
-                        <p className="text-sm text-muted-foreground col-span-full text-center py-8">
-                          No projects in this stage. Drag a project here or create a new one.
-                        </p>
+                        <div className="col-span-full flex flex-col items-center justify-center py-12 text-center border-2 border-dashed rounded-lg bg-muted/20">
+                          <p className="text-sm text-muted-foreground mb-3">
+                            Drop content here or click + to create
+                          </p>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setShowBulkUpload(true)}
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Create Project
+                          </Button>
+                        </div>
                       ) : (
                         stageProjects.map((project, index) => (
                           <Draggable key={project.id} draggableId={project.id} index={index}>

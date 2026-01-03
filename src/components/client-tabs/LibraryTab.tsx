@@ -44,6 +44,7 @@ import {
   Folder
 } from "lucide-react";
 import { format } from "date-fns";
+import ClientTabEmptyState from "./shared/ClientTabEmptyState";
 
 interface LibraryTabProps {
   clientId: string;
@@ -341,14 +342,23 @@ export default function LibraryTab({ clientId, agencyId }: LibraryTabProps) {
 
       {/* Assets Grid */}
       {filteredAssets.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <FolderOpen className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-            <p className="text-muted-foreground">
-              {selectedFolder ? `No files in ${selectedFolder}` : "No files yet. Upload files to get started."}
-            </p>
-          </CardContent>
-        </Card>
+        <ClientTabEmptyState
+          icon={<FolderOpen className="h-12 w-12" />}
+          title={selectedFolder ? `No files in ${selectedFolder}` : "No files yet"}
+          description={
+            selectedFolder
+              ? "Upload files to this folder to get started."
+              : "Upload files to your library to organize and manage your client's assets."
+          }
+          primaryAction={
+            canCreateContent && !isViewer
+              ? {
+                  label: "Upload Files",
+                  onClick: () => setShowUploadDialog(true),
+                }
+              : undefined
+          }
+        />
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
           {filteredAssets.map((asset) => (

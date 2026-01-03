@@ -1183,152 +1183,154 @@ export default function Dashboard() {
 
                       {/* Operations View */}
                       <div className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <Card>
-                <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-2">
-                    <ClipboardList className="h-5 w-5" />
-                    Approval Queue
-                  </CardTitle>
-                  <CardDescription>Items waiting for client approval</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {reviewProjects.slice(0, 5).map((project) => (
-                      <div key={project.id} className="flex items-center justify-between p-3 rounded-lg border">
-                        <div>
-                          <p className="font-medium">{project.title}</p>
-                          <p className="text-sm text-slate-600">{project.client?.name}</p>
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                          <Card>
+                            <CardHeader className="pb-4">
+                              <CardTitle className="flex items-center gap-2">
+                                <ClipboardList className="h-5 w-5" />
+                                Approval Queue
+                              </CardTitle>
+                              <CardDescription>Items waiting for client approval</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="space-y-4">
+                                {reviewProjects.slice(0, 5).map((project) => (
+                                  <div key={project.id} className="flex items-center justify-between p-3 rounded-lg border">
+                                    <div>
+                                      <p className="font-medium">{project.title}</p>
+                                      <p className="text-sm text-slate-600">{project.client?.name}</p>
+                                    </div>
+                                    <Badge variant="outline">Review</Badge>
+                                  </div>
+                                ))}
+                                {reviewProjects.length === 0 && (
+                                  <p className="text-sm text-slate-500 text-center py-4">No pending approvals</p>
+                                )}
+                              </div>
+                            </CardContent>
+                          </Card>
+
+                          <Card>
+                            <CardHeader className="pb-4">
+                              <CardTitle className="flex items-center gap-2">
+                                <Clock className="h-5 w-5" />
+                                Overdue Content
+                              </CardTitle>
+                              <CardDescription>Missed publish dates</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="space-y-4">
+                                {overdueProjects.slice(0, 5).map((project) => (
+                                  <div key={project.id} className="flex items-center justify-between p-3 rounded-lg border">
+                                    <div>
+                                      <p className="font-medium">{project.title}</p>
+                                      <p className="text-sm text-slate-600">
+                                        {format(new Date(project.scheduled_time), 'MMM d')}
+                                      </p>
+                                    </div>
+                                    <Button size="sm" variant="outline">Reschedule</Button>
+                                  </div>
+                                ))}
+                                {overdueProjects.length === 0 && (
+                                  <p className="text-sm text-slate-500 text-center py-4">No overdue content</p>
+                                )}
+                              </div>
+                            </CardContent>
+                          </Card>
+
+                          <Card>
+                            <CardHeader className="pb-4">
+                              <CardTitle className="flex items-center gap-2">
+                                <TrendingUp className="h-5 w-5" />
+                                Production Pipeline
+                              </CardTitle>
+                              <CardDescription>Content workflow status</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="grid grid-cols-3 gap-2">
+                                {Object.entries(signals.pipelineCounts).map(([key, value]) => (
+                                  <div key={key} className="text-center p-3 rounded-lg border">
+                                    <p className="text-lg font-bold">{value}</p>
+                                    <p className="text-xs text-slate-600 capitalize">{key}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            </CardContent>
+                          </Card>
                         </div>
-                        <Badge variant="outline">Review</Badge>
-                      </div>
-                    ))}
-                    {reviewProjects.length === 0 && (
-                      <p className="text-sm text-slate-500 text-center py-4">No pending approvals</p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
 
-              <Card>
-                <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-2">
-                    <Clock className="h-5 w-5" />
-                    Overdue Content
-                  </CardTitle>
-                  <CardDescription>Missed publish dates</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {overdueProjects.slice(0, 5).map((project) => (
-                      <div key={project.id} className="flex items-center justify-between p-3 rounded-lg border">
-                        <div>
-                          <p className="font-medium">{project.title}</p>
-                          <p className="text-sm text-slate-600">
-                            {format(new Date(project.scheduled_time), 'MMM d')}
-                          </p>
+                        {/* Client Readiness & Team Capacity */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                          <Card>
+                            <CardHeader className="pb-4">
+                              <CardTitle>Client Readiness</CardTitle>
+                              <CardDescription>Onboarding progress status</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="space-y-4">
+                                <div className="grid grid-cols-3 gap-3">
+                                  <div className="text-center p-4 rounded-lg border">
+                                    <p className="text-2xl font-bold">{readinessSummary.NOT_STARTED}</p>
+                                    <p className="text-sm text-slate-600">Not Started</p>
+                                  </div>
+                                  <div className="text-center p-4 rounded-lg border">
+                                    <p className="text-2xl font-bold">{readinessSummary.IN_PROGRESS}</p>
+                                    <p className="text-sm text-slate-600">In Progress</p>
+                                  </div>
+                                  <div className="text-center p-4 rounded-lg border">
+                                    <p className="text-2xl font-bold">{readinessSummary.COMPLETE}</p>
+                                    <p className="text-sm text-slate-600">Complete</p>
+                                  </div>
+                                </div>
+                                <div className="space-y-3">
+                                  {readinessTargets.map((client) => (
+                                    <div key={client.id} className="flex items-center justify-between p-3 rounded-lg border">
+                                      <div>
+                                        <p className="font-medium">{client.name}</p>
+                                        <p className="text-sm text-slate-600">
+                                          Signals: {client.readiness.trueCount}/3
+                                        </p>
+                                      </div>
+                                      <Button size="sm" variant="outline" onClick={() => handleReadinessCta(client)}>
+                                        Complete
+                                      </Button>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+
+                          <Card>
+                            <CardHeader className="pb-4">
+                              <CardTitle>Team Capacity</CardTitle>
+                              <CardDescription>This week's workload distribution</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="space-y-4">
+                                {teamMembers.slice(0, 5).map((member) => (
+                                  <div key={member.user_id} className="space-y-2">
+                                    <div className="flex items-center justify-between">
+                                      <span className="font-medium">
+                                        {member.profiles?.full_name || member.profiles?.email}
+                                      </span>
+                                      <Badge variant="outline">{member.role}</Badge>
+                                    </div>
+                                    <Progress value={Math.random() * 100} className="h-2" />
+                                  </div>
+                                ))}
+                              </div>
+                            </CardContent>
+                          </Card>
                         </div>
-                        <Button size="sm" variant="outline">Reschedule</Button>
-                      </div>
-                    ))}
-                    {overdueProjects.length === 0 && (
-                      <p className="text-sm text-slate-500 text-center py-4">No overdue content</p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5" />
-                    Production Pipeline
-                  </CardTitle>
-                  <CardDescription>Content workflow status</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-3 gap-2">
-                    {Object.entries(signals.pipelineCounts).map(([key, value]) => (
-                      <div key={key} className="text-center p-3 rounded-lg border">
-                        <p className="text-lg font-bold">{value}</p>
-                        <p className="text-xs text-slate-600 capitalize">{key}</p>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Client Readiness & Team Capacity */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader className="pb-4">
-                  <CardTitle>Client Readiness</CardTitle>
-                  <CardDescription>Onboarding progress status</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="text-center p-4 rounded-lg border">
-                        <p className="text-2xl font-bold">{readinessSummary.NOT_STARTED}</p>
-                        <p className="text-sm text-slate-600">Not Started</p>
-                      </div>
-                      <div className="text-center p-4 rounded-lg border">
-                        <p className="text-2xl font-bold">{readinessSummary.IN_PROGRESS}</p>
-                        <p className="text-sm text-slate-600">In Progress</p>
-                      </div>
-                      <div className="text-center p-4 rounded-lg border">
-                        <p className="text-2xl font-bold">{readinessSummary.COMPLETE}</p>
-                        <p className="text-sm text-slate-600">Complete</p>
                       </div>
                     </div>
-                    <div className="space-y-3">
-                      {readinessTargets.map((client) => (
-                        <div key={client.id} className="flex items-center justify-between p-3 rounded-lg border">
-                          <div>
-                            <p className="font-medium">{client.name}</p>
-                            <p className="text-sm text-slate-600">
-                              Signals: {client.readiness.trueCount}/3
-                            </p>
-                          </div>
-                          <Button size="sm" variant="outline" onClick={() => handleReadinessCta(client)}>
-                            Complete
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-4">
-                  <CardTitle>Team Capacity</CardTitle>
-                  <CardDescription>This week's workload distribution</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {teamMembers.slice(0, 5).map((member) => (
-                      <div key={member.user_id} className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="font-medium">
-                            {member.profiles?.full_name || member.profiles?.email}
-                          </span>
-                          <Badge variant="outline">{member.role}</Badge>
-                        </div>
-                        <Progress value={Math.random() * 100} className="h-2" />
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
-          )}
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            )}
+          </>
+        )}
 
         {/* Dialogs (unchanged but kept for functionality) */}
         <Dialog open={showNewClientDialog} onOpenChange={setShowNewClientDialog}>

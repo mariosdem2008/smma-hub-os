@@ -1,13 +1,8 @@
+// deno-lint-ignore-file no-unused-vars no-explicit-any
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
-import { useAuth } from "@/lib/auth";
-import { useRole } from "@/hooks/useRole";
-import { usePlanLimits } from "@/hooks/usePlanLimits";
-import { useUpgradeModal } from "@/contexts/UpgradeModalContext";
-import { useToast } from "@/hooks/use-toast";
-import { useCreateConversation } from "@/hooks/useCreateConversation";
-import { PlanGuard } from "@/components/PlanGuard";
+
 import {
   getMyAgency,
   listAgencyMembersWithProfiles,
@@ -21,41 +16,8 @@ import {
   updateAgencyMemberRole,
   removeAgencyMember,
   getAgencyMemberIdsByUserIds,
-} from "@/data";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Progress } from "@/components/ui/progress";
+} from "../data/index.ts";
+
 import {
   Users,
   Copy,
@@ -67,7 +29,6 @@ import {
   Crown,
   UserPlus,
   Mail,
-  Clock,
   CheckCircle,
   XCircle,
   MoreVertical,
@@ -75,7 +36,27 @@ import {
   BarChart3,
   UserCog,
   Building,
+  Table,
 } from "lucide-react";
+import { PlanGuard } from "../components/PlanGuard.tsx";
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "../components/ui/alert-dialog.tsx";
+import { Avatar, AvatarImage, AvatarFallback } from "../components/ui/avatar.tsx";
+import { Button } from "../components/ui/button.tsx";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card.tsx";
+import { Input } from "../components/ui/input.tsx";
+import { Label } from "../components/ui/label.tsx";
+import { Progress } from "../components/ui/progress.tsx";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "../components/ui/select.tsx";
+import { Separator } from "../components/ui/separator.tsx";
+import { TableHeader, TableRow, TableHead, TableBody, TableCell } from "../components/ui/table.tsx";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "../components/ui/tabs.tsx";
+import { useUpgradeModal } from "../contexts/UpgradeModalContext.tsx";
+import { useToast } from "../hooks/use-toast.ts";
+import { useCreateConversation } from "../hooks/useCreateConversation.ts";
+import { usePlanLimits } from "../hooks/usePlanLimits.ts";
+import { useRole } from "../hooks/useRole.ts";
+import { useAuth } from "../lib/auth.tsx";
+import { Badge } from "../components/ui/badge.tsx";
 
 interface TeamMember {
   id: string;
@@ -208,7 +189,7 @@ export default function Team() {
       }
 
       const inviteRow = await createAgencyInvite(inviteEmail, inviteRole);
-      const link = inviteRow.token ? `${window.location.origin}/invite/${inviteRow.token}` : "";
+      const link = inviteRow.token ? `${globalThis.location.origin}/invite/${inviteRow.token}` : "";
       setInviteLink(link);
       setShowInviteLink(Boolean(inviteRow.token));
 
@@ -260,7 +241,7 @@ export default function Team() {
       return;
     }
 
-    const link = `${window.location.origin}/invite/${token}`;
+    const link = `${globalThis.location.origin}/invite/${token}`;
     navigator.clipboard.writeText(link);
     toast({
       title: "Copied",

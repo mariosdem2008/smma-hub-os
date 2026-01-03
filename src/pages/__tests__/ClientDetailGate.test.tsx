@@ -119,7 +119,7 @@ describe("ClientDetail gate", () => {
     vi.mocked(getClientBrainStatus).mockResolvedValue({ usable: false });
     renderClientDetail("/clients/client-1");
 
-    expect(await screen.findByText("AI Client Onboarding required")).toBeInTheDocument();
+    expect(await screen.findByText("Client Onboarding Required")).toBeInTheDocument();
   });
 
   it("allows access when client is usable", async () => {
@@ -127,13 +127,13 @@ describe("ClientDetail gate", () => {
     renderClientDetail("/clients/client-1");
 
     expect(await screen.findByText("Strategy")).toBeInTheDocument();
-    expect(screen.queryByText("AI Client Onboarding required")).not.toBeInTheDocument();
+    expect(screen.queryByText("Client Onboarding Required")).not.toBeInTheDocument();
   });
 
   it("blocks deep link access when client is unusable", async () => {
     vi.mocked(getClientBrainStatus).mockResolvedValue({ usable: false });
     renderClientDetail("/clients/client-1?tab=strategy");
 
-    expect(await screen.findByText("AI Client Onboarding required")).toBeInTheDocument();
+    expect(await screen.findByText("Client Onboarding Required")).toBeInTheDocument();
   });
 });

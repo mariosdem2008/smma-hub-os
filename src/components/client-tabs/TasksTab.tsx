@@ -36,6 +36,7 @@ import { useRole } from "@/hooks/useRole";
 import { Plus, Pencil, Trash2, CalendarIcon, Clock, Filter, ArrowUpDown, BookTemplate } from "lucide-react";
 import { format, isPast } from "date-fns";
 import { cn } from "@/lib/utils";
+import ClientTabEmptyState from "./shared/ClientTabEmptyState";
 
 const PRIORITIES = ["low", "medium", "high", "urgent"];
 const TASK_STATUSES = ["todo", "in_progress", "completed"];
@@ -633,13 +634,23 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
           </div>
 
           {filteredAndSortedTasks.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <Clock className="h-12 w-12 text-muted-foreground mb-4" />
-              <p className="text-muted-foreground mb-2">No tasks found</p>
-              <p className="text-sm text-muted-foreground">
-                {tasks.length === 0 ? "Create a task to get started" : "Try adjusting your filters"}
-              </p>
-            </div>
+            <ClientTabEmptyState
+              icon={<Clock className="h-12 w-12" />}
+              title={tasks.length === 0 ? "No tasks yet" : "No tasks found"}
+              description={
+                tasks.length === 0
+                  ? "Create your first task to start tracking work for this client."
+                  : "Try adjusting your filters to see more tasks."
+              }
+              primaryAction={
+                tasks.length === 0 && canCreateContent
+                  ? {
+                      label: "Create Task",
+                      onClick: () => setShowTaskDialog(true),
+                    }
+                  : undefined
+              }
+            />
           ) : (
             <Table>
               <TableHeader>

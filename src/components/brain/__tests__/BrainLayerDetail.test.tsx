@@ -36,6 +36,10 @@ vi.mock("@/hooks/useBrainDocuments", () => ({
     mutateAsync: vi.fn(),
     isPending: false,
   })),
+  useArchiveBrainDocument: vi.fn(() => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  })),
 }));
 
 vi.mock("@/hooks/useAgency", () => ({
