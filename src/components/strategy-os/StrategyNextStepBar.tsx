@@ -23,10 +23,10 @@ export function StrategyNextStepBar({ summary, onSelectModule }: StrategyNextSte
     .sort((a, b) => b.severity - a.severity)[0];
 
   const ctaLabel = isComplete
-    ? "Generate weekly plan (soon)"
+    ? "Review status"
     : blockerCount > 0
       ? `Fix ${recommendedLabel}`
-      : `Continue: ${recommendedLabel}`;
+      : `Next focus: ${recommendedLabel}`;
 
   return (
     <div className="rounded-lg border border-border/60 bg-background/60 p-4">
@@ -59,4 +59,3 @@ export function StrategyNextStepBar({ summary, onSelectModule }: StrategyNextSte
 }
 
 export default StrategyNextStepBar;
-

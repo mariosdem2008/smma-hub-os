@@ -8,6 +8,7 @@ import { calculateStrategyCompletion, getModulesWithBlockers } from '@/hooks/use
 import { useCloneStrategyVersion, useLockStrategyVersion } from '@/hooks/useStrategies';
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
+import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
@@ -78,13 +79,13 @@ export function MissionControl() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Select value={strategyId} onValueChange={setStrategyId}>
-            <SelectTrigger className="w-[140px]">
-              <SelectValue placeholder="Version" />
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Strategy history" />
             </SelectTrigger>
             <SelectContent>
               {strategies.map((strategy) => (
                 <SelectItem key={strategy.id} value={strategy.id}>
-                  v{strategy.version_int}
+                  {format(new Date(strategy.created_at), "MMM d, yyyy")}
                   {strategy.status === 'locked' ? ' (locked)' : ''}
                 </SelectItem>
               ))}
@@ -96,7 +97,7 @@ export function MissionControl() {
             onClick={handleStartIteration}
             disabled={!activeStrategy || cloneStrategy.isPending}
           >
-            Start Iteration
+            Create copy
           </Button>
           <Button
             variant="outline"
@@ -104,7 +105,7 @@ export function MissionControl() {
             onClick={handleLockVersion}
             disabled={!activeStrategy || isLocked || lockStrategy.isPending}
           >
-            Lock Version
+            Lock strategy
           </Button>
           <GenerateStrategyButton variant={hasContent ? 'outline' : 'default'} />
         </div>

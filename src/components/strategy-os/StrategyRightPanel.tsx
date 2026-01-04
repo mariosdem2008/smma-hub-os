@@ -58,7 +58,7 @@ export function StrategyRightPanel({ isMobile, open, onOpenChange }: StrategyRig
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent className="w-full sm:max-w-lg">
           <SheetHeader>
-            <SheetTitle>Panel</SheetTitle>
+            <SheetTitle>Strategy tools</SheetTitle>
           </SheetHeader>
           <div className="mt-4">
             <PanelBody />
@@ -71,7 +71,7 @@ export function StrategyRightPanel({ isMobile, open, onOpenChange }: StrategyRig
   return (
     <aside className="rounded-lg border border-border/60 bg-background/60 p-4">
       <div className="mb-3 flex items-center justify-between">
-        <div className="text-sm font-semibold">Panel</div>
+        <div className="text-sm font-semibold">Strategy tools</div>
         <Button size="sm" variant="ghost" onClick={() => onOpenChange(false)}>
           Hide
         </Button>
@@ -82,4 +82,3 @@ export function StrategyRightPanel({ isMobile, open, onOpenChange }: StrategyRig
 }
 
 export default StrategyRightPanel;
-

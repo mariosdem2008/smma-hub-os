@@ -5,6 +5,7 @@
 // ============================================================================
 
 import type { OnboardingProfile } from '@/types/onboarding';
+import { ONBOARDING_PRIMARY_GOAL_OPTIONS } from '@/types/onboarding';
 import type {
   PositioningContent,
   PillarsContent,
@@ -31,6 +32,10 @@ import type {
 export function mapToPositioning(profile: OnboardingProfile): PositioningContent {
   const differentiators = profile.q13_differentiators ?? [];
   const proofPointsData = (profile.q15_proof_points as { claim: string; evidence: string; confidence: number }[]) ?? [];
+  const goalLabel =
+    profile.primary_goal
+      ? ONBOARDING_PRIMARY_GOAL_OPTIONS.find((option) => option.id === profile.primary_goal)?.label ?? ''
+      : '';
 
   // Build proof points matching ProofPoint interface
   const proofPoints: ProofPoint[] = proofPointsData.map((pp, i) => ({
@@ -50,10 +55,10 @@ export function mapToPositioning(profile: OnboardingProfile): PositioningContent
 
   // Build the positioning sentence
   const sentence = {
-    target: profile.q8_ideal_customer ?? '',
-    category: profile.q5_offer_type ?? '',
+    target: profile.primary_customer ?? profile.q8_ideal_customer ?? '',
+    category: profile.industry_niche ?? profile.q5_offer_type ?? '',
     differentiator: differentiators[0] ?? '',
-    benefit: profile.q10_desired_outcome ?? '',
+    benefit: goalLabel || profile.q10_desired_outcome || '',
   };
 
   // Compose final sentence
@@ -61,7 +66,7 @@ export function mapToPositioning(profile: OnboardingProfile): PositioningContent
   if (sentence.target) parts.push(`For ${sentence.target}`);
   if (sentence.category) parts.push(`who need ${sentence.category}`);
   if (sentence.differentiator) parts.push(`we are the only ${sentence.differentiator}`);
-  if (sentence.benefit) parts.push(`that ${sentence.benefit}`);
+  if (sentence.benefit) parts.push(`that deliver ${sentence.benefit}`);
   const finalSentence = parts.length > 0 ? parts.join(' ') + '.' : '';
 
   return {
@@ -90,6 +95,7 @@ export function mapToPillars(profile: OnboardingProfile): PillarsContent {
   const pillars: Pillar[] = [];
   const painPoints = profile.q9_pain_points ?? [];
   const differentiators = profile.q13_differentiators ?? [];
+  const offers = profile.offers ?? [];
 
   // Generate pillars from pain points and differentiators
   let pillarIndex = 0;
@@ -129,13 +135,14 @@ export function mapToPillars(profile: OnboardingProfile): PillarsContent {
   });
 
   // Add offer pillar if needed
-  if (pillars.length < 3 && profile.q6_offer_name) {
+  const primaryOffer = offers[0]?.name ?? profile.q6_offer_name;
+  if (pillars.length < 3 && primaryOffer) {
     pillars.push({
       id: 'pillar-offer-0',
-      name: `${profile.q6_offer_name} focus`,
+      name: `${primaryOffer} focus`,
       coveragePercent: coveragePerPillar,
       purpose: 'leads',
-      coreMessage: `Our core offer: ${profile.q6_offer_name}`,
+      coreMessage: `Our core offer: ${primaryOffer}`,
       contentTypes: ['product', 'demo', 'offer'],
       bannedAngles: [],
       kpis: ['leads', 'clicks'],
@@ -168,18 +175,24 @@ export function mapToPillars(profile: OnboardingProfile): PillarsContent {
 export function mapToCampaignPlan(profile: OnboardingProfile): CampaignPlanContent {
   const campaigns: Campaign[] = [];
 
-  if (profile.q6_offer_name) {
+  const primaryOffer = profile.offers?.[0]?.name ?? profile.q6_offer_name;
+  const goalLabel =
+    ONBOARDING_PRIMARY_GOAL_OPTIONS.find((option) => option.id === profile.primary_goal)?.label ??
+    profile.q17_primary_goal ??
+    'leads';
+
+  if (primaryOffer) {
     const now = new Date();
     const startDate = now.toISOString().split('T')[0];
     const endDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
     campaigns.push({
       id: 'campaign-0',
-      name: `${profile.q6_offer_name} Launch`,
-      goal: profile.q17_primary_goal ?? 'leads',
-      offer: profile.q6_offer_name,
-      cta: profile.q6_main_cta ?? 'Book a call',
-      icp: profile.q8_ideal_customer ?? '',
+      name: `${primaryOffer} Launch`,
+      goal: goalLabel,
+      offer: primaryOffer,
+      cta: profile.conversion_path ?? profile.q6_main_cta ?? 'Book a call',
+      icp: profile.primary_customer ?? profile.q8_ideal_customer ?? '',
       pillarIds: [],
       angle: `Solve ${profile.q9_pain_points?.[0] ?? 'their problem'}`,
       assets: [
@@ -214,7 +227,11 @@ export function mapToCampaignPlan(profile: OnboardingProfile): CampaignPlanConte
 
 // Map profile to weekly plan module (WeeklyPlanContent schema)
 export function mapToWeeklyPlan(profile: OnboardingProfile): WeeklyPlanContent {
-  const cadence = profile.q18_cadence as Record<string, number> | undefined ?? {};
+  const cadence = (profile.cadence_per_platform ?? profile.q18_cadence) as Record<string, number> | undefined ?? {};
+  const goalLabel =
+    ONBOARDING_PRIMARY_GOAL_OPTIONS.find((option) => option.id === profile.primary_goal)?.label ??
+    profile.q17_primary_goal ??
+    '';
 
   // Convert to proper cadence matrix
   const cadenceMatrix: Record<string, number> = {};
@@ -235,10 +252,10 @@ export function mapToWeeklyPlan(profile: OnboardingProfile): WeeklyPlanContent {
     },
     selectedWeek,
     weeklyFocus: {
-      objective: profile.q10_desired_outcome ?? '',
+      objective: profile.q10_desired_outcome ?? goalLabel ?? '',
       primaryCampaignId: 'campaign-0',
       priorityPillarIds: [],
-      kpiFocus: [profile.q17_primary_goal ?? 'engagement'],
+      kpiFocus: [profile.primary_goal ?? profile.q17_primary_goal ?? 'engagement'],
     },
     cadenceMatrix,
     productionChecklist: [],
@@ -256,9 +273,9 @@ export function mapToWeeklyPlan(profile: OnboardingProfile): WeeklyPlanContent {
 
 // Map profile to channel adaptations module (ChannelAdaptationsContent schema)
 export function mapToChannelAdaptations(profile: OnboardingProfile): ChannelAdaptationsContent {
-  const enabledChannels = profile.q16_enabled_channels ?? [];
-  const cadence = profile.q18_cadence as Record<string, number> | undefined ?? {};
-  const goal = profile.q17_primary_goal ?? 'discovery';
+  const enabledChannels = profile.platforms ?? profile.q16_enabled_channels ?? [];
+  const cadence = (profile.cadence_per_platform ?? profile.q18_cadence) as Record<string, number> | undefined ?? {};
+  const goal = profile.primary_goal ?? profile.q17_primary_goal ?? 'discovery';
 
   // Platform-specific defaults
   const platformDefaults: Record<string, Partial<ChannelConfig>> = {
@@ -307,6 +324,42 @@ export function mapToChannelAdaptations(profile: OnboardingProfile): ChannelAdap
       dos: ['SEO titles', 'Consistent uploads', 'End screens'],
       donts: ['Clickbait thumbnails', 'Ignoring comments', 'Inconsistent schedule'],
     },
+    youtube: {
+      role: 'Evergreen discovery content',
+      formats: ['shorts', 'long-form', 'community'],
+      hookRules: ['Hook in thumbnail', 'First 3 seconds'],
+      ctaRules: ['Subscribe CTA', 'Description links'],
+      visualRules: ['High quality', 'SEO-optimized'],
+      dos: ['SEO titles', 'Consistent uploads', 'End screens'],
+      donts: ['Clickbait thumbnails', 'Ignoring comments', 'Inconsistent schedule'],
+    },
+    google_business_profile: {
+      role: 'Local discovery and reviews',
+      formats: ['posts', 'updates', 'offers'],
+      hookRules: ['Lead with value', 'Use clear CTAs'],
+      ctaRules: ['Call now', 'Book', 'Directions'],
+      visualRules: ['High-quality photos', 'Brand-consistent'],
+      dos: ['Post weekly', 'Respond to reviews', 'Showcase offers'],
+      donts: ['Outdated info', 'Low-quality images', 'Ignoring reviews'],
+    },
+    pinterest: {
+      role: 'Visual discovery and evergreen traffic',
+      formats: ['pins', 'idea pins', 'carousels'],
+      hookRules: ['Clear value in title', 'High contrast visuals'],
+      ctaRules: ['Visit site', 'Save for later'],
+      visualRules: ['Vertical format', 'Readable text'],
+      dos: ['Keyword optimize', 'Consistent pinning', 'Seasonal boards'],
+      donts: ['Low-res images', 'Text-heavy designs', 'Infrequent posting'],
+    },
+    x: {
+      role: 'Real-time engagement and updates',
+      formats: ['threads', 'single posts', 'images'],
+      hookRules: ['Strong first line', 'Keep concise'],
+      ctaRules: ['Reply CTA', 'Link CTA'],
+      visualRules: ['Simple visuals', 'Readable text'],
+      dos: ['Post consistently', 'Engage in replies', 'Share timely updates'],
+      donts: ['Over-promotion', 'Long posts', 'Ignoring replies'],
+    },
   };
 
   const channels: ChannelConfig[] = enabledChannels.map((platform, i) => {
@@ -345,6 +398,7 @@ export function mapToChannelAdaptations(profile: OnboardingProfile): ChannelAdap
 export function mapToRulesConstraints(profile: OnboardingProfile): RulesConstraintsContent {
   const proofPointsData = (profile.q15_proof_points as { claim: string; evidence: string; confidence: number }[]) ?? [];
   const proofLevel = profile.q14_proof_level ?? 'none';
+  const proofTypes = profile.proof_types ?? [];
 
   // Map proof points to claims policy
   const claimsPolicy: ClaimPolicy[] = proofPointsData.map((pp, i) => ({
@@ -361,7 +415,7 @@ export function mapToRulesConstraints(profile: OnboardingProfile): RulesConstrai
     },
     claimsPolicy,
     bannedWords: [],
-    requiredDisclaimers: proofLevel === 'none' ? ['Results may vary'] : [],
+    requiredDisclaimers: proofLevel === 'none' || proofTypes.includes('none') ? ['Results may vary'] : [],
     approvalTriggers: [
       { id: 'trigger-1', condition: 'Contains price/offer', action: 'Requires manager approval' },
       { id: 'trigger-2', condition: 'Makes specific claims', action: 'Check proof inventory' },
@@ -397,16 +451,23 @@ export function mapOnboardingToStrategy(profile: OnboardingProfile): Record<Stra
 export function generatePositioningStatement(profile: OnboardingProfile): string {
   const parts: string[] = [];
 
-  if (profile.q8_ideal_customer) {
-    parts.push(`We help ${profile.q8_ideal_customer}`);
+  const customer = profile.primary_customer ?? profile.q8_ideal_customer;
+  const offer = profile.offers?.[0]?.name ?? profile.q6_offer_name;
+  const hasPrimaryGoal = Boolean(profile.primary_goal);
+  const goalLabel = hasPrimaryGoal
+    ? ONBOARDING_PRIMARY_GOAL_OPTIONS.find((option) => option.id === profile.primary_goal)?.label ?? ''
+    : profile.q10_desired_outcome ?? '';
+
+  if (customer) {
+    parts.push(`We help ${customer}`);
   }
 
-  if (profile.q10_desired_outcome) {
-    parts.push(`achieve ${profile.q10_desired_outcome}`);
+  if (goalLabel) {
+    parts.push(hasPrimaryGoal ? `get ${goalLabel}` : `achieve ${goalLabel}`);
   }
 
-  if (profile.q6_offer_name) {
-    parts.push(`through ${profile.q6_offer_name}`);
+  if (offer) {
+    parts.push(hasPrimaryGoal ? `with ${offer}` : `through ${offer}`);
   }
 
   const differentiators = profile.q13_differentiators ?? [];

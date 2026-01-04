@@ -7,11 +7,14 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { OnboardingWizard } from '@/components/onboarding-v4/OnboardingWizard';
+import { OnboardingV5Wizard } from '@/components/onboarding-v5/OnboardingV5Wizard';
 import { Loader2 } from 'lucide-react';
+import { isFeatureEnabled } from '@/lib/featureFlags';
 
 export default function AiOnboardingClientV4() {
   const { clientId } = useParams<{ clientId: string }>();
   const navigate = useNavigate();
+  const useV5 = isFeatureEnabled('ONBOARDING_V5');
 
   // Fetch client data (includes agency_id)
   const { data: client, isLoading, error } = useQuery({
@@ -84,10 +87,14 @@ export default function AiOnboardingClientV4() {
   }
 
   return (
-    <OnboardingWizard
-      clientId={clientId}
-      agencyId={client.agency_id}
-      flowType="agency_led"
-    />
+    useV5 ? (
+      <OnboardingV5Wizard clientId={clientId} agencyId={client.agency_id} />
+    ) : (
+      <OnboardingWizard
+        clientId={clientId}
+        agencyId={client.agency_id}
+        flowType="agency_led"
+      />
+    )
   );
 }

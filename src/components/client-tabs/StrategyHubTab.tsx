@@ -1,4 +1,4 @@
-import { StrategyOSV3 } from "@/components/strategy-os/StrategyOSV3";
+import StrategyKnowledgeCenter from "@/components/strategy-os/StrategyKnowledgeCenter";
 import type { ActiveView } from "@/lib/strategy/types";
 
 interface StrategyHubTabProps {
@@ -28,5 +28,5 @@ export default function StrategyHubTab({
     );
   }
 
-  return <StrategyOSV3 clientId={clientId} agencyId={agencyId} />;
+  return <StrategyKnowledgeCenter clientId={clientId} agencyId={agencyId} />;
 }

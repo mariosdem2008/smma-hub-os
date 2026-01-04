@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { 
+import {
   Lock, 
   Unlock, 
   Target, 
@@ -29,27 +29,8 @@ import {
   Award,
   GitCompare
 } from 'lucide-react';
-import { 
-  Tabs, 
-  TabsContent, 
-  TabsList, 
-  TabsTrigger 
-} from '@/components/ui/tabs';
-
-type SaveStatusInput = {
-  dirty: boolean;
-  pending: boolean;
-  success: boolean;
-  error: boolean;
-};
-
-export function getSaveStatusLabel({ dirty, pending, success, error }: SaveStatusInput) {
-  if (pending) return 'Saving...';
-  if (error) return 'Save failed';
-  if (dirty) return 'Unsaved changes';
-  if (success) return 'All changes saved';
-  return 'Unsaved changes';
-}
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { getAutosaveLabel } from "@/components/strategy-os/shared/autosave";
 
 export function PositioningModule() {
   const { clientId, strategyId, getModuleData, isModuleLocked, modules } = useStrategyOS();
@@ -114,15 +95,12 @@ export function PositioningModule() {
   });
   
   const [hasChanges, setHasChanges] = useState(false);
-  const [lastSaveSucceeded, setLastSaveSucceeded] = useState(true);
   const [saveError, setSaveError] = useState(false);
-  const [activeTab, setActiveTab] = useState('sentence');
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const updateLocal = (updates: Partial<PositioningContent>) => {
     setLocalContent((prev) => ({ ...prev, ...updates }));
     setHasChanges(true);
-    setLastSaveSucceeded(false);
     setSaveError(false);
   };
 
@@ -167,14 +145,12 @@ export function PositioningModule() {
       });
 
       setHasChanges(false);
-      setLastSaveSucceeded(true);
       setSaveError(false);
       toast.success('Positioning strategy updated', {
         description: 'Your positioning framework has been saved.'
       });
     } catch (err) {
       setSaveError(true);
-      setLastSaveSucceeded(false);
       toast.error('Save failed', {
         description: 'Please check your connection and try again.'
       });
@@ -199,11 +175,10 @@ export function PositioningModule() {
     };
   }, [hasChanges, isLocked, updateContent.isPending, localContent, saveError]);
 
-  const statusLabel = getSaveStatusLabel({
+  const statusLabel = getAutosaveLabel({
     dirty: hasChanges,
     pending: updateContent.isPending,
-    success: lastSaveSucceeded,
-    error: saveError
+    error: saveError,
   });
 
   return (
@@ -233,28 +208,15 @@ export function PositioningModule() {
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid grid-cols-4 w-full max-w-2xl">
-          <TabsTrigger value="sentence" className="flex items-center gap-2">
-            <MessageSquare className="h-4 w-4" />
-            Core Statement
-          </TabsTrigger>
-          <TabsTrigger value="proof" className="flex items-center gap-2">
-            <Shield className="h-4 w-4" />
-            Evidence
-          </TabsTrigger>
-          <TabsTrigger value="differentiators" className="flex items-center gap-2">
-            <GitCompare className="h-4 w-4" />
-            Differentiators
-          </TabsTrigger>
-          <TabsTrigger value="boundaries" className="flex items-center gap-2">
-            <Target className="h-4 w-4" />
-            Boundaries
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Core Positioning Sentence */}
-        <TabsContent value="sentence" className="space-y-6">
+      <Accordion type="multiple" defaultValue={["sentence", "proof", "differentiators", "boundaries"]} className="space-y-6">
+        <AccordionItem value="sentence" className="border-border/60">
+          <AccordionTrigger className="text-base font-semibold">
+            <span className="flex items-center gap-2">
+              <MessageSquare className="h-4 w-4" />
+              Core Statement
+            </span>
+          </AccordionTrigger>
+          <AccordionContent className="pt-2">
           <Card className="border-l-4 border-l-primary">
             <CardHeader>
               <div className="flex items-center gap-2">
@@ -346,10 +308,17 @@ export function PositioningModule() {
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
+          </AccordionContent>
+        </AccordionItem>
 
-        {/* Proof Points */}
-        <TabsContent value="proof" className="space-y-6">
+        <AccordionItem value="proof" className="border-border/60">
+          <AccordionTrigger className="text-base font-semibold">
+            <span className="flex items-center gap-2">
+              <Shield className="h-4 w-4" />
+              Evidence
+            </span>
+          </AccordionTrigger>
+          <AccordionContent className="pt-2">
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -465,10 +434,17 @@ export function PositioningModule() {
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
+          </AccordionContent>
+        </AccordionItem>
 
-        {/* Differentiators */}
-        <TabsContent value="differentiators" className="space-y-6">
+        <AccordionItem value="differentiators" className="border-border/60">
+          <AccordionTrigger className="text-base font-semibold">
+            <span className="flex items-center gap-2">
+              <GitCompare className="h-4 w-4" />
+              Differentiators
+            </span>
+          </AccordionTrigger>
+          <AccordionContent className="pt-2">
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -568,10 +544,17 @@ export function PositioningModule() {
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
+          </AccordionContent>
+        </AccordionItem>
 
-        {/* Boundaries */}
-        <TabsContent value="boundaries" className="space-y-6">
+        <AccordionItem value="boundaries" className="border-border/60">
+          <AccordionTrigger className="text-base font-semibold">
+            <span className="flex items-center gap-2">
+              <Target className="h-4 w-4" />
+              Boundaries
+            </span>
+          </AccordionTrigger>
+          <AccordionContent className="pt-2">
           <div className="grid gap-6 md:grid-cols-3">
             <Card className="border-green-200">
               <CardHeader className="pb-3">
@@ -651,8 +634,9 @@ export function PositioningModule() {
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
-      </Tabs>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
 
       {/* Save Section */}
       <div className="sticky bottom-6 mt-8">
@@ -671,7 +655,6 @@ export function PositioningModule() {
               onClick={() => {
                 setLocalContent(content);
                 setHasChanges(false);
-                setLastSaveSucceeded(true);
                 setSaveError(false);
               }}
               disabled={!hasChanges || isLocked}

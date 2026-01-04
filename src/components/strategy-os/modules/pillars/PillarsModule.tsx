@@ -1,6 +1,6 @@
 // Strategy OS - Pillars Module
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useStrategyOS } from '../../StrategyOSContext';
 import { useUpdateModuleContent } from '@/hooks/useStrategyModules';
 import { useAddHistoryEvent } from '@/hooks/useStrategyHistory';
@@ -30,8 +30,9 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { toast } from 'sonner';
-import { Plus, Trash2, Save, Edit2, Layers } from 'lucide-react';
+import { Plus, Trash2, Layers } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getAutosaveLabel } from "@/components/strategy-os/shared/autosave";
 
 export function PillarsModule() {
   const { clientId, strategyId, getModuleData, isModuleLocked, modules } = useStrategyOS();
@@ -52,12 +53,15 @@ export function PillarsModule() {
   const [localContent, setLocalContent] = useState<PillarsContent>(content);
   const [hasChanges, setHasChanges] = useState(false);
   const [editingPillar, setEditingPillar] = useState<Pillar | null>(null);
+  const [saveError, setSaveError] = useState(false);
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const totalCoverage = (localContent.pillars ?? []).reduce((sum, p) => sum + p.coveragePercent, 0);
 
   const updateLocal = (updates: Partial<PillarsContent>) => {
     setLocalContent((prev) => ({ ...prev, ...updates }));
     setHasChanges(true);
+    setSaveError(false);
   };
 
   const addPillar = () => {
@@ -119,11 +123,37 @@ export function PillarsModule() {
       });
 
       setHasChanges(false);
+      setSaveError(false);
       toast.success('Pillars saved');
     } catch (err) {
+      setSaveError(true);
       toast.error('Failed to save');
     }
   };
+
+  useEffect(() => {
+    if (!hasChanges || isLocked || updateContent.isPending || saveError) return;
+
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+    }
+
+    autosaveTimerRef.current = setTimeout(() => {
+      handleSave();
+    }, 750);
+
+    return () => {
+      if (autosaveTimerRef.current) {
+        clearTimeout(autosaveTimerRef.current);
+      }
+    };
+  }, [hasChanges, isLocked, updateContent.isPending, localContent, saveError]);
+
+  const statusLabel = getAutosaveLabel({
+    dirty: hasChanges,
+    pending: updateContent.isPending,
+    error: saveError,
+  });
 
   const purposeColors: Record<PillarPurpose, string> = {
     reach: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
@@ -140,7 +170,7 @@ export function PillarsModule() {
           <div>
             <CardTitle className="text-base">Content Pillars</CardTitle>
             <CardDescription>
-              3-6 pillars that shape your content themes. Coverage must equal 100%.
+              3-6 pillars that shape your content themes. Aim for 100% coverage.
             </CardDescription>
           </div>
           <Button
@@ -331,15 +361,20 @@ export function PillarsModule() {
         </SheetContent>
       </Sheet>
 
-      {/* Save Button */}
-      {hasChanges && !isLocked && (
-        <div className="sticky bottom-4 flex justify-end">
-          <Button onClick={handleSave} disabled={updateContent.isPending}>
-            <Save className="h-4 w-4 mr-2" />
-            Save Changes
-          </Button>
+      {/* Autosave Status */}
+      <div className="sticky bottom-4">
+        <div className="flex items-center justify-between rounded-lg border border-border/60 bg-background/80 px-4 py-3 text-sm">
+          <div>
+            <div className="font-medium">Pillars</div>
+            <div className="text-muted-foreground">{statusLabel}</div>
+          </div>
+          {saveError && !updateContent.isPending && (
+            <Button variant="outline" size="sm" onClick={handleSave}>
+              Retry
+            </Button>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

@@ -9,6 +9,8 @@ import { StrategyModuleRenderer } from "./StrategyModuleRenderer";
 import { StrategyRightPanel } from "./StrategyRightPanel";
 import { StrategyNextStepBar } from "./StrategyNextStepBar";
 import { useStrategyStatus } from "./status/useStrategyStatus";
+import { useStrategyOS } from "./StrategyOSContext";
+import { Badge } from "@/components/ui/badge";
 
 interface StrategyOSLayoutProps {
   activeModule: StrategyModule;
@@ -19,10 +21,20 @@ export function StrategyOSLayout({ activeModule, onModuleChange }: StrategyOSLay
   const isMobile = useIsMobile();
   const [panelOpen, setPanelOpen] = useState(false);
   const statusSummary = useStrategyStatus();
+  const { getModuleData } = useStrategyOS();
   const activeDefinition = useMemo(
     () => getStrategyOSV3ModuleDefinition(activeModule),
     [activeModule],
   );
+  const moduleData = getModuleData(activeModule);
+  const moduleSource = (() => {
+    if (moduleData?.ai_generated) return "AI";
+    const metaSource = (moduleData?.content_json as { meta?: { source?: string } })?.meta?.source ?? "";
+    const normalized = metaSource.toLowerCase();
+    if (normalized.includes("onboarding")) return "Onboarding";
+    if (normalized.includes("brain")) return "Brain";
+    return "Human";
+  })();
 
   const gridColumns = useMemo(() => {
     if (!isMobile && panelOpen) return "lg:grid-cols-[240px_minmax(0,1fr)_320px]";
@@ -59,9 +71,14 @@ export function StrategyOSLayout({ activeModule, onModuleChange }: StrategyOSLay
               <div className="text-sm text-muted-foreground">
                 {activeDefinition.description}
               </div>
+              <div className="mt-2">
+                <Badge variant="outline" className="text-xs">
+                  Source: {moduleSource}
+                </Badge>
+              </div>
             </div>
             <Button size="sm" variant="outline" onClick={() => setPanelOpen((prev) => !prev)}>
-              Panel
+              Strategy tools
             </Button>
           </div>
 

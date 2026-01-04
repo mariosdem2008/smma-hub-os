@@ -1,6 +1,6 @@
 // Strategy OS - Campaign Plan Module
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useStrategyOS } from '../../StrategyOSContext';
 import { useUpdateModuleContent } from '@/hooks/useStrategyModules';
 import { useAddHistoryEvent } from '@/hooks/useStrategyHistory';
@@ -27,8 +27,8 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { toast } from 'sonner';
-import { Plus, Trash2, Save, ChevronLeft, ChevronRight, Target } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Plus, Trash2, ChevronLeft, ChevronRight, Target } from 'lucide-react';
+import { getAutosaveLabel } from "@/components/strategy-os/shared/autosave";
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -61,6 +61,8 @@ export function CampaignPlanModule() {
   const [localContent, setLocalContent] = useState<CampaignPlanContent>(content);
   const [hasChanges, setHasChanges] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
+  const [saveError, setSaveError] = useState(false);
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Parse selected month
   const [year, month] = (localContent.selectedMonth || '').split('-').map(Number);
@@ -71,6 +73,7 @@ export function CampaignPlanModule() {
   const updateLocal = (updates: Partial<CampaignPlanContent>) => {
     setLocalContent((prev) => ({ ...prev, ...updates }));
     setHasChanges(true);
+    setSaveError(false);
   };
 
   const navigateMonth = (direction: -1 | 1) => {
@@ -149,11 +152,37 @@ export function CampaignPlanModule() {
       });
 
       setHasChanges(false);
+      setSaveError(false);
       toast.success('Campaign plan saved');
     } catch (err) {
+      setSaveError(true);
       toast.error('Failed to save');
     }
   };
+
+  useEffect(() => {
+    if (!hasChanges || isLocked || updateContent.isPending || saveError) return;
+
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+    }
+
+    autosaveTimerRef.current = setTimeout(() => {
+      handleSave();
+    }, 750);
+
+    return () => {
+      if (autosaveTimerRef.current) {
+        clearTimeout(autosaveTimerRef.current);
+      }
+    };
+  }, [hasChanges, isLocked, updateContent.isPending, localContent, saveError]);
+
+  const statusLabel = getAutosaveLabel({
+    dirty: hasChanges,
+    pending: updateContent.isPending,
+    error: saveError,
+  });
 
   // Filter campaigns for selected month
   const monthCampaigns = (localContent.campaigns ?? []).filter((c) =>
@@ -376,15 +405,20 @@ export function CampaignPlanModule() {
         </SheetContent>
       </Sheet>
 
-      {/* Save Button */}
-      {hasChanges && !isLocked && (
-        <div className="sticky bottom-4 flex justify-end">
-          <Button onClick={handleSave} disabled={updateContent.isPending}>
-            <Save className="h-4 w-4 mr-2" />
-            Save Changes
-          </Button>
+      {/* Autosave Status */}
+      <div className="sticky bottom-4">
+        <div className="flex items-center justify-between rounded-lg border border-border/60 bg-background/80 px-4 py-3 text-sm">
+          <div>
+            <div className="font-medium">Campaign plan</div>
+            <div className="text-muted-foreground">{statusLabel}</div>
+          </div>
+          {saveError && !updateContent.isPending && (
+            <Button variant="outline" size="sm" onClick={handleSave}>
+              Retry
+            </Button>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

@@ -1,28 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { getSaveStatusLabel } from "../PositioningModule";
+import { getAutosaveLabel } from "@/components/strategy-os/shared/autosave";
 
-describe("getSaveStatusLabel", () => {
-  it("returns unsaved changes when dirty", () => {
-    expect(
-      getSaveStatusLabel({ dirty: true, pending: false, success: false, error: false })
-    ).toBe("Unsaved changes");
+describe("getAutosaveLabel", () => {
+  it("returns saving when dirty", () => {
+    expect(getAutosaveLabel({ dirty: true, pending: false, error: false })).toBe("Saving...");
   });
 
   it("returns saving while pending", () => {
-    expect(
-      getSaveStatusLabel({ dirty: true, pending: true, success: false, error: false })
-    ).toBe("Saving...");
+    expect(getAutosaveLabel({ dirty: true, pending: true, error: false })).toBe("Saving...");
   });
 
   it("returns save failed on error", () => {
-    expect(
-      getSaveStatusLabel({ dirty: true, pending: false, success: false, error: true })
-    ).toBe("Save failed");
+    expect(getAutosaveLabel({ dirty: true, pending: false, error: true })).toBe("Save failed");
   });
 
-  it("returns saved when success and not dirty", () => {
-    expect(
-      getSaveStatusLabel({ dirty: false, pending: false, success: true, error: false })
-    ).toBe("All changes saved");
+  it("returns saved when not dirty and not pending", () => {
+    expect(getAutosaveLabel({ dirty: false, pending: false, error: false })).toBe("Saved");
   });
 });

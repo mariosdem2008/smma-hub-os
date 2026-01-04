@@ -104,14 +104,12 @@ export function evaluateStrategyModule(
     case 'pillars': {
       const data = content as PillarsContent;
       const pillars = data.pillars ?? [];
-      const coverageSum = pillars.reduce((sum, pillar) => sum + (pillar.coveragePercent ?? 0), 0);
       const examplesComplete = pillars.every((pillar) => (pillar.examples ?? []).length >= 3);
 
       hasContent = pillars.length > 0;
 
       const criteria = [
         pillars.length >= 3 && pillars.length <= 6,
-        coverageSum === 100,
         examplesComplete && pillars.length > 0,
       ];
 
@@ -119,9 +117,6 @@ export function evaluateStrategyModule(
 
       if (pillars.length < 3 || pillars.length > 6) {
         pushBlocker(blockers, 'pillars.count_range', 'Keep between 3 and 6 pillars.', 'high', 'pillars');
-      }
-      if (pillars.length > 0 && coverageSum !== 100) {
-        pushBlocker(blockers, 'pillars.coverage_sum', 'Pillar coverage must equal 100%.', 'med', 'pillars');
       }
       if (pillars.some((pillar) => (pillar.examples ?? []).length < 3)) {
         pushBlocker(blockers, 'pillars.examples_min', 'Add at least 3 examples per pillar.', 'med', 'pillars.examples');

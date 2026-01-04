@@ -37,7 +37,16 @@ export type HistoryEventType =
   | 'task_pushed';
 
 // Channel/Platform types
-export type Platform = 'instagram' | 'tiktok' | 'linkedin' | 'facebook' | 'youtube';
+export type Platform =
+  | 'instagram'
+  | 'tiktok'
+  | 'linkedin'
+  | 'facebook'
+  | 'youtube'
+  | 'youtube_shorts'
+  | 'google_business_profile'
+  | 'pinterest'
+  | 'x';
 export type PillarPurpose = 'reach' | 'authority' | 'leads' | 'proof';
 export type CampaignStatus = 'planned' | 'active' | 'completed' | 'cancelled';
 export type ClaimStatus = 'allowed' | 'proof_required' | 'forbidden';
@@ -199,6 +208,7 @@ export interface ChannelAdaptationsContent {
   meta?: ModuleMeta;
   channels: ChannelConfig[];
   translationTable: TranslationRow[];
+  defaultGuidance?: string;
   decisions: {
     ctasLocked: boolean;
     rulesLocked: boolean;
@@ -338,6 +348,26 @@ export interface StrategyRecord {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export type StrategyDocumentSource = "ai" | "upload" | "manual";
+
+export interface StrategyDocumentRecord {
+  id: string;
+  agency_id: string;
+  client_id: string;
+  content_markdown: string | null;
+  content_html: string | null;
+  source: StrategyDocumentSource;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  generated_by_user_id: string | null;
+  model: string | null;
+  generation_instruction: string | null;
+  derived_from_hash: string | null;
+  file_path: string | null;
+  file_name: string | null;
 }
 
 // Union type for all module content

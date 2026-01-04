@@ -412,7 +412,7 @@ export function ReviewStep() {
             ) : (
               <>
                 <Sparkles className="h-5 w-5" />
-                Generate Strategy v1
+                Generate Strategy
                 <ChevronRight className="h-4 w-4" />
               </>
             )}

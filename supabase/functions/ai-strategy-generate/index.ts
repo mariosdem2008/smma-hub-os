@@ -3,8 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
 import { evaluateClientBrainForStrategy } from "../_shared/brain-quality.ts";
-import { buildChunks, DEFAULT_EMBEDDING_DIM, embedText, tokenize } from "../_shared/embeddings.ts";
-import { embedWithPolicy } from "../_shared/embedding-policy.ts";
+import { embedText } from "../_shared/embeddings.ts";
 import { ai } from "../../../src/ai/router.ts";
 import { TaskType } from "../../../src/ai/taskTypes.ts";
 import { applyRagPolicy, getRagConfig, shouldUseRagPolicy } from "../../../src/ai/ragPolicy.ts";
@@ -52,6 +51,23 @@ function extractUsageFromRaw(raw: unknown) {
   return { inputTokens, outputTokens };
 }
 
+function normalizeHeading(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[+]/g, " ")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+async function sha256Hex(input: string) {
+  const buffer = new TextEncoder().encode(input);
+  const digest = await crypto.subtle.digest("SHA-256", buffer);
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders(req) });
@@ -81,12 +97,24 @@ serve(async (req: Request) => {
   const strictSchema = Deno.env.get("AI_SCHEMA_STRICT") === "true";
   const failHard = Deno.env.get("AI_EMBEDDING_FAIL_HARD") === "true";
   const body = await req.json().catch(() => ({}));
-  const agencyId = body.agency_id as string | undefined;
   const clientId = body.client_id as string | undefined;
+  const instruction = body.instruction as string | undefined;
 
-  if (!agencyId || !clientId) {
-    return jsonResponse({ error: "agency_id and client_id are required" }, 400, corsHeaders(req));
+  if (!clientId) {
+    return jsonResponse({ error: "client_id is required" }, 400, corsHeaders(req));
   }
+
+  const { data: clientRow, error: clientError } = await supabase
+    .from("clients")
+    .select("agency_id")
+    .eq("id", clientId)
+    .maybeSingle();
+
+  if (clientError || !clientRow?.agency_id) {
+    return jsonResponse({ error: "Client not found" }, 404, corsHeaders(req));
+  }
+
+  const agencyId = clientRow.agency_id as string;
 
   const { data: membership } = await supabase
     .from("agency_members")
@@ -136,6 +164,29 @@ serve(async (req: Request) => {
     .order("version", { ascending: false })
     .limit(1)
     .maybeSingle();
+
+  const { data: onboardingProfile } = await supabase
+    .from("client_onboarding_profiles")
+    .select("*")
+    .eq("client_id", clientId)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const { data: latestStrategy } = await supabase
+    .from("strategies")
+    .select("id, updated_at")
+    .eq("client_id", clientId)
+    .order("version_int", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const { data: moduleRows } = latestStrategy?.id
+    ? await supabase
+        .from("strategy_modules")
+        .select("module, content_json, updated_at")
+        .eq("strategy_id", latestStrategy.id)
+    : { data: [] };
 
   const embeddingApiKey = Deno.env.get("OPENAI_API_KEY");
   if (!embeddingApiKey) {
@@ -243,13 +294,19 @@ serve(async (req: Request) => {
   const docTypesUsed = ragResult?.docTypesUsed ?? Array.from(new Set(matches.map((row: any) => row.doc_type)));
   const ragPolicyVersion = useRagPolicy ? "v1" : "legacy";
 
+  const promptContext = [
+    `Onboarding Profile:\n${JSON.stringify(onboardingProfile ?? {})}`,
+    `Structured Strategy:\n${JSON.stringify(moduleRows ?? [])}`,
+    `RAG Context:\n${context}`,
+  ].join("\n\n");
+
   let parsed: { summary?: string; sections?: any[] } = {};
   try {
     const aiResult = await ai.run({
       taskType: TaskType.STRATEGY_PLAN,
       input: "",
       context: { agencyId, clientId, userId: user.id, environment: "prod", supabase },
-      metadata: { context },
+      metadata: { context: promptContext, instruction },
     });
     parsed = (aiResult.output ?? {}) as { summary?: string; sections?: any[] };
   } catch {
@@ -275,87 +332,72 @@ serve(async (req: Request) => {
     score: row.score,
   }));
 
-  const strategyPayload = JSON.stringify(strategy);
+  const requiredHeadings = [
+    "Executive summary",
+    "Business context",
+    "ICP + objections + triggers",
+    "Positioning + proof",
+    "Pillars",
+    "Channel strategy",
+    "Campaign plan",
+    "Weekly plan",
+    "Creative rules + claims policy",
+    "KPIs",
+    "Action checklist",
+  ];
 
-  const { data: docRow } = await supabase
-    .from("ai_documents")
+  const sectionMap = new Map<string, string>();
+  for (const section of strategy.sections ?? []) {
+    if (!section?.title) continue;
+    sectionMap.set(normalizeHeading(section.title), section.content ?? "");
+  }
+
+  let markdown = "# Strategy Document\n\n";
+  for (const heading of requiredHeadings) {
+    const normalized = normalizeHeading(heading);
+    const rawContent = sectionMap.get(normalized) ?? (heading === "Executive summary" ? strategy.summary : "");
+    const content = rawContent?.trim() || "Pending details.";
+    markdown += `## ${heading}\n\n${content}\n\n`;
+  }
+
+  const derivedFromHash = await sha256Hex(
+    JSON.stringify({
+      onboardingProfile,
+      moduleRows,
+      brainUpdatedAt: brainRow.updated_at,
+    }),
+  );
+
+  await supabase
+    .from("strategy_documents")
+    .update({ is_active: false })
+    .eq("client_id", clientId);
+
+  const { data: documentRow, error: documentError } = await supabase
+    .from("strategy_documents")
     .insert({
       agency_id: agencyId,
       client_id: clientId,
-      doc_type: "strategy_draft",
-      title: "Strategy draft v1",
-      content: strategyPayload,
-      extracted_text: strategy.summary || "Strategy draft",
-      source: { source_type: "ai_strategy", source_ref: brainRow.id },
-      metadata: {
-        confidence: parsed.confidence ?? 70,
-        brain_version: brainRow.updated_at,
-      },
+      content_markdown: markdown,
+      content_html: null,
+      source: "ai",
+      is_active: true,
+      generated_by_user_id: user.id,
+      model: Deno.env.get("STRATEGY_MODEL_ID") ?? "gpt-4o-mini",
+      generation_instruction: instruction ?? null,
+      derived_from_hash: derivedFromHash,
     })
-    .select("id")
+    .select()
     .single();
 
-  if (docRow?.id) {
-    const tokens = tokenize(strategyPayload);
-    const chunks = buildChunks(tokens, 900, 140, 12);
-    const zeroVector = Array(DEFAULT_EMBEDDING_DIM).fill(0);
-    for (let index = 0; index < chunks.length; index += 1) {
-      const chunk = chunks[index];
-      const { data: chunkRow } = await supabase
-        .from("ai_document_chunks")
-        .insert({
-          document_id: docRow.id,
-          chunk_index: index,
-          chunk_text: chunk.text,
-          token_count: chunk.tokenCount,
-          chunk_meta: { start_token: chunk.start, end_token: chunk.end },
-        })
-        .select("id")
-        .single();
-
-      if (!chunkRow?.id) continue;
-
-      let embeddingResult;
-      try {
-        embeddingResult = await embedWithPolicy({
-          text: chunk.text,
-          apiKey: embeddingApiKey ?? undefined,
-          failHard,
-          embed: (text) => embedText(text, embeddingApiKey ?? "", embeddingModel),
-          zeroVector,
-        });
-      } catch (error: any) {
-        if (error?.code === "MISSING_API_KEY") {
-          return jsonResponse({ error: "OPENAI_API_KEY is not configured", code: "MISSING_API_KEY" }, 500, corsHeaders(req));
-        }
-        if (error?.code === "EMBEDDING_FAILED") {
-          return jsonResponse({ error: "Embedding failed", code: "EMBEDDING_FAILED" }, 500, corsHeaders(req));
-        }
-        throw error;
-      }
-
-      await supabase.from("ai_embeddings").insert({
-        agency_id: agencyId,
-        client_id: clientId,
-        doc_type: "strategy_draft",
-        document_id: docRow.id,
-        chunk_id: chunkRow.id,
-        embedding: embeddingResult.vector,
-        model: embeddingModel,
-        metadata: {
-          similarity: "cosine",
-          embedding_dim: DEFAULT_EMBEDDING_DIM,
-          embedding_fallback: embeddingResult.legacyZeroVector,
-          legacy_zero_vector: embeddingResult.legacyZeroVector,
-        },
-      });
-    }
+  if (documentError) {
+    return jsonResponse({ error: "Failed to save strategy document" }, 500, corsHeaders(req));
   }
 
   const usage = extractUsageFromRaw(aiResult?.raw);
   const runtimeModel = aiResult?.meta?.model ?? (Deno.env.get("STRATEGY_MODEL_ID") ?? "gpt-4o-mini");
   const tokensIn = usage?.inputTokens ?? estimateTokensForCost(context);
-  const tokensOut = usage?.outputTokens ?? estimateTokensForCost(JSON.stringify(strategy));
+  const tokensOut = usage?.outputTokens ?? estimateTokensForCost(markdown);
   const costUsd = calculateCost("openai", runtimeModel, tokensIn, tokensOut);
   const costEstimationMethod = usage ? "token_based" : "estimate_chars_div3";
 
@@ -437,12 +479,12 @@ serve(async (req: Request) => {
     client_id: clientId,
     endpoint: "ai-strategy-generate",
     model: runtimeModel,
-    tokens_estimate: Math.ceil(JSON.stringify(strategy).length / 4),
-    tokens_in: tokensIn,
-    tokens_out: tokensOut,
-    latency_ms: Date.now() - startTime,
-    unknown: false,
-  });
+      tokens_estimate: Math.ceil(markdown.length / 4),
+      tokens_in: tokensIn,
+      tokens_out: tokensOut,
+      latency_ms: Date.now() - startTime,
+      unknown: false,
+    });
 
   return jsonResponse(
     {
@@ -450,6 +492,7 @@ serve(async (req: Request) => {
       strategy,
       citations,
       confidence: parsed.confidence ?? 70,
+      document: documentRow ?? null,
     },
     200,
     corsHeaders(req),

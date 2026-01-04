@@ -34,7 +34,7 @@ interface StrategyDocDefinition {
 const STRATEGY_DOCS: Record<StrategyDocKey, StrategyDocDefinition> = {
   "mission-control": {
     title: "Strategy Overview Brief",
-    summary: "High-level goals, priorities, and module alignment for the current strategy version.",
+    summary: "High-level goals, priorities, and module alignment for the current strategy plan.",
     content:
       "This strategy brief summarizes the client goals, brand guardrails, and near-term priorities. It anchors the full plan across positioning, pillars, campaign direction, weekly execution, channel adaptations, and compliance rules.\n\nKey focus this cycle:\n- Align messaging to the primary ICP segment\n- Lock proof points and differentiators before campaign rollout\n- Prioritize the top two pillars for first 30 days\n\nUse this brief to keep the team aligned before diving into each module.",
     updatedLabel: "Updated today",

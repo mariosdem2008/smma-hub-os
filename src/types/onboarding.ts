@@ -53,12 +53,133 @@ export type ChannelGoal = 'discovery' | 'trust' | 'leads' | 'community' | 'sales
 /**
  * Enabled channel options
  */
-export type SocialChannel = 'instagram' | 'tiktok' | 'youtube_shorts' | 'linkedin' | 'facebook';
+export type SocialChannel =
+  | 'instagram'
+  | 'tiktok'
+  | 'youtube'
+  | 'youtube_shorts'
+  | 'linkedin'
+  | 'facebook'
+  | 'google_business_profile'
+  | 'pinterest'
+  | 'x';
 
 /**
  * CTA options
  */
 export type CTAOption = 'book_call' | 'dm_keyword' | 'buy_now' | 'visit_store' | 'other';
+
+/**
+ * SMMA onboarding fields
+ */
+export type IndustryNiche =
+  | 'restaurant_cafe'
+  | 'gym_fitness_studio'
+  | 'beauty_salon_barber'
+  | 'clinic_medical'
+  | 'real_estate'
+  | 'education_tutors'
+  | 'home_services'
+  | 'ecommerce_dtc'
+  | 'b2b_service'
+  | 'saas_tech'
+  | 'other';
+
+export type PrimaryGoal =
+  | 'more_bookings'
+  | 'more_leads'
+  | 'more_dms'
+  | 'more_online_sales'
+  | 'more_foot_traffic'
+  | 'more_trust';
+
+export type ConversionPath =
+  | 'book_call'
+  | 'book_appointment'
+  | 'dm_keyword'
+  | 'whatsapp'
+  | 'website_checkout'
+  | 'visit_store';
+
+export type OfferSlot =
+  | 'best_seller'
+  | 'starter_offer'
+  | 'premium_offer'
+  | 'bundle_package'
+  | 'membership_subscription'
+  | 'seasonal_promo'
+  | 'other';
+
+export type OfferPromise =
+  | 'fast'
+  | 'premium'
+  | 'affordable'
+  | 'guaranteed'
+  | 'personalized'
+  | 'luxury'
+  | 'results_focused'
+  | 'other';
+
+export interface OnboardingOffer {
+  type: OfferSlot;
+  name: string;
+  price_min?: number | null;
+  price_max?: number | null;
+  promise?: OfferPromise | string | null;
+}
+
+export type AudienceType = 'local_consumers' | 'ecommerce_consumers' | 'b2b_decision_makers' | 'mixed';
+
+export type MainObjection =
+  | 'price_too_high'
+  | 'not_sure_it_works'
+  | 'no_time'
+  | 'tried_before'
+  | 'dont_trust_online'
+  | 'needs_partner_approval'
+  | 'other';
+
+export type BrandVoice =
+  | 'professional'
+  | 'friendly'
+  | 'luxury'
+  | 'bold'
+  | 'playful'
+  | 'educational'
+  | 'clinical'
+  | 'direct'
+  | 'witty';
+
+export type ContentStyle =
+  | 'founder_led'
+  | 'educational_tips'
+  | 'before_after'
+  | 'social_proof'
+  | 'trend_based'
+  | 'storytelling';
+
+export type OnCameraAvailability = 'owner' | 'team' | 'faceless' | 'not_sure';
+
+export type AssetAvailability =
+  | 'brand_kit'
+  | 'photos'
+  | 'videos'
+  | 'testimonials'
+  | 'case_studies'
+  | 'menu_price_list'
+  | 'product_catalog';
+
+export type ProofType =
+  | 'reviews'
+  | 'testimonials'
+  | 'before_after'
+  | 'results_numbers'
+  | 'press_features'
+  | 'none';
+
+export type CadencePreset = 'light' | 'standard' | 'aggressive' | 'custom';
+
+export type ResponseHandling = 'owner' | 'team' | 'agency' | 'nobody_yet';
 
 /**
  * Competitor entry
@@ -100,6 +221,47 @@ export interface AIScanResult {
   confidence: number;
   source_urls: string[];
   cached_at: string;
+}
+
+/**
+ * V5 scan result structure
+ */
+export interface V5ScanResult {
+  industry_niche?: IndustryNiche;
+  offer_ideas?: string[];
+  primary_customer?: string[];
+  pain_points?: string[];
+  proof_cues?: string[];
+  recommended_platforms?: SocialChannel[];
+  conversion_path?: ConversionPath;
+  offer_name?: string;
+  primary_cta?: string;
+  icp_suggestions?: string[];
+  differentiators?: string[];
+  confidence?: number;
+  source_urls?: string[];
+}
+
+/**
+ * V5 onboarding metadata
+ */
+export type OnboardingV5Mode = 'quick' | 'deep';
+
+export interface OnboardingV5Meta {
+  mode?: OnboardingV5Mode;
+  progress?: {
+    active_section?: string;
+    completed_sections?: string[];
+    percent_complete?: number;
+    updated_at?: string;
+  };
+  icp_secondary?: string;
+  last_scan?: {
+    timestamp?: string;
+    scanned_at?: string;
+    confidence?: number;
+    applied_fields_count?: number;
+  };
 }
 
 /**
@@ -187,6 +349,29 @@ export interface OnboardingProfile {
   q18_cadence: CadenceMap | null;
   q18_provenance: AnswerProvenance | null;
 
+  // ========================================================================
+  // SMMA-specific fields
+  // ========================================================================
+  industry_niche: IndustryNiche | null;
+  primary_goal: PrimaryGoal | null;
+  conversion_path: ConversionPath | null;
+  conversion_link: string | null;
+  offers: OnboardingOffer[] | null;
+  audience_type: AudienceType | null;
+  primary_customer: string | null;
+  main_objection: MainObjection | null;
+  brand_voice: BrandVoice[] | null;
+  content_style: ContentStyle[] | null;
+  on_camera_availability: OnCameraAvailability | null;
+  available_assets: AssetAvailability[] | null;
+  proof_types: ProofType[] | null;
+  competitor_link: string | null;
+  platforms: SocialChannel[] | null;
+  formats: string[] | null;
+  cadence_preset: CadencePreset | null;
+  cadence_per_platform: CadenceMap | null;
+  response_handling: ResponseHandling | null;
+
   // AI Scan
   ai_scan_result: AIScanResult | null;
   ai_scan_at: string | null;
@@ -197,6 +382,7 @@ export interface OnboardingProfile {
   blockers: OnboardingBlocker[];
 
   // Metadata
+  v5_meta: OnboardingV5Meta | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -642,9 +828,13 @@ export const PRIMARY_GOAL_OPTIONS = CHANNEL_GOAL_OPTIONS;
 export const CHANNEL_OPTIONS = [
   { id: 'instagram', label: 'Instagram', icon: 'instagram' },
   { id: 'tiktok', label: 'TikTok', icon: 'tiktok' },
+  { id: 'youtube', label: 'YouTube', icon: 'youtube' },
   { id: 'youtube_shorts', label: 'YouTube Shorts', icon: 'youtube' },
   { id: 'linkedin', label: 'LinkedIn', icon: 'linkedin' },
   { id: 'facebook', label: 'Facebook', icon: 'facebook' },
+  { id: 'google_business_profile', label: 'Google Business Profile', icon: 'google' },
+  { id: 'pinterest', label: 'Pinterest', icon: 'pinterest' },
+  { id: 'x', label: 'X', icon: 'x' },
 ] as const;
 
 export const CTA_OPTIONS = [
@@ -653,6 +843,171 @@ export const CTA_OPTIONS = [
   { id: 'buy_now', label: 'Buy now', description: 'Direct purchase' },
   { id: 'visit_store', label: 'Visit store', description: 'Go to website or physical location' },
   { id: 'other', label: 'Other', description: 'Custom call-to-action' },
+] as const;
+
+export const INDUSTRY_NICHE_OPTIONS = [
+  { id: 'restaurant_cafe', label: 'Restaurant / Cafe' },
+  { id: 'gym_fitness_studio', label: 'Gym / Fitness studio' },
+  { id: 'beauty_salon_barber', label: 'Beauty salon / Barber' },
+  { id: 'clinic_medical', label: 'Clinic / Dentist / Medical' },
+  { id: 'real_estate', label: 'Real estate' },
+  { id: 'education_tutors', label: 'Education / Tutors' },
+  { id: 'home_services', label: 'Home services (plumber, solar, etc.)' },
+  { id: 'ecommerce_dtc', label: 'Ecommerce / DTC brand' },
+  { id: 'b2b_service', label: 'B2B service (law, accounting, consulting)' },
+  { id: 'saas_tech', label: 'SaaS / Tech' },
+  { id: 'other', label: 'Other' },
+] as const;
+
+export const ONBOARDING_PRIMARY_GOAL_OPTIONS = [
+  { id: 'more_bookings', label: 'More bookings/appointments' },
+  { id: 'more_leads', label: 'More leads (forms/calls)' },
+  { id: 'more_dms', label: 'More DMs' },
+  { id: 'more_online_sales', label: 'More online sales' },
+  { id: 'more_foot_traffic', label: 'More foot traffic' },
+  { id: 'more_trust', label: 'More trust/authority' },
+] as const;
+
+export const CONVERSION_PATH_OPTIONS = [
+  { id: 'book_call', label: 'Book a call' },
+  { id: 'book_appointment', label: 'Book appointment' },
+  { id: 'dm_keyword', label: 'DM keyword' },
+  { id: 'whatsapp', label: 'WhatsApp' },
+  { id: 'website_checkout', label: 'Website checkout' },
+  { id: 'visit_store', label: 'Visit store' },
+] as const;
+
+export const OFFER_SLOT_OPTIONS = [
+  { id: 'best_seller', label: 'Best seller / signature service' },
+  { id: 'starter_offer', label: 'Starter / entry offer' },
+  { id: 'premium_offer', label: 'Premium / transformation offer' },
+  { id: 'bundle_package', label: 'Bundle / package' },
+  { id: 'membership_subscription', label: 'Membership / subscription' },
+  { id: 'seasonal_promo', label: 'Seasonal promo' },
+  { id: 'other', label: 'Other...' },
+] as const;
+
+export const OFFER_PROMISE_OPTIONS = [
+  { id: 'fast', label: 'Fast' },
+  { id: 'premium', label: 'Premium' },
+  { id: 'affordable', label: 'Affordable' },
+  { id: 'guaranteed', label: 'Guaranteed' },
+  { id: 'personalized', label: 'Personalized' },
+  { id: 'luxury', label: 'Luxury' },
+  { id: 'results_focused', label: 'Results-focused' },
+  { id: 'other', label: 'Other...' },
+] as const;
+
+export const AUDIENCE_TYPE_OPTIONS = [
+  { id: 'local_consumers', label: 'Local consumers' },
+  { id: 'ecommerce_consumers', label: 'Ecommerce consumers' },
+  { id: 'b2b_decision_makers', label: 'B2B decision makers' },
+  { id: 'mixed', label: 'Mixed' },
+] as const;
+
+export const MAIN_OBJECTION_OPTIONS = [
+  { id: 'price_too_high', label: 'Price too high' },
+  { id: 'not_sure_it_works', label: 'Not sure it works' },
+  { id: 'no_time', label: 'No time' },
+  { id: 'tried_before', label: 'Tried before / skeptical' },
+  { id: 'dont_trust_online', label: "Don't trust brands online" },
+  { id: 'needs_partner_approval', label: 'Needs spouse/partner approval' },
+  { id: 'other', label: 'Other' },
+] as const;
+
+export const SMMA_PAIN_POINT_OPTIONS = [
+  { id: 'not_enough_customers', label: 'Not enough customers/leads' },
+  { id: 'low_trust', label: 'Low trust / weak reputation' },
+  { id: 'inconsistent_content', label: 'Inconsistent content' },
+  { id: 'low_engagement', label: 'Low engagement' },
+  { id: 'dont_stand_out', label: "Don't stand out locally" },
+  { id: 'weak_offers', label: "Weak offers / promos don't convert" },
+  { id: 'no_assets', label: 'No content assets (photos/video)' },
+  { id: 'no_on_camera', label: 'No one wants to be on camera' },
+  { id: 'slow_response', label: 'Slow response time to DMs/leads' },
+  { id: 'bad_reviews', label: 'Bad reviews / not enough reviews' },
+  { id: 'seasonal_drops', label: 'Seasonal demand drops' },
+  { id: 'other', label: 'Other' },
+] as const;
+
+export const BRAND_VOICE_OPTIONS = [
+  { id: 'professional', label: 'Professional' },
+  { id: 'friendly', label: 'Friendly' },
+  { id: 'luxury', label: 'Luxury' },
+  { id: 'bold', label: 'Bold' },
+  { id: 'playful', label: 'Playful' },
+  { id: 'educational', label: 'Educational' },
+  { id: 'clinical', label: 'Clinical' },
+  { id: 'direct', label: 'Direct' },
+  { id: 'witty', label: 'Witty' },
+] as const;
+
+export const CONTENT_STYLE_OPTIONS = [
+  { id: 'founder_led', label: 'Founder/personality-led' },
+  { id: 'educational_tips', label: 'Educational tips' },
+  { id: 'before_after', label: 'Before/after' },
+  { id: 'social_proof', label: 'Social proof-heavy' },
+  { id: 'trend_based', label: 'Trend-based' },
+  { id: 'storytelling', label: 'Storytelling' },
+] as const;
+
+export const ON_CAMERA_OPTIONS = [
+  { id: 'owner', label: 'Yes (owner)' },
+  { id: 'team', label: 'Yes (team)' },
+  { id: 'faceless', label: 'No (faceless only)' },
+  { id: 'not_sure', label: 'Not sure' },
+] as const;
+
+export const ASSET_OPTIONS = [
+  { id: 'brand_kit', label: 'Logo/brand kit' },
+  { id: 'photos', label: 'Photos' },
+  { id: 'videos', label: 'Videos/B-roll' },
+  { id: 'testimonials', label: 'Testimonials' },
+  { id: 'case_studies', label: 'Case studies' },
+  { id: 'menu_price_list', label: 'Menu/price list' },
+  { id: 'product_catalog', label: 'Product catalog' },
+] as const;
+
+export const PROOF_TYPE_OPTIONS = [
+  { id: 'reviews', label: 'Reviews' },
+  { id: 'testimonials', label: 'Testimonials' },
+  { id: 'before_after', label: 'Before/after' },
+  { id: 'results_numbers', label: 'Results numbers' },
+  { id: 'press_features', label: 'Press/features' },
+  { id: 'none', label: 'None yet' },
+] as const;
+
+export const PLATFORM_OPTIONS = [
+  { id: 'instagram', label: 'Instagram' },
+  { id: 'tiktok', label: 'TikTok' },
+  { id: 'youtube', label: 'YouTube' },
+  { id: 'linkedin', label: 'LinkedIn' },
+  { id: 'facebook', label: 'Facebook' },
+  { id: 'google_business_profile', label: 'Google Business Profile' },
+  { id: 'pinterest', label: 'Pinterest' },
+  { id: 'x', label: 'X' },
+] as const;
+
+export const FORMAT_OPTIONS = [
+  { id: 'short_video', label: 'Short video' },
+  { id: 'carousels', label: 'Carousels' },
+  { id: 'static_posts', label: 'Static posts' },
+  { id: 'stories', label: 'Stories' },
+  { id: 'lives', label: 'Lives' },
+] as const;
+
+export const CADENCE_PRESET_OPTIONS = [
+  { id: 'light', label: 'Light (3/wk)' },
+  { id: 'standard', label: 'Standard (5/wk)' },
+  { id: 'aggressive', label: 'Aggressive (7-10/wk)' },
+  { id: 'custom', label: 'Custom' },
+] as const;
+
+export const RESPONSE_HANDLING_OPTIONS = [
+  { id: 'owner', label: 'Owner' },
+  { id: 'team', label: 'Team' },
+  { id: 'agency', label: 'Agency' },
+  { id: 'nobody_yet', label: 'Nobody yet' },
 ] as const;
 
 export const LANGUAGE_OPTIONS = [

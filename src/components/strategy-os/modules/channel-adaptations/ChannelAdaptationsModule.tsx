@@ -1,11 +1,17 @@
 // Strategy OS - Channel Adaptations Module
 
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStrategyOS } from '../../StrategyOSContext';
 import { useUpdateModuleContent } from '@/hooks/useStrategyModules';
 import { useAddHistoryEvent } from '@/hooks/useStrategyHistory';
-import type { ChannelAdaptationsContent, ChannelConfig, Platform } from '@/lib/strategy/types';
-import { PLATFORMS, getPlatformDefinition } from '@/lib/strategy/constants';
+import type {
+  ChannelAdaptationsContent,
+  ChannelConfig,
+  Platform,
+  PillarsContent,
+  PositioningContent,
+} from '@/lib/strategy/types';
+import { getPlatformDefinition } from '@/lib/strategy/constants';
 import { useStrategyDecisions } from '@/hooks/useStrategyDecisions';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,6 +21,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import {
   Sheet,
   SheetContent,
@@ -23,8 +30,9 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { toast } from 'sonner';
-import { Save, Share2, Settings, Plus, Trash2 } from 'lucide-react';
+import { Share2, Settings, Plus, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getAutosaveLabel } from "@/components/strategy-os/shared/autosave";
 
 export function ChannelAdaptationsModule() {
   const { clientId, strategyId, getModuleData, isModuleLocked, modules } = useStrategyOS();
@@ -45,10 +53,29 @@ export function ChannelAdaptationsModule() {
   const [localContent, setLocalContent] = useState<ChannelAdaptationsContent>(content);
   const [hasChanges, setHasChanges] = useState(false);
   const [editingChannel, setEditingChannel] = useState<ChannelConfig | null>(null);
+  const [saveError, setSaveError] = useState(false);
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const positioning = modules.find((mod) => mod.module === "positioning")?.content_json as PositioningContent | undefined;
+  const pillars = modules.find((mod) => mod.module === "pillars")?.content_json as PillarsContent | undefined;
+
+  const defaultGuidance = useMemo(() => {
+    const positioningLine = positioning?.finalSentence?.trim() || "";
+    const pillarLines = (pillars?.pillars ?? [])
+      .map((pillar) => `- ${pillar.name}${pillar.coreMessage ? `: ${pillar.coreMessage}` : ""}`)
+      .join("\n");
+    const parts = [
+      positioningLine ? `Positioning:\n${positioningLine}` : "",
+      pillarLines ? `Pillars:\n${pillarLines}` : "",
+      "Channel intent: Adapt tone, cadence, and formats without changing the core message.",
+    ].filter(Boolean);
+    return parts.join("\n\n");
+  }, [positioning?.finalSentence, pillars?.pillars]);
 
   const updateLocal = (updates: Partial<ChannelAdaptationsContent>) => {
     setLocalContent((prev) => ({ ...prev, ...updates }));
     setHasChanges(true);
+    setSaveError(false);
   };
 
   const updateChannel = (id: string, updates: Partial<ChannelConfig>) => {
@@ -106,11 +133,37 @@ export function ChannelAdaptationsModule() {
       });
 
       setHasChanges(false);
+      setSaveError(false);
       toast.success('Channel adaptations saved');
     } catch (err) {
+      setSaveError(true);
       toast.error('Failed to save');
     }
   };
+
+  useEffect(() => {
+    if (!hasChanges || isLocked || updateContent.isPending || saveError) return;
+
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+    }
+
+    autosaveTimerRef.current = setTimeout(() => {
+      handleSave();
+    }, 750);
+
+    return () => {
+      if (autosaveTimerRef.current) {
+        clearTimeout(autosaveTimerRef.current);
+      }
+    };
+  }, [hasChanges, isLocked, updateContent.isPending, localContent, saveError]);
+
+  const statusLabel = getAutosaveLabel({
+    dirty: hasChanges,
+    pending: updateContent.isPending,
+    error: saveError,
+  });
 
   const enabledChannels = (localContent.channels ?? []).filter((c) => c.enabled);
 
@@ -128,6 +181,18 @@ export function ChannelAdaptationsModule() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="mb-4 rounded-lg border border-border/60 bg-muted/20 p-4">
+            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+              Auto guidance
+            </div>
+            <Textarea
+              value={localContent.defaultGuidance ?? defaultGuidance}
+              onChange={(event) => updateLocal({ defaultGuidance: event.target.value })}
+              className="min-h-[120px] text-sm"
+              placeholder="Auto guidance will appear here."
+              disabled={isLocked}
+            />
+          </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {(localContent.channels ?? []).map((channel) => {
               const platformDef = getPlatformDefinition(channel.platform);
@@ -189,71 +254,82 @@ export function ChannelAdaptationsModule() {
       </Card>
 
       {/* Translation Table */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-base">Translation Table</CardTitle>
-          <CardDescription>
-            How core messages adapt across channels
-          </CardDescription>
-          <Button onClick={addTranslationRow} size="sm" variant="outline" disabled={isLocked}>
-            <Plus className="h-4 w-4 mr-1" />
-            Add Row
-          </Button>
-        </CardHeader>
-        <CardContent>
-          {(localContent.translationTable ?? []).length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">
-              No translations added yet
-            </p>
-          ) : (
-            <div className="space-y-4">
-              {(localContent.translationTable ?? []).map((row, idx) => (
-                <div key={idx} className="space-y-3 p-4 rounded-lg bg-muted/30">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs text-muted-foreground">Row {idx + 1}</Label>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeTranslationRow(idx)}
-                      disabled={isLocked}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Core Message</Label>
-                    <Input
-                      value={row.coreMessage}
-                      onChange={(e) => updateTranslationRow(idx, { coreMessage: e.target.value })}
-                      placeholder="Core message..."
-                      disabled={isLocked}
-                    />
-                  </div>
-                  <div className="grid gap-2 sm:grid-cols-3 mt-2">
-                    {enabledChannels.map((channel) => (
-                      <div key={channel.id} className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">
-                          {getPlatformDefinition(channel.platform)?.label}
-                        </Label>
-                        <Input
-                          value={row.variants[channel.platform] ?? ''}
-                          onChange={(e) =>
-                            updateTranslationRow(idx, {
-                              variants: { ...row.variants, [channel.platform]: e.target.value },
-                            })
-                          }
-                          placeholder="Variant..."
-                          disabled={isLocked}
-                        />
+      <Accordion type="single" collapsible className="space-y-4">
+        <AccordionItem value="advanced" className="border-border/60">
+          <AccordionTrigger className="text-base font-semibold">
+            Advanced: Translation table
+          </AccordionTrigger>
+          <AccordionContent className="pt-2">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="text-base">Translation Table</CardTitle>
+                  <CardDescription>
+                    How core messages adapt across channels
+                  </CardDescription>
+                </div>
+                <Button onClick={addTranslationRow} size="sm" variant="outline" disabled={isLocked}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add Row
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {(localContent.translationTable ?? []).length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No translations added yet
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    {(localContent.translationTable ?? []).map((row, idx) => (
+                      <div key={idx} className="space-y-3 p-4 rounded-lg bg-muted/30">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs text-muted-foreground">Row {idx + 1}</Label>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeTranslationRow(idx)}
+                            disabled={isLocked}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Core Message</Label>
+                          <Input
+                            value={row.coreMessage}
+                            onChange={(e) => updateTranslationRow(idx, { coreMessage: e.target.value })}
+                            placeholder="Core message..."
+                            disabled={isLocked}
+                          />
+                        </div>
+                        <div className="grid gap-2 sm:grid-cols-3 mt-2">
+                          {enabledChannels.map((channel) => (
+                            <div key={channel.id} className="space-y-1">
+                              <Label className="text-xs text-muted-foreground">
+                                {getPlatformDefinition(channel.platform)?.label}
+                              </Label>
+                              <Input
+                                value={row.variants[channel.platform] ?? ''}
+                                onChange={(e) =>
+                                  updateTranslationRow(idx, {
+                                    variants: { ...row.variants, [channel.platform]: e.target.value },
+                                  })
+                                }
+                                placeholder="Variant..."
+                                disabled={isLocked}
+                              />
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     ))}
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                )}
+              </CardContent>
+            </Card>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
 
       {/* Channel Detail Sheet */}
       <Sheet open={!!editingChannel} onOpenChange={() => setEditingChannel(null)}>
@@ -385,15 +461,20 @@ export function ChannelAdaptationsModule() {
         </SheetContent>
       </Sheet>
 
-      {/* Save Button */}
-      {hasChanges && !isLocked && (
-        <div className="sticky bottom-4 flex justify-end">
-          <Button onClick={handleSave} disabled={updateContent.isPending}>
-            <Save className="h-4 w-4 mr-2" />
-            Save Changes
-          </Button>
+      {/* Autosave Status */}
+      <div className="sticky bottom-4">
+        <div className="flex items-center justify-between rounded-lg border border-border/60 bg-background/80 px-4 py-3 text-sm">
+          <div>
+            <div className="font-medium">Channel adaptations</div>
+            <div className="text-muted-foreground">{statusLabel}</div>
+          </div>
+          {saveError && !updateContent.isPending && (
+            <Button variant="outline" size="sm" onClick={handleSave}>
+              Retry
+            </Button>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

@@ -286,6 +286,7 @@ export const TASK_REGISTRY: Record<TaskType, TaskConfig> = {
         agencyBrain: args.brains?.agency ?? {},
         clientBrain: args.brains?.client ?? {},
         context: (args.metadata?.context as string) ?? "",
+        instruction: (args.metadata?.instruction as string | undefined) ?? undefined,
       }),
     requires: { agency: true, client: true },
     usageEndpoint: "ai-strategy-generate",
