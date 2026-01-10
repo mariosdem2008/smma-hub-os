@@ -330,13 +330,15 @@ function calculateConfidence(extracted: ScanResult['extracted']): number {
 }
 
 serve(async (req) => {
+  const headers = corsHeaders(req);
+
   // Handle CORS
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers });
   }
 
   try {
-    const guardResponse = getEndpointGuardResponse("ai-onboarding-scan", corsHeaders);
+    const guardResponse = getEndpointGuardResponse("ai-onboarding-scan", headers);
     if (guardResponse) return guardResponse;
 
     const body: ScanRequest = await req.json();
@@ -345,7 +347,7 @@ serve(async (req) => {
     if (!agency_id || !client_id || !website) {
       return new Response(
         JSON.stringify({ error: 'Missing required fields: agency_id, client_id, website' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: { ...headers, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -353,7 +355,7 @@ serve(async (req) => {
     if (!validateUrl(website)) {
       return new Response(
         JSON.stringify({ error: 'Invalid or blocked website URL' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: { ...headers, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -367,7 +369,7 @@ serve(async (req) => {
     if (!authHeader) {
       return new Response(
         JSON.stringify({ error: 'Missing Authorization header' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 401, headers: { ...headers, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -376,7 +378,7 @@ serve(async (req) => {
     if (!user) {
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 401, headers: { ...headers, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -390,7 +392,7 @@ serve(async (req) => {
     if (!membership) {
       return new Response(
         JSON.stringify({ error: 'Unauthorized: Not a member of this agency' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 403, headers: { ...headers, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -410,7 +412,7 @@ serve(async (req) => {
       if (daysDiff < 7) {
         return new Response(
           JSON.stringify(existingProfile.ai_scan_result),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { headers: { ...headers, 'Content-Type': 'application/json' } }
         );
       }
     }
@@ -440,7 +442,7 @@ serve(async (req) => {
 
       return new Response(
         JSON.stringify(emptyResult),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...headers, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -476,13 +478,13 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify(result),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: { ...headers, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
     console.error('Scan error:', error);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 500, headers: { ...headers, 'Content-Type': 'application/json' } }
     );
   }
 });
