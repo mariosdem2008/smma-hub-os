@@ -1,4 +1,4 @@
-import type { BrainModule } from "@/lib/ai/brainModules";
+import type { BrainModule } from "../lib/ai/brainModules.ts";
 
 export type AgencyTemplateFields = {
   agency_name: string;
@@ -207,4 +207,3 @@ export function renderDefaultBrainPackV1(
     content_json: renderTemplate(doc.content_json, normalized),
   }));
 }
-

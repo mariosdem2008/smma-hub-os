@@ -3,6 +3,7 @@ const UI_ENDPOINT_ALLOWLIST = new Set([
   "ai-brain-analyze",
   "ai-brain-document-approve",
   "ai-brain-ingest",
+  "ai-seed-default-brain-pack",
   "ai-brains-agency",
   "ai-brains-client",
   "ai-job-worker",
