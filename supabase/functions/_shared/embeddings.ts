@@ -1,6 +1,3 @@
-if (typeof Deno !== "undefined") {
-  await import("https://deno.land/x/xhr@0.1.0/mod.ts");
-}
 import { ai } from "../../../src/ai/router.ts";
 import { TaskType } from "../../../src/ai/taskTypes.ts";
 
