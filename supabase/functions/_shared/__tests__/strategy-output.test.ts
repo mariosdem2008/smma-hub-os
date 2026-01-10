@@ -1,4 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("../zod.edge.ts", async () => {
+  const mod = await import("zod");
+  return { z: mod.z };
+});
+
 import { strategyOutputSchema } from "../strategy-output.ts";
 
 describe("strategy output schema", () => {

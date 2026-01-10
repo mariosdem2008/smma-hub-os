@@ -1,4 +1,4 @@
-import { z } from "./zod.ts";
+import { z } from "./zod.edge.ts";
 import type { OutputSchema } from "../../../src/ai/schema.ts";
 
 const confidenceSchema = z.number().min(0).max(100);
