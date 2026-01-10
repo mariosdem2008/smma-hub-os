@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
+import { getEndpointGuardResponse } from "../_shared/endpoint-guard.ts";
 
 function jsonResponse(body: unknown, status = 200, headers: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
@@ -26,6 +27,9 @@ serve(async (req: Request) => {
   if (req.method !== "POST") {
     return jsonResponse({ error: "Method not allowed" }, 405, corsHeaders(req));
   }
+
+  const guardResponse = getEndpointGuardResponse("ai-answer-quality-check", corsHeaders(req));
+  if (guardResponse) return guardResponse;
 
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) {

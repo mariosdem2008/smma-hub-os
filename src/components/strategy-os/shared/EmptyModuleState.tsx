@@ -22,8 +22,9 @@ export function EmptyModuleState({ module }: EmptyModuleStateProps) {
       <h3 className="text-lg font-semibold mb-2">No strategy captured yet</h3>
 
       <p className="text-sm text-muted-foreground max-w-md mb-6">
-        Use Generate Strategy to seed this section with template content, or start building
-        your {moduleDef?.label.toLowerCase()} strategy from scratch.
+        Run Strategy Builder to draft this section with AI, or build your{" "}
+        {moduleDef?.label.toLowerCase()} strategy from scratch. If AI is disabled, you will get a
+        Template Draft instead.
       </p>
 
       <GenerateStrategyButton />

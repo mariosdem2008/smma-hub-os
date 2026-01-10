@@ -8,7 +8,9 @@ export type RagConfig = {
   agency_doc_types: string[];
   exemplar_top_k: number;
   exemplar_doc_types: string[];
+  min_similarity: number;
   max_context_chars: number;
+  max_context_tokens: number;
 };
 
 export type RagMatch = {
@@ -37,17 +39,21 @@ const DEFAULT_RAG_CONFIG: Partial<Record<TaskType, RagConfig>> = {
     agency_doc_types: ["agency_memory", "setup_progress_v1"],
     exemplar_top_k: 2,
     exemplar_doc_types: ["exemplar"],
+    min_similarity: 0.2,
     max_context_chars: 6000,
+    max_context_tokens: 900,
   },
   [TaskType.STRATEGY_PLAN]: {
     // Mirrors legacy ai-strategy-generate retrieval defaults.
     client_memory_top_k: 6,
     client_doc_types: ["client_guidelines", "client_notes", "approved_posts", "ai_artifact", "strategy_draft"],
     agency_memory_top_k: 4,
-    agency_doc_types: ["agency_sop"],
+    agency_doc_types: ["agency_sop", "brain_document"],
     exemplar_top_k: 2,
     exemplar_doc_types: ["agency_exemplar_strategy"],
+    min_similarity: 0.2,
     max_context_chars: 6000,
+    max_context_tokens: 1200,
   },
 };
 
@@ -58,7 +64,9 @@ const FALLBACK_RAG_CONFIG: RagConfig = {
   agency_doc_types: [],
   exemplar_top_k: 0,
   exemplar_doc_types: [],
+  min_similarity: 0,
   max_context_chars: 6000,
+  max_context_tokens: 1200,
 };
 
 export function getRagConfig(taskType: TaskType): RagConfig {
@@ -78,16 +86,30 @@ function selectTop(matches: RagMatch[], topK: number) {
     .slice(0, topK);
 }
 
+function estimateTokens(text: string) {
+  if (!text) return 0;
+  return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
 export function applyRagPolicy(matches: RagMatch[], config: RagConfig): RagPolicyResult {
   const clientMatches = matches.filter((match) => config.client_doc_types.includes(match.doc_type));
   const agencyMatches = matches.filter((match) => config.agency_doc_types.includes(match.doc_type));
   const exemplarMatches = matches.filter((match) => config.exemplar_doc_types.includes(match.doc_type));
 
-  const selectedMatches = [
+  const preSelected = [
     ...selectTop(clientMatches, config.client_memory_top_k),
     ...selectTop(agencyMatches, config.agency_memory_top_k),
     ...selectTop(exemplarMatches, config.exemplar_top_k),
   ];
+
+  let usedTokens = 0;
+  const selectedMatches: RagMatch[] = [];
+  for (const match of preSelected) {
+    const tokens = estimateTokens(match.chunk_text ?? "");
+    if (usedTokens + tokens > config.max_context_tokens) break;
+    selectedMatches.push(match);
+    usedTokens += tokens;
+  }
 
   const contextParts = selectedMatches.map((match) => `(${match.doc_type}) ${match.chunk_text}`);
   const fullContext = contextParts.join("\n\n");
@@ -95,7 +117,7 @@ export function applyRagPolicy(matches: RagMatch[], config: RagConfig): RagPolic
   if (fullContext.length <= config.max_context_chars) {
     return {
       context: fullContext,
-      contextTruncated: false,
+      contextTruncated: selectedMatches.length < preSelected.length,
       selectedMatches,
       retrievalCount: selectedMatches.length,
       docTypesUsed: Array.from(new Set(selectedMatches.map((match) => match.doc_type))),

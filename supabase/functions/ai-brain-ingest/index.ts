@@ -2,10 +2,12 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
-import { buildChunks, DEFAULT_EMBEDDING_DIM, embedText, tokenize } from "../_shared/embeddings.ts";
+import { buildChunks, embedText, getExpectedEmbeddingDim, tokenize } from "../_shared/embeddings.ts";
 import { embedWithPolicy } from "../_shared/embedding-policy.ts";
+import { persistEmbeddingResult } from "../_shared/embedding-store.ts";
 import { evaluateClientBrainForStrategy } from "../_shared/brain-quality.ts";
 import { mapV3AnswersToClientBrain } from "../_shared/client-brain-mapping.ts";
+import { getEndpointGuardResponse } from "../_shared/endpoint-guard.ts";
 
 const CHUNK_SIZE_TOKENS = 900;
 const OVERLAP_TOKENS = 140;
@@ -88,6 +90,9 @@ serve(async (req: Request) => {
   if (req.method !== "POST") {
     return jsonResponse({ error: "Method not allowed" }, 405, corsHeaders(req));
   }
+
+  const guardResponse = getEndpointGuardResponse("ai-brain-ingest", corsHeaders(req));
+  if (guardResponse) return guardResponse;
 
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) {
@@ -232,7 +237,7 @@ serve(async (req: Request) => {
         const chunks = buildChunks(tokens, CHUNK_SIZE_TOKENS, OVERLAP_TOKENS, MAX_CHUNKS);
         const embeddingApiKey = Deno.env.get("OPENAI_API_KEY");
         const embeddingModel = Deno.env.get("EMBEDDING_MODEL_ID") ?? "text-embedding-3-small";
-        const zeroVector = Array(DEFAULT_EMBEDDING_DIM).fill(0);
+        const expectedDim = getExpectedEmbeddingDim();
 
         for (let index = 0; index < chunks.length; index += 1) {
           const chunk = chunks[index];
@@ -244,6 +249,7 @@ serve(async (req: Request) => {
               chunk_text: chunk.text,
               token_count: chunk.tokenCount,
               chunk_meta: { start_token: chunk.start, end_token: chunk.end },
+              embedding_status: "failed",
             })
             .select("id")
             .single();
@@ -257,7 +263,6 @@ serve(async (req: Request) => {
               apiKey: embeddingApiKey ?? undefined,
               failHard,
               embed: (text) => embedText(text, embeddingApiKey ?? "", embeddingModel),
-              zeroVector,
             });
           } catch (error: any) {
             if (error?.code === "MISSING_API_KEY") {
@@ -269,21 +274,28 @@ serve(async (req: Request) => {
             throw error;
           }
 
-          await supabase.from("ai_embeddings").insert({
-            agency_id: agencyId,
-            client_id: null,
-            doc_type: "ai_artifact",
-            document_id: docRow.id,
-            chunk_id: chunkRow.id,
-            embedding: embeddingResult.vector,
-            model: embeddingModel,
-            metadata: {
-              similarity: "cosine",
-              embedding_dim: DEFAULT_EMBEDDING_DIM,
-              embedding_fallback: embeddingResult.legacyZeroVector,
-              legacy_zero_vector: embeddingResult.legacyZeroVector,
+          const persistResult = await persistEmbeddingResult({
+            supabase,
+            chunkId: chunkRow.id,
+            embeddingResult,
+            embeddingPayload: {
+              agency_id: agencyId,
+              client_id: null,
+              doc_type: "ai_artifact",
+              document_id: docRow.id,
+              chunk_id: chunkRow.id,
+              embedding: [],
+              model: embeddingModel,
+              metadata: {
+                similarity: "cosine",
+                embedding_dim: expectedDim,
+              },
             },
           });
+
+          if (!persistResult.stored && persistResult.errorCode === "EMBEDDING_DIM_MISMATCH") {
+            return jsonResponse({ error: "Embedding dimension mismatch", code: "EMBEDDING_DIM_MISMATCH" }, 500, corsHeaders(req));
+          }
         }
       }
     }
@@ -338,7 +350,7 @@ serve(async (req: Request) => {
       const chunks = buildChunks(tokens, CHUNK_SIZE_TOKENS, OVERLAP_TOKENS, MAX_CHUNKS);
       const embeddingApiKey = Deno.env.get("OPENAI_API_KEY");
       const embeddingModel = Deno.env.get("EMBEDDING_MODEL_ID") ?? "text-embedding-3-small";
-      const zeroVector = Array(DEFAULT_EMBEDDING_DIM).fill(0);
+      const expectedDim = getExpectedEmbeddingDim();
 
       for (let index = 0; index < chunks.length; index += 1) {
         const chunk = chunks[index];
@@ -350,6 +362,7 @@ serve(async (req: Request) => {
             chunk_text: chunk.text,
             token_count: chunk.tokenCount,
             chunk_meta: { start_token: chunk.start, end_token: chunk.end },
+            embedding_status: "failed",
           })
           .select("id")
           .single();
@@ -363,7 +376,6 @@ serve(async (req: Request) => {
             apiKey: embeddingApiKey ?? undefined,
             failHard,
             embed: (text) => embedText(text, embeddingApiKey ?? "", embeddingModel),
-            zeroVector,
           });
         } catch (error: any) {
           if (error?.code === "MISSING_API_KEY") {
@@ -375,21 +387,28 @@ serve(async (req: Request) => {
           throw error;
         }
 
-        await supabase.from("ai_embeddings").insert({
-          agency_id: agencyId,
-          client_id: clientId ?? null,
-          doc_type: "ai_artifact",
-          document_id: docRow.id,
-          chunk_id: chunkRow.id,
-          embedding: embeddingResult.vector,
-          model: embeddingModel,
-          metadata: {
-            similarity: "cosine",
-            embedding_dim: DEFAULT_EMBEDDING_DIM,
-            embedding_fallback: embeddingResult.legacyZeroVector,
-            legacy_zero_vector: embeddingResult.legacyZeroVector,
+        const persistResult = await persistEmbeddingResult({
+          supabase,
+          chunkId: chunkRow.id,
+          embeddingResult,
+          embeddingPayload: {
+            agency_id: agencyId,
+            client_id: clientId ?? null,
+            doc_type: "ai_artifact",
+            document_id: docRow.id,
+            chunk_id: chunkRow.id,
+            embedding: [],
+            model: embeddingModel,
+            metadata: {
+              similarity: "cosine",
+              embedding_dim: expectedDim,
+            },
           },
         });
+
+        if (!persistResult.stored && persistResult.errorCode === "EMBEDDING_DIM_MISMATCH") {
+          return jsonResponse({ error: "Embedding dimension mismatch", code: "EMBEDDING_DIM_MISMATCH" }, 500, corsHeaders(req));
+        }
       }
     }
   }

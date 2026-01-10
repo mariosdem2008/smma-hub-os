@@ -21,6 +21,16 @@ type MessageRow = {
   suggestions?: Suggestion[];
   questionKey?: string;
 };
+type AiJobRow = {
+  id: string;
+  client_id: string;
+  job_type: string;
+  status: string;
+  attempts: number;
+  run_after: string;
+  last_error: string | null;
+  created_at: string;
+};
 
 type SetupQuestionMetadata = {
   key: string;
@@ -147,6 +157,8 @@ export default function AgencyAiAdmin() {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [setupMeta, setSetupMeta] = useState<SetupMeta | null>(null);
   const [setupComplete, setSetupComplete] = useState(false);
+  const [aiJobs, setAiJobs] = useState<AiJobRow[]>([]);
+  const [loadingJobs, setLoadingJobs] = useState(false);
 
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -212,6 +224,33 @@ export default function AgencyAiAdmin() {
     if (!agencyId) return;
     loadThreads(agencyId);
   }, [agencyId]);
+
+  const loadJobs = useCallback(async (nextAgencyId: string) => {
+    setLoadingJobs(true);
+    try {
+      const { data, error } = await supabase
+        .from("ai_jobs")
+        .select("id,client_id,job_type,status,attempts,run_after,last_error,created_at")
+        .eq("agency_id", nextAgencyId)
+        .order("created_at", { ascending: false })
+        .limit(25);
+      if (error) throw error;
+      setAiJobs((data ?? []) as AiJobRow[]);
+    } catch (err: any) {
+      toast({
+        title: "Failed to load AI jobs",
+        description: err?.message ?? "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingJobs(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    if (!agencyId) return;
+    loadJobs(agencyId);
+  }, [agencyId, loadJobs]);
 
   const setupThread = useMemo(() => threads.find((t) => t.kind === "setup") ?? null, [threads]);
   const generalThreads = useMemo(() => threads.filter((t) => t.kind !== "setup"), [threads]);
@@ -887,6 +926,81 @@ export default function AgencyAiAdmin() {
         </aside>
 
         <main className="flex h-full flex-1 flex-col">
+          <div className="mb-3 rounded-2xl border bg-background/70 p-4 backdrop-blur">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm font-semibold">AI Job Queue</div>
+                <div className="text-xs text-muted-foreground">
+                  Latest job status and errors for background automation.
+                </div>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => agencyId && loadJobs(agencyId)}
+                disabled={loadingJobs || !agencyId}
+              >
+                {loadingJobs ? "Refreshing..." : "Refresh"}
+              </Button>
+            </div>
+            <div className="mt-3 overflow-auto">
+              <table className="w-full text-xs">
+                <thead className="text-muted-foreground">
+                  <tr className="text-left">
+                    <th className="py-2 pr-3 font-medium">Job</th>
+                    <th className="py-2 pr-3 font-medium">Client</th>
+                    <th className="py-2 pr-3 font-medium">Status</th>
+                    <th className="py-2 pr-3 font-medium">Attempts</th>
+                    <th className="py-2 pr-3 font-medium">Run after</th>
+                    <th className="py-2 font-medium">Last error</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loadingJobs ? (
+                    <tr>
+                      <td className="py-2 text-muted-foreground" colSpan={6}>
+                        Loading jobs...
+                      </td>
+                    </tr>
+                  ) : aiJobs.length === 0 ? (
+                    <tr>
+                      <td className="py-2 text-muted-foreground" colSpan={6}>
+                        No jobs yet.
+                      </td>
+                    </tr>
+                  ) : (
+                    aiJobs.map((job) => (
+                      <tr key={job.id} className="border-t border-border/40">
+                        <td className="py-2 pr-3 font-medium">{job.job_type}</td>
+                        <td className="py-2 pr-3 text-muted-foreground">{job.client_id}</td>
+                        <td className="py-2 pr-3">
+                          <span
+                            className={cn(
+                              "rounded-full px-2 py-1 text-[11px] font-semibold uppercase tracking-wide",
+                              job.status === "succeeded" && "bg-emerald-500/10 text-emerald-400",
+                              job.status === "failed" && "bg-red-500/10 text-red-400",
+                              job.status === "running" && "bg-blue-500/10 text-blue-400",
+                              job.status === "pending" && "bg-amber-500/10 text-amber-400",
+                            )}
+                          >
+                            {job.status}
+                          </span>
+                        </td>
+                        <td className="py-2 pr-3 text-muted-foreground">{job.attempts}</td>
+                        <td className="py-2 pr-3 text-muted-foreground">
+                          {job.run_after ? new Date(job.run_after).toLocaleString() : "—"}
+                        </td>
+                        <td className="py-2 text-muted-foreground">
+                          {job.last_error ? job.last_error : "—"}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
           {/* Setup progress indicator */}
           {isSetupActive && setupMeta && !setupMeta.done ? (
             <div className="mb-3 rounded-2xl border bg-background/70 p-3 backdrop-blur">

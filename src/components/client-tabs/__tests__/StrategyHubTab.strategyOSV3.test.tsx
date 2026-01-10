@@ -107,7 +107,7 @@ describe("StrategyHubTab Strategy Knowledge Center", () => {
   it("shows generate strategy CTA when no document exists", () => {
     useStrategyDocumentsMock.mockReturnValueOnce({ data: [] });
     renderStrategyHub();
-    expect(screen.getAllByRole("button", { name: "Generate Strategy" })).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: "Strategy Builder" })).toHaveLength(1);
   });
 
   it("opens details view and returns to document view", async () => {

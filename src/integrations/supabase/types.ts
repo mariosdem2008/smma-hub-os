@@ -284,6 +284,94 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_jobs: {
+        Row: {
+          agency_id: string
+          attempts: number
+          client_id: string
+          created_at: string
+          dedupe_key: string | null
+          id: string
+          job_type: string
+          last_error: string | null
+          payload_json: Json
+          run_after: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          agency_id: string
+          attempts?: number
+          client_id: string
+          created_at?: string
+          dedupe_key?: string | null
+          id?: string
+          job_type: string
+          last_error?: string | null
+          payload_json?: Json
+          run_after?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          agency_id?: string
+          attempts?: number
+          client_id?: string
+          created_at?: string
+          dedupe_key?: string | null
+          id?: string
+          job_type?: string
+          last_error?: string | null
+          payload_json?: Json
+          run_after?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_jobs_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_jobs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_asset_counts"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "ai_jobs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_contacts_secure"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_jobs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_portal_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_jobs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_jobs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "portal_public_clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agency_ai_chat_messages: {
         Row: {
           content: string

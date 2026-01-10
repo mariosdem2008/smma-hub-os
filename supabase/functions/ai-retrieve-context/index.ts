@@ -4,6 +4,8 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
 import { embedText } from "../_shared/embeddings.ts";
 import { getLockdownFailure, logLockdownAttempt } from "../_shared/lockdown.ts";
+import { capMatchesByTokenBudget, clampMatchCount } from "../_shared/retrieval.ts";
+import { getEndpointGuardResponse } from "../_shared/endpoint-guard.ts";
 
 function jsonResponse(body: unknown, status = 200, headers: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
@@ -21,6 +23,9 @@ serve(async (req: Request) => {
     return jsonResponse({ error: "Method not allowed" }, 405, corsHeaders(req));
   }
 
+  const guardResponse = getEndpointGuardResponse("ai-retrieve-context", corsHeaders(req));
+  if (guardResponse) return guardResponse;
+
   const lockdownEnabled = Deno.env.get("AI_LOCKDOWN_UNUSED_ENDPOINTS") === "true";
   const body = await req.json().catch(() => ({}));
   const agencyId = body.agency_id as string | undefined;
@@ -28,6 +33,9 @@ serve(async (req: Request) => {
   const query = (body.query as string | undefined)?.trim();
   const topK = Number(body.top_k ?? 8);
   const docTypes = Array.isArray(body.doc_types) ? body.doc_types : null;
+  const modules = Array.isArray(body.modules) ? body.modules : null;
+  const minSimilarity = Number(body.min_similarity ?? 0.2);
+  const tokenBudget = Number(body.token_budget ?? 800);
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) {
     const lockdown = getLockdownFailure({
@@ -122,8 +130,10 @@ serve(async (req: Request) => {
     p_agency_id: agencyId,
     p_client_id: clientId ?? null,
     p_query_embedding: queryEmbedding,
-    p_match_count: Number.isFinite(topK) ? Math.max(1, Math.min(topK, 20)) : 8,
+    p_match_count: clampMatchCount(topK),
     p_doc_types: docTypes,
+    p_modules: modules,
+    p_min_similarity: Number.isFinite(minSimilarity) ? minSimilarity : 0.2,
   });
 
   if (matchError) {
@@ -142,7 +152,8 @@ serve(async (req: Request) => {
     unknown: false,
   });
 
-  const response = (matches || []).map((row: any) => ({
+  const capped = capMatchesByTokenBudget(matches || [], tokenBudget);
+  const response = capped.matches.map((row: any) => ({
     source: row.doc_type,
     source_id: row.chunk_id,
     snippet: row.chunk_text,

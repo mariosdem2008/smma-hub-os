@@ -2,9 +2,11 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
-import { buildChunks, DEFAULT_EMBEDDING_DIM, embedText, tokenize } from "../_shared/embeddings.ts";
+import { buildChunks, embedText, getExpectedEmbeddingDim, tokenize } from "../_shared/embeddings.ts";
 import { embedWithPolicy } from "../_shared/embedding-policy.ts";
+import { persistEmbeddingResult } from "../_shared/embedding-store.ts";
 import { getLockdownFailure, logLockdownAttempt } from "../_shared/lockdown.ts";
+import { getEndpointGuardResponse } from "../_shared/endpoint-guard.ts";
 
 const ALLOWED_DOC_TYPES = [
   "agency_exemplar_strategy",
@@ -37,6 +39,9 @@ serve(async (req: Request) => {
   if (req.method !== "POST") {
     return jsonResponse({ error: "Method not allowed" }, 405, corsHeaders(req));
   }
+
+  const guardResponse = getEndpointGuardResponse("ai-documents-ingest", corsHeaders(req));
+  if (guardResponse) return guardResponse;
 
   const lockdownEnabled = Deno.env.get("AI_LOCKDOWN_UNUSED_ENDPOINTS") === "true";
   const body = await req.json().catch(() => ({}));
@@ -186,7 +191,7 @@ serve(async (req: Request) => {
 
   const embeddingApiKey = Deno.env.get("OPENAI_API_KEY");
   const embeddingModel = Deno.env.get("EMBEDDING_MODEL_ID") ?? "text-embedding-3-small";
-  const zeroVector = Array(DEFAULT_EMBEDDING_DIM).fill(0);
+  const expectedDim = getExpectedEmbeddingDim();
 
   for (let index = 0; index < chunks.length; index += 1) {
     const chunk = chunks[index];
@@ -198,6 +203,7 @@ serve(async (req: Request) => {
         chunk_text: chunk.text,
         token_count: chunk.tokenCount,
         chunk_meta: { start_token: chunk.start, end_token: chunk.end },
+        embedding_status: "failed",
       })
       .select("id")
       .single();
@@ -213,7 +219,6 @@ serve(async (req: Request) => {
         apiKey: embeddingApiKey ?? undefined,
         failHard,
         embed: (text) => embedText(text, embeddingApiKey ?? "", embeddingModel),
-        zeroVector,
       });
     } catch (error: any) {
       if (error?.code === "MISSING_API_KEY") {
@@ -225,24 +230,27 @@ serve(async (req: Request) => {
       throw error;
     }
 
-    const { error: embeddingError } = await supabase.from("ai_embeddings").insert({
-      agency_id: agencyId,
-      client_id: clientId ?? null,
-      doc_type: docType,
-      document_id: documentRow.id,
-      chunk_id: chunkRow.id,
-      embedding: embeddingResult.vector,
-      model: embeddingModel,
-      metadata: {
-        similarity: "cosine",
-        embedding_dim: DEFAULT_EMBEDDING_DIM,
-        embedding_fallback: embeddingResult.legacyZeroVector,
-        legacy_zero_vector: embeddingResult.legacyZeroVector,
+    const persistResult = await persistEmbeddingResult({
+      supabase,
+      chunkId: chunkRow.id,
+      embeddingResult,
+      embeddingPayload: {
+        agency_id: agencyId,
+        client_id: clientId ?? null,
+        doc_type: docType,
+        document_id: documentRow.id,
+        chunk_id: chunkRow.id,
+        embedding: [],
+        model: embeddingModel,
+        metadata: {
+          similarity: "cosine",
+          embedding_dim: expectedDim,
+        },
       },
     });
 
-    if (embeddingError) {
-      return jsonResponse({ error: embeddingError.message }, 400, corsHeaders(req));
+    if (!persistResult.stored && persistResult.errorCode === "EMBEDDING_DIM_MISMATCH") {
+      return jsonResponse({ error: "Embedding dimension mismatch", code: "EMBEDDING_DIM_MISMATCH" }, 500, corsHeaders(req));
     }
   }
 

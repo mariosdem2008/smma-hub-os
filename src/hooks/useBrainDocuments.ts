@@ -253,38 +253,13 @@ export function useApproveBrainDocument() {
 
   return useMutation({
     mutationFn: async (documentId: string) => {
-      // Get document
-      const { data: doc, error: fetchError } = await supabase
-        .from("brain_documents")
-        .select("*")
-        .eq("id", documentId)
-        .single();
-
-      if (fetchError) throw fetchError;
-      if (!doc) throw new Error("Document not found");
-
-      // Archive existing approved document for this module
-      await supabase
-        .from("brain_documents")
-        .update({ status: "archived" })
-        .eq("agency_id", doc.agency_id)
-        .eq("module", doc.module)
-        .eq("status", "approved")
-        .neq("id", documentId);
-
-      // Approve the document
-      const { data, error } = await supabase
-        .from("brain_documents")
-        .update({
-          status: "approved",
-          approved_at: new Date().toISOString(),
-        })
-        .eq("id", documentId)
-        .select()
-        .single();
+      const { data, error } = await supabase.functions.invoke("ai-brain-document-approve", {
+        body: { document_id: documentId },
+      });
 
       if (error) throw error;
-      return data as BrainDocument;
+      if (!data?.document) throw new Error("Document approval failed");
+      return data.document as BrainDocument;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["brain-documents"] });

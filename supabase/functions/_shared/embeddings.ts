@@ -6,6 +6,17 @@ import { TaskType } from "../../../src/ai/taskTypes.ts";
 
 export const DEFAULT_EMBEDDING_DIM = 1536;
 
+export function getExpectedEmbeddingDim() {
+  const raw = typeof Deno !== "undefined"
+    ? Deno.env.get("AI_EMBED_DIM_EXPECTED")
+    : typeof process !== "undefined"
+    ? process.env.AI_EMBED_DIM_EXPECTED
+    : undefined;
+  const parsed = raw ? Number(raw) : NaN;
+  if (Number.isFinite(parsed) && parsed > 0) return Math.trunc(parsed);
+  return DEFAULT_EMBEDDING_DIM;
+}
+
 export function tokenize(text: string) {
   return text.trim().split(/\s+/).filter(Boolean);
 }
@@ -39,11 +50,20 @@ export async function embedText(text: string, apiKey: string, model: string) {
     taskType: TaskType.EMBED_TEXT,
     input: text,
     context: { environment: "prod" },
-    metadata: { modelOverride: model },
+    metadata: {
+      modelOverride: model,
+      outputDimensionality: getExpectedEmbeddingDim(),
+    },
   });
   const vector = result.output;
   if (!Array.isArray(vector)) {
     throw new Error("Embedding API response missing vector");
+  }
+  const expectedDim = getExpectedEmbeddingDim();
+  if (vector.length !== expectedDim) {
+    const error = new Error("Embedding dimension mismatch") as Error & { code?: string };
+    error.code = "EMBEDDING_DIM_MISMATCH";
+    throw error;
   }
   return vector;
 }

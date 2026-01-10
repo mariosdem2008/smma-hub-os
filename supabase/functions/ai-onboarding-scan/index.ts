@@ -6,6 +6,10 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { corsHeaders } from '../_shared/cors.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
+import { runAiTask } from "../_shared/ai.ts";
+import { TaskType } from "../../../src/ai/taskTypes.ts";
+import { objectSchema } from "../../../src/ai/schema.ts";
+import { getEndpointGuardResponse } from "../_shared/endpoint-guard.ts";
 
 interface ScanRequest {
   agency_id: string;
@@ -236,11 +240,11 @@ async function fetchWebsiteContent(url: string): Promise<string | null> {
   return null;
 }
 
-// AI analysis using Claude
+// AI analysis using router-backed AI
 async function analyzeWithAI(
   content: string,
   socialContent: string[],
-  anthropicApiKey: string
+  opts: { agencyId: string; clientId: string; userId: string; supabase: any }
 ): Promise<ScanResult['extracted']> {
   const prompt = `Analyze this business website and social media content to extract key information.
 
@@ -264,43 +268,31 @@ Extract the following in JSON format:
 Only include fields where you have reasonable confidence. Return valid JSON only.`;
 
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': anthropicApiKey,
-        'anthropic-version': '2023-06-01',
+    const result = await runAiTask({
+      task_type: TaskType.EXTRACT_STRUCTURED,
+      tenant: {
+        agency_id: opts.agencyId,
+        client_id: opts.clientId,
+        user_id: opts.userId,
       },
-      body: JSON.stringify({
-        model: 'claude-3-5-haiku-20241022',
-        max_tokens: 1024,
-        messages: [
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-      }),
+      input: { message: prompt },
+      metadata: {
+        instructions: "Return only valid JSON object. Do not include markdown.",
+        providerOverride: "anthropic",
+        modelOverride: "claude-3-5-haiku-20241022",
+      },
+      outputSchema: objectSchema("onboarding_scan", []),
+      supabase: opts.supabase,
     });
 
-    if (!response.ok) {
-      const error = await response.text();
-      console.error('Anthropic API error:', error);
-      throw new Error(`Anthropic API error: ${response.status}`);
+    if (result?.json && typeof result.json === "object" && !Array.isArray(result.json)) {
+      return result.json as ScanResult["extracted"];
     }
-
-    const result = await response.json();
-    const text = result.content?.[0]?.text || '';
-
-    // Parse JSON from response
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      return JSON.parse(jsonMatch[0]);
-    }
-
     return {};
   } catch (error) {
-    console.error('AI analysis error:', error);
+    console.error("ai_onboarding_scan_failed", {
+      message: error instanceof Error ? error.message : String(error),
+    });
     return {};
   }
 }
@@ -344,6 +336,9 @@ serve(async (req) => {
   }
 
   try {
+    const guardResponse = getEndpointGuardResponse("ai-onboarding-scan", corsHeaders);
+    if (guardResponse) return guardResponse;
+
     const body: ScanRequest = await req.json();
     const { agency_id, client_id, website, social_links = [] } = body;
 
@@ -365,31 +360,38 @@ serve(async (req) => {
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY')!;
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Verify agency membership (authorization check)
     const authHeader = req.headers.get('authorization');
-    if (authHeader) {
-      const token = authHeader.replace('Bearer ', '');
-      const { data: { user } } = await supabase.auth.getUser(token);
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Missing Authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
-      if (user) {
-        const { data: membership } = await supabase
-          .from('agency_members')
-          .select('id')
-          .eq('agency_id', agency_id)
-          .eq('user_id', user.id)
-          .single();
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user } } = await supabase.auth.getUser(token);
+    if (!user) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
-        if (!membership) {
-          return new Response(
-            JSON.stringify({ error: 'Unauthorized: Not a member of this agency' }),
-            { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-      }
+    const { data: membership } = await supabase
+      .from('agency_members')
+      .select('id')
+      .eq('agency_id', agency_id)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (!membership) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized: Not a member of this agency' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // Check for cached result
@@ -446,7 +448,12 @@ serve(async (req) => {
     const extracted = await analyzeWithAI(
       websiteContent || '',
       socialContent,
-      anthropicApiKey
+      {
+        agencyId: agency_id,
+        clientId: client_id,
+        userId: user.id,
+        supabase,
+      }
     );
 
     const confidence = calculateConfidence(extracted);

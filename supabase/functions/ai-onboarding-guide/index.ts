@@ -4,6 +4,7 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
 import { ai } from "../../../src/ai/router.ts";
 import { TaskType } from "../../../src/ai/taskTypes.ts";
+import { getEndpointGuardResponse } from "../_shared/endpoint-guard.ts";
 import {
   buildOnboardingAudiencePrompt,
   buildOnboardingDifferentiatorsPrompt,
@@ -667,6 +668,9 @@ serve(async (req: Request) => {
     if (req.method !== "POST") {
       return jsonResponse({ error: "Method not allowed", v: FN_VERSION }, 405, corsHeaders(req));
     }
+
+    const guardResponse = getEndpointGuardResponse("ai-onboarding-guide", corsHeaders(req));
+    if (guardResponse) return guardResponse;
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {

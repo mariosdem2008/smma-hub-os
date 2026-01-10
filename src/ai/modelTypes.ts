@@ -1,6 +1,6 @@
 import { TaskType } from "./taskTypes.ts"
 
-export type Provider = "openai" | "anthropic";
+export type Provider = "openai" | "anthropic" | "gemini";
 export type EnvMode = "dev" | "prod";
 export type PlanTier = "free" | "starter" | "growth" | "pro";
 export type QualityTier = "cheap" | "standard" | "premium";

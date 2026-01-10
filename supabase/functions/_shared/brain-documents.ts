@@ -5,6 +5,10 @@
  * Used by Supabase Edge Functions for brain document CRUD operations.
  */
 
+import { buildChunks, embedText, getExpectedEmbeddingDim, tokenize } from "./embeddings.ts";
+import { embedWithPolicy } from "./embedding-policy.ts";
+import { persistEmbeddingResult } from "./embedding-store.ts";
+
 type MaybeSingleResult<T> = { data: T | null; error?: { message?: string } | null };
 type MaybeArrayResult<T> = { data: T[] | null; error?: { message?: string } | null };
 
@@ -73,6 +77,11 @@ export interface BrainDocument {
   created_at: string;
   updated_at: string;
 }
+
+const CHUNK_SIZE_TOKENS = 900;
+const OVERLAP_TOKENS = 140;
+const MAX_CHUNKS = 120;
+const MAX_EXTRACTED_CHARS = 150000;
 
 /**
  * Brain document version record
@@ -543,4 +552,198 @@ export async function findMissingModules(
   const approvedModules = new Set(documents.map((d) => d.module));
 
   return requiredModules.filter((m) => !approvedModules.has(m));
+}
+
+function formatHeading(value: string) {
+  return value
+    .replace(/_/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/^./, (char) => char.toUpperCase());
+}
+
+function renderMarkdown(value: unknown, depth: number): string {
+  if (value === null || value === undefined) return "";
+
+  if (typeof value === "string") {
+    return value.trim();
+  }
+
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+
+  if (Array.isArray(value)) {
+    if (value.length === 0) return "";
+    if (value.every((item) => typeof item !== "object" || item === null)) {
+      return value.map((item) => `- ${String(item)}`).join("\n");
+    }
+
+    return value
+      .map((item, index) => {
+        const itemText = renderMarkdown(item, depth + 1);
+        if (!itemText) return "";
+        const lines = itemText.split("\n").filter(Boolean);
+        const indented = lines.map((line) => `  ${line}`).join("\n");
+        return `- Item ${index + 1}\n${indented}`;
+      })
+      .filter(Boolean)
+      .join("\n");
+  }
+
+  if (typeof value === "object") {
+    const entries = Object.keys(value as Record<string, unknown>).sort();
+    return entries
+      .map((key) => {
+        const rendered = renderMarkdown((value as Record<string, unknown>)[key], depth + 1);
+        if (!rendered) return "";
+        const heading = `${"#".repeat(Math.min(depth, 6))} ${formatHeading(key)}`;
+        return `${heading}\n\n${rendered}`;
+      })
+      .filter(Boolean)
+      .join("\n\n");
+  }
+
+  return "";
+}
+
+export function brainDocumentToMarkdown(doc: BrainDocument): string {
+  const title = doc.title?.trim() || formatHeading(doc.module);
+  const body = renderMarkdown(doc.content_json, 2);
+  if (!body) return `# ${title}`;
+  return `# ${title}\n\n${body}`;
+}
+
+export async function ingestBrainDocumentForRag(
+  supabase: MinimalSupabase,
+  doc: BrainDocument,
+  options?: {
+    failHard?: boolean;
+    embeddingApiKey?: string;
+    embeddingModel?: string;
+  }
+): Promise<{ documentId: string; chunksCreated: number; tokenCount: number }> {
+  const failHard = options?.failHard ?? (typeof Deno !== "undefined" && Deno.env.get("AI_EMBEDDING_FAIL_HARD") === "true");
+  const embeddingApiKey =
+    options?.embeddingApiKey ??
+    (typeof Deno !== "undefined"
+      ? Deno.env.get("OPENAI_API_KEY")
+      : typeof process !== "undefined"
+      ? process.env.OPENAI_API_KEY
+      : undefined);
+  const embeddingModel =
+    options?.embeddingModel ??
+    (typeof Deno !== "undefined"
+      ? Deno.env.get("EMBEDDING_MODEL_ID")
+      : typeof process !== "undefined"
+      ? process.env.EMBEDDING_MODEL_ID
+      : undefined) ??
+    "text-embedding-3-small";
+
+  if (doc.status !== "approved") {
+    throw new Error("Only approved brain documents can be indexed");
+  }
+
+  const markdown = brainDocumentToMarkdown(doc);
+  const extractedText = markdown.slice(0, MAX_EXTRACTED_CHARS);
+  const tokens = tokenize(extractedText);
+  const chunks = buildChunks(tokens, CHUNK_SIZE_TOKENS, OVERLAP_TOKENS, MAX_CHUNKS);
+
+  if (chunks.length === 0) {
+    throw new Error("No content to index");
+  }
+
+  await supabase
+    .from("ai_documents")
+    .delete()
+    .eq("doc_type", "brain_document")
+    .eq("metadata->>module", doc.module);
+
+  const { data: documentRow, error: documentError } = await supabase
+    .from("ai_documents")
+    .insert({
+      agency_id: doc.agency_id,
+      client_id: null,
+      doc_type: "brain_document",
+      title: doc.title || formatHeading(doc.module),
+      content: markdown,
+      extracted_text: extractedText,
+      source: { source_type: "brain_document", source_ref: doc.id },
+      metadata: {
+        brain_document_id: doc.id,
+        module: doc.module,
+        version: doc.version,
+        status: doc.status,
+        approved_at: doc.approved_at,
+        chunk_size_tokens: CHUNK_SIZE_TOKENS,
+        overlap_tokens: OVERLAP_TOKENS,
+        max_chunks_per_doc: MAX_CHUNKS,
+        token_count: tokens.length,
+      },
+    })
+    .select("id")
+    .single();
+
+  if (documentError || !documentRow) {
+    throw new Error(documentError?.message ?? "Failed to create ai_document for brain doc");
+  }
+
+  const expectedDim = getExpectedEmbeddingDim();
+
+  for (let index = 0; index < chunks.length; index += 1) {
+    const chunk = chunks[index];
+    const { data: chunkRow, error: chunkError } = await supabase
+      .from("ai_document_chunks")
+      .insert({
+        document_id: documentRow.id,
+        chunk_index: index,
+        chunk_text: chunk.text,
+        token_count: chunk.tokenCount,
+        chunk_meta: { start_token: chunk.start, end_token: chunk.end },
+        embedding_status: "failed",
+      })
+      .select("id")
+      .single();
+
+    if (chunkError || !chunkRow) {
+      throw new Error(chunkError?.message ?? "Failed to create chunk");
+    }
+
+    const embeddingResult = await embedWithPolicy({
+      text: chunk.text,
+      apiKey: embeddingApiKey ?? undefined,
+      failHard,
+      embed: (text) => embedText(text, embeddingApiKey ?? "", embeddingModel),
+    });
+
+    const persistResult = await persistEmbeddingResult({
+      supabase,
+      chunkId: chunkRow.id,
+      embeddingResult,
+      embeddingPayload: {
+        agency_id: doc.agency_id,
+        client_id: null,
+        doc_type: "brain_document",
+        document_id: documentRow.id,
+        chunk_id: chunkRow.id,
+        embedding: [],
+        model: embeddingModel,
+        metadata: {
+          similarity: "cosine",
+          embedding_dim: expectedDim,
+        },
+      },
+    });
+
+    if (!persistResult.stored && persistResult.errorCode === "EMBEDDING_DIM_MISMATCH") {
+      throw new Error("Embedding dimension mismatch");
+    }
+  }
+
+  return {
+    documentId: documentRow.id,
+    chunksCreated: chunks.length,
+    tokenCount: tokens.length,
+  };
 }

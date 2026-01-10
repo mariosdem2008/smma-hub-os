@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getEndpointGuardResponse } from "../_shared/endpoint-guard.ts";
 
 /**
  * AI Brain Analyze Edge Function
@@ -55,6 +56,9 @@ serve(async (req) => {
   }
 
   try {
+    const guardResponse = getEndpointGuardResponse("ai-brain-analyze", corsHeaders);
+    if (guardResponse) return guardResponse;
+
     // Verify authorization
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {

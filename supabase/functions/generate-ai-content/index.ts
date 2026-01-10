@@ -6,6 +6,7 @@ import { ai } from "../../../src/ai/router.ts";
 import { TaskType } from "../../../src/ai/taskTypes.ts";
 import { logUsage } from "../../../src/ai/logging.ts";
 import { calculateCost, incrementBudget } from "../_shared/budgets.ts";
+import { getEndpointGuardResponse } from "../_shared/endpoint-guard.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -32,12 +33,23 @@ function extractUsageFromRaw(raw: unknown) {
   return { inputTokens, outputTokens };
 }
 
+async function sha256Hex(input: string) {
+  const buffer = new TextEncoder().encode(input);
+  const digest = await crypto.subtle.digest("SHA-256", buffer);
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 serve(async (req: { method: string; headers: { get: (arg0: string) => any; }; json: () => PromiseLike<{ mode: any; project_id: any; client_id: any; platform: any; brand_context: any; input_text: any; }> | { mode: any; project_id: any; client_id: any; platform: any; brand_context: any; input_text: any; }; }) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    const guardResponse = getEndpointGuardResponse("generate-ai-content", corsHeaders);
+    if (guardResponse) return guardResponse;
+
     console.log('[AI-CONTENT] Function invoked');
     
     // Get Authorization header
@@ -223,21 +235,8 @@ serve(async (req: { method: string; headers: { get: (arg0: string) => any; }; js
     const tokensOut = usage?.outputTokens ?? estimateTokensForCost(outputText);
     const costUsd = calculateCost("openai", runtimeModel, tokensIn, tokensOut);
     const costEstimationMethod = usage ? "token_based" : "estimate_chars_div3";
-    const legacyLoggingEnabled = Deno.env.get("AI_LEGACY_LOGGING") === "true";
-
-    const inputPayload = {
-      mode,
-      project_id,
-      client_id,
-      platform,
-      brand_context,
-      input_text,
-    };
-
-    const outputPayload = {
-      suggestions,
-      generated_at: new Date().toISOString(),
-    };
+    const inputHash = await sha256Hex(inputText);
+    const outputHash = await sha256Hex(outputText);
 
     await logUsage(supabaseClient, {
       taskType: TaskType.CONTENT_IDEAS,
@@ -274,8 +273,12 @@ serve(async (req: { method: string; headers: { get: (arg0: string) => any; }; js
         cost_estimation_method: costEstimationMethod,
         mode,
         project_id: project_id ?? null,
-        input: inputPayload,
-        output: outputPayload,
+        input_hash: inputHash,
+        output_hash: outputHash,
+        input_chars: inputText.length,
+        output_chars: outputText.length,
+        tokens_in: tokensIn,
+        tokens_out: tokensOut,
         legacy_source: "generate-ai-content",
       },
     });
@@ -292,35 +295,7 @@ serve(async (req: { method: string; headers: { get: (arg0: string) => any; }; js
       await incrementBudget(supabaseClient, agency_id, currentMonth, costUsd, false);
     }
 
-    if (legacyLoggingEnabled) {
-      // Store in ai_history for audit (deprecated in Phase 2).
-      const { error: historyError } = await supabaseClient
-        .from('ai_history')
-        .insert({
-          agency_id,
-          client_id,
-          project_id: project_id || null,
-          mode,
-          input: inputPayload,
-          output: outputPayload,
-        });
-
-      if (historyError) {
-        console.error('[AI-CONTENT] Failed to store history:', historyError);
-      }
-
-      // Track usage (deprecated in Phase 2).
-      const { error: usageError } = await supabaseClient.from('ai_generation_usage').insert({
-        user_id: user.id,
-        agency_id,
-        generation_type: mode,
-        month_year: currentMonth,
-      });
-
-      if (usageError) {
-        console.error('[AI-CONTENT] Failed to record usage:', usageError);
-      }
-    }
+    // Legacy prompt logging disabled; store hashes + metadata in ai_runs instead.
 
     // Update project fields based on mode (if project_id provided)
     if (project_id) {

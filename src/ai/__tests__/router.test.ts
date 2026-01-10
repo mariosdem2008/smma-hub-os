@@ -11,6 +11,7 @@ describe("ai router", () => {
   const providers = {
     openai: baseProvider,
     anthropic: { generate: vi.fn(async () => ({ text: "OK" })) },
+    gemini: baseProvider,
   };
 
   beforeEach(() => {
@@ -30,7 +31,7 @@ describe("ai router", () => {
       context: { environment: "dev" },
     });
     const devCall = baseProvider.generate.mock.calls.at(-1)?.[0];
-    expect(devCall.model).toBe("gpt-5-nano");
+    expect(devCall.model).toBe("gemini-1.5-flash");
 
     await router.run({
       taskType: TaskType.TOOL_EXECUTION,
@@ -38,7 +39,7 @@ describe("ai router", () => {
       context: { environment: "prod" },
     });
     const prodCall = baseProvider.generate.mock.calls.at(-1)?.[0];
-    expect(prodCall.model).toBe("gpt-5-mini");
+    expect(prodCall.model).toBe("gemini-1.5-flash");
   });
 
   it("uses env override when set", async () => {
@@ -59,7 +60,7 @@ describe("ai router", () => {
       .mockResolvedValueOnce({ text: "not-json" })
       .mockResolvedValueOnce({ text: "[{\"id\":\"one\"}]" });
     const router = createAiRouter({
-      providers: { ...providers, openai: { ...baseProvider, generate } },
+      providers: { ...providers, gemini: { ...baseProvider, generate } },
     });
     const result = await router.run({
       taskType: TaskType.EXTRACT_STRUCTURED,
@@ -93,5 +94,29 @@ describe("ai router", () => {
     expect(Array.isArray(call.messages)).toBe(true);
     expect(call.messages[0].role).toBe("system");
     expect(call.temperature).toBe(0.8);
+  });
+
+  it("throws on strict JSON provider failure without logging", async () => {
+    const generateJson = vi.fn(async () => {
+      const error = new Error("invalid json") as Error & { code?: string };
+      error.code = "INVALID_JSON";
+      throw error;
+    });
+    const supabase = {
+      from: vi.fn(() => ({
+        insert: vi.fn(),
+      })),
+    };
+    const router = createAiRouter({
+      providers: { ...providers, gemini: { ...baseProvider, generateJson } as any },
+    });
+    await expect(
+      router.run({
+        taskType: TaskType.EXTRACT_STRUCTURED,
+        input: "Give data",
+        context: { environment: "dev", supabase: supabase as any },
+      }),
+    ).rejects.toThrow("invalid json");
+    expect(supabase.from).not.toHaveBeenCalled();
   });
 });

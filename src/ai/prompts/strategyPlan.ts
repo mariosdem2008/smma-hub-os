@@ -15,7 +15,7 @@ export function buildStrategyPlanPrompt(args: PromptArgs): ChatMessage[] {
     : "";
   const userPrompt = `Agency Brain:\n${JSON.stringify(args.agencyBrain)}\n\nClient Brain:\n${JSON.stringify(
     args.clientBrain,
-  )}\n\nContext:\n${args.context}${instruction}\n\nReturn JSON with sections for the following headings in order: Executive summary; Business context; ICP + objections + triggers; Positioning + proof; Pillars; Channel strategy; Campaign plan; Weekly plan; Creative rules + claims policy; KPIs; Action checklist. Format: {"summary":"", "sections":[{"title":"", "content":""}], "confidence":0-100}`;
+  )}\n\nContext:\n${args.context}${instruction}\n\nReturn STRICT JSON only with this shape:\n{\n  "modules": {\n    "positioning": { ...module schema... },\n    "pillars": { ...module schema... },\n    "campaign_plan": { ...module schema... },\n    "weekly_plan": { ...module schema... },\n    "channel_adaptations": { ...module schema... },\n    "rules_constraints": { ...module schema... }\n  },\n  "document": {\n    "markdown": "Full strategy document in markdown."\n  },\n  "decisions": [ { "module": "...", "decision_key": "...", "value": {}, "locked": false } ],\n  "tasks": [ { "module": "...", "title": "...", "description": "...", "priority": "medium" } ]\n}\n\nEach module MUST include fields:\n- facts_used: string[]\n- assumptions: string[]\n- open_questions: string[] (max 5)\n- confidence_0_100: number (0-100)\n\nEnsure decisions/tasks arrays are optional and may be omitted if none.`;
 
   return [
     { role: "system", content: systemPrompt },

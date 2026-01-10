@@ -4,7 +4,11 @@
 // ============================================================================
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
 import { corsHeaders } from '../_shared/cors.ts';
+import { runAiTask } from "../_shared/ai.ts";
+import { TaskType } from "../../../src/ai/taskTypes.ts";
+import { getEndpointGuardResponse } from "../_shared/endpoint-guard.ts";
 
 interface OnboardingProfile {
   q1_business_name?: string;
@@ -45,11 +49,11 @@ interface SuggestResponse {
   fallback_enabled: boolean;
 }
 
-// Generate suggestions using Claude
+// Generate suggestions using router-backed AI
 async function generateSuggestions(
   stepId: string,
   profile: OnboardingProfile,
-  anthropicApiKey: string
+  opts: { agencyId: string; clientId: string; userId: string; supabase: any }
 ): Promise<Suggestion[]> {
   const prompts: Record<string, string> = {
     q8: `Based on this business context, suggest 5-8 ideal customer personas:
@@ -58,7 +62,6 @@ Offer Type: ${profile.q5_offer_type || 'Unknown'}
 Business Model: ${profile.q7_business_model || 'Unknown'}
 Niche: ${profile.ai_scan_result?.extracted?.niche || 'Unknown'}
 
-Return JSON array: [{"id": "unique_id", "label": "Customer persona description", "confidence": 0-100}]
 Focus on specific, actionable personas. Higher confidence for more specific personas.`,
 
     q9: `Based on this ideal customer, suggest 6-10 pain points they might have:
@@ -67,7 +70,6 @@ Business: ${profile.q1_business_name || 'Unknown'}
 Offer: ${profile.q6_offer_name || 'Unknown'}
 ${profile.ai_scan_result?.extracted?.pain_points?.length ? `Detected pain points: ${profile.ai_scan_result.extracted.pain_points.join(', ')}` : ''}
 
-Return JSON array: [{"id": "unique_id", "label": "Pain point description", "confidence": 0-100}]
 Focus on specific, relatable pain points. Higher confidence for more common/validated pain points.`,
 
     q10: `Based on these pain points, suggest 5-8 desired outcomes:
@@ -75,7 +77,6 @@ Pain Points: ${profile.q9_pain_points?.join(', ') || 'Unknown'}
 Ideal Customer: ${profile.q8_ideal_customer || 'Unknown'}
 Offer: ${profile.q6_offer_name || 'Unknown'}
 
-Return JSON array: [{"id": "unique_id", "label": "Desired outcome description", "confidence": 0-100}]
 Focus on transformational outcomes that directly address the pain points.`,
 
     q12: `Suggest 5-10 potential competitors for this business:
@@ -84,7 +85,6 @@ Website: ${profile.q2_website || 'Unknown'}
 Offer: ${profile.q6_offer_name || 'Unknown'}
 ${profile.ai_scan_result?.extracted?.competitors?.length ? `Detected competitors: ${profile.ai_scan_result.extracted.competitors.map(c => c.name).join(', ')}` : ''}
 
-Return JSON array: [{"id": "unique_id", "label": "Competitor name", "confidence": 0-100}]
 Include both direct and indirect competitors. Higher confidence for more well-known competitors.`,
 
     q13: `Suggest 6-8 differentiators for this business:
@@ -93,7 +93,6 @@ Offer: ${profile.q6_offer_name || 'Unknown'}
 Competitors: ${profile.q12_competitors?.map(c => c.name).join(', ') || 'Unknown'}
 ${profile.ai_scan_result?.extracted?.differentiators?.length ? `Detected differentiators: ${profile.ai_scan_result.extracted.differentiators.join(', ')}` : ''}
 
-Return JSON array: [{"id": "unique_id", "label": "Differentiator description", "confidence": 0-100}]
 Focus on unique, provable differentiators. Higher confidence for more unique/verifiable ones.`,
   };
 
@@ -103,48 +102,35 @@ Focus on unique, provable differentiators. Higher confidence for more unique/ver
   }
 
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': anthropicApiKey,
-        'anthropic-version': '2023-06-01',
+    const result = await runAiTask({
+      task_type: TaskType.EXTRACT_STRUCTURED,
+      tenant: {
+        agency_id: opts.agencyId,
+        client_id: opts.clientId,
+        user_id: opts.userId,
       },
-      body: JSON.stringify({
-        model: 'claude-3-5-haiku-20241022',
-        max_tokens: 1024,
-        messages: [
-          {
-            role: 'user',
-            content: prompt + '\n\nReturn only valid JSON array, no other text.',
-          },
-        ],
-      }),
+      input: { message: prompt },
+      metadata: {
+        instructions:
+          'Return only a JSON array of objects with keys: id, label, confidence (0-100). No other text.',
+        providerOverride: "anthropic",
+        modelOverride: "claude-3-5-haiku-20241022",
+      },
+      supabase: opts.supabase,
     });
 
-    if (!response.ok) {
-      const error = await response.text();
-      console.error('Anthropic API error:', error);
-      throw new Error(`Anthropic API error: ${response.status}`);
-    }
+    const raw = result?.json;
+    if (!Array.isArray(raw)) return [];
 
-    const result = await response.json();
-    const text = result.content?.[0]?.text || '';
-
-    // Parse JSON from response
-    const jsonMatch = text.match(/\[[\s\S]*\]/);
-    if (jsonMatch) {
-      const suggestions = JSON.parse(jsonMatch[0]);
-      return suggestions.map((s: any, i: number) => ({
-        id: s.id || `suggestion-${i}`,
-        label: s.label,
-        confidence: s.confidence || 70,
-      }));
-    }
-
-    return [];
+    return raw.map((s: any, i: number) => ({
+      id: s?.id || `suggestion-${i}`,
+      label: s?.label ?? "",
+      confidence: typeof s?.confidence === "number" ? s.confidence : 70,
+    })).filter((s: Suggestion) => s.label);
   } catch (error) {
-    console.error('AI suggestion error:', error);
+    console.error("ai_onboarding_suggest_failed", {
+      message: error instanceof Error ? error.message : String(error),
+    });
     return [];
   }
 }
@@ -197,6 +183,9 @@ serve(async (req) => {
   }
 
   try {
+    const guardResponse = getEndpointGuardResponse("ai-onboarding-suggest", corsHeaders);
+    if (guardResponse) return guardResponse;
+
     const body: SuggestRequest = await req.json();
     const { agency_id, client_id, step_id, profile } = body;
 
@@ -207,14 +196,54 @@ serve(async (req) => {
       );
     }
 
-    const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader) {
+      const response: SuggestResponse = {
+        suggestions: getFallbackSuggestions(step_id),
+        fallback_enabled: true,
+      };
+      return new Response(
+        JSON.stringify(response),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user } } = await supabase.auth.getUser(token);
+    if (!user) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { data: membership } = await supabase
+      .from('agency_members')
+      .select('id')
+      .eq('agency_id', agency_id)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (!membership) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized: Not a member of this agency' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     let suggestions: Suggestion[] = [];
     let fallback_enabled = false;
 
-    if (anthropicApiKey) {
-      suggestions = await generateSuggestions(step_id, profile, anthropicApiKey);
-    }
+    suggestions = await generateSuggestions(step_id, profile, {
+      agencyId: agency_id,
+      clientId: client_id,
+      userId: user.id,
+      supabase,
+    });
 
     // Use fallback if no AI suggestions
     if (suggestions.length === 0) {

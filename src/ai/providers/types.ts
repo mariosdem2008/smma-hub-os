@@ -30,6 +30,7 @@ export type GenerateStreamResult = AsyncIterable<GenerateStreamChunk>;
 export type EmbedParams = {
   model: string;
   input: string;
+  outputDimensionality?: number;
   timeoutMs?: number;
 };
 

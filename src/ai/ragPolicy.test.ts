@@ -9,6 +9,12 @@ describe("ragPolicy", () => {
     expect(config.agency_memory_top_k).toBe(4);
     expect(config.exemplar_top_k).toBe(2);
     expect(config.max_context_chars).toBe(6000);
+    expect(config.max_context_tokens).toBeGreaterThan(0);
+  });
+
+  it("includes brain documents for strategy plan agency retrieval", () => {
+    const config = getRagConfig(TaskType.STRATEGY_PLAN);
+    expect(config.agency_doc_types).toContain("brain_document");
   });
 
   it("selects top matches per bucket and orders by similarity", () => {
@@ -36,5 +42,17 @@ describe("ragPolicy", () => {
     const result = applyRagPolicy(matches, { ...config, max_context_chars: 10 });
     expect(result.contextTruncated).toBe(true);
     expect(result.context.length).toBeGreaterThan(10);
+  });
+
+  it("truncates matches when token budget is exceeded", () => {
+    const config = getRagConfig(TaskType.STRATEGY_PLAN);
+    const matches = [
+      { doc_type: "client_guidelines", chunk_text: "one two three four", similarity: 0.9 },
+      { doc_type: "client_guidelines", chunk_text: "five six seven eight", similarity: 0.8 },
+    ];
+
+    const result = applyRagPolicy(matches, { ...config, max_context_tokens: 4 });
+    expect(result.selectedMatches.length).toBe(1);
+    expect(result.contextTruncated).toBe(true);
   });
 });

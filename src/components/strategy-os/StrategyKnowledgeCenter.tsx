@@ -155,7 +155,7 @@ function DocumentHeaderActions({
       <div className="flex flex-wrap items-center gap-2">
         <Button onClick={onGenerate} disabled={isGenerating} className="gap-2">
           <FileText className="h-4 w-4" />
-          {isGenerating ? "Generating..." : "Generate Strategy"}
+          {isGenerating ? "Building..." : "Strategy Builder"}
         </Button>
       </div>
     );

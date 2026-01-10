@@ -20,6 +20,7 @@ export type AiContext = {
   plan?: string;
   environment?: "dev" | "prod";
   supabase?: MinimalSupabase | null;
+  skipUsageLog?: boolean;
 };
 
 export type AiRunOptions = {
@@ -112,7 +113,12 @@ async function generateWithRetry(opts: {
   usage?: GenerateResult["usage"];
   model?: string;
 }> {
-  const first = await opts.provider.generate(opts.params);
+  const providerAny = opts.provider as any;
+  const generateFn =
+    opts.schema && typeof providerAny.generateJson === "function"
+      ? providerAny.generateJson.bind(opts.provider)
+      : opts.provider.generate.bind(opts.provider);
+  const first = await generateFn(opts.params);
   if (!opts.schema) {
     return { text: first.text, raw: first.raw, rawText: first.text, schemaOk: true, usage: first.usage, model: first.model };
   }
@@ -200,20 +206,22 @@ export function createAiRouter(deps: RouterDeps = {}) {
 
     if (shouldReturnUnknown(contextMissing, taskConfig.safetyMode)) {
       const latencyMs = now() - start;
-      await logUsage(supabase, {
-        taskType: options.taskType,
-        endpoint: taskConfig.usageEndpoint,
-        provider: "none",
-        model: "context-missing",
-        agencyId: context.agencyId,
-        clientId: context.clientId,
-        latencyMs,
-        tokensIn: 0,
-        tokensOut: 0,
-        unknown: true,
-        success: true,
-        errorCode: "context_missing",
-      });
+      if (!context.skipUsageLog) {
+        await logUsage(supabase, {
+          taskType: options.taskType,
+          endpoint: taskConfig.usageEndpoint,
+          provider: "none",
+          model: "context-missing",
+          agencyId: context.agencyId,
+          clientId: context.clientId,
+          latencyMs,
+          tokensIn: 0,
+          tokensOut: 0,
+          unknown: true,
+          success: true,
+          errorCode: "context_missing",
+        });
+      }
       return { text: "UNKNOWN", output: buildUnknownResponse(options.taskType, "context_missing"), unknown: true };
     }
 
@@ -266,8 +274,10 @@ export function createAiRouter(deps: RouterDeps = {}) {
 
     const modelConfigBase = resolveTaskModel(options.taskType, context.environment);
     const overrideModel = options.metadata?.modelOverride as string | undefined;
+    const overrideProvider = options.metadata?.providerOverride as string | undefined;
     const modelConfig = overrideModel ? { ...modelConfigBase, model: overrideModel } : modelConfigBase;
-    const provider = providers[modelConfig.provider];
+    const providerKey = overrideProvider ?? modelConfig.provider;
+    const provider = providers[providerKey];
     if (!provider) {
       return { text: "UNKNOWN", unknown: true, error: "Provider not available" };
     }
@@ -279,23 +289,26 @@ export function createAiRouter(deps: RouterDeps = {}) {
       const embeddingResult = await (provider as any).embed({
         model: modelConfig.model,
         input: options.input ?? "",
+        outputDimensionality: options.metadata?.outputDimensionality,
         timeoutMs: getTimeoutMs(options.taskType),
       });
       const latencyMs = now() - start;
-      await logUsage(supabase, {
-        taskType: options.taskType,
-        endpoint: taskConfig.usageEndpoint,
-        provider: modelConfig.provider,
-        model: modelConfig.model,
-        agencyId: context.agencyId,
-        clientId: context.clientId,
-        latencyMs,
-        tokensIn: 0,
-        tokensOut: 0,
-        unknown: false,
-        success: true,
-        errorCode: null,
-      });
+      if (!context.skipUsageLog) {
+        await logUsage(supabase, {
+          taskType: options.taskType,
+          endpoint: taskConfig.usageEndpoint,
+          provider: providerKey,
+          model: modelConfig.model,
+          agencyId: context.agencyId,
+          clientId: context.clientId,
+          latencyMs,
+          tokensIn: 0,
+          tokensOut: 0,
+          unknown: false,
+          success: true,
+          errorCode: null,
+        });
+      }
       return {
         text: "",
         output: embeddingResult.embedding,
@@ -330,20 +343,22 @@ export function createAiRouter(deps: RouterDeps = {}) {
 
     const latencyMs = now() - start;
     const runtimeModel = result.model ?? modelConfig.model;
-    await logUsage(supabase, {
-      taskType: options.taskType,
-      endpoint: taskConfig.usageEndpoint,
-      provider: modelConfig.provider,
-      model: runtimeModel,
-      agencyId: context.agencyId,
-      clientId: context.clientId,
-      latencyMs,
-      tokensIn: result.usage?.inputTokens,
-      tokensOut: result.usage?.outputTokens,
-      unknown: result.text.startsWith("UNKNOWN"),
-      success: true,
-      errorCode: null,
-    });
+    if (!context.skipUsageLog) {
+      await logUsage(supabase, {
+        taskType: options.taskType,
+        endpoint: taskConfig.usageEndpoint,
+        provider: providerKey,
+        model: runtimeModel,
+        agencyId: context.agencyId,
+        clientId: context.clientId,
+        latencyMs,
+        tokensIn: result.usage?.inputTokens,
+        tokensOut: result.usage?.outputTokens,
+        unknown: result.text.startsWith("UNKNOWN"),
+        success: true,
+        errorCode: null,
+      });
+    }
 
     return {
       text: result.text,
@@ -353,7 +368,7 @@ export function createAiRouter(deps: RouterDeps = {}) {
       schemaOk: result.schemaOk,
       usage: result.usage,
       unknown: result.text.startsWith("UNKNOWN"),
-      meta: { provider: modelConfig.provider, model: runtimeModel },
+      meta: { provider: providerKey, model: runtimeModel },
       resolvedContext,
     };
   }
@@ -373,20 +388,22 @@ export function createAiRouter(deps: RouterDeps = {}) {
 
     if (shouldReturnUnknown(contextMissing, taskConfig.safetyMode)) {
       const latencyMs = now() - start;
-      await logUsage(supabase, {
-        taskType: options.taskType,
-        endpoint: taskConfig.usageEndpoint,
-        provider: "none",
-        model: "context-missing",
-        agencyId: context.agencyId,
-        clientId: context.clientId,
-        latencyMs,
-        tokensIn: 0,
-        tokensOut: 0,
-        unknown: true,
-        success: true,
-        errorCode: "context_missing",
-      });
+      if (!context.skipUsageLog) {
+        await logUsage(supabase, {
+          taskType: options.taskType,
+          endpoint: taskConfig.usageEndpoint,
+          provider: "none",
+          model: "context-missing",
+          agencyId: context.agencyId,
+          clientId: context.clientId,
+          latencyMs,
+          tokensIn: 0,
+          tokensOut: 0,
+          unknown: true,
+          success: true,
+          errorCode: "context_missing",
+        });
+      }
       const unknownResult: AiRunResult = {
         text: "UNKNOWN",
         output: buildUnknownResponse(options.taskType, "context_missing"),
@@ -437,8 +454,10 @@ export function createAiRouter(deps: RouterDeps = {}) {
 
     const modelConfigBase = resolveTaskModel(options.taskType, context.environment);
     const overrideModel = options.metadata?.modelOverride as string | undefined;
+    const overrideProvider = options.metadata?.providerOverride as string | undefined;
     const modelConfig = overrideModel ? { ...modelConfigBase, model: overrideModel } : modelConfigBase;
-    const provider = providers[modelConfig.provider];
+    const providerKey = overrideProvider ?? modelConfig.provider;
+    const provider = providers[providerKey];
     if (!provider || !("generateStream" in provider)) {
       const result = await run(options);
       yield { type: "delta", text: result.text };
@@ -473,27 +492,29 @@ export function createAiRouter(deps: RouterDeps = {}) {
     }
 
     const latencyMs = now() - start;
-    await logUsage(supabase, {
-      taskType: options.taskType,
-      endpoint: taskConfig.usageEndpoint,
-      provider: modelConfig.provider,
-      model: modelConfig.model,
-      agencyId: context.agencyId,
-      clientId: context.clientId,
-      latencyMs,
-      tokensIn: 0,
-      tokensOut: 0,
-      unknown: text.startsWith("UNKNOWN"),
-      success: true,
-      errorCode: null,
-    });
+    if (!context.skipUsageLog) {
+      await logUsage(supabase, {
+        taskType: options.taskType,
+        endpoint: taskConfig.usageEndpoint,
+        provider: providerKey,
+        model: modelConfig.model,
+        agencyId: context.agencyId,
+        clientId: context.clientId,
+        latencyMs,
+        tokensIn: 0,
+        tokensOut: 0,
+        unknown: text.startsWith("UNKNOWN"),
+        success: true,
+        errorCode: null,
+      });
+    }
 
     const result: AiRunResult = {
       text,
       output: undefined,
       raw: undefined,
       unknown: text.startsWith("UNKNOWN"),
-      meta: { provider: modelConfig.provider, model: modelConfig.model },
+      meta: { provider: providerKey, model: modelConfig.model },
     };
 
     yield { type: "done", result };

@@ -485,16 +485,21 @@ export async function embed(params: EmbedParams): Promise<EmbedResult> {
     throw new Error("OPENAI_API_KEY is not configured");
   }
 
+  const body: Record<string, unknown> = {
+    model: params.model,
+    input: params.input,
+  };
+  if (typeof params.outputDimensionality === "number") {
+    body.dimensions = params.outputDimensionality;
+  }
+
   const response = await fetchWithPolicy(`${OPENAI_BASE_URL}/embeddings`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      model: params.model,
-      input: params.input,
-    }),
+    body: JSON.stringify(body),
   }, { timeoutMs: params.timeoutMs ?? EMBED_TIMEOUT_MS });
 
   const json = await response.json().catch(() => ({}));

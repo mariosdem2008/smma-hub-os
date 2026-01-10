@@ -4,6 +4,8 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
 import { embedText } from "../_shared/embeddings.ts";
 import { decideAiRepResponse } from "../_shared/ai-rep-chat.ts";
+import { capMatchesByTokenBudget, clampMatchCount } from "../_shared/retrieval.ts";
+import { getEndpointGuardResponse } from "../_shared/endpoint-guard.ts";
 
 function jsonResponse(body: unknown, status = 200, headers: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
@@ -28,14 +30,16 @@ async function safeRetrieveContext(opts: {
       p_agency_id: opts.agencyId,
       p_client_id: opts.clientId,
       p_query_embedding: queryEmbedding,
-      p_match_count: 6,
+      p_match_count: clampMatchCount(6),
       p_doc_types: null,
+      p_modules: null,
+      p_min_similarity: 0.2,
     });
     if (error || !Array.isArray(matches)) return [];
-    return matches
+    const capped = capMatchesByTokenBudget(matches, 600);
+    return capped.matches
       .map((row: any) => (row?.chunk_text as string) ?? "")
-      .filter(Boolean)
-      .slice(0, 6);
+      .filter(Boolean);
   } catch {
     return [];
   }
@@ -49,6 +53,9 @@ serve(async (req: Request) => {
   if (req.method !== "POST") {
     return jsonResponse({ error: "Method not allowed" }, 405, corsHeaders(req));
   }
+
+  const guardResponse = getEndpointGuardResponse("ai-rep-chat", corsHeaders(req));
+  if (guardResponse) return guardResponse;
 
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) {

@@ -131,7 +131,7 @@ export function formatHistoryEvent(event: StrategyHistoryRecord): {
     updated: 'Content Updated',
     locked: 'Module Locked',
     unlocked: 'Module Unlocked',
-    seeded: 'Template Drafted',
+    seeded: 'Template Draft',
     approved: 'Module Approved',
     task_created: 'Task Created',
     task_generated: 'Tasks Generated',

@@ -10,7 +10,7 @@ export function StrategyMobileLayout() {
 
   return (
     <div className="flex flex-col min-h-[500px] relative">
-      {/* Header with Generate Strategy */}
+      {/* Header with Strategy Builder */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-border/50 bg-muted/20 rounded-t-lg">
         <h2 className="text-sm font-semibold">Strategy OS</h2>
         <GenerateStrategyButton size="sm" />

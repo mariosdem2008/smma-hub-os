@@ -9,6 +9,10 @@ import { TaskType } from "../../../src/ai/taskTypes.ts";
 import { applyRagPolicy, getRagConfig, shouldUseRagPolicy } from "../../../src/ai/ragPolicy.ts";
 import { validateCitations } from "../../../src/ai/citations.ts";
 import { calculateCost } from "../_shared/budgets.ts";
+import { capMatchesByTokenBudget, clampMatchCount } from "../_shared/retrieval.ts";
+import { buildStrategyOutputSchema, type StrategyOutput } from "../_shared/strategy-output.ts";
+import { marked } from "npm:marked@9.1.6";
+import { getEndpointGuardResponse } from "../_shared/endpoint-guard.ts";
 
 function jsonResponse(body: unknown, status = 200, headers: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
@@ -51,13 +55,16 @@ function extractUsageFromRaw(raw: unknown) {
   return { inputTokens, outputTokens };
 }
 
-function normalizeHeading(value: string) {
-  return value
-    .toLowerCase()
-    .replace(/[+]/g, " ")
-    .replace(/[^a-z0-9\s]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+function stableStringify(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableStringify(item)).join(",")}]`;
+  }
+  if (value && typeof value === "object") {
+    const entries = Object.entries(value as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b));
+    const serialized = entries.map(([key, val]) => `${JSON.stringify(key)}:${stableStringify(val)}`).join(",");
+    return `{${serialized}}`;
+  }
+  return JSON.stringify(value);
 }
 
 async function sha256Hex(input: string) {
@@ -68,6 +75,15 @@ async function sha256Hex(input: string) {
     .join("");
 }
 
+const MODULE_LABELS: Record<string, string> = {
+  positioning: "Positioning",
+  pillars: "Pillars",
+  campaign_plan: "Campaign plan",
+  weekly_plan: "Weekly plan",
+  channel_adaptations: "Channel adaptations",
+  rules_constraints: "Rules + constraints",
+};
+
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders(req) });
@@ -77,21 +93,12 @@ serve(async (req: Request) => {
     return jsonResponse({ error: "Method not allowed" }, 405, corsHeaders(req));
   }
 
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) {
-    return jsonResponse({ error: "Missing Authorization header" }, 401, corsHeaders(req));
-  }
+  const guardResponse = getEndpointGuardResponse("ai-strategy-generate", corsHeaders(req));
+  if (guardResponse) return guardResponse;
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false },
   });
-
-  const token = authHeader.replace("Bearer ", "");
-  const { data: userData, error: userError } = await supabase.auth.getUser(token);
-  const user = userData?.user;
-  if (userError || !user) {
-    return jsonResponse({ error: "Unauthorized" }, 401, corsHeaders(req));
-  }
 
   const startTime = Date.now();
   const strictSchema = Deno.env.get("AI_SCHEMA_STRICT") === "true";
@@ -99,6 +106,9 @@ serve(async (req: Request) => {
   const body = await req.json().catch(() => ({}));
   const clientId = body.client_id as string | undefined;
   const instruction = body.instruction as string | undefined;
+  const cronSecret = Deno.env.get("CRON_SECRET") ?? "";
+  const cronHeader = req.headers.get("x-cron-secret") ?? "";
+  const isCron = cronSecret.length > 0 && cronHeader === cronSecret;
 
   if (!clientId) {
     return jsonResponse({ error: "client_id is required" }, 400, corsHeaders(req));
@@ -116,15 +126,44 @@ serve(async (req: Request) => {
 
   const agencyId = clientRow.agency_id as string;
 
-  const { data: membership } = await supabase
-    .from("agency_members")
-    .select("agency_id")
-    .eq("user_id", user.id)
-    .eq("agency_id", agencyId)
-    .maybeSingle();
+  let actingUserId: string | null = null;
+  if (isCron) {
+    const { data: adminUser } = await supabase
+      .from("agency_members")
+      .select("user_id")
+      .eq("agency_id", agencyId)
+      .in("role", ["owner", "admin"])
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    actingUserId = adminUser?.user_id ?? null;
+    if (!actingUserId) {
+      return jsonResponse({ error: "No admin user available for job execution" }, 403, corsHeaders(req));
+    }
+  } else {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return jsonResponse({ error: "Missing Authorization header" }, 401, corsHeaders(req));
+    }
 
-  if (!membership) {
-    return jsonResponse({ error: "Forbidden" }, 403, corsHeaders(req));
+    const token = authHeader.replace("Bearer ", "");
+    const { data: userData, error: userError } = await supabase.auth.getUser(token);
+    const user = userData?.user;
+    if (userError || !user) {
+      return jsonResponse({ error: "Unauthorized" }, 401, corsHeaders(req));
+    }
+
+    const { data: membership } = await supabase
+      .from("agency_members")
+      .select("agency_id")
+      .eq("user_id", user.id)
+      .eq("agency_id", agencyId)
+      .maybeSingle();
+
+    if (!membership) {
+      return jsonResponse({ error: "Forbidden" }, 403, corsHeaders(req));
+    }
+    actingUserId = user.id;
   }
 
   const { data: brainRow, error: brainError } = await supabase
@@ -228,31 +267,37 @@ serve(async (req: Request) => {
   }
 
   const legacyClientDocTypes = ["client_guidelines", "client_notes", "approved_posts", "ai_artifact", "strategy_draft"];
-  const legacyAgencyDocTypes = ["agency_sop"];
+  const legacyAgencyDocTypes = ["agency_sop", "brain_document"];
   const legacyExemplarDocTypes = ["agency_exemplar_strategy"];
 
   const { data: clientMatches } = await supabase.rpc("match_ai_embeddings", {
     p_agency_id: agencyId,
     p_client_id: clientId,
     p_query_embedding: queryEmbedding,
-    p_match_count: useRagPolicy ? ragConfig.client_memory_top_k : 6,
+    p_match_count: clampMatchCount(useRagPolicy ? ragConfig.client_memory_top_k : 6),
     p_doc_types: useRagPolicy ? ragConfig.client_doc_types : legacyClientDocTypes,
+    p_modules: null,
+    p_min_similarity: useRagPolicy ? ragConfig.min_similarity : 0.2,
   });
 
   const { data: agencyMatches } = await supabase.rpc("match_ai_embeddings", {
     p_agency_id: agencyId,
     p_client_id: null,
     p_query_embedding: queryEmbedding,
-    p_match_count: useRagPolicy ? ragConfig.agency_memory_top_k : 4,
+    p_match_count: clampMatchCount(useRagPolicy ? ragConfig.agency_memory_top_k : 4),
     p_doc_types: useRagPolicy ? ragConfig.agency_doc_types : legacyAgencyDocTypes,
+    p_modules: null,
+    p_min_similarity: useRagPolicy ? ragConfig.min_similarity : 0.2,
   });
 
   const { data: exemplarMatches } = await supabase.rpc("match_ai_embeddings", {
     p_agency_id: agencyId,
     p_client_id: null,
     p_query_embedding: queryEmbedding,
-    p_match_count: useRagPolicy ? ragConfig.exemplar_top_k : 2,
+    p_match_count: clampMatchCount(useRagPolicy ? ragConfig.exemplar_top_k : 2),
     p_doc_types: useRagPolicy ? ragConfig.exemplar_doc_types : legacyExemplarDocTypes,
+    p_modules: null,
+    p_min_similarity: useRagPolicy ? ragConfig.min_similarity : 0.2,
   });
 
   const matches = [
@@ -283,15 +328,16 @@ serve(async (req: Request) => {
     );
   }
 
-  const fullContext = matches.map((row: any) => `(${row.doc_type}) ${row.chunk_text}`).join("\n\n");
+  const legacyMatches = useRagPolicy ? matches : capMatchesByTokenBudget(matches, 1200).matches;
+  const fullContext = legacyMatches.map((row: any) => `(${row.doc_type}) ${row.chunk_text}`).join("\n\n");
   const legacyContext = truncate(fullContext, 6000);
-  const legacyContextTruncated = fullContext.length > 6000;
+  const legacyContextTruncated = fullContext.length > 6000 || legacyMatches.length < matches.length;
   const ragResult = useRagPolicy ? applyRagPolicy(matches, ragConfig) : null;
   const context = ragResult?.context ?? legacyContext;
-  const selectedMatches = ragResult?.selectedMatches ?? matches;
+  const selectedMatches = ragResult?.selectedMatches ?? legacyMatches;
   const contextTruncated = ragResult?.contextTruncated ?? legacyContextTruncated;
-  const retrievalCount = ragResult?.retrievalCount ?? matches.length;
-  const docTypesUsed = ragResult?.docTypesUsed ?? Array.from(new Set(matches.map((row: any) => row.doc_type)));
+  const retrievalCount = ragResult?.retrievalCount ?? legacyMatches.length;
+  const docTypesUsed = ragResult?.docTypesUsed ?? Array.from(new Set(legacyMatches.map((row: any) => row.doc_type)));
   const ragPolicyVersion = useRagPolicy ? "v1" : "legacy";
 
   const promptContext = [
@@ -300,15 +346,18 @@ serve(async (req: Request) => {
     `RAG Context:\n${context}`,
   ].join("\n\n");
 
-  let parsed: { summary?: string; sections?: any[] } = {};
+  const outputSchema = buildStrategyOutputSchema();
+  let aiResult: any = null;
+  let output: StrategyOutput | null = null;
   try {
-    const aiResult = await ai.run({
+    aiResult = await ai.run({
       taskType: TaskType.STRATEGY_PLAN,
       input: "",
-      context: { agencyId, clientId, userId: user.id, environment: "prod", supabase },
+      context: { agencyId, clientId, userId: actingUserId, environment: "prod", supabase },
       metadata: { context: promptContext, instruction },
+      outputSchema,
     });
-    parsed = (aiResult.output ?? {}) as { summary?: string; sections?: any[] };
+    output = (aiResult.output ?? null) as StrategyOutput | null;
   } catch {
     return jsonResponse(
       buildUnknownResponse({
@@ -320,10 +369,38 @@ serve(async (req: Request) => {
     );
   }
 
-  const strategy = {
-    summary: parsed.summary || "",
-    sections: Array.isArray(parsed.sections) ? parsed.sections : [],
-  };
+  if (!aiResult?.schemaOk || !output) {
+    const runtimeModel = aiResult?.meta?.model ?? (Deno.env.get("STRATEGY_MODEL_ID") ?? "gpt-4o-mini");
+    const tokensIn = estimateTokensForCost(context);
+    const tokensOut = 0;
+    const costUsd = calculateCost("openai", runtimeModel, tokensIn, tokensOut);
+
+    await supabase.from("ai_runs").insert({
+      agency_id: agencyId,
+      client_id: clientId,
+      user_id: actingUserId,
+      prompt_id: null,
+      prompt_version: null,
+      model: runtimeModel,
+      tokens_in: tokensIn,
+      tokens_out: tokensOut,
+      cost_usd: costUsd,
+      latency_ms: Date.now() - startTime,
+      success: false,
+      citations: {},
+      unknown: true,
+      escalate_to_human: false,
+      escalation_reason: null,
+      metadata: {
+        error: "strategy_schema_invalid",
+      },
+    });
+
+    return jsonResponse({ error: "Strategy JSON invalid", code: "STRATEGY_SCHEMA_INVALID" }, 500, corsHeaders(req));
+  }
+
+  const markdown = output.document.markdown;
+  const html = marked.parse(markdown);
 
   const citations = selectedMatches.map((row: any) => ({
     doc_type: row.doc_type,
@@ -332,66 +409,93 @@ serve(async (req: Request) => {
     score: row.score,
   }));
 
-  const requiredHeadings = [
-    "Executive summary",
-    "Business context",
-    "ICP + objections + triggers",
-    "Positioning + proof",
-    "Pillars",
-    "Channel strategy",
-    "Campaign plan",
-    "Weekly plan",
-    "Creative rules + claims policy",
-    "KPIs",
-    "Action checklist",
-  ];
+  const brainDocIds = Array.from(
+    new Set(
+      selectedMatches
+        .filter((row: any) => row.doc_type === "brain_document" && row.document_id)
+        .map((row: any) => row.document_id)
+    )
+  );
 
-  const sectionMap = new Map<string, string>();
-  for (const section of strategy.sections ?? []) {
-    if (!section?.title) continue;
-    sectionMap.set(normalizeHeading(section.title), section.content ?? "");
-  }
+  const { data: brainDocRows } = brainDocIds.length
+    ? await supabase
+        .from("ai_documents")
+        .select("id, metadata")
+        .in("id", brainDocIds)
+    : { data: [] };
 
-  let markdown = "# Strategy Document\n\n";
-  for (const heading of requiredHeadings) {
-    const normalized = normalizeHeading(heading);
-    const rawContent = sectionMap.get(normalized) ?? (heading === "Executive summary" ? strategy.summary : "");
-    const content = rawContent?.trim() || "Pending details.";
-    markdown += `## ${heading}\n\n${content}\n\n`;
-  }
+  const brainDocVersions = (brainDocRows ?? [])
+    .map((row: any) => ({
+      id: row.id,
+      module: row.metadata?.module ?? null,
+      version: row.metadata?.version ?? null,
+      status: row.metadata?.status ?? null,
+      approved_at: row.metadata?.approved_at ?? null,
+    }))
+    .sort((a: any, b: any) => String(a.module ?? "").localeCompare(String(b.module ?? "")));
 
   const derivedFromHash = await sha256Hex(
-    JSON.stringify({
+    stableStringify({
       onboardingProfile,
-      moduleRows,
-      brainUpdatedAt: brainRow.updated_at,
+      scan: {
+        ai_scan_result: onboardingProfile?.ai_scan_result ?? null,
+        ai_scan_at: onboardingProfile?.ai_scan_at ?? null,
+        ai_scan_accepted: onboardingProfile?.ai_scan_accepted ?? null,
+      },
+      brain_documents: brainDocVersions,
     }),
   );
 
-  await supabase
-    .from("strategy_documents")
-    .update({ is_active: false })
-    .eq("client_id", clientId);
+  const modulePayload = Object.entries(output.modules).map(([module, content]) => ({
+    module,
+    content_json: content,
+    ai_confidence: (content as any).confidence_0_100 ?? null,
+  }));
 
-  const { data: documentRow, error: documentError } = await supabase
-    .from("strategy_documents")
-    .insert({
-      agency_id: agencyId,
-      client_id: clientId,
-      content_markdown: markdown,
-      content_html: null,
-      source: "ai",
-      is_active: true,
-      generated_by_user_id: user.id,
-      model: Deno.env.get("STRATEGY_MODEL_ID") ?? "gpt-4o-mini",
-      generation_instruction: instruction ?? null,
-      derived_from_hash: derivedFromHash,
-    })
-    .select()
-    .single();
+  const autoValidationTasks = Object.entries(output.modules)
+    .filter(([, content]) => (content as any).confidence_0_100 < 70)
+    .map(([module, content]) => {
+      const questions = (content as any).open_questions ?? [];
+      const description = questions.length
+        ? `Open questions: ${questions.slice(0, 5).join("; ")}`
+        : "Review module for accuracy and completeness.";
+      return {
+        module,
+        title: `Validate ${MODULE_LABELS[module] ?? module} module`,
+        description,
+        priority: "high",
+        dedupe_key: `validation:${module}`,
+      };
+    });
 
-  if (documentError) {
-    return jsonResponse({ error: "Failed to save strategy document" }, 500, corsHeaders(req));
+  const taskRows = [...(output.tasks ?? []), ...autoValidationTasks];
+  const tasksPayload = Array.from(
+    taskRows.reduce((map, task) => {
+      const key = task.dedupe_key ?? `${task.module ?? "general"}:${task.title}`;
+      if (!map.has(key)) {
+        map.set(key, task);
+      }
+      return map;
+    }, new Map<string, any>())
+  ).map(([, task]) => task);
+
+  const rpcResult = await supabase.rpc("create_strategy_snapshot", {
+    p_client_id: clientId,
+    p_agency_id: agencyId,
+    p_strategy_id: latestStrategy?.id ?? null,
+    p_user_id: actingUserId,
+    p_modules: modulePayload,
+    p_document_markdown: markdown,
+    p_document_html: html,
+    p_model: aiResult?.meta?.model ?? (Deno.env.get("STRATEGY_MODEL_ID") ?? "gpt-4o-mini"),
+    p_instruction: instruction ?? null,
+    p_derived_hash: derivedFromHash,
+    p_decisions: output.decisions ?? null,
+    p_tasks: tasksPayload.length ? tasksPayload : null,
+  });
+
+  if (rpcResult?.error) {
+    return jsonResponse({ error: "Failed to save strategy snapshot" }, 500, corsHeaders(req));
   }
 
   const usage = extractUsageFromRaw(aiResult?.raw);
@@ -423,7 +527,7 @@ serve(async (req: Request) => {
     await supabase.from("ai_runs").insert({
       agency_id: agencyId,
       client_id: clientId,
-      user_id: user.id,
+      user_id: actingUserId,
       prompt_id: null,
       prompt_version: null,
       model: runtimeModel,
@@ -451,7 +555,7 @@ serve(async (req: Request) => {
   await supabase.from("ai_runs").insert({
     agency_id: agencyId,
     client_id: clientId,
-    user_id: user.id,
+    user_id: actingUserId,
     prompt_id: null,
     prompt_version: null,
     model: runtimeModel,
@@ -479,20 +583,25 @@ serve(async (req: Request) => {
     client_id: clientId,
     endpoint: "ai-strategy-generate",
     model: runtimeModel,
-      tokens_estimate: Math.ceil(markdown.length / 4),
-      tokens_in: tokensIn,
-      tokens_out: tokensOut,
-      latency_ms: Date.now() - startTime,
-      unknown: false,
-    });
+    tokens_estimate: Math.ceil(markdown.length / 4),
+    tokens_in: tokensIn,
+    tokens_out: tokensOut,
+    latency_ms: Date.now() - startTime,
+    unknown: false,
+  });
 
   return jsonResponse(
     {
       unknown: false,
-      strategy,
+      modules: output.modules,
+      tasks_created: tasksPayload.length,
       citations,
-      confidence: parsed.confidence ?? 70,
-      document: documentRow ?? null,
+      confidence: Math.round(
+        Object.values(output.modules)
+          .map((mod: any) => Number(mod.confidence_0_100 ?? 0))
+          .reduce((acc, val) => acc + val, 0) / Object.keys(output.modules).length,
+      ),
+      document: rpcResult?.data ?? null,
     },
     200,
     corsHeaders(req),

@@ -51,11 +51,13 @@ describe("rag correctness", () => {
       ...buildMatches("ai_artifact", 6, 0.6),
       ...buildMatches("strategy_draft", 6, 0.5),
       ...buildMatches("agency_sop", 4, 0.4),
+      ...buildMatches("brain_document", 2, 0.95),
       ...buildMatches("agency_exemplar_strategy", 2, 0.3),
     ];
 
     const result = applyRagPolicy(matches, config);
     expect(result.retrievalCount).toBe(12);
+    expect(result.docTypesUsed).toContain("brain_document");
 
     const citations = result.selectedMatches.map((match) => ({
       doc_id: match.document_id,

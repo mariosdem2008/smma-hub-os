@@ -1,7 +1,7 @@
+import { useRef } from "react";
+import { motion, useScroll, useTransform, useInView } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Accordion,
   AccordionContent,
@@ -11,120 +11,148 @@ import {
 import {
   ArrowRight,
   ShieldCheck,
-  Database,
-  Sparkles,
-  Layers,
-  MessageSquare,
-  Workflow,
-  Users,
+  Lock,
   FileText,
   Zap,
   Check,
-  Lock,
+  Play,
+  UserCheck,
+  Layers,
+  Calendar,
+  MessageSquare,
+  Brain,
+  FileCheck,
+  Workflow,
 } from "lucide-react";
+
+import { ScrollProgress } from "@/components/landing/ScrollProgress";
+import { AnimatedSection, StaggerContainer, StaggerItem } from "@/components/landing/AnimatedSection";
+import { BeforeAfterToggle } from "@/components/landing/BeforeAfterToggle";
+import { WorkflowStepper } from "@/components/landing/WorkflowStepper";
+import { ROICalculator } from "@/components/landing/ROICalculator";
+import { OutputExamples } from "@/components/landing/OutputExamples";
+
+// ============================================================================
+// CONSTANTS
+// ============================================================================
 
 const CAL_LINK = "https://cal.com/SMMAHUB/fit";
 const LOOM_LINK = "https://loom.com/share/LOOM_ID";
 
 const NAV_LINKS = [
-  { label: "Product", href: "#product" },
-  { label: "Safety", href: "#safety" },
+  { label: "How it Works", href: "#how-it-works" },
+  { label: "Outputs", href: "#outputs" },
   { label: "Pricing", href: "#pricing" },
   { label: "FAQ", href: "#faq" },
 ];
 
-const HERO_OUTCOMES = [
-  "Manage 2x more clients without hiring more staff",
-  "Save 15+ hours per client monthly on repetitive work",
-  "Scale your agency while maintaining consistent quality",
-  "Onboard new clients faster with proven processes",
+const HERO_STATS = [
+  { label: "Time saved", value: "15–20 hours/client" },
+  { label: "Consistency", value: "Your proven SOPs" },
+  { label: "Scalability", value: "No hiring needed" },
+  { label: "Availability", value: "24/7 standby" },
 ];
 
-const PROBLEM_POINTS = [
+const HERO_OUTCOMES = [
+  "Save 15–20 hours per client monthly on repetitive work",
+  "Manage 2× more clients without adding headcount",
+  "Maintain SOP consistency across all deliverables",
+  "Preserve client context and approvals permanently",
+];
+
+const BEFORE_AFTER_ITEMS = [
   {
-    title: "Can't scale without hiring",
-    desc: "Every new client means more work, more employees, and more management overhead.",
+    before: "Hire 1 person for every 3 new clients",
+    after: "Add 10+ clients with your current team",
   },
   {
-    title: "Process inconsistencies",
-    desc: "Different team members handle clients differently, causing quality fluctuations.",
+    before: "Quality varies by who does the work",
+    after: "Consistent output quality, every time",
   },
   {
-    title: "Time wasted on repeat tasks",
-    desc: "Your team spends hours on onboarding, strategy building, and content creation from scratch.",
+    before: "Client knowledge walks out the door",
+    after: "All client context captured and reusable",
   },
   {
-    title: "Knowledge trapped in heads",
-    desc: "Client preferences and successful strategies live in team members' memories, not in reusable systems.",
+    before: "Reactive firefighting, not strategic work",
+    after: "Proactive strategy, not manual tasks",
   },
 ];
 
 const HOW_IT_WORKS = [
   {
     step: "01",
-    title: "Capture your proven processes",
-    desc: "Upload your successful strategies, SOPs, and client playbooks once. The AI learns how you work.",
-  },
-  {
-    step: "02",
-    title: "Automate client work",
-    desc: "AI applies your processes consistently across all clients, creating strategies and content that match your standards.",
-  },
-  {
-    step: "03",
-    title: "Scale without adding headcount",
-    desc: "Take on more clients while your team focuses on high-value creative direction and client relationships.",
-  },
-];
-
-const ABILITIES = [
-  {
-    title: "Automated Client Onboarding",
-    desc: "Consistent intake process that captures everything needed, following your proven SOPs.",
+    title: "Capture Your Playbook",
+    desc: "Upload your successful strategies, SOPs, and client approaches once. The AI learns how your agency works.",
     icon: Layers,
   },
   {
-    title: "Strategy Generation Engine",
-    desc: "Creates client-specific strategies based on your successful approaches and their business goals.",
-    icon: Sparkles,
-  },
-  {
-    title: "Content Creation Assistant",
-    desc: "Drafts captions, scripts, and plans that start aligned with client voice and your agency standards.",
+    step: "02",
+    title: "Automate Client Work",
+    desc: "AI applies your processes consistently across all clients—strategies, content, and responses that match your standards.",
     icon: Zap,
   },
   {
-    title: "Client Knowledge Base",
-    desc: "Remembers every client preference, approval, and successful approach for consistent delivery.",
-    icon: Database,
-  },
-  {
-    title: "Standby Assistant",
-    desc: "Answers client questions based on approved information, available 24/7 through client portal.",
-    icon: MessageSquare,
-  },
-  {
-    title: "Workflow Automation",
-    desc: "Streamlines review → approval → execution cycles so nothing falls through the cracks.",
-    icon: Workflow,
+    step: "03",
+    title: "Scale Without Hiring",
+    desc: "Take on more clients while your team focuses on creative direction and client relationships.",
+    icon: UserCheck,
   },
 ];
 
-const SAFETY = [
+const OUTPUTS = [
   {
-    title: "No guessing policy",
-    desc: "If the AI doesn't have approved information, it says UNKNOWN instead of inventing answers.",
+    title: "Client Onboarding Deck",
+    desc: "Auto-generated intake summary your clients can review and approve.",
+    icon: FileText,
+  },
+  {
+    title: "Strategy Documents",
+    desc: "Monthly themes, content angles, and campaign briefs—ready for team review.",
+    icon: Brain,
+  },
+  {
+    title: "Content Drafts",
+    desc: "Captions, scripts, and post variations aligned with client brand voice.",
+    icon: MessageSquare,
+  },
+  {
+    title: "Weekly Schedules",
+    desc: "Content calendars with optimal posting times based on client goals.",
+    icon: Calendar,
+  },
+  {
+    title: "Client Brain Summary",
+    desc: "Living document of everything the AI knows—exportable, shareable.",
+    icon: Layers,
+  },
+  {
+    title: "Approval Workflows",
+    desc: "Client portal for reviews, feedback collection, and sign-off tracking.",
+    icon: FileCheck,
+  },
+];
+
+const GUARDRAILS = [
+  {
+    title: "No-Guessing Policy",
+    desc: "If information isn't approved, the AI says UNKNOWN instead of inventing answers. Your clients never see hallucinated content.",
     icon: ShieldCheck,
   },
   {
-    title: "Client data isolation",
-    desc: "Each client's data is completely separate and secure, never shared between accounts.",
+    title: "Approval-Based Learning",
+    desc: "Only learns from explicitly approved content and strategies. Quality control stays in your hands.",
+    icon: FileCheck,
+  },
+  {
+    title: "Client Isolation",
+    desc: "Each client's data is completely separate. Zero cross-contamination between accounts.",
     icon: Lock,
   },
   {
-    title: "Approval-based learning",
-    desc: "Only learns from content and strategies you explicitly approve, maintaining your quality standards.",
-    icon: FileText,
+    title: "Human-in-the-Loop",
+    desc: "AI drafts, humans approve. Nothing goes live without your sign-off.",
+    icon: UserCheck,
   },
 ];
 
@@ -132,27 +160,31 @@ const PLANS = [
   {
     name: "Free/Trial",
     price: "$0",
+    period: "",
     line: "3 clients · 1 user · 5 GB",
     desc: "Test drive with a few clients and prove the time savings.",
   },
   {
     name: "Starter",
     price: "$399",
+    period: "/month",
     line: "10 clients · 3 users · 50 GB",
     desc: "For agencies ready to systemize and scale their operations.",
   },
   {
     name: "Growth",
     price: "$799",
+    period: "/month",
     line: "25 clients · 5 users · 200 GB",
     desc: "For growing agencies managing multiple clients efficiently.",
+    highlight: true,
   },
   {
     name: "Scale/Pro",
     price: "$1,299",
+    period: "/month",
     line: "Unlimited clients · 10 users · 500 GB",
     desc: "For established agencies scaling to the next level.",
-    highlight: true,
   },
 ];
 
@@ -160,7 +192,7 @@ const ADDONS = [
   "Extra storage",
   "Extra clients",
   "Extra users",
-  "Extra platforms",
+  "Additional platforms",
 ];
 
 const FAQS = [
@@ -170,7 +202,7 @@ const FAQS = [
   },
   {
     q: "Does this replace my employees?",
-    a: "No—it replaces repetitive tasks, not people. Your team moves from doing repetitive work to overseeing quality, building client relationships, and strategic thinking. Most agencies use the time savings to take on more clients without hiring.",
+    a: "No—it replaces repetitive tasks, not people. Your team moves from doing manual work to overseeing quality, building client relationships, and strategic thinking. Most agencies use the time savings to take on more clients without hiring.",
   },
   {
     q: "How long until we see results?",
@@ -181,418 +213,526 @@ const FAQS = [
     a: "SMMAHUB learns from your specific SOPs and successful strategies. It doesn't impose generic templates—it applies what already works for your agency, consistently.",
   },
   {
-    q: "How is data safety handled?",
-    a: "Each agency and client workspace is completely isolated. Client data never mixes between accounts. For detailed security posture, discuss your requirements during the fit call.",
+    q: "How is client data protected?",
+    a: "Each agency and client workspace is completely isolated. Client data never mixes between accounts. We use industry-standard encryption and security practices.",
   },
   {
-    q: "Will our clients notice we're using AI?",
+    q: "Will clients know we're using AI?",
     a: "They'll notice better consistency, faster turnaround, and more strategic focus. The AI works behind the scenes following your approved processes—your team maintains control and final approval over everything.",
   },
   {
-    q: "How difficult is setup?",
-    a: "Start with one client and one proven strategy. Upload what already works for you. The system guides you through the rest. Most agencies are fully operational within a week.",
-  },
-  {
     q: "What's the actual ROI?",
-    a: "At minimum, you save one full-time employee's worth of repetitive work. This means you can either: 1) Manage more clients without hiring, or 2) Reduce overhead while maintaining current client load. Most agencies achieve both.",
+    a: "At minimum, you save one full-time employee's worth of repetitive work. This means you can either manage more clients without hiring, or reduce overhead while maintaining current client load. Most agencies achieve both.",
   },
   {
     q: "Which platforms are supported?",
-    a: "This landing doesn't assume platform coverage beyond your current workflow. If you use calendars/approvals for Instagram/Facebook/LinkedIn today, SMMAHUB fits that. Treat additional platforms as add-ons when available.",
-  },
-  {
-    q: "Do you guarantee performance results?",
-    a: "We guarantee operational efficiency: consistent processes, time savings, and scalable workflows. Marketing performance depends on your strategies, creative, and execution—which SMMAHUB helps you deliver more consistently.",
+    a: "Instagram, Facebook, and LinkedIn with more platforms coming soon. The system is designed to work with your existing workflow regardless of which platforms you manage for clients.",
   },
 ];
 
-function AnchorNav() {
+// ============================================================================
+// NAVIGATION COMPONENT
+// ============================================================================
+
+function Navigation() {
+  const { scrollY } = useScroll();
+  const backgroundColor = useTransform(
+    scrollY,
+    [0, 100],
+    ["rgba(5, 5, 5, 0.7)", "rgba(5, 5, 5, 0.95)"]
+  );
+
   return (
-    <nav className="sticky top-0 z-50 border-b bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70">
+    <motion.nav
+      className="sticky top-0 z-50 border-b border-white/5 backdrop-blur-xl"
+      style={{ backgroundColor }}
+    >
       <div className="container mx-auto flex items-center justify-between gap-4 px-4 py-4">
         <a href="#top" className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary">
-            <Sparkles className="h-5 w-5 text-primary-foreground" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
+            <Zap className="h-5 w-5 text-primary-foreground" />
           </div>
           <span className="text-lg font-semibold tracking-tight">SMMAHUB</span>
         </a>
 
         <div className="hidden items-center gap-6 text-sm text-muted-foreground md:flex">
           {NAV_LINKS.map((link) => (
-            <a key={link.href} href={link.href} className="hover:text-foreground">
+            <a
+              key={link.href}
+              href={link.href}
+              className="hover:text-foreground transition-colors"
+            >
               {link.label}
             </a>
           ))}
         </div>
 
         <div className="flex items-center gap-2">
-          <Button asChild size="sm" variant="outline" className="hidden sm:inline-flex">
+          <Button
+            asChild
+            size="sm"
+            variant="ghost"
+            className="hidden sm:inline-flex text-muted-foreground hover:text-foreground"
+          >
             <a href={LOOM_LINK} target="_blank" rel="noreferrer">
-              Watch demo
+              <Play className="w-4 h-4 mr-1.5" />
+              Watch Demo
             </a>
           </Button>
-          <Button asChild size="sm">
+          <Button asChild size="sm" className="btn-glow">
             <a href={CAL_LINK} target="_blank" rel="noreferrer">
-              Book 15-min call
+              Get an ROI Plan
             </a>
           </Button>
         </div>
       </div>
-    </nav>
+    </motion.nav>
   );
 }
 
-export default function LandingV2() {
+// ============================================================================
+// HERO SECTION (2-column layout)
+// ============================================================================
+
+function HeroSection() {
+  const ref = useRef<HTMLElement>(null);
+  const isInView = useInView(ref, { once: true });
+
   return (
-    <div id="top" className="min-h-screen bg-background text-foreground">
-      <AnchorNav />
+    <header ref={ref} className="relative overflow-hidden">
+      {/* Background Effects */}
+      <div className="absolute inset-0 -z-10">
+        <div className="absolute -top-40 left-1/2 h-[520px] w-[900px] -translate-x-1/2 rounded-full bg-primary/10 blur-3xl" />
+        <div className="absolute -bottom-56 right-[-200px] h-[520px] w-[520px] rounded-full bg-primary/10 blur-3xl" />
+      </div>
 
-      {/* 1) Hero - Refocused on benefits */}
-      <header className="relative overflow-hidden">
-        <div className="absolute inset-0 -z-10">
-          <div className="absolute -top-40 left-1/2 h-[520px] w-[900px] -translate-x-1/2 rounded-full bg-primary/10 blur-3xl" />
-          <div className="absolute -bottom-56 right-[-200px] h-[520px] w-[520px] rounded-full bg-primary/10 blur-3xl" />
-        </div>
-
-        <div className="container mx-auto px-4 py-16 md:py-20">
-          <div className="mx-auto max-w-5xl">
-            <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
-              <div>
+      <div className="container mx-auto px-4 py-16 md:py-20">
+        <div className="mx-auto max-w-6xl">
+          <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
+            {/* Left Column - Message */}
+            <div>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={isInView ? { opacity: 1, y: 0 } : {}}
+                transition={{ duration: 0.5 }}
+              >
                 <Badge className="mb-5" variant="secondary">
                   For social media marketing agencies
                 </Badge>
+              </motion.div>
 
-                <h1 className="text-4xl font-semibold leading-tight tracking-tight sm:text-5xl md:text-6xl">
-                  Agencies Game Changer
-                </h1>
+              <motion.h1
+                className="text-4xl font-semibold leading-tight tracking-tight sm:text-5xl md:text-6xl"
+                initial={{ opacity: 0, y: 30 }}
+                animate={isInView ? { opacity: 1, y: 0 } : {}}
+                transition={{ duration: 0.6, delay: 0.1 }}
+              >
+                Replace 1 FTE with an SOP-Trained AI Employee
+              </motion.h1>
 
-                <p className="mt-6 text-lg text-muted-foreground">
-                  Scale your agency without the overhead. Save hours of repetitive work and replace at least one FTE with an AI system that applies your proven processes consistently across all clients.
+              <motion.p
+                className="mt-6 text-lg text-muted-foreground"
+                initial={{ opacity: 0, y: 20 }}
+                animate={isInView ? { opacity: 1, y: 0 } : {}}
+                transition={{ duration: 0.5, delay: 0.2 }}
+              >
+                Scale your agency without the overhead. Save 15–20 hours per client monthly on repetitive work and replace at least one FTE with an AI system that applies your proven processes consistently across all clients.
+              </motion.p>
+
+              <motion.div
+                className="mt-6 grid gap-3"
+                initial={{ opacity: 0, y: 20 }}
+                animate={isInView ? { opacity: 1, y: 0 } : {}}
+                transition={{ duration: 0.5, delay: 0.25 }}
+              >
+                {HERO_OUTCOMES.map((outcome) => (
+                  <div key={outcome} className="flex items-start gap-2 text-sm text-muted-foreground">
+                    <Check className="mt-0.5 h-4 w-4 text-primary flex-shrink-0" />
+                    <span>{outcome}</span>
+                  </div>
+                ))}
+              </motion.div>
+
+              <motion.div
+                className="mt-8 flex flex-col gap-3 sm:flex-row"
+                initial={{ opacity: 0, y: 20 }}
+                animate={isInView ? { opacity: 1, y: 0 } : {}}
+                transition={{ duration: 0.5, delay: 0.3 }}
+              >
+                <Button asChild size="lg" className="w-full sm:w-auto">
+                  <a href={CAL_LINK} target="_blank" rel="noreferrer">
+                    Get an ROI Plan <ArrowRight className="ml-2 h-4 w-4" />
+                  </a>
+                </Button>
+                <Button asChild size="lg" variant="outline" className="w-full sm:w-auto">
+                  <a href={LOOM_LINK} target="_blank" rel="noreferrer">
+                    <Play className="mr-2 h-4 w-4" />
+                    Watch 6-min Demo
+                  </a>
+                </Button>
+              </motion.div>
+
+              <motion.p
+                className="mt-4 text-xs text-muted-foreground"
+                initial={{ opacity: 0 }}
+                animate={isInView ? { opacity: 1 } : {}}
+                transition={{ duration: 0.5, delay: 0.4 }}
+              >
+                Pilot agencies save $4,000+/month in avoided hiring costs
+              </motion.p>
+            </div>
+
+            {/* Right Column - FTE Proof Card */}
+            <motion.div
+              className="rounded-lg border bg-card/40 p-6"
+              initial={{ opacity: 0, x: 30 }}
+              animate={isInView ? { opacity: 1, x: 0 } : {}}
+              transition={{ duration: 0.6, delay: 0.3 }}
+            >
+              <div className="space-y-3">
+                <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                  <Workflow className="h-4 w-4" />
+                  Your new competitive advantage
+                </div>
+                <h2 className="text-2xl font-semibold">The equivalent of a full-time employee</h2>
+              </div>
+              <div className="mt-4 space-y-4 text-sm text-muted-foreground">
+                <p>
+                  While your competitors struggle with hiring and training, you'll scale efficiently with an AI Employee that works 24/7, never forgets a detail, and applies your best strategies consistently.
                 </p>
-
-                <div className="mt-6 grid gap-3">
-                  {HERO_OUTCOMES.map((t) => (
-                    <div key={t} className="flex items-start gap-2 text-sm text-muted-foreground">
-                      <Check className="mt-0.5 h-4 w-4 text-primary" />
-                      <span>{t}</span>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {HERO_STATS.map((item) => (
+                    <div key={item.label} className="rounded-lg border bg-background/40 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                        {item.label}
+                      </p>
+                      <p className="mt-2 font-medium text-foreground">{item.value}</p>
                     </div>
                   ))}
                 </div>
-
-                <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                  <Button asChild size="lg" className="w-full sm:w-auto">
-                    <a href={CAL_LINK} target="_blank" rel="noreferrer">
-                      See how much time you'll save <ArrowRight className="ml-2 h-4 w-4" />
-                    </a>
-                  </Button>
-                  <Button asChild size="lg" variant="outline" className="w-full sm:w-auto">
-                    <a href={LOOM_LINK} target="_blank" rel="noreferrer">
-                      Watch 6-min demo
-                    </a>
-                  </Button>
-                </div>
-
-                <p className="mt-4 text-xs text-muted-foreground">
-                  Pilot agencies save 15+ hours per client monthly
-                </p>
               </div>
-
-              <Card className="border bg-card/40">
-                <CardHeader className="space-y-3">
-                  <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.28em] text-muted-foreground">
-                    <Workflow className="h-4 w-4" />
-                    Your new competitive advantage
-                  </div>
-                  <CardTitle className="text-2xl">The equivalent of a full-time employee</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4 text-sm text-muted-foreground">
-                  <p>
-                    While your competitors struggle with hiring and training, you'll scale efficiently with an AI Employee that works 24/7, never forgets a detail, and applies your best strategies consistently.
-                  </p>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {[
-                      { label: "Time saved", value: "15-20 hours/client" },
-                      { label: "Consistency", value: "Your proven SOPs" },
-                      { label: "Scalability", value: "No hiring needed" },
-                      { label: "Availability", value: "24/7 standby" },
-                    ].map((item) => (
-                      <div key={item.label} className="rounded-2xl border bg-background/40 p-4">
-                        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-muted-foreground">
-                          {item.label}
-                        </p>
-                        <p className="mt-2 font-medium text-foreground">{item.value}</p>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+            </motion.div>
           </div>
         </div>
-      </header>
+      </div>
+    </header>
+  );
+}
 
-      {/* 2) Social proof strip */}
-      <section className="border-y bg-muted/30">
-        <div className="container mx-auto px-4 py-10">
-          <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 md:flex-row">
-            <div className="text-center md:text-left">
-              <p className="text-sm font-semibold text-muted-foreground">Agencies scaling with SMMAHUB</p>
-              <p className="mt-1 text-xs text-muted-foreground">Managing 2x more clients without adding staff</p>
-            </div>
-            <div className="flex flex-wrap items-center justify-center gap-3">
-              {[1, 2, 3].map((i) => (
-                <div
-                  key={i}
-                  className="h-12 w-28 rounded-lg border bg-card/50"
-                  aria-label="Pilot agency logo"
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
+// ============================================================================
+// BEFORE/AFTER SECTION
+// ============================================================================
 
-      {/* 3) Problem */}
-      <section className="container mx-auto px-4 py-16">
-        <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-2 lg:items-start">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-muted-foreground">The scaling problem</p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
+function BeforeAfterSection() {
+  return (
+    <section className="py-20 border-y border-border/50 bg-surface/30">
+      <div className="container mx-auto px-4">
+        <AnimatedSection className="mx-auto max-w-4xl">
+          <div className="text-center mb-10">
+            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-primary mb-3">
+              The Agency Scaling Problem
+            </p>
+            <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
               Your agency is stuck between growth and overhead
             </h2>
-            <p className="mt-4 text-muted-foreground">
-              Every new client means more repetitive work, more hiring, and more management complexity. You're trading your time for revenue instead of building a scalable business.
-            </p>
-
-            <div className="mt-8 grid gap-4">
-              {PROBLEM_POINTS.map((x) => (
-                <div key={x.title} className="flex gap-3 rounded-2xl border bg-card/30 p-4">
-                  <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-                    <Check className="h-4 w-4 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-medium">{x.title}</p>
-                    <p className="text-sm text-muted-foreground">{x.desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-8 rounded-3xl border bg-muted/30 p-6">
-              <p className="text-sm font-semibold text-foreground">The opportunity cost</p>
-              <p className="mt-2 text-sm text-muted-foreground">
-                While you're managing repetitive tasks, your competitors are building strategic partnerships and taking your clients. The agency that scales efficiently wins.
-              </p>
-            </div>
           </div>
 
-          <Card className="border bg-card/40">
-            <CardHeader className="space-y-2">
-              <CardTitle className="text-xl">Before vs After SMMAHUB</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                How efficient agencies operate vs those stuck in manual work
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              {[
-                { left: "Hire for every 3 new clients", right: "Add 10+ clients with same team" },
-                { left: "Quality varies by employee", right: "Consistent quality across all work" },
-                { left: "Client knowledge walks out", right: "All knowledge captured & reused" },
-                { left: "Reactive client service", right: "Proactive strategic partnership" },
-              ].map((row, idx) => (
-                <div key={idx} className="grid grid-cols-2 gap-3">
-                  <div className="rounded-xl border bg-background/40 p-3 text-muted-foreground">{row.left}</div>
-                  <div className="rounded-xl border bg-background/40 p-3 font-medium">{row.right}</div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </div>
-      </section>
+          <BeforeAfterToggle items={BEFORE_AFTER_ITEMS} />
+        </AnimatedSection>
+      </div>
+    </section>
+  );
+}
 
-      <Separator />
+// ============================================================================
+// HOW IT WORKS SECTION
+// ============================================================================
 
-      {/* 4) How it works */}
-      <section className="container mx-auto px-4 py-16">
-        <div className="mx-auto max-w-6xl">
-          <div className="mx-auto max-w-3xl text-center">
-            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-muted-foreground">How it works</p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
-              Systemize once, scale forever
+function HowItWorksSection() {
+  return (
+    <section id="how-it-works" className="py-20">
+      <div className="container mx-auto px-4">
+        <AnimatedSection className="mx-auto max-w-6xl">
+          <div className="text-center mb-12">
+            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-muted-foreground mb-3">
+              How It Works
+            </p>
+            <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+              Systemize Once, Scale Forever
             </h2>
-            <p className="mt-4 text-muted-foreground">
+            <p className="mt-4 text-muted-foreground max-w-2xl mx-auto">
               Capture what makes your agency successful, then let the AI apply it consistently across all clients.
             </p>
           </div>
 
-          <div className="mt-10 grid gap-6 lg:grid-cols-3">
-            {HOW_IT_WORKS.map((s) => (
-              <Card key={s.step} className="border bg-card/40">
-                <CardHeader className="space-y-2">
-                  <div className="text-xs font-semibold tracking-[0.28em] text-muted-foreground">STEP {s.step}</div>
-                  <CardTitle className="text-xl">{s.title}</CardTitle>
-                </CardHeader>
-                <CardContent className="text-sm text-muted-foreground">{s.desc}</CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* 5) Abilities - Now positioned as "How you save time" */}
-      <section id="product" className="bg-muted/30">
-        <div className="container mx-auto px-4 py-16">
-          <div className="mx-auto max-w-6xl">
-            <div className="mx-auto max-w-3xl text-center">
-              <p className="text-sm font-semibold uppercase tracking-[0.22em] text-muted-foreground">How you save time</p>
-              <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
-                Automate the repetitive, focus on the strategic
-              </h2>
-              <p className="mt-4 text-muted-foreground">
-                Your team stops doing manual work and starts doing what actually grows your agency.
-              </p>
-            </div>
-
-            <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {ABILITIES.map((m) => (
-                <Card key={m.title} className="border bg-card/45">
-                  <CardHeader className="space-y-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10">
-                      <m.icon className="h-5 w-5 text-primary" />
+          <StaggerContainer className="grid gap-6 lg:grid-cols-3">
+            {HOW_IT_WORKS.map((step) => (
+              <StaggerItem key={step.step}>
+                <motion.div
+                  className="h-full p-6 rounded-lg bg-card border border-border"
+                  whileHover={{ y: -4 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <step.icon className="w-6 h-6 text-primary" />
                     </div>
-                    <CardTitle className="text-lg">{m.title}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="text-sm text-muted-foreground">{m.desc}</CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
+                    <span className="text-xs font-bold tracking-[0.2em] text-muted-foreground">
+                      STEP {step.step}
+                    </span>
+                  </div>
+                  <h3 className="text-xl font-semibold mb-3">{step.title}</h3>
+                  <p className="text-muted-foreground">{step.desc}</p>
+                </motion.div>
+              </StaggerItem>
+            ))}
+          </StaggerContainer>
+        </AnimatedSection>
+      </div>
+    </section>
+  );
+}
 
-      {/* Rest of the page remains the same */}
-      {/* 6) Safety */}
-      <section id="safety" className="container mx-auto px-4 py-16">
-        <div className="mx-auto max-w-6xl">
-          <div className="mx-auto max-w-3xl text-center">
-            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-muted-foreground">Safety</p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
-              Guardrails that protect your agency and your clients.
+// ============================================================================
+// WORKFLOW DEMO SECTION
+// ============================================================================
+
+function WorkflowDemoSection() {
+  return (
+    <section className="py-20 bg-surface/30">
+      <div className="container mx-auto px-4">
+        <AnimatedSection className="mx-auto max-w-4xl">
+          <div className="text-center mb-12">
+            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-muted-foreground mb-3">
+              See It In Action
+            </p>
+            <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+              From Onboarding to Execution
             </h2>
-            <p className="mt-4 text-muted-foreground">
-              The difference between "AI drafts" and an AI Employee your agency can trust.
+            <p className="mt-4 text-muted-foreground max-w-2xl mx-auto">
+              Watch how SMMAHUB transforms your client workflow from start to finish.
             </p>
           </div>
 
-          <div className="mt-10 grid gap-6 md:grid-cols-3">
-            {SAFETY.map((x) => (
-              <Card key={x.title} className="border bg-card/45">
-                <CardHeader className="space-y-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10">
-                    <x.icon className="h-5 w-5 text-primary" />
-                  </div>
-                  <CardTitle className="text-lg">{x.title}</CardTitle>
-                </CardHeader>
-                <CardContent className="text-sm text-muted-foreground">{x.desc}</CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
+          <WorkflowStepper />
+        </AnimatedSection>
+      </div>
+    </section>
+  );
+}
 
-      {/* 7) Screenshots */}
-      <section className="bg-muted/30">
-        <div className="container mx-auto px-4 py-16">
-          <div className="mx-auto max-w-6xl">
-            <div className="mx-auto max-w-3xl text-center">
-              <p className="text-sm font-semibold uppercase tracking-[0.22em] text-muted-foreground">Demo</p>
-              <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">Product preview</h2>
-              <p className="mt-4 text-muted-foreground">
-                Replace these with real product shots when ready: [Screenshots].
-              </p>
-            </div>
+// ============================================================================
+// OUTPUTS SECTION
+// ============================================================================
 
-            <div className="mt-10 grid gap-6 md:grid-cols-3">
-              {[
-                { title: "Onboarding", desc: "Capture goals, tone, offers, constraints, and approvals in one flow." },
-                { title: "Brain Summary", desc: "A client-ready summary that becomes the reference for the whole team." },
-                { title: "Strategy Output", desc: "Themes, angles, and plans generated from approved context." },
-              ].map((card) => (
-                <Card key={card.title} className="border bg-card/45">
-                  <CardHeader className="space-y-2">
-                    <CardTitle className="text-lg">{card.title}</CardTitle>
-                    <p className="text-sm text-muted-foreground">{card.desc}</p>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex h-44 items-center justify-center rounded-2xl border border-dashed bg-background/40 text-xs font-semibold uppercase tracking-[0.28em] text-muted-foreground">
-                      [Screenshots]
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 8) Pricing */}
-      <section id="pricing" className="container mx-auto px-4 py-16">
-        <div className="mx-auto max-w-6xl">
-          <div className="mx-auto max-w-3xl text-center">
-            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-muted-foreground">Pricing</p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
-              Pay for results, not software
+function OutputsSection() {
+  return (
+    <section id="outputs" className="py-20">
+      <div className="container mx-auto px-4">
+        <AnimatedSection className="mx-auto max-w-6xl">
+          <div className="text-center mb-12">
+            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-muted-foreground mb-3">
+              What You Get
+            </p>
+            <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+              Deliverables, Not Features
             </h2>
-            <p className="mt-4 text-muted-foreground">
-              Every dollar spent should return as time saved and clients added.
+            <p className="mt-4 text-muted-foreground max-w-2xl mx-auto">
+              Real outputs that save time and maintain quality across your client roster.
             </p>
           </div>
 
-          <div className="mt-10 rounded-3xl border bg-card/40 p-8">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div>
-                <p className="text-sm font-semibold">Calculate your ROI first</p>
-                <p className="text-sm text-muted-foreground">
-                  Most agencies save $4,000+ monthly in avoided hiring costs. Let's calculate your specific savings.
-                </p>
-                <p className="mt-2 text-xs text-muted-foreground">Pilot agencies typically see full ROI in 30 days</p>
-              </div>
-              <Button asChild>
-                <a href={CAL_LINK} target="_blank" rel="noreferrer">
-                  Calculate your savings
-                </a>
-              </Button>
-            </div>
-          </div>
-
-          <div className="mt-10 grid gap-6 lg:grid-cols-4">
-            {PLANS.map((p) => (
-              <Card
-                key={p.name}
-                className={`border bg-card/40 ${p.highlight ? "ring-1 ring-primary/30" : ""}`}
-              >
-                <CardHeader className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg">{p.name}</CardTitle>
-                    {p.highlight ? <Badge variant="secondary">Most chosen</Badge> : null}
+          <StaggerContainer className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {OUTPUTS.map((output) => (
+              <StaggerItem key={output.title}>
+                <motion.div
+                  className="h-full p-6 rounded-lg bg-card border border-border"
+                  whileHover={{ y: -4, borderColor: "hsl(var(--primary) / 0.3)" }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
+                    <output.icon className="w-5 h-5 text-primary" />
                   </div>
-                  <div className="text-3xl font-semibold tracking-tight">{p.price}</div>
-                  <div className="text-sm text-muted-foreground">{p.line}</div>
-                </CardHeader>
-                <CardContent className="text-sm text-muted-foreground">{p.desc}</CardContent>
-              </Card>
+                  <h3 className="text-lg font-semibold mb-2">{output.title}</h3>
+                  <p className="text-sm text-muted-foreground">{output.desc}</p>
+                </motion.div>
+              </StaggerItem>
             ))}
+          </StaggerContainer>
+        </AnimatedSection>
+      </div>
+    </section>
+  );
+}
+
+// ============================================================================
+// GUARDRAILS SECTION
+// ============================================================================
+
+function GuardrailsSection() {
+  return (
+    <section className="py-20 bg-surface/30">
+      <div className="container mx-auto px-4">
+        <AnimatedSection className="mx-auto max-w-6xl">
+          <div className="text-center mb-12">
+            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-muted-foreground mb-3">
+              Built-In Reliability
+            </p>
+            <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+              An AI Employee You Can Actually Trust
+            </h2>
+            <p className="mt-4 text-muted-foreground max-w-2xl mx-auto">
+              The difference between "AI drafts" and an AI system your agency can depend on.
+            </p>
           </div>
 
-          <div className="mt-10 rounded-3xl border bg-card/40 p-8">
+          <StaggerContainer className="grid gap-6 md:grid-cols-2">
+            {GUARDRAILS.map((item) => (
+              <StaggerItem key={item.title}>
+                <motion.div
+                  className="h-full p-6 rounded-lg bg-card border border-border"
+                  whileHover={{ y: -4 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <item.icon className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold mb-2">{item.title}</h3>
+                      <p className="text-sm text-muted-foreground">{item.desc}</p>
+                    </div>
+                  </div>
+                </motion.div>
+              </StaggerItem>
+            ))}
+          </StaggerContainer>
+        </AnimatedSection>
+      </div>
+    </section>
+  );
+}
+
+// ============================================================================
+// OUTPUT EXAMPLES SECTION
+// ============================================================================
+
+function OutputExamplesSection() {
+  return (
+    <section className="py-20">
+      <div className="container mx-auto px-4">
+        <AnimatedSection className="mx-auto max-w-6xl">
+          <div className="text-center mb-12">
+            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-muted-foreground mb-3">
+              Real Output Examples
+            </p>
+            <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+              See What the AI Produces
+            </h2>
+            <p className="mt-4 text-muted-foreground max-w-2xl mx-auto">
+              These are illustrative examples. Actual outputs follow your agency's SOPs.
+            </p>
+          </div>
+
+          <OutputExamples />
+        </AnimatedSection>
+      </div>
+    </section>
+  );
+}
+
+// ============================================================================
+// ROI CALCULATOR SECTION
+// ============================================================================
+
+function ROICalculatorSection() {
+  return (
+    <section className="py-20 bg-surface/30">
+      <div className="container mx-auto px-4">
+        <AnimatedSection className="mx-auto max-w-5xl">
+          <div className="text-center mb-12">
+            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-muted-foreground mb-3">
+              Calculate Your Savings
+            </p>
+            <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+              What's Your Agency Losing to Manual Work?
+            </h2>
+            <p className="mt-4 text-muted-foreground max-w-2xl mx-auto">
+              Adjust the sliders to see your potential time and cost savings.
+            </p>
+          </div>
+
+          <div className="p-8 rounded-lg bg-card border border-border">
+            <ROICalculator />
+          </div>
+        </AnimatedSection>
+      </div>
+    </section>
+  );
+}
+
+// ============================================================================
+// PRICING SECTION
+// ============================================================================
+
+function PricingSection() {
+  return (
+    <section id="pricing" className="py-20">
+      <div className="container mx-auto px-4">
+        <AnimatedSection className="mx-auto max-w-6xl">
+          <div className="text-center mb-12">
+            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-muted-foreground mb-3">
+              Pricing
+            </p>
+            <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+              Pay for Results, Not Software
+            </h2>
+            <p className="mt-4 text-muted-foreground max-w-2xl mx-auto">
+              Every dollar spent should return as time saved and clients added. Most agencies save $4,000+/month in avoided hiring costs.
+            </p>
+          </div>
+
+          <StaggerContainer className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+            {PLANS.map((plan) => (
+              <StaggerItem key={plan.name}>
+                <motion.div
+                  className={`h-full p-6 rounded-lg border ${
+                    plan.highlight
+                      ? "bg-card ring-1 ring-primary/30"
+                      : "bg-card border-border"
+                  }`}
+                  whileHover={{ y: -4 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold">{plan.name}</h3>
+                    {plan.highlight && (
+                      <Badge variant="secondary" className="text-xs">
+                        Most chosen
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="mb-4">
+                    <span className="text-3xl font-semibold tracking-tight">{plan.price}</span>
+                    <span className="text-muted-foreground">{plan.period}</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-3">{plan.line}</p>
+                  <p className="text-sm text-muted-foreground">{plan.desc}</p>
+                </motion.div>
+              </StaggerItem>
+            ))}
+          </StaggerContainer>
+
+          {/* Add-ons section */}
+          <div className="mt-10 rounded-lg border bg-card/40 p-8">
             <div className="flex flex-col gap-8 md:flex-row md:items-start md:justify-between">
               <div>
-                <p className="text-sm font-semibold">Add-ons (no invented prices)</p>
+                <p className="text-sm font-semibold">Add-ons available</p>
                 <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-                  {ADDONS.map((a) => (
-                    <li key={a} className="flex items-start gap-2">
+                  {ADDONS.map((addon) => (
+                    <li key={addon} className="flex items-start gap-2">
                       <Check className="mt-0.5 h-4 w-4 text-primary" />
-                      <span>{a}</span>
+                      <span>{addon}</span>
                     </li>
                   ))}
                 </ul>
@@ -600,95 +740,137 @@ export default function LandingV2() {
               <div className="flex flex-col gap-3 md:items-end">
                 <Button asChild size="lg">
                   <a href={CAL_LINK} target="_blank" rel="noreferrer">
-                    Book a 15-min fit call
+                    Get an ROI Plan
                   </a>
                 </Button>
                 <Button asChild size="lg" variant="outline">
                   <a href={LOOM_LINK} target="_blank" rel="noreferrer">
-                    Watch 6-min demo
+                    Watch 6-min Demo
                   </a>
                 </Button>
               </div>
             </div>
           </div>
-        </div>
-      </section>
+        </AnimatedSection>
+      </div>
+    </section>
+  );
+}
 
-      {/* 9) FAQ */}
-      <section id="faq" className="bg-muted/30">
-        <div className="container mx-auto px-4 py-16">
-          <div className="mx-auto max-w-6xl">
-            <div className="mx-auto max-w-3xl text-center">
-              <p className="text-sm font-semibold uppercase tracking-[0.22em] text-muted-foreground">FAQ</p>
-              <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
-                The questions agencies ask before scaling efficiently
-              </h2>
-              <p className="mt-4 text-muted-foreground">Direct answers about time savings and scalability.</p>
-            </div>
+// ============================================================================
+// FAQ SECTION
+// ============================================================================
 
-            <div className="mx-auto mt-10 max-w-3xl">
-              <Accordion type="single" collapsible className="space-y-3">
-                {FAQS.map((f, i) => (
-                  <AccordionItem
-                    key={f.q}
-                    value={`faq-${i}`}
-                    className="rounded-2xl border bg-card/45 px-4"
-                  >
-                    <AccordionTrigger className="text-left text-sm font-medium">{f.q}</AccordionTrigger>
-                    <AccordionContent className="text-sm text-muted-foreground">{f.a}</AccordionContent>
-                  </AccordionItem>
-                ))}
-              </Accordion>
-            </div>
+function FAQSection() {
+  return (
+    <section id="faq" className="py-20 bg-surface/30">
+      <div className="container mx-auto px-4">
+        <AnimatedSection className="mx-auto max-w-3xl">
+          <div className="text-center mb-12">
+            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-muted-foreground mb-3">
+              FAQ
+            </p>
+            <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+              Questions Before You Scale
+            </h2>
+          </div>
 
-            {/* 10) Final CTA block */}
-            <div className="mt-14 rounded-3xl border bg-card/45 p-10 text-center">
-              <Badge variant="secondary" className="mb-4">
-                Ready to scale efficiently?
-              </Badge>
-              <h3 className="text-3xl font-semibold tracking-tight">
-                Stop trading time for revenue. Start scaling your agency.
-              </h3>
-              <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-                Book a 15-minute fit call. We'll calculate exactly how much time you'll save and how many more clients you can manage with your current team.
-              </p>
-              <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
-                <Button asChild size="lg" className="w-full sm:w-auto">
-                  <a href={CAL_LINK} target="_blank" rel="noreferrer">
-                    Calculate your savings <ArrowRight className="ml-2 h-4 w-4" />
-                  </a>
-                </Button>
-                <Button asChild size="lg" variant="outline" className="w-full sm:w-auto">
-                  <a href={LOOM_LINK} target="_blank" rel="noreferrer">
-                    Watch 6-min demo
-                  </a>
-                </Button>
-              </div>
+          <Accordion type="single" collapsible className="space-y-3">
+            {FAQS.map((faq, idx) => (
+              <AccordionItem
+                key={idx}
+                value={`faq-${idx}`}
+                className="rounded-xl border border-border bg-card/50 px-5 accordion-landing"
+              >
+                <AccordionTrigger className="text-left text-sm font-medium py-4 hover:no-underline">
+                  {faq.q}
+                </AccordionTrigger>
+                <AccordionContent className="text-sm text-muted-foreground pb-4">
+                  {faq.a}
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+        </AnimatedSection>
+      </div>
+    </section>
+  );
+}
+
+// ============================================================================
+// FINAL CTA SECTION
+// ============================================================================
+
+function FinalCTASection() {
+  return (
+    <section className="py-20">
+      <div className="container mx-auto px-4">
+        <AnimatedSection className="mx-auto max-w-4xl">
+          <div className="p-10 md:p-14 rounded-lg border bg-card/45 text-center">
+            <Badge variant="secondary" className="mb-4">
+              Ready to scale efficiently?
+            </Badge>
+
+            <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+              Stop trading time for revenue. Start scaling your agency.
+            </h2>
+
+            <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
+              Book a 15-minute fit call. We'll calculate exactly how much time you'll save
+              and how many more clients you can manage with your current team.
+            </p>
+
+            <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
+              <Button asChild size="lg" className="w-full sm:w-auto">
+                <a href={CAL_LINK} target="_blank" rel="noreferrer">
+                  Get an ROI Plan <ArrowRight className="ml-2 h-4 w-4" />
+                </a>
+              </Button>
+              <Button
+                asChild
+                size="lg"
+                variant="outline"
+                className="w-full sm:w-auto"
+              >
+                <a href={LOOM_LINK} target="_blank" rel="noreferrer">
+                  <Play className="mr-2 h-4 w-4" />
+                  Watch 6-min Demo
+                </a>
+              </Button>
             </div>
           </div>
-        </div>
-      </section>
+        </AnimatedSection>
+      </div>
+    </section>
+  );
+}
 
-      <Separator />
+// ============================================================================
+// FOOTER
+// ============================================================================
 
-      {/* Footer */}
-      <footer className="container mx-auto px-4 py-10">
+function Footer() {
+  return (
+    <footer className="border-t border-border/50">
+      <div className="container mx-auto px-4 py-10">
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary">
-              <Sparkles className="h-5 w-5 text-primary-foreground" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
+              <Zap className="h-5 w-5 text-primary-foreground" />
             </div>
             <div>
               <div className="font-semibold">SMMAHUB</div>
-              <div className="text-xs text-muted-foreground">Scale your agency without the overhead</div>
+              <div className="text-xs text-muted-foreground">
+                Scale your agency without the overhead
+              </div>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-            <a href="#" className="hover:text-foreground">
+            <a href="#" className="hover:text-foreground transition-colors">
               Terms
             </a>
-            <a href="#" className="hover:text-foreground">
+            <a href="#" className="hover:text-foreground transition-colors">
               Privacy
             </a>
             <span>contact@smmahub.com</span>
@@ -696,7 +878,34 @@ export default function LandingV2() {
 
           <div className="text-xs text-muted-foreground">© 2025 SMMAHUB</div>
         </div>
-      </footer>
+      </div>
+    </footer>
+  );
+}
+
+// ============================================================================
+// MAIN LANDING PAGE COMPONENT
+// ============================================================================
+
+export default function LandingV2() {
+  return (
+    <div id="top" className="min-h-screen bg-background text-foreground">
+      <ScrollProgress />
+      <Navigation />
+      <main>
+        <HeroSection />
+        <BeforeAfterSection />
+        <HowItWorksSection />
+        <WorkflowDemoSection />
+        <OutputsSection />
+        <GuardrailsSection />
+        <OutputExamplesSection />
+        <ROICalculatorSection />
+        <PricingSection />
+        <FAQSection />
+        <FinalCTASection />
+      </main>
+      <Footer />
     </div>
   );
 }

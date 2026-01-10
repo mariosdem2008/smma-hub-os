@@ -1,4 +1,4 @@
-// Strategy OS - Generate Strategy Button
+// Strategy OS - Strategy Builder Button
 
 import { Button } from '@/components/ui/button';
 import { useStrategyOS } from '../StrategyOSContext';
@@ -25,25 +25,40 @@ export function GenerateStrategyButton({
 
   const handleGenerate = async () => {
     try {
-      await generateStrategy.mutateAsync({ clientId, agencyId, strategyId });
+      const result = await generateStrategy.mutateAsync({ clientId, agencyId, strategyId });
 
-      // Add history events for each module
-      for (const moduleDef of STRATEGY_MODULES) {
-        await addHistoryEvent.mutateAsync({
-          clientId,
-          strategyId,
-          moduleId: null,
-          module: moduleDef.key,
-          eventType: 'seeded',
-          eventData: { source: 'generate_strategy' },
+      if (result?.mode === 'template') {
+        for (const moduleDef of STRATEGY_MODULES) {
+          await addHistoryEvent.mutateAsync({
+            clientId,
+            strategyId,
+            moduleId: null,
+            module: moduleDef.key,
+            eventType: 'seeded',
+            eventData: { source: 'template_fallback', reason: result.reason },
+          });
+        }
+
+        toast.success('Template Draft created', {
+          description: 'AI is unavailable, so we created a Template Draft for all 6 modules.',
         });
+        return;
       }
 
-      toast.success('Strategy generated successfully', {
-        description: 'All 6 modules have been seeded with template content.',
+      if (result?.mode === 'unknown') {
+        const fallbackMessage =
+          result.questions?.[0] ?? 'Strategy Builder is blocked. Resolve missing requirements and retry.';
+        toast.error('Strategy Builder blocked', {
+          description: fallbackMessage,
+        });
+        return;
+      }
+
+      toast.success('Strategy Builder complete', {
+        description: 'Your strategy modules and document are ready to review.',
       });
     } catch (err) {
-      toast.error('Failed to generate strategy', {
+      toast.error('Failed to run Strategy Builder', {
         description: err instanceof Error ? err.message : 'Unknown error',
       });
     }
@@ -60,12 +75,12 @@ export function GenerateStrategyButton({
       {generateStrategy.isPending ? (
         <>
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          Generating...
+          Building...
         </>
       ) : (
         <>
           <Sparkles className="mr-2 h-4 w-4" />
-          Generate Strategy
+          Strategy Builder
         </>
       )}
     </Button>

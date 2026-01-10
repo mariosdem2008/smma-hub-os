@@ -139,7 +139,8 @@ export function MissionControl() {
           <CardContent className="py-8 text-center">
             <h3 className="font-medium mb-2">Get Started</h3>
             <p className="text-sm text-muted-foreground mb-4">
-              Generate a complete strategy foundation with templates, then customize each module.
+              Run Strategy Builder to draft all 6 modules. If AI is disabled, you will receive a
+              Template Draft instead.
             </p>
             <GenerateStrategyButton size="lg" />
           </CardContent>

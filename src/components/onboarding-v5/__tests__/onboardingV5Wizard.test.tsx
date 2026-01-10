@@ -91,7 +91,7 @@ describe('OnboardingV5Wizard', () => {
 
     render(
       <MemoryRouter>
-        <OnboardingV5Wizard clientId="client-1" agencyId="agency-1" />
+        <OnboardingV5Wizard clientId="client-1" agencyId="agency-1" autosaveDelayMs={0} />
       </MemoryRouter>
     );
 
@@ -100,8 +100,7 @@ describe('OnboardingV5Wizard', () => {
     const businessInput = screen.getByLabelText('Business name');
     await user.type(businessInput, 'Northwind Studios');
 
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    expect(supabaseMocks.updateEq).toHaveBeenCalled();
+    await waitFor(() => expect(supabaseMocks.updateEq).toHaveBeenCalled());
 
     await user.click(screen.getByRole('button', { name: 'Scan website/profile (45s)' }));
     await user.click(await screen.findByRole('button', { name: 'Apply all' }));

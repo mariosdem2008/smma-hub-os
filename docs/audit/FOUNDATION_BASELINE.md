@@ -270,8 +270,21 @@ Duration 19.41s (transform 7.96s, setup 26.12s, collect 48.48s, tests 23.04s, en
 
 ## Edge Functions Calling Provider APIs Directly (Bypass Router)
 
-- Anthropic direct call in `supabase/functions/ai-onboarding-suggest/index.ts:106`.
-- Anthropic direct call in `supabase/functions/ai-onboarding-scan/index.ts:267`.
+- None detected (guarded by `tests/guards/edge-llm-bypass.test.ts:67`).
+
+## Bypass Fixed
+
+- Replaced direct provider calls with router-backed `runAiTask` in `supabase/functions/ai-onboarding-suggest/index.ts:104` and `supabase/functions/ai-onboarding-scan/index.ts:270`.
+- Centralized Edge Function AI wrapper in `supabase/functions/_shared/ai.ts:206` and `supabase/functions/_shared/ai.ts:341`.
+- Added provider override support in router to keep behavior aligned while still routed: `src/ai/router.ts:269` and `src/ai/router.ts:442`.
+- Guard tests enforce allowlist + block provider API usage in Edge Functions: `tests/guards/edge-llm-bypass.test.ts:67`.
+
+## Budget + Rate Limit Enforcement (Edge Wrapper)
+
+- Enforced `ai_rate_limits` + `ai_budgets` before provider calls in `supabase/functions/_shared/ai.ts:71` and `supabase/functions/_shared/ai.ts:223`.
+- Logged `ai_runs` + `ai_usage_logs` after provider calls in `supabase/functions/_shared/ai.ts:147` and `supabase/functions/_shared/ai.ts:292`.
+- Router usage logging can be suppressed for Edge wrapper (avoids double logs): `src/ai/router.ts:23` and `src/ai/router.ts:204`.
+- Tests cover rate-limit + budget blocks + run logging: `supabase/functions/_shared/__tests__/ai-guards.test.ts:1`.
 
 ## Embedding Write Paths + Zero-Vector Risk
 

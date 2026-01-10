@@ -2,7 +2,7 @@
 // OnboardingContext Component Tests
 // ============================================================================
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { OnboardingProvider, useOnboarding } from '../OnboardingContext';
 import type { OnboardingProfile, AIScanResult } from '@/types/onboarding';
@@ -504,12 +504,12 @@ describe('OnboardingContext', () => {
 
   describe('error handling', () => {
     it('throws error when useOnboarding used outside provider', () => {
-      // This test needs to be wrapped differently to catch the error
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       expect(() => {
         const result = renderHook(() => useOnboarding());
-        // Access state to trigger the error
         void result.current.state;
       }).toThrow('useOnboarding must be used within an OnboardingProvider');
+      errorSpy.mockRestore();
     });
   });
 });

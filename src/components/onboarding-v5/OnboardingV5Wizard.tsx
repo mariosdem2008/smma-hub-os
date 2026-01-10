@@ -133,7 +133,15 @@ function mapIndustryNiche(value?: string): OnboardingProfile['industry_niche'] |
   return 'other';
 }
 
-export function OnboardingV5Wizard({ clientId, agencyId }: { clientId: string; agencyId: string }) {
+export function OnboardingV5Wizard({
+  clientId,
+  agencyId,
+  autosaveDelayMs = 700,
+}: {
+  clientId: string;
+  agencyId: string;
+  autosaveDelayMs?: number;
+}) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [state, dispatch] = useReducer(onboardingReducer, initialState);
@@ -218,9 +226,9 @@ export function OnboardingV5Wizard({ clientId, agencyId }: { clientId: string; a
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => {
         void saveProfile(sectionOverride);
-      }, 700);
+      }, autosaveDelayMs);
     },
-    [saveProfile]
+    [autosaveDelayMs, saveProfile]
   );
 
   const flushSave = useCallback(

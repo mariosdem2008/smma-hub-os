@@ -13,6 +13,7 @@ import {
 } from "../../../src/ai/adminChatStrategic.ts";
 import { embedText } from "./embeddings.ts";
 import { executeToolAction } from "./tool-executor.ts";
+import { capMatchesByTokenBudget, clampMatchCount } from "./retrieval.ts";
 
 export type Suggestion = { id: string; label: string; user_message: string };
 
@@ -498,18 +499,21 @@ async function fetchAgencyRagSnippets(opts: {
     const queryEmbedding = await embedText(opts.query, embeddingApiKey, embeddingModel);
 
     const { data: matches } = await opts.supabase.rpc("match_ai_embeddings", {
-      query_embedding: queryEmbedding,
-      match_threshold: 0.7,
-      match_count: 5,
-      filter_agency_id: opts.agencyId,
-      filter_client_id: null,
+      p_agency_id: opts.agencyId,
+      p_client_id: null,
+      p_query_embedding: queryEmbedding,
+      p_match_count: clampMatchCount(5),
+      p_doc_types: null,
+      p_modules: null,
+      p_min_similarity: 0.2,
     });
 
     if (!matches || matches.length === 0) {
       return [];
     }
 
-    const mapped = matches.map((match: any, index: number) => ({
+    const capped = capMatchesByTokenBudget(matches, 600);
+    const mapped = capped.matches.map((match: any, index: number) => ({
       rank: index + 1,
       text: match.chunk_text ?? "",
       doc_type: match.doc_type ?? null,

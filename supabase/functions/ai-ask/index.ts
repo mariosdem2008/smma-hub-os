@@ -8,6 +8,8 @@ import { ai } from "../../../src/ai/router.ts";
 import { TaskType } from "../../../src/ai/taskTypes.ts";
 import { applyRagPolicy, getRagConfig, shouldUseRagPolicy } from "../../../src/ai/ragPolicy.ts";
 import { validateCitations } from "../../../src/ai/citations.ts";
+import { capMatchesByTokenBudget, clampMatchCount } from "../_shared/retrieval.ts";
+import { getEndpointGuardResponse } from "../_shared/endpoint-guard.ts";
 
 const TOKEN_CAP = 6000;
 const DAILY_LIMIT = 20;
@@ -16,6 +18,7 @@ const CLIENT_MEMORY_TOP_K = 6;
 const AGENCY_MEMORY_TOP_K = 4;
 const EXEMPLAR_TOP_K = 2;
 const MAX_CONTEXT_CHARS = 6000;
+const MAX_CONTEXT_TOKENS = 900;
 const DEFAULT_COST_ESTIMATION_METHOD = "estimate_chars_div3";
 
 function jsonResponse(body: unknown, status = 200, headers: Record<string, string> = {}) {
@@ -82,6 +85,9 @@ serve(async (req: Request) => {
   if (req.method !== "POST") {
     return jsonResponse({ error: "Method not allowed" }, 405, corsHeaders(req));
   }
+
+  const guardResponse = getEndpointGuardResponse("ai-ask", corsHeaders(req));
+  if (guardResponse) return guardResponse;
 
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) {
@@ -348,24 +354,30 @@ serve(async (req: Request) => {
     p_agency_id: agencyId,
     p_client_id: clientId ?? null,
     p_query_embedding: queryEmbedding,
-    p_match_count: useRagPolicy ? ragConfig.client_memory_top_k : CLIENT_MEMORY_TOP_K,
+    p_match_count: clampMatchCount(useRagPolicy ? ragConfig.client_memory_top_k : CLIENT_MEMORY_TOP_K),
     p_doc_types: useRagPolicy ? ragConfig.client_doc_types : legacyClientDocTypes,
+    p_modules: null,
+    p_min_similarity: useRagPolicy ? ragConfig.min_similarity : 0.2,
   });
 
   const { data: agencyMatches } = await supabase.rpc("match_ai_embeddings", {
     p_agency_id: agencyId,
     p_client_id: null,
     p_query_embedding: queryEmbedding,
-    p_match_count: useRagPolicy ? ragConfig.agency_memory_top_k : AGENCY_MEMORY_TOP_K,
+    p_match_count: clampMatchCount(useRagPolicy ? ragConfig.agency_memory_top_k : AGENCY_MEMORY_TOP_K),
     p_doc_types: useRagPolicy ? ragConfig.agency_doc_types : legacyAgencyDocTypes,
+    p_modules: null,
+    p_min_similarity: useRagPolicy ? ragConfig.min_similarity : 0.2,
   });
 
   const { data: exemplarMatches } = await supabase.rpc("match_ai_embeddings", {
     p_agency_id: agencyId,
     p_client_id: null,
     p_query_embedding: queryEmbedding,
-    p_match_count: useRagPolicy ? ragConfig.exemplar_top_k : EXEMPLAR_TOP_K,
+    p_match_count: clampMatchCount(useRagPolicy ? ragConfig.exemplar_top_k : EXEMPLAR_TOP_K),
     p_doc_types: useRagPolicy ? ragConfig.exemplar_doc_types : legacyExemplarDocTypes,
+    p_modules: null,
+    p_min_similarity: useRagPolicy ? ragConfig.min_similarity : 0.2,
   });
 
   const matches = [
@@ -412,15 +424,16 @@ serve(async (req: Request) => {
     return jsonResponse(responsePayload, 200, corsHeaders(req));
   }
 
-  const fullContext = matches.map((row: any) => `(${row.doc_type}) ${row.chunk_text}`).join("\n\n");
+  const legacyMatches = useRagPolicy ? matches : capMatchesByTokenBudget(matches, MAX_CONTEXT_TOKENS).matches;
+  const fullContext = legacyMatches.map((row: any) => `(${row.doc_type}) ${row.chunk_text}`).join("\n\n");
   const legacyContext = truncateContext(fullContext, MAX_CONTEXT_CHARS);
-  const legacyContextTruncated = fullContext.length > MAX_CONTEXT_CHARS;
+  const legacyContextTruncated = fullContext.length > MAX_CONTEXT_CHARS || legacyMatches.length < matches.length;
   const ragResult = useRagPolicy ? applyRagPolicy(matches, ragConfig) : null;
   const context = ragResult?.context ?? legacyContext;
-  const selectedMatches = ragResult?.selectedMatches ?? matches;
+  const selectedMatches = ragResult?.selectedMatches ?? legacyMatches;
   const contextTruncated = ragResult?.contextTruncated ?? legacyContextTruncated;
-  const retrievalCount = ragResult?.retrievalCount ?? matches.length;
-  const docTypesUsed = ragResult?.docTypesUsed ?? Array.from(new Set(matches.map((row: any) => row.doc_type)));
+  const retrievalCount = ragResult?.retrievalCount ?? legacyMatches.length;
+  const docTypesUsed = ragResult?.docTypesUsed ?? Array.from(new Set(legacyMatches.map((row: any) => row.doc_type)));
   const ragPolicyVersion = useRagPolicy ? "v1" : "legacy";
 
   const estimatedInputTokens = estimateTokensForCost(`${question}\n\n${context}`);
