@@ -1,5 +1,14 @@
 # FAQ & Objections
 
+## Example Context (Safe Defaults)
+
+This is a reference template for **{{agency_name}}**.
+
+- Website: {{agency_website}}
+- Niche: {{agency_niche}}
+
+Keep answers factual and avoid promises. If a question requires pricing, contracts, or guarantees, escalate to a human.
+
 ## Frequently Asked Questions
 
 ### Results & Timeline

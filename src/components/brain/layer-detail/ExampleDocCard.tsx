@@ -7,9 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useAgencyData } from "@/hooks/useAgencyData";
 import type { BrainModule } from "@/lib/ai/brainModules";
 import { BRAIN_MODULE_LABELS } from "@/lib/ai/brainModules";
 import { getExampleContent, getExamplePreview } from "@/lib/brain/examples";
+import { renderTemplate } from "@/brain/defaultPackV1";
 
 interface ExampleDocCardProps {
   module: BrainModule;
@@ -113,15 +115,25 @@ function MarkdownContent({ content, className = "" }: { content: string; classNa
 export function ExampleDocCard({ module, expanded, onToggle, embedded = false }: ExampleDocCardProps) {
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
+  const { agency } = useAgencyData();
 
   const exampleContent = getExampleContent(module);
   const previewContent = getExamplePreview(module, 15);
   const label = BRAIN_MODULE_LABELS[module];
 
+  const agencyFields = {
+    agency_name: agency?.name ?? "{{agency_name}}",
+    agency_website: agency?.website ?? "{{agency_website}}",
+    agency_niche: agency?.niche ?? "{{agency_niche}}",
+  };
+
+  const renderedExampleContent = renderTemplate(exampleContent, agencyFields);
+  const renderedPreviewContent = renderTemplate(previewContent, agencyFields);
+
   const handleCopy = async (e?: React.MouseEvent) => {
     e?.stopPropagation();
     try {
-      await navigator.clipboard.writeText(exampleContent);
+      await navigator.clipboard.writeText(renderedExampleContent);
       setCopied(true);
       toast({
         title: "Copied!",
@@ -166,7 +178,7 @@ export function ExampleDocCard({ module, expanded, onToggle, embedded = false }:
           </Button>
         </div>
         <div className="p-4">
-          <MarkdownContent content={exampleContent} />
+          <MarkdownContent content={renderedExampleContent} />
         </div>
       </div>
     );
@@ -203,7 +215,7 @@ export function ExampleDocCard({ module, expanded, onToggle, embedded = false }:
         <CardContent className="pt-0">
           <Badge variant="secondary" className="mb-3">{label}</Badge>
           <ScrollArea className="h-[500px] pr-4">
-            <MarkdownContent content={exampleContent} />
+            <MarkdownContent content={renderedExampleContent} />
           </ScrollArea>
         </CardContent>
       </Card>
@@ -225,7 +237,7 @@ export function ExampleDocCard({ module, expanded, onToggle, embedded = false }:
       </CardHeader>
       <CardContent className="pt-0">
         <div className="text-xs text-muted-foreground bg-muted/30 p-2 rounded max-h-24 overflow-hidden">
-          <MarkdownContent content={previewContent} className="prose-xs [&_h1]:text-sm [&_h2]:text-xs [&_p]:text-xs [&_li]:text-xs" />
+          <MarkdownContent content={renderedPreviewContent} className="prose-xs [&_h1]:text-sm [&_h2]:text-xs [&_p]:text-xs [&_li]:text-xs" />
         </div>
         <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
           <ExternalLink className="h-3 w-3" />

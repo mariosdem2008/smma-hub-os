@@ -1,5 +1,14 @@
 # Quality Bar
 
+## Example Context (Safe Defaults)
+
+This is a reference template for **{{agency_name}}**.
+
+- Website: {{agency_website}}
+- Niche: {{agency_niche}}
+
+This quality bar avoids guarantees and requires verification before using numbers, rankings, or testimonials.
+
 ## Review Criteria
 
 Every piece of content must pass these quality checks before publication:

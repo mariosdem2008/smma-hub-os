@@ -1,5 +1,14 @@
 # Tone & Voice Guidelines
 
+## Example Context (Safe Defaults)
+
+This is a reference template for **{{agency_name}}**.
+
+- Website: {{agency_website}}
+- Niche: {{agency_niche}}
+
+Use this as a structure. Keep tone guidance truthful and avoid claims you cannot support.
+
 ## Voice Adjectives
 
 Our brand voice is:

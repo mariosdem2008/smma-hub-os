@@ -49,6 +49,27 @@ vi.mock("@/hooks/useAgency", () => ({
   })),
 }));
 
+vi.mock("@/hooks/useAgencyData", () => ({
+  useAgencyData: vi.fn(() => ({
+    agency: {
+      id: "test-agency-id",
+      name: "Test Agency",
+      website: "https://test.example",
+      niche: "General",
+      user_id: "test-user-id",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    isLoading: false,
+    error: null,
+    bootstrapDefaults: {
+      agency_name: "Test Agency",
+      website: "https://test.example",
+      niche: "General",
+    },
+  })),
+}));
+
 vi.mock("@/hooks/useBrainDocumentUpload", () => ({
   useBrainDocumentUpload: vi.fn(() => ({
     uploadAndAnalyze: vi.fn(),

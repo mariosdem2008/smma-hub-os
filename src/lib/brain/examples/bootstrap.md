@@ -1,18 +1,27 @@
 # Bootstrap Profile
 
+## Example Context (Safe Defaults)
+
+This is a reference template for **{{agency_name}}**.
+
+- Website: {{agency_website}}
+- Niche: {{agency_niche}}
+
+Replace bracketed placeholders like `[Your Agency Name]` with your real details. Avoid guarantees and avoid claiming outcomes you can't verify.
+
 ## Agency Identity
 
 | Field | Value |
 |-------|-------|
-| **Name** | [Your Agency Name] |
+| **Name** | {{agency_name}} |
 | **Founded** | [Year] |
 | **Headquarters** | [City, Country] |
 | **Team Size** | [Number of team members] |
 
 ### Niche & Positioning
-- **Primary Niche**: Social Media Marketing for B2B SaaS
-- **Secondary Niches**: Tech Startups, Professional Services
-- **Positioning Statement**: We help B2B companies build thought leadership through strategic content
+- **Primary Niche**: {{agency_niche}}
+- **Secondary Niches**: [Optional niche 2], [Optional niche 3]
+- **Positioning Statement**: We help clients improve marketing operations through consistent strategy, quality execution, and measurable iteration (no guarantees).
 
 ### Core Services
 1. Social Media Strategy & Management
@@ -22,9 +31,9 @@
 5. Paid Social Advertising
 
 ### Geographic Focus
-- **Primary Markets**: United States, Canada, UK
-- **Service Areas**: North America, Europe, Australia
-- **Time Zones Served**: UTC-8 to UTC+1
+- **Primary Markets**: [Regions/Countries you serve]
+- **Service Areas**: [Regions you can support]
+- **Time Zones Served**: [Time zones covered]
 
 ### Languages
 - English (Primary)
@@ -38,18 +47,18 @@
 ### Target Industries
 | Industry | Priority | Notes |
 |----------|----------|-------|
-| B2B SaaS | High | Primary focus |
-| Tech Startups | High | Series A and beyond |
-| Professional Services | Medium | Consulting, legal, financial |
-| E-commerce | Medium | D2C brands with story |
-| Healthcare Tech | Low | Requires compliance expertise |
+| [Industry 1] | High | Primary focus |
+| [Industry 2] | High | Strong fit |
+| [Industry 3] | Medium | Good fit |
+| [Industry 4] | Medium | Secondary focus |
+| [Industry 5] | Low | Only if resources allow |
 
 ### Company Profile
 
 **Size:**
 - Employees: 10-200
-- Revenue: $1M - $50M annually
-- Growth stage: Series A to Series C
+- Revenue: [Range] annually
+- Growth stage: [Stage] (if applicable)
 
 **Characteristics:**
 - Has product-market fit established

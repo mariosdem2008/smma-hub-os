@@ -1,14 +1,23 @@
 # Offer Stack
 
+## Example Context (Safe Defaults)
+
+This is a reference template for **{{agency_name}}**.
+
+- Website: {{agency_website}}
+- Niche: {{agency_niche}}
+
+This example is intentionally generic: use placeholders where details are unknown and do not promise outcomes.
+
 ## Positioning Statement
 
-> We help B2B SaaS companies build thought leadership through consistent, strategic content that turns founders into industry voices and companies into category leaders.
+> {{agency_name}} helps clients improve marketing and content operations through consistent strategy, quality execution, and iteration (no guarantees).
 
 ### The One-Liner
 "Strategic content that turns expertise into authority."
 
 ### The Elevator Pitch
-"We're a content strategy partner for B2B companies who want to build real thought leadership - not just post content. We handle everything from strategy to execution, so you can focus on your business while we build your brand's voice."
+"We're a strategy and execution partner for teams who want consistent, high-quality marketing systems. We handle planning and production, and we clearly label assumptions where inputs are missing."
 
 ---
 
@@ -38,9 +47,9 @@ Volume focus                            Value focus
 
 ## Pricing Tiers
 
-### Starter - $2,500/month
+### Starter - [Price]/month
 
-**Ideal For:** Early-stage companies testing content marketing
+**Ideal For:** Teams testing consistent content production
 
 | Deliverable | Details |
 |-------------|---------|
@@ -48,7 +57,7 @@ Volume focus                            Value focus
 | Platforms | 1 primary |
 | Strategy | Monthly call |
 | Analytics | Basic report |
-| Support | Email, 24hr response |
+| Support | Email, [response time] |
 
 **What's Included:**
 - Content strategy development
@@ -67,7 +76,7 @@ Volume focus                            Value focus
 
 ### Growth - $5,000/month (Most Popular)
 
-**Ideal For:** Companies ready to scale their content presence
+**Ideal For:** Teams ready to scale content output and workflows
 
 | Deliverable | Details |
 |-------------|---------|
@@ -76,7 +85,7 @@ Volume focus                            Value focus
 | Strategy | Bi-weekly calls |
 | Analytics | Advanced + recommendations |
 | Engagement | Comment management |
-| Support | Slack, 4hr response |
+| Support | Slack, [response time] |
 
 **What's Included:**
 - Everything in Starter, plus:
@@ -94,9 +103,9 @@ Volume focus                            Value focus
 
 ---
 
-### Scale - $10,000/month
+### Scale - [Price]/month
 
-**Ideal For:** Companies serious about category leadership
+**Ideal For:** Teams investing in multi-channel growth systems
 
 | Deliverable | Details |
 |-------------|---------|

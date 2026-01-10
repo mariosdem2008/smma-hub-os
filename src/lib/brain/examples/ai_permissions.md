@@ -1,5 +1,14 @@
 # AI Permissions
 
+## Example Context (Safe Defaults)
+
+This is a reference template for **{{agency_name}}**.
+
+- Website: {{agency_website}}
+- Niche: {{agency_niche}}
+
+This example is designed to be safe by default. Enable additional access only when you have clear internal policies and human oversight.
+
 ## Overview
 
 This document defines what AI assistants can and cannot do when working on behalf of the agency. These permissions ensure AI operates safely while maximizing productivity.

@@ -1,19 +1,28 @@
 # Scripting SOP
 
+## Example Context (Safe Defaults)
+
+This is a reference template for **{{agency_name}}**.
+
+- Website: {{agency_website}}
+- Niche: {{agency_niche}}
+
+All examples below are illustrative. Replace bracketed placeholders with real, verified details and avoid guarantees or unverified claims.
+
 ## Hook Templates
 
 ### Curiosity Hooks
 | Template | Example |
 |----------|---------|
 | "Most [professionals] don't know this about [topic]..." | "Most marketers don't know this about LinkedIn's algorithm..." |
-| "The [industry] secret no one talks about:" | "The SaaS growth secret no one talks about:" |
+| "The [industry] secret no one talks about:" | "The [industry] secret no one talks about:" |
 | "I was wrong about [topic]. Here's what I learned:" | "I was wrong about cold outreach. Here's what I learned:" |
 
 ### Story Hooks
 | Template | Example |
 |----------|---------|
 | "I spent [X years] learning [skill]. Here's what I wish I knew..." | "I spent 5 years learning copywriting. Here's what I wish I knew..." |
-| "[X time] ago, I [situation]. Today, [result]." | "2 years ago, I had 500 followers. Today, I have 50,000." |
+| "[X time] ago, I [situation]. Today, [result]." | "[Time] ago, I had [baseline]. Today, I have [current] (only use real numbers you can verify)." |
 | "The moment I realized [insight] changed everything:" | "The moment I realized content > ads changed everything:" |
 
 ### Contrast Hooks

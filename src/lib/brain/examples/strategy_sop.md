@@ -1,5 +1,14 @@
 # Strategy SOP
 
+## Example Context (Safe Defaults)
+
+This is a reference template for **{{agency_name}}**.
+
+- Website: {{agency_website}}
+- Niche: {{agency_niche}}
+
+This example is intentionally generic. Adjust platform priorities and cadences to match your real operating capacity.
+
 ## Content Pillars
 
 | Pillar | Allocation | Purpose | Examples |
@@ -67,9 +76,9 @@
 
 | Platform | Focus | Posting Frequency | Best Times |
 |----------|-------|-------------------|------------|
-| **LinkedIn** | B2B thought leadership | 5x/week | Tue-Thu, 8-10am |
-| **Instagram** | Visual storytelling | 1x/day | Mon-Fri, 11am-1pm |
-| **Twitter/X** | Real-time engagement | 3-5x/day | Weekdays, 9am-3pm |
+| **LinkedIn** | Professional audience | [X]/week | [Times] |
+| **Instagram** | Visual storytelling | [X]/week | [Times] |
+| **Twitter/X** | Real-time engagement | [X]/week | [Times] |
 
 ### Secondary Platforms
 
