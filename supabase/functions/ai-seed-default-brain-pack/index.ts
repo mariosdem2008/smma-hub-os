@@ -17,6 +17,8 @@ function jsonResponse(body: unknown, status = 200, headers: Record<string, strin
 type Body = { agency_id?: string };
 
 serve(async (req: Request) => {
+  const startedAt = Date.now();
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders(req) });
   }
@@ -87,6 +89,31 @@ serve(async (req: Request) => {
     },
   });
 
+  try {
+    const modelParts = [
+      result.seeded ? "seeded" : "skipped",
+      result.approved ? "approved" : "not_approved",
+      result.ingested ? "ingested" : "not_ingested",
+    ];
+
+    await supabase.from("ai_usage_logs").insert({
+      agency_id: agencyId,
+      client_id: null,
+      endpoint: "ai-seed-default-brain-pack",
+      model: `default_brain_pack_v1:${modelParts.join(":")}`,
+      tokens_estimate: 0,
+      tokens_in: 0,
+      tokens_out: 0,
+      latency_ms: Date.now() - startedAt,
+      unknown: false,
+    });
+  } catch (error) {
+    console.error("seed_default_brain_pack_v1_usage_log_failed", {
+      user_id: user.id,
+      agency_id: agencyId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+
   return jsonResponse(result, 200, corsHeaders(req));
 });
-

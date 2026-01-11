@@ -120,5 +120,9 @@ describe("create agency onboarding flow", () => {
     await waitFor(() => expect(screen.getByTestId("location").textContent).toBe("/dashboard"));
     expect(window.localStorage.getItem("activeAgencyId")).toBe("agency-1");
     expect(window.sessionStorage.getItem("postCreateAgencyCta")).toBeNull();
+
+    await waitFor(() => {
+      expect(mockInvoke.mock.calls.some(([fnName]) => fnName === "ai-seed-default-brain-pack")).toBe(true);
+    });
   });
 });

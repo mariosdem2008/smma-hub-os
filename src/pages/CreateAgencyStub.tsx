@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth";
 import { setActiveAgencyId } from "@/lib/active-agency";
 import { useToast } from "@/hooks/use-toast";
 import { AGENCY_BRAIN_TEMPLATE, type AgencyBrain } from "@/lib/ai/brainContracts";
+import { autoSeedDefaultBrainPackV1InBackground } from "@/lib/brain/autoSeedDefaultBrainPackV1";
 
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -238,6 +239,28 @@ export default function CreateAgencyStub() {
       });
 
       await persistSession("forbidden", true);
+
+      autoSeedDefaultBrainPackV1InBackground({
+        agencyId,
+        onSettled: (result) => {
+          if (!result) {
+            toast({
+              title: "Defaults can be created later",
+              description: "We couldn't create the Default Brain Pack right now. You can create it from Agency Brain anytime.",
+            });
+            return;
+          }
+          if (result.seeded && !result.ingested) {
+            toast({
+              title: "Defaults created, but AI indexing failed",
+              description: "The Default Brain Pack was created, but AI indexing did not complete. You can retry from Agency Brain.",
+            });
+          }
+        },
+        onFailure: (error) => {
+          console.error("default_brain_pack_v1_autoseed_failed", { agency_id: agencyId, error });
+        },
+      });
 
       navigate("/dashboard", { replace: true });
     } catch (err: any) {
