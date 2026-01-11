@@ -15,6 +15,7 @@ import {
   Search,
   ArrowDown,
   Maximize2,
+  Loader2,
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -57,6 +58,9 @@ import {
   useApproveBrainDocument,
   useArchiveBrainDocument,
 } from "@/hooks/useBrainDocuments";
+import { useBrainDocumentsTotalCount } from "@/hooks/useBrainDocumentsCount";
+import { useSeedDefaultBrainPack, type SeedDefaultBrainPackResponse } from "@/hooks/useSeedDefaultBrainPack";
+import { useAgency } from "@/hooks/useAgency";
 import { BrainModuleEditor } from "@/components/brain/BrainModuleEditor";
 import { ExampleDocCard } from "@/components/brain/layer-detail/ExampleDocCard";
 import { DocumentViewer } from "@/components/brain/layer-detail/DocumentViewer";
@@ -80,6 +84,7 @@ const LAYER_PARAM_MAP: Record<string, BrainModule> = {
 export default function BrainLayerDetail() {
   const { layer } = useParams<{ layer: string }>();
   const navigate = useNavigate();
+  const { agencyId } = useAgency();
 
   // Resolve layer param to BrainModule
   const module = layer ? LAYER_PARAM_MAP[layer] : undefined;
@@ -93,8 +98,10 @@ export default function BrainLayerDetail() {
   }, [layer, navigate]);
 
   const { data: documents = [], isLoading } = useBrainDocuments();
+  const { data: totalDocsCount = 0, isLoading: isCountLoading } = useBrainDocumentsTotalCount();
   const approveMutation = useApproveBrainDocument();
   const archiveMutation = useArchiveBrainDocument();
+  const seedPackMutation = useSeedDefaultBrainPack();
 
   // Get documents for this module
   const moduleDocuments = documents.filter((d) => d.module === module);
@@ -116,6 +123,7 @@ export default function BrainLayerDetail() {
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isDesktop, setIsDesktop] = useState(false);
+  const [seedResult, setSeedResult] = useState<SeedDefaultBrainPackResponse | null>(null);
 
   useEffect(() => {
     const checkDesktop = () => {
@@ -168,6 +176,27 @@ export default function BrainLayerDetail() {
     setRightRailTab(tab);
     if (!isDesktop) {
       setMobilePanelOpen(true);
+    }
+  };
+
+  const handleSeedDefaultPack = async () => {
+    setSeedResult(null);
+    try {
+      const result = await seedPackMutation.mutateAsync({ agencyId: agencyId ?? undefined });
+      setSeedResult(result);
+
+      if (!result.seeded) {
+        toast.info("Default Brain Pack already exists for this agency.");
+        return;
+      }
+
+      if (result.ingested) {
+        toast.success("Default Brain Pack created and indexed for AI");
+      } else {
+        toast.error("Default Brain Pack created, but AI indexing failed");
+      }
+    } catch (error: any) {
+      toast.error(error?.message ?? "Failed to create Default Brain Pack");
     }
   };
 
@@ -379,6 +408,16 @@ export default function BrainLayerDetail() {
                         </div>
                       </div>
                       <div className="flex flex-wrap gap-3">
+                      {totalDocsCount === 0 && !isCountLoading && (
+                        <Button onClick={handleSeedDefaultPack} disabled={seedPackMutation.isPending || !agencyId}>
+                          {seedPackMutation.isPending ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <Sparkles className="h-4 w-4 mr-2" />
+                          )}
+                          Create Default Brain Pack
+                        </Button>
+                      )}
                       <Button onClick={() => setShowUploadModal(true)}>
                         <Upload className="h-4 w-4 mr-2" />
                         Upload/Write Document
@@ -392,6 +431,23 @@ export default function BrainLayerDetail() {
                           Generate
                         </Button>
                       </div>
+                      {seedResult?.seeded && !seedResult?.ingested && (
+                        <Alert className="border-amber-500/30 bg-amber-500/10">
+                          <AlertTitle>Default Brain Pack created, but AI indexing failed</AlertTitle>
+                          <AlertDescription>
+                            The documents were created, but embeddings/RAG ingestion did not complete. AI may not use them until ingestion succeeds.
+                            {(seedResult.errors ?? []).length > 0 && (
+                              <div className="mt-3 space-y-1 text-xs">
+                                {(seedResult.errors ?? []).slice(0, 5).map((err, idx) => (
+                                  <div key={idx}>
+                                    {err.stage}{err.document_id ? ` (${err.document_id})` : ""}: {err.message}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </AlertDescription>
+                        </Alert>
+                      )}
                     </div>
                     <div className="space-y-4">
                       <p className="text-xs uppercase tracking-wide text-muted-foreground">Quick Start</p>
@@ -445,6 +501,23 @@ export default function BrainLayerDetail() {
               </Card>
             ) : (
               <>
+                {seedResult?.seeded && !seedResult?.ingested && (
+                  <Alert className="border-amber-500/30 bg-amber-500/10">
+                    <AlertTitle>Default Brain Pack created, but AI indexing failed</AlertTitle>
+                    <AlertDescription>
+                      The documents were created, but embeddings/RAG ingestion did not complete. AI may not use them until ingestion succeeds.
+                      {(seedResult.errors ?? []).length > 0 && (
+                        <div className="mt-3 space-y-1 text-xs">
+                          {(seedResult.errors ?? []).slice(0, 5).map((err, idx) => (
+                            <div key={idx}>
+                              {err.stage}{err.document_id ? ` (${err.document_id})` : ""}: {err.message}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </AlertDescription>
+                  </Alert>
+                )}
                 {isPreviewing && displayDocument && activeDocument && (
                   <Alert className="border-amber-500/30 bg-amber-500/10">
                     <AlertTitle>Previewing v{displayDocument.version}</AlertTitle>

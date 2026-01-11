@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, beforeAll, afterEach } from "vitest";
+import { render, screen, waitFor, cleanup } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { BrowserRouter, MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -25,10 +25,17 @@ beforeAll(() => {
   });
 });
 
+afterEach(() => cleanup());
+
 // Mock hooks
+let mockDocuments: BrainDocument[] = [];
+let mockTotalBrainDocsCount = 0;
+const seedDefaultBrainPackMock = vi.fn();
+let seedIsPending = false;
+
 vi.mock("@/hooks/useBrainDocuments", () => ({
   useBrainDocuments: vi.fn(() => ({
-    data: [],
+    data: mockDocuments,
     isLoading: false,
     error: null,
   })),
@@ -42,10 +49,24 @@ vi.mock("@/hooks/useBrainDocuments", () => ({
   })),
 }));
 
+vi.mock("@/hooks/useBrainDocumentsCount", () => ({
+  useBrainDocumentsTotalCount: vi.fn(() => ({
+    data: mockTotalBrainDocsCount,
+    isLoading: false,
+    error: null,
+  })),
+}));
+
+vi.mock("@/hooks/useSeedDefaultBrainPack", () => ({
+  useSeedDefaultBrainPack: vi.fn(() => ({
+    mutateAsync: seedDefaultBrainPackMock,
+    isPending: seedIsPending,
+  })),
+}));
+
 vi.mock("@/hooks/useAgency", () => ({
   useAgency: vi.fn(() => ({
     agencyId: "test-agency-id",
-    agency: { id: "test-agency-id", name: "Test Agency" },
   })),
 }));
 
@@ -103,6 +124,9 @@ const renderWithProviders = (ui: React.ReactElement, { route = "/" } = {}) => {
 describe("BrainLayerDetail", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockDocuments = [];
+    mockTotalBrainDocsCount = 0;
+    seedIsPending = false;
   });
 
   describe("routing", () => {
@@ -151,6 +175,53 @@ describe("BrainLayerDetail", () => {
         // Inline empty state shows "No content yet" message
         const elements = screen.getAllByText(/No content yet/i);
         expect(elements.length).toBeGreaterThan(0);
+      });
+    });
+
+    it("shows Create Default Brain Pack button when agency has 0 docs", async () => {
+      mockDocuments = [];
+      mockTotalBrainDocsCount = 0;
+
+      renderWithProviders(<BrainLayerDetail />, {
+        route: "/agency/brain/rep_policy",
+      });
+
+      await waitFor(() => {
+        const buttons = screen.getAllByRole("button", { name: /Create Default Brain Pack/i });
+        expect(buttons.length).toBeGreaterThan(0);
+      });
+    });
+
+    it("hides Create Default Brain Pack button after seeding (agency doc count > 0)", async () => {
+      mockDocuments = [];
+      mockTotalBrainDocsCount = 0;
+      seedDefaultBrainPackMock.mockResolvedValueOnce({
+        seeded: true,
+        document_ids: ["doc-1", "doc-2", "doc-3"],
+        approved: true,
+        ingested: true,
+      });
+
+      const { unmount } = renderWithProviders(<BrainLayerDetail />, {
+        route: "/agency/brain/rep_policy",
+      });
+
+      const button = (await screen.findAllByRole("button", { name: /Create Default Brain Pack/i }))[0];
+      const user = userEvent.setup();
+      await user.click(button);
+      expect(seedDefaultBrainPackMock).toHaveBeenCalledTimes(1);
+
+      // Simulate refreshed state after query invalidation
+      mockTotalBrainDocsCount = 3;
+      mockDocuments = [];
+
+      unmount();
+      renderWithProviders(<BrainLayerDetail />, {
+        route: "/agency/brain/rep_policy",
+      });
+
+      await waitFor(() => {
+        expect(screen.queryAllByRole("button", { name: /Create Default Brain Pack/i })).toHaveLength(0);
       });
     });
 
