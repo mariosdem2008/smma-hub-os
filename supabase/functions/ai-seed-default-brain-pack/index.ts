@@ -5,7 +5,7 @@ import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
 import { getEndpointGuardResponse } from "../_shared/endpoint-guard.ts";
 import { approveBrainDocument, ingestBrainDocumentForRag } from "../_shared/brain-documents.ts";
 import { inferAgencyIdFromMemberships, seedApproveAndIngestDefaultBrainPackV1 } from "../_shared/seed-default-brain-pack.ts";
-import { renderDefaultBrainPackV1 } from "../../../src/brain/defaultPackV1.ts";
+import { renderDefaultBrainPackV1 } from "../_shared/defaultBrainPackV1.ts";
 
 function jsonResponse(body: unknown, status = 200, headers: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {

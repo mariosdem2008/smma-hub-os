@@ -7,7 +7,7 @@ import { verifyCronSecret } from "../_shared/cron.ts";
 import { approveBrainDocument, ingestBrainDocumentForRag } from "../_shared/brain-documents.ts";
 import { seedApproveAndIngestDefaultBrainPackV1 } from "../_shared/seed-default-brain-pack.ts";
 import { resolveAgencyAdminUserId } from "../_shared/agency-members.ts";
-import { renderDefaultBrainPackV1 } from "../../../src/brain/defaultPackV1.ts";
+import { renderDefaultBrainPackV1 } from "../_shared/defaultBrainPackV1.ts";
 
 function jsonResponse(body: unknown, status = 200, headers: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
@@ -122,4 +122,3 @@ serve(async (req: Request) => {
 
   return jsonResponse({ ...result, agency_id: agencyId, acting_user_id: actingUserId }, 200, corsHeaders(req));
 });
-

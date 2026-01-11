@@ -170,30 +170,31 @@ export function BrainSvg({ className = "" }: BrainSvgProps) {
         })}
       </g>
 
-      {/* Neurons - outer layer first */}
-      {NEURONS.slice().reverse().map((neuron, index) => {
-        const realIndex = NEURONS.length - 1 - index;
-        const isCore = realIndex === 0;
-        const delay = neuron.layer * 0.2 + (realIndex % 6) * 0.05;
+       {/* Neurons - outer layer first */}
+       {NEURONS.slice().reverse().map((neuron, index) => {
+         const realIndex = NEURONS.length - 1 - index;
+         const isCore = realIndex === 0;
+         const delay = neuron.layer * 0.2 + (realIndex % 6) * 0.05;
+         const neuronSize = typeof neuron.size === "number" && Number.isFinite(neuron.size) ? neuron.size : 3;
 
-        return (
-          <motion.g key={realIndex}>
-            {/* Neuron pulse ring */}
-            {neuron.layer <= 1 && (
-              <motion.circle
-                cx={neuron.x}
-                cy={neuron.y}
-                r={neuron.size}
-                fill="none"
-                stroke="hsl(var(--accent))"
-                strokeWidth="1"
-                strokeOpacity="0.3"
-                animate={{
-                  r: [neuron.size, neuron.size + 8, neuron.size],
-                  strokeOpacity: [0.3, 0, 0.3],
-                }}
-                transition={{
-                  duration: 3,
+         return (
+           <motion.g key={realIndex}>
+             {/* Neuron pulse ring */}
+             {neuron.layer <= 1 && (
+               <motion.circle
+                 cx={neuron.x}
+                 cy={neuron.y}
+                 r={neuronSize}
+                 fill="none"
+                 stroke="hsl(var(--accent))"
+                 strokeWidth="1"
+                 strokeOpacity="0.3"
+                 animate={{
+                   r: [neuronSize, neuronSize + 8, neuronSize],
+                   strokeOpacity: [0.3, 0, 0.3],
+                 }}
+                 transition={{
+                   duration: 3,
                   delay: delay + 1,
                   repeat: Infinity,
                   ease: "easeOut",
@@ -202,14 +203,14 @@ export function BrainSvg({ className = "" }: BrainSvgProps) {
             )}
 
             {/* Neuron body */}
-            <motion.circle
-              cx={neuron.x}
-              cy={neuron.y}
-              r={neuron.size}
-              fill={isCore ? "url(#coreNeuronGradient)" : "url(#neuronGradient)"}
-              filter={isCore ? "url(#coreGlow)" : "url(#neuronGlow)"}
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
+             <motion.circle
+               cx={neuron.x}
+               cy={neuron.y}
+               r={neuronSize}
+               fill={isCore ? "url(#coreNeuronGradient)" : "url(#neuronGradient)"}
+               filter={isCore ? "url(#coreGlow)" : "url(#neuronGlow)"}
+               initial={{ scale: 0, opacity: 0 }}
+               animate={{ scale: 1, opacity: 1 }}
               transition={{
                 duration: 0.5,
                 delay: delay,
@@ -219,15 +220,15 @@ export function BrainSvg({ className = "" }: BrainSvgProps) {
             />
 
             {/* Neuron glow animation */}
-            <motion.circle
-              cx={neuron.x}
-              cy={neuron.y}
-              r={neuron.size * 0.6}
-              fill="hsl(var(--accent))"
-              fillOpacity="0.5"
-              animate={{
-                fillOpacity: [0.3, 0.7, 0.3],
-                scale: [0.8, 1.1, 0.8],
+             <motion.circle
+               cx={neuron.x}
+               cy={neuron.y}
+               r={neuronSize * 0.6}
+               fill="hsl(var(--accent))"
+               fillOpacity="0.5"
+               animate={{
+                 fillOpacity: [0.3, 0.7, 0.3],
+                 scale: [0.8, 1.1, 0.8],
               }}
               transition={{
                 duration: 2 + neuron.layer * 0.5,

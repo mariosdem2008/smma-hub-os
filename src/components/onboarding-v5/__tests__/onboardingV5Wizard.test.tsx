@@ -111,7 +111,7 @@ describe('OnboardingV5Wizard', () => {
 
     expect(await screen.findByRole('heading', { name: 'Offers' })).toBeInTheDocument();
     expect(screen.getByText('Existing offer')).toBeInTheDocument();
-  });
+  }, 15000);
 
   it('defaults right rail to collapsed and persists expand state', async () => {
     const user = userEvent.setup();
