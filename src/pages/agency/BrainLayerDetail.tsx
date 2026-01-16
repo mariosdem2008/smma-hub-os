@@ -61,6 +61,7 @@ import {
 import { useBrainDocumentsTotalCount } from "@/hooks/useBrainDocumentsCount";
 import { useSeedDefaultBrainPack, type SeedDefaultBrainPackResponse } from "@/hooks/useSeedDefaultBrainPack";
 import { useAgency } from "@/hooks/useAgency";
+import { useDefaultBrainPackIngestionHealth } from "@/hooks/useDefaultBrainPackIngestionHealth";
 import { BrainModuleEditor } from "@/components/brain/BrainModuleEditor";
 import { ExampleDocCard } from "@/components/brain/layer-detail/ExampleDocCard";
 import { DocumentViewer } from "@/components/brain/layer-detail/DocumentViewer";
@@ -102,6 +103,19 @@ export default function BrainLayerDetail() {
   const approveMutation = useApproveBrainDocument();
   const archiveMutation = useArchiveBrainDocument();
   const seedPackMutation = useSeedDefaultBrainPack();
+
+  const defaultPackModules: BrainModule[] = ["bootstrap", "rep_policy", "quality_bar"];
+  const missingAnyDefaultModule = defaultPackModules.some(
+    (defaultModule) => !documents.some((doc) => doc.module === defaultModule),
+  );
+  const approvedDefaultModules = defaultPackModules.filter((defaultModule) =>
+    documents.some((doc) => doc.module === defaultModule && doc.status === "approved"),
+  );
+  const { data: ingestionHealth } = useDefaultBrainPackIngestionHealth({
+    agencyId: agencyId ?? undefined,
+    approvedModules: approvedDefaultModules,
+  });
+  const missingRagModules = ingestionHealth?.missingModules ?? [];
 
   // Get documents for this module
   const moduleDocuments = documents.filter((d) => d.module === module);
@@ -182,21 +196,32 @@ export default function BrainLayerDetail() {
   const handleSeedDefaultPack = async () => {
     setSeedResult(null);
     try {
-      const result = await seedPackMutation.mutateAsync({ agencyId: agencyId ?? undefined });
+      const result = await seedPackMutation.mutateAsync({ agencyId: agencyId ?? undefined, mode: "seed_or_repair" });
       setSeedResult(result);
 
-      if (!result.seeded) {
-        toast.info("Default Brain Pack already exists for this agency.");
-        return;
-      }
-
-      if (result.ingested) {
-        toast.success("Default Brain Pack created and indexed for AI");
+      if (!result.seeded && !result.repaired) {
+        toast.info("Default Brain Pack is already present for this agency.");
+      } else if (result.failed_ids.length > 0) {
+        toast.error(`Default Brain Pack updated, but ${result.failed_ids.length} docs failed to index`);
       } else {
-        toast.error("Default Brain Pack created, but AI indexing failed");
+        toast.success("Default Brain Pack created/repaired and indexed for AI");
       }
     } catch (error: any) {
       toast.error(error?.message ?? "Failed to create Default Brain Pack");
+    }
+  };
+
+  const handleRetryDefaultPackIngest = async () => {
+    try {
+      const result = await seedPackMutation.mutateAsync({ agencyId: agencyId ?? undefined, mode: "ingest_only" });
+      setSeedResult(result);
+      if (result.failed_ids.length > 0) {
+        toast.error(`Retry ingest failed for ${result.failed_ids.length} docs`);
+      } else {
+        toast.success("Retry ingest completed");
+      }
+    } catch (error: any) {
+      toast.error(error?.message ?? "Retry ingest failed");
     }
   };
 
@@ -385,13 +410,31 @@ export default function BrainLayerDetail() {
 
       {/* Main content area */}
       <div className="container py-6">
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="space-y-4">
-            {isLoading ? (
-              <div className="flex items-center justify-center py-20">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
-              </div>
-            ) : moduleDocuments.length === 0 ? (
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+            <div className="space-y-4">
+              {missingRagModules.length > 0 && (
+                <Alert className="border-amber-500/30 bg-amber-500/10">
+                  <AlertTitle>AI indexing missing for some defaults</AlertTitle>
+                  <AlertDescription className="flex items-center justify-between gap-4">
+                    <div>
+                      {missingRagModules.length} default module(s) are approved but not indexed for AI.
+                    </div>
+                    <Button
+                      variant="outline"
+                      onClick={handleRetryDefaultPackIngest}
+                      disabled={seedPackMutation.isPending || !agencyId}
+                    >
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Retry ingest
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              )}
+              {isLoading ? (
+                <div className="flex items-center justify-center py-20">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+                </div>
+              ) : moduleDocuments.length === 0 ? (
               <Card className="border-dashed">
                 <CardContent className="py-10">
                   <div className="grid gap-6 lg:grid-cols-[1.1fr_1fr]">
@@ -408,16 +451,16 @@ export default function BrainLayerDetail() {
                         </div>
                       </div>
                       <div className="flex flex-wrap gap-3">
-                      {totalDocsCount === 0 && !isCountLoading && (
-                        <Button onClick={handleSeedDefaultPack} disabled={seedPackMutation.isPending || !agencyId}>
-                          {seedPackMutation.isPending ? (
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          ) : (
-                            <Sparkles className="h-4 w-4 mr-2" />
-                          )}
-                          Create Default Brain Pack
-                        </Button>
-                      )}
+                       {missingAnyDefaultModule && !isCountLoading && (
+                         <Button onClick={handleSeedDefaultPack} disabled={seedPackMutation.isPending || !agencyId}>
+                           {seedPackMutation.isPending ? (
+                             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                           ) : (
+                             <Sparkles className="h-4 w-4 mr-2" />
+                           )}
+                          Create/Repair Default Brain Pack
+                         </Button>
+                       )}
                       <Button onClick={() => setShowUploadModal(true)}>
                         <Upload className="h-4 w-4 mr-2" />
                         Upload/Write Document
@@ -431,16 +474,16 @@ export default function BrainLayerDetail() {
                           Generate
                         </Button>
                       </div>
-                      {seedResult?.seeded && !seedResult?.ingested && (
-                        <Alert className="border-amber-500/30 bg-amber-500/10">
-                          <AlertTitle>Default Brain Pack created, but AI indexing failed</AlertTitle>
-                          <AlertDescription>
-                            The documents were created, but embeddings/RAG ingestion did not complete. AI may not use them until ingestion succeeds.
-                            {(seedResult.errors ?? []).length > 0 && (
-                              <div className="mt-3 space-y-1 text-xs">
-                                {(seedResult.errors ?? []).slice(0, 5).map((err, idx) => (
-                                  <div key={idx}>
-                                    {err.stage}{err.document_id ? ` (${err.document_id})` : ""}: {err.message}
+                       {seedResult && seedResult.failed_ids.length > 0 && (
+                         <Alert className="border-amber-500/30 bg-amber-500/10">
+                           <AlertTitle>Default Brain Pack updated, but AI indexing failed for some docs</AlertTitle>
+                           <AlertDescription>
+                             Some documents were created/repaired, but embeddings/RAG ingestion did not complete. AI may not use them until ingestion succeeds.
+                             {(seedResult.errors ?? []).length > 0 && (
+                               <div className="mt-3 space-y-1 text-xs">
+                                 {(seedResult.errors ?? []).slice(0, 5).map((err, idx) => (
+                                   <div key={idx}>
+                                     {err.stage}{err.document_id ? ` (${err.document_id})` : ""}: {err.message}
                                   </div>
                                 ))}
                               </div>
@@ -501,11 +544,11 @@ export default function BrainLayerDetail() {
               </Card>
             ) : (
               <>
-                {seedResult?.seeded && !seedResult?.ingested && (
+                {seedResult && seedResult.failed_ids.length > 0 && (
                   <Alert className="border-amber-500/30 bg-amber-500/10">
-                    <AlertTitle>Default Brain Pack created, but AI indexing failed</AlertTitle>
+                    <AlertTitle>Default Brain Pack updated, but AI indexing failed for some docs</AlertTitle>
                     <AlertDescription>
-                      The documents were created, but embeddings/RAG ingestion did not complete. AI may not use them until ingestion succeeds.
+                      Some documents were created/repaired, but embeddings/RAG ingestion did not complete. AI may not use them until ingestion succeeds.
                       {(seedResult.errors ?? []).length > 0 && (
                         <div className="mt-3 space-y-1 text-xs">
                           {(seedResult.errors ?? []).slice(0, 5).map((err, idx) => (

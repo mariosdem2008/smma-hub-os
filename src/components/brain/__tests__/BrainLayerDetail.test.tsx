@@ -32,6 +32,7 @@ let mockDocuments: BrainDocument[] = [];
 let mockTotalBrainDocsCount = 0;
 const seedDefaultBrainPackMock = vi.fn();
 let seedIsPending = false;
+let mockMissingRagModules: string[] = [];
 
 vi.mock("@/hooks/useBrainDocuments", () => ({
   useBrainDocuments: vi.fn(() => ({
@@ -61,6 +62,14 @@ vi.mock("@/hooks/useSeedDefaultBrainPack", () => ({
   useSeedDefaultBrainPack: vi.fn(() => ({
     mutateAsync: seedDefaultBrainPackMock,
     isPending: seedIsPending,
+  })),
+}));
+
+vi.mock("@/hooks/useDefaultBrainPackIngestionHealth", () => ({
+  useDefaultBrainPackIngestionHealth: vi.fn(() => ({
+    data: { approvedModules: [], missingModules: mockMissingRagModules },
+    isLoading: false,
+    error: null,
   })),
 }));
 
@@ -127,6 +136,7 @@ describe("BrainLayerDetail", () => {
     mockDocuments = [];
     mockTotalBrainDocsCount = 0;
     seedIsPending = false;
+    mockMissingRagModules = [];
   });
 
   describe("routing", () => {
@@ -178,42 +188,83 @@ describe("BrainLayerDetail", () => {
       });
     });
 
-    it("shows Create Default Brain Pack button when agency has 0 docs", async () => {
-      mockDocuments = [];
-      mockTotalBrainDocsCount = 0;
+    const makeDoc = (module: BrainDocument["module"], id: string): BrainDocument => ({
+      id,
+      agency_id: "test-agency-id",
+      module,
+      title: "Test Doc",
+      content_json: {},
+      status: "approved",
+      version: 1,
+      approved_at: "2024-01-01T00:00:00Z",
+      approved_by: "user-1",
+      parent_version_id: null,
+      source: "manual",
+      created_by: "user-1",
+      created_at: "2024-01-01T00:00:00Z",
+      updated_at: "2024-01-01T00:00:00Z",
+    });
+
+    it("shows Create/Repair Default Brain Pack button when agency has 1 non-default doc", async () => {
+      mockDocuments = [makeDoc("tone_voice", "doc-1")];
+      mockTotalBrainDocsCount = 1;
 
       renderWithProviders(<BrainLayerDetail />, {
         route: "/agency/brain/rep_policy",
       });
 
       await waitFor(() => {
-        const buttons = screen.getAllByRole("button", { name: /Create Default Brain Pack/i });
+        const buttons = screen.getAllByRole("button", { name: /Create\/Repair Default Brain Pack/i });
         expect(buttons.length).toBeGreaterThan(0);
       });
     });
 
-    it("hides Create Default Brain Pack button after seeding (agency doc count > 0)", async () => {
-      mockDocuments = [];
-      mockTotalBrainDocsCount = 0;
+    it("hides Create/Repair Default Brain Pack button when agency has all 3 default modules", async () => {
+      mockDocuments = [
+        makeDoc("bootstrap", "doc-bootstrap"),
+        makeDoc("rep_policy", "doc-rep"),
+        makeDoc("quality_bar", "doc-quality"),
+      ];
+      mockTotalBrainDocsCount = 3;
+
+      renderWithProviders(<BrainLayerDetail />, {
+        route: "/agency/brain/rep_policy",
+      });
+
+      await waitFor(() => {
+        expect(screen.queryAllByRole("button", { name: /Create\/Repair Default Brain Pack/i })).toHaveLength(0);
+      });
+    });
+
+    it("hides Create/Repair Default Brain Pack button after seeding (defaults now present)", async () => {
+      mockDocuments = [makeDoc("tone_voice", "doc-1")];
+      mockTotalBrainDocsCount = 1;
       seedDefaultBrainPackMock.mockResolvedValueOnce({
         seeded: true,
+        repaired: false,
+        inserted_count: 3,
         document_ids: ["doc-1", "doc-2", "doc-3"],
-        approved: true,
-        ingested: true,
+        ingested_count: 3,
+        failed_ids: [],
       });
 
       const { unmount } = renderWithProviders(<BrainLayerDetail />, {
         route: "/agency/brain/rep_policy",
       });
 
-      const button = (await screen.findAllByRole("button", { name: /Create Default Brain Pack/i }))[0];
+      const button = (await screen.findAllByRole("button", { name: /Create\/Repair Default Brain Pack/i }))[0];
       const user = userEvent.setup();
       await user.click(button);
       expect(seedDefaultBrainPackMock).toHaveBeenCalledTimes(1);
+      expect(seedDefaultBrainPackMock).toHaveBeenCalledWith({ agencyId: "test-agency-id", mode: "seed_or_repair" });
 
       // Simulate refreshed state after query invalidation
       mockTotalBrainDocsCount = 3;
-      mockDocuments = [];
+      mockDocuments = [
+        makeDoc("bootstrap", "doc-bootstrap"),
+        makeDoc("rep_policy", "doc-rep"),
+        makeDoc("quality_bar", "doc-quality"),
+      ];
 
       unmount();
       renderWithProviders(<BrainLayerDetail />, {
@@ -221,8 +272,43 @@ describe("BrainLayerDetail", () => {
       });
 
       await waitFor(() => {
-        expect(screen.queryAllByRole("button", { name: /Create Default Brain Pack/i })).toHaveLength(0);
+        expect(screen.queryAllByRole("button", { name: /Create\/Repair Default Brain Pack/i })).toHaveLength(0);
       });
+    });
+
+    it("hides ingestion health banner when defaults are healthy", async () => {
+      mockDocuments = [makeDoc("bootstrap", "doc-bootstrap")];
+      mockMissingRagModules = [];
+      renderWithProviders(<BrainLayerDetail />, {
+        route: "/agency/brain/rep_policy",
+      });
+
+      await waitFor(() => {
+        expect(screen.queryByText(/AI indexing missing for some defaults/i)).not.toBeInTheDocument();
+      });
+    });
+
+    it("shows ingestion health banner when defaults missing in RAG and retry calls ingest-only", async () => {
+      mockDocuments = [makeDoc("bootstrap", "doc-bootstrap")];
+      mockMissingRagModules = ["bootstrap"];
+      seedDefaultBrainPackMock.mockResolvedValueOnce({
+        seeded: false,
+        repaired: false,
+        inserted_count: 0,
+        document_ids: [],
+        ingested_count: 1,
+        failed_ids: [],
+      });
+
+      renderWithProviders(<BrainLayerDetail />, {
+        route: "/agency/brain/rep_policy",
+      });
+
+      const user = userEvent.setup();
+      const retryButton = await screen.findByRole("button", { name: /Retry ingest/i });
+      await user.click(retryButton);
+
+      expect(seedDefaultBrainPackMock).toHaveBeenCalledWith({ agencyId: "test-agency-id", mode: "ingest_only" });
     });
 
     it("shows upload and configure options in empty state", async () => {

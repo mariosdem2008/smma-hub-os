@@ -2,9 +2,11 @@ import { supabase } from "@/integrations/supabase/client";
 
 export type SeedDefaultBrainPackResponse = {
   seeded: boolean;
+  repaired: boolean;
+  inserted_count: number;
   document_ids: string[];
-  approved: boolean;
-  ingested: boolean;
+  ingested_count: number;
+  failed_ids: string[];
   errors?: Array<{ stage: string; document_id?: string; message: string }>;
 };
 
@@ -55,4 +57,3 @@ export function autoSeedDefaultBrainPackV1InBackground(options: AutoSeedDefaultB
 
   void runAttempt();
 }
-

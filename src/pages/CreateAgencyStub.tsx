@@ -250,7 +250,7 @@ export default function CreateAgencyStub() {
             });
             return;
           }
-          if (result.seeded && !result.ingested) {
+          if (result.failed_ids.length > 0) {
             toast({
               title: "Defaults created, but AI indexing failed",
               description: "The Default Brain Pack was created, but AI indexing did not complete. You can retry from Agency Brain.",

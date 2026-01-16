@@ -99,12 +99,13 @@ serve(async (req: Request) => {
   try {
     const modelParts = [
       result.seeded ? "seeded" : "skipped",
-      result.approved ? "approved" : "not_approved",
-      result.ingested ? "ingested" : "not_ingested",
+      result.repaired ? "repaired" : "not_repaired",
+      result.ingested_count > 0 ? "ingested" : "not_ingested",
     ];
     await supabase.from("ai_usage_logs").insert({
       agency_id: agencyId,
       client_id: null,
+      user_id: actingUserId,
       endpoint: "ai-seed-default-brain-pack-admin",
       model: `default_brain_pack_v1:${modelParts.join(":")}`,
       tokens_estimate: 0,

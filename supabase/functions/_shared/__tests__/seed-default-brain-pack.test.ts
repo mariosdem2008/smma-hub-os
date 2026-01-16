@@ -9,6 +9,10 @@ function makeSupabaseMock(handlers: {
   agencyRow?: any;
   seedRows?: any[];
   seedError?: { message: string } | null;
+  repairData?: any;
+  repairError?: { message: string } | null;
+  approvedDocs?: any[];
+  approvedDocsError?: { message: string } | null;
 }) {
   const from = vi.fn((table: string) => {
     if (table === "agencies") {
@@ -28,13 +32,32 @@ function makeSupabaseMock(handlers: {
         })),
       };
     }
+    if (table === "brain_documents") {
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              in: vi.fn(async () => ({
+                data: handlers.approvedDocs ?? [],
+                error: handlers.approvedDocsError ?? null,
+              })),
+            })),
+          })),
+        })),
+      };
+    }
     throw new Error(`Unexpected table: ${table}`);
   });
 
-  const rpc = vi.fn(async () => ({
-    data: handlers.seedRows ?? [],
-    error: handlers.seedError ?? null,
-  }));
+  const rpc = vi.fn(async (fn: string) => {
+    if (fn === "seed_default_brain_pack_v1") {
+      return { data: handlers.seedRows ?? [], error: handlers.seedError ?? null };
+    }
+    if (fn === "repair_default_brain_pack_v1") {
+      return { data: handlers.repairData ?? null, error: handlers.repairError ?? null };
+    }
+    throw new Error(`Unexpected rpc: ${fn}`);
+  });
 
   return { from, rpc } as unknown as MinimalSupabaseClient;
 }
@@ -62,6 +85,7 @@ describe("seedApproveAndIngestDefaultBrainPackV1", () => {
       supabase,
       userId: "user-1",
       agencyId: "agency-1",
+      mode: "seed",
       renderPack: () => [
         { module: "bootstrap", title: "t1", content_json: {} },
         { module: "rep_policy", title: "t2", content_json: {} },
@@ -73,7 +97,11 @@ describe("seedApproveAndIngestDefaultBrainPackV1", () => {
     });
 
     expect(result.seeded).toBe(false);
+    expect(result.repaired).toBe(false);
+    expect(result.inserted_count).toBe(0);
     expect(result.document_ids).toEqual([]);
+    expect(result.ingested_count).toBe(0);
+    expect(result.failed_ids).toEqual([]);
     expect(approve).not.toHaveBeenCalled();
     expect(ingest).not.toHaveBeenCalled();
   });
@@ -105,6 +133,7 @@ describe("seedApproveAndIngestDefaultBrainPackV1", () => {
       supabase,
       userId: "user-1",
       agencyId: "agency-1",
+      mode: "seed",
       renderPack: () => [
         { module: "bootstrap", title: "t1", content_json: { a: "b" } },
         { module: "rep_policy", title: "t2", content_json: { c: "d" } },
@@ -116,11 +145,90 @@ describe("seedApproveAndIngestDefaultBrainPackV1", () => {
     });
 
     expect(result.seeded).toBe(true);
+    expect(result.repaired).toBe(false);
+    expect(result.inserted_count).toBe(3);
     expect(result.document_ids).toEqual(["doc-1", "doc-2", "doc-3"]);
-    expect(result.approved).toBe(true);
-    expect(result.ingested).toBe(true);
+    expect(result.ingested_count).toBe(3);
+    expect(result.failed_ids).toEqual([]);
     expect(approve).toHaveBeenCalledTimes(3);
     expect(ingest).toHaveBeenCalledTimes(3);
   });
-});
 
+  it("repairs only missing defaults and approves/ingests inserted docs", async () => {
+    const supabase = makeSupabaseMock({
+      repairData: {
+        inserted_count: 1,
+        inserted_document_ids: ["doc-9"],
+        skipped_existing_modules: ["bootstrap", "rep_policy"],
+      },
+    });
+
+    const approve = vi.fn(async (_sb: any, documentId: string) => ({
+      id: documentId,
+      agency_id: "agency-1",
+      module: "quality_bar",
+      title: "t",
+      content_json: {},
+      status: "approved",
+      version: 1,
+      approved_at: new Date().toISOString(),
+      approved_by: "user-1",
+    }));
+
+    const ingest = vi.fn(async () => ({ documentId: "ai-doc-9", chunksCreated: 1, tokenCount: 10 }));
+
+    const result = await seedApproveAndIngestDefaultBrainPackV1({
+      supabase,
+      userId: "user-1",
+      agencyId: "agency-1",
+      mode: "repair",
+      renderPack: () => [
+        { module: "bootstrap", title: "t1", content_json: {} },
+        { module: "rep_policy", title: "t2", content_json: {} },
+        { module: "quality_bar", title: "t3", content_json: {} },
+      ],
+      approveBrainDocument: approve,
+      ingestBrainDocumentForRag: ingest,
+      log: vi.fn(),
+    });
+
+    expect(result.seeded).toBe(false);
+    expect(result.repaired).toBe(true);
+    expect(result.inserted_count).toBe(1);
+    expect(result.document_ids).toEqual(["doc-9"]);
+    expect(result.ingested_count).toBe(1);
+    expect(result.failed_ids).toEqual([]);
+  });
+
+  it("supports ingest-only mode without inserting docs", async () => {
+    const supabase = makeSupabaseMock({
+      approvedDocs: [
+        { id: "doc-1", agency_id: "agency-1", module: "bootstrap", title: "t1", content_json: {}, status: "approved", version: 1 },
+      ],
+    });
+
+    const ingest = vi.fn(async () => ({ documentId: "ai-doc-1", chunksCreated: 1, tokenCount: 10 }));
+
+    const result = await seedApproveAndIngestDefaultBrainPackV1({
+      supabase,
+      userId: "user-1",
+      agencyId: "agency-1",
+      mode: "ingest_only",
+      renderPack: () => [
+        { module: "bootstrap", title: "t1", content_json: {} },
+        { module: "rep_policy", title: "t2", content_json: {} },
+        { module: "quality_bar", title: "t3", content_json: {} },
+      ],
+      approveBrainDocument: vi.fn(),
+      ingestBrainDocumentForRag: ingest,
+      log: vi.fn(),
+    });
+
+    expect(result.seeded).toBe(false);
+    expect(result.repaired).toBe(false);
+    expect(result.inserted_count).toBe(0);
+    expect(result.document_ids).toEqual([]);
+    expect(result.ingested_count).toBe(1);
+    expect(result.failed_ids).toEqual([]);
+  });
+});

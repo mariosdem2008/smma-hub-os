@@ -16,15 +16,27 @@ describe("brain document ingest", () => {
     const updates: Record<string, any[]> = {
       ai_document_chunks: [],
     };
+    const deletes: { ai_documents: Array<{ column: string; value: any }> } = { ai_documents: [] };
 
     const supabase = {
       from: (table: string) => {
         if (table === "ai_documents") {
           return {
             delete: () => ({
-              eq: () => ({
-                eq: async () => ({ data: null, error: null }),
-              }),
+              eq: (column: string, value: any) => {
+                deletes.ai_documents.push({ column, value });
+                return {
+                  eq: (column2: string, value2: any) => {
+                    deletes.ai_documents.push({ column: column2, value: value2 });
+                    return {
+                      eq: async (column3: string, value3: any) => {
+                        deletes.ai_documents.push({ column: column3, value: value3 });
+                        return { data: null, error: null };
+                      },
+                    };
+                  },
+                };
+              },
             }),
             insert: (payload: any) => {
               inserts.ai_documents.push(payload);
@@ -99,5 +111,8 @@ describe("brain document ingest", () => {
     expect(inserts.ai_document_chunks.length).toBeGreaterThan(0);
     expect(inserts.ai_embeddings.length).toBe(inserts.ai_document_chunks.length);
     expect(updates.ai_document_chunks).toContainEqual({ embedding_status: "ok" });
+    expect(deletes.ai_documents).toContainEqual({ column: "agency_id", value: "agency-1" });
+    expect(deletes.ai_documents).toContainEqual({ column: "doc_type", value: "brain_document" });
+    expect(deletes.ai_documents).toContainEqual({ column: "metadata->>module", value: "bootstrap" });
   });
 });

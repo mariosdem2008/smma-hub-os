@@ -6,6 +6,7 @@ import { getEndpointGuardResponse } from "../_shared/endpoint-guard.ts";
 import { approveBrainDocument, ingestBrainDocumentForRag } from "../_shared/brain-documents.ts";
 import { inferAgencyIdFromMemberships, seedApproveAndIngestDefaultBrainPackV1 } from "../_shared/seed-default-brain-pack.ts";
 import { renderDefaultBrainPackV1 } from "../_shared/defaultBrainPackV1.ts";
+import { buildDefaultBrainPackUsageLog, type DefaultBrainPackUsageStage } from "../_shared/default-brain-pack-usage-log.ts";
 
 function jsonResponse(body: unknown, status = 200, headers: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
@@ -14,7 +15,7 @@ function jsonResponse(body: unknown, status = 200, headers: Record<string, strin
   });
 }
 
-type Body = { agency_id?: string };
+type Body = { agency_id?: string; mode?: "seed_or_repair" | "ingest_only" };
 
 serve(async (req: Request) => {
   const startedAt = Date.now();
@@ -50,7 +51,7 @@ serve(async (req: Request) => {
 
   const { data: memberships, error: membershipError } = await supabase
     .from("agency_members")
-    .select("agency_id")
+    .select("agency_id, role")
     .eq("user_id", user.id);
 
   if (membershipError) {
@@ -67,15 +68,56 @@ serve(async (req: Request) => {
   }
 
   const agencyId = inferred.agencyId;
-  const isMember = (memberships ?? []).some((m: any) => m.agency_id === agencyId);
-  if (!isMember) {
-    return jsonResponse({ error: "Forbidden" }, 403, corsHeaders(req));
+  const membershipRow = (memberships ?? []).find((m: any) => m.agency_id === agencyId) as { agency_id: string; role?: string } | undefined;
+  if (!membershipRow) {
+    return jsonResponse({ error: "Forbidden", code: "FORBIDDEN_MEMBERSHIP" }, 403, corsHeaders(req));
+  }
+
+  const role = membershipRow.role ?? "";
+  if (!["owner", "admin"].includes(role)) {
+    return jsonResponse({ error: "Forbidden", code: "FORBIDDEN_ROLE" }, 403, corsHeaders(req));
+  }
+
+  const startedAtForLogs = Date.now();
+  const logStage = async (stage: DefaultBrainPackUsageStage, meta: { insertedCount?: number; documentIds?: string[]; ingestedCount?: number; failedIds?: string[]; errorCode?: string; statusCode?: number } = {}) => {
+    try {
+      await supabase.from("ai_usage_logs").insert(
+        buildDefaultBrainPackUsageLog({
+          agencyId,
+          userId: user.id,
+          stage,
+          insertedCount: meta.insertedCount,
+          documentIds: meta.documentIds,
+          ingestedCount: meta.ingestedCount,
+          failedIds: meta.failedIds,
+          errorCode: meta.errorCode,
+          statusCode: meta.statusCode,
+          latencyMs: Date.now() - startedAtForLogs,
+        }),
+      );
+    } catch {
+      // never block response on observability
+    }
+  };
+
+  let rpcMode: "seed" | "repair" | "ingest_only" = "seed";
+  if (body.mode === "ingest_only") {
+    rpcMode = "ingest_only";
+  } else {
+    const { data: anyDocs } = await supabase
+      .from("brain_documents")
+      .select("id")
+      .eq("agency_id", agencyId)
+      .limit(1);
+    const hasAnyBrainDocs = Array.isArray(anyDocs) ? anyDocs.length > 0 : Boolean(anyDocs);
+    rpcMode = hasAnyBrainDocs ? "repair" : "seed";
   }
 
   const result = await seedApproveAndIngestDefaultBrainPackV1({
     supabase: supabase as any,
     userId: user.id,
     agencyId,
+    mode: rpcMode,
     renderPack: (fields) => renderDefaultBrainPackV1({
       agency_name: fields.agency_name,
       agency_website: fields.agency_website,
@@ -89,31 +131,23 @@ serve(async (req: Request) => {
     },
   });
 
-  try {
-    const modelParts = [
-      result.seeded ? "seeded" : "skipped",
-      result.approved ? "approved" : "not_approved",
-      result.ingested ? "ingested" : "not_ingested",
-    ];
-
-    await supabase.from("ai_usage_logs").insert({
-      agency_id: agencyId,
-      client_id: null,
-      endpoint: "ai-seed-default-brain-pack",
-      model: `default_brain_pack_v1:${modelParts.join(":")}`,
-      tokens_estimate: 0,
-      tokens_in: 0,
-      tokens_out: 0,
-      latency_ms: Date.now() - startedAt,
-      unknown: false,
-    });
-  } catch (error) {
-    console.error("seed_default_brain_pack_v1_usage_log_failed", {
-      user_id: user.id,
-      agency_id: agencyId,
-      error: error instanceof Error ? error.message : String(error),
-    });
+  if (rpcMode === "seed") {
+    await logStage("seed_rpc_called", { insertedCount: result.inserted_count, documentIds: result.document_ids });
+  } else if (rpcMode === "repair") {
+    await logStage("repair_rpc_called", { insertedCount: result.inserted_count, documentIds: result.document_ids });
   }
+
+  if (result.document_ids.length > 0) {
+    await logStage("approved", { insertedCount: result.inserted_count, documentIds: result.document_ids, failedIds: result.failed_ids });
+  }
+
+  await logStage("ingested", { insertedCount: result.inserted_count, documentIds: result.document_ids, ingestedCount: result.ingested_count, failedIds: result.failed_ids });
+
+  if (result.failed_ids.length > 0) {
+    await logStage("failed", { insertedCount: result.inserted_count, documentIds: result.document_ids, ingestedCount: result.ingested_count, failedIds: result.failed_ids, errorCode: "PARTIAL_FAILURE" });
+  }
+
+  await logStage("completed", { insertedCount: result.inserted_count, documentIds: result.document_ids, ingestedCount: result.ingested_count, failedIds: result.failed_ids });
 
   return jsonResponse(result, 200, corsHeaders(req));
 });

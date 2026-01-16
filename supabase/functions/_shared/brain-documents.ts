@@ -657,6 +657,7 @@ export async function ingestBrainDocumentForRag(
   await supabase
     .from("ai_documents")
     .delete()
+    .eq("agency_id", doc.agency_id)
     .eq("doc_type", "brain_document")
     .eq("metadata->>module", doc.module);
 

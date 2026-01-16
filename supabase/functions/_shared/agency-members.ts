@@ -2,6 +2,22 @@ export type MinimalAgencyMembersSupabase = {
   from: (table: string) => any;
 };
 
+export async function isAgencyAdminOrOwner(
+  supabase: MinimalAgencyMembersSupabase,
+  agencyId: string,
+  userId: string,
+): Promise<boolean> {
+  const { data: membership } = await supabase
+    .from("agency_members")
+    .select("agency_id")
+    .eq("agency_id", agencyId)
+    .eq("user_id", userId)
+    .in("role", ["owner", "admin"])
+    .maybeSingle();
+
+  return Boolean(membership);
+}
+
 export async function resolveAgencyAdminUserId(
   supabase: MinimalAgencyMembersSupabase,
   agencyId: string,
@@ -27,4 +43,3 @@ export async function resolveAgencyAdminUserId(
 
   return (anyMember?.user_id as string | undefined) ?? null;
 }
-

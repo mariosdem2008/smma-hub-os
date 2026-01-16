@@ -18,3 +18,17 @@ describe("seed_default_brain_pack_v1 migration", () => {
   });
 });
 
+describe("repair_default_brain_pack_v1 migration", () => {
+  it("creates an idempotent, atomic RPC that inserts only missing modules", () => {
+    const migrationPath = resolve("supabase/migrations/20260116210000_repair_default_brain_pack_v1_rpc.sql");
+    const sql = readFileSync(migrationPath, "utf-8");
+
+    expect(sql).toContain("create or replace function public.repair_default_brain_pack_v1");
+    expect(sql).toContain("jsonb_array_length(p_docs) <> 3");
+    expect(sql).toContain("pg_advisory_xact_lock");
+    expect(sql).toContain("am.role in ('owner', 'admin')");
+    expect(sql).toContain("insert into public.brain_documents");
+    expect(sql).toContain("'draft'::public.brain_document_status");
+    expect(sql).toContain("insert into public.brain_document_versions");
+  });
+});
