@@ -14,8 +14,11 @@
 
 - `match_ai_embeddings` filters `brain_document` to approved only: `supabase/migrations/20260108134500_match_ai_embeddings_filters.sql:50`.
 - Strategy generation requests `brain_document` for agency context: `supabase/functions/ai-strategy-generate/index.ts:270` and calls retrieval: `supabase/functions/ai-strategy-generate/index.ts:283`.
-- Strategy prompt context includes only `doc_type` + `chunk_text` (no citation metadata): `supabase/functions/ai-strategy-generate/index.ts:332`.
-  - Mismatch risk: users cannot see which module/doc a retrieved chunk came from unless you add citations.
+- Strategy prompt context now includes a deterministic “References” section for `brain_document` chunks (module/title/brain_document_id/version):
+  - References assembly: `supabase/functions/ai-strategy-generate/index.ts:370`.
+  - Formatting helper: `supabase/functions/_shared/strategy-references.ts:1`.
+- Strategy response includes `rag_debug` with brain_document chunk counts + references:
+  - `supabase/functions/ai-strategy-generate/index.ts:627`.
 
 ## Embedding dimension safety
 

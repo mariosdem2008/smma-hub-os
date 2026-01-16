@@ -10,6 +10,8 @@
 - **DONE:** Repair RPC exists for partial agencies: `supabase/migrations/20260116210000_repair_default_brain_pack_v1_rpc.sql:8`.
 - **DONE:** Ingestion Health banner + Retry ingest exist: `src/pages/agency/BrainLayerDetail.tsx:415`.
 - **DONE:** Stage-structured logging to `ai_usage_logs.metadata.stage`: `supabase/functions/_shared/default-brain-pack-usage-log.ts:47`.
+- **DONE:** Strategy outputs include deterministic brain_document References + `rag_debug`: `supabase/functions/ai-strategy-generate/index.ts:370` and `supabase/functions/ai-strategy-generate/index.ts:627`.
+- **DONE:** Quarantined unused demo route `/ai/field-demo`: `src/pages/ai/AiFieldDemo.tsx:1`.
 
 ## Tasks (15–30, with Priority/Risk/Owner/Targets/Verification)
 
@@ -147,3 +149,95 @@ where d.agency_id = 'YOUR_AGENCY_ID'
   and d.doc_type = 'brain_document'
   and (d.metadata->>'module') in ('bootstrap','rep_policy','quality_bar');
 ```
+
+## Definition of Done (ship-ready)
+
+### SQL (6 queries; expected numeric results)
+
+Replace `'YOUR_AGENCY_ID'` and `'YOUR_CLIENT_ID'`.
+
+1) Defaults present in `brain_documents` (EXPECT: `3`)
+
+```sql
+select count(distinct module) as default_modules_present
+from brain_documents
+where agency_id = 'YOUR_AGENCY_ID'
+  and status <> 'archived'
+  and module in ('bootstrap','rep_policy','quality_bar');
+```
+
+2) Approved defaults count (EXPECT: `3`)
+
+```sql
+select count(*) as approved_defaults
+from brain_documents
+where agency_id = 'YOUR_AGENCY_ID'
+  and status = 'approved'
+  and module in ('bootstrap','rep_policy','quality_bar');
+```
+
+3) Default brain docs in `ai_documents` (EXPECT: `3`)
+
+```sql
+select count(*) as ai_documents_default_brain_docs
+from ai_documents
+where agency_id = 'YOUR_AGENCY_ID'
+  and doc_type = 'brain_document'
+  and (metadata->>'module') in ('bootstrap','rep_policy','quality_bar');
+```
+
+4) Embeddings for default brain docs (EXPECT: `> 0`)
+
+```sql
+select count(*) as ai_embeddings_default_brain_docs
+from ai_embeddings e
+join ai_document_chunks c on c.id = e.chunk_id
+join ai_documents d on d.id = c.document_id
+where d.agency_id = 'YOUR_AGENCY_ID'
+  and d.doc_type = 'brain_document'
+  and (d.metadata->>'module') in ('bootstrap','rep_policy','quality_bar');
+```
+
+5) Failed chunks for default brain docs (EXPECT: `0` in healthy state)
+
+```sql
+select count(*) as failed_chunks_default_brain_docs
+from ai_document_chunks c
+join ai_documents d on d.id = c.document_id
+where d.agency_id = 'YOUR_AGENCY_ID'
+  and d.doc_type = 'brain_document'
+  and (d.metadata->>'module') in ('bootstrap','rep_policy','quality_bar')
+  and c.embedding_status = 'failed';
+```
+
+6) Completed seed/repair runs logged (EXPECT: `>= 1` after you click CTA at least once)
+
+```sql
+select count(*) as completed_default_pack_ops
+from ai_usage_logs
+where agency_id = 'YOUR_AGENCY_ID'
+  and endpoint = 'ai-seed-default-brain-pack'
+  and metadata->>'stage' = 'completed';
+```
+
+### UI Steps (5)
+
+1) Agency with missing defaults: go to `Agency Brain` → any empty layer, click “Create/Repair Default Brain Pack” (`src/pages/agency/BrainLayerDetail.tsx:455`).
+2) Reload: verify the 3 default modules exist and show configured.
+3) Simulate missing RAG by deleting one default `ai_documents` row; confirm banner shows “Retry ingest” (`src/pages/agency/BrainLayerDetail.tsx:415`).
+4) Click “Retry ingest”; banner disappears after refresh and query invalidation.
+5) Generate a strategy; confirm the response includes `rag_debug.brain_document_references_used` with module/title/brain_document_id/version (`supabase/functions/ai-strategy-generate/index.ts:627`).
+
+### Failure Modes (3) + What to do
+
+1) **Missing embeddings configuration** (no RAG usage)
+   - Symptom: ingestion fails or chunks remain `embedding_status='failed'` and banner persists.
+   - Action: configure embedding API key and retry ingest (`mode=ingest_only`).
+
+2) **Role forbidden (admin/owner required)**
+   - Symptom: CTA click returns 403 `FORBIDDEN_ROLE`.
+   - Action: ensure user is `agency_members.role in ('owner','admin')`, then retry.
+
+3) **Partial ingest failures (provider or dimension issues)**
+   - Symptom: seed/repair returns `failed_ids` and `ai_usage_logs.metadata.stage='failed'`.
+   - Action: check `ai_document_chunks.embedding_status`, fix provider/dimension, then retry ingest.

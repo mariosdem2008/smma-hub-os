@@ -54,3 +54,8 @@
   - `supabase/functions/_shared/default-brain-pack-usage-log.ts:47`.
 - Verify columns exist:
   - SQL: `select column_name from information_schema.columns where table_schema='public' and table_name='ai_usage_logs' and column_name in ('user_id','metadata');`
+
+## Strategy debug reads
+
+- Strategy generation reads `ai_document_chunks.embedding_status` (for brain_document ingestion debuggability):
+  - `supabase/functions/ai-strategy-generate/index.ts:377`.

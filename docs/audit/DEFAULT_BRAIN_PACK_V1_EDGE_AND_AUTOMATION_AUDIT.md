@@ -22,6 +22,9 @@
   - Called after onboarding completes: `src/pages/CreateAgencyStub.tsx:243`.
   - Retries up to 3 attempts: `src/lib/brain/autoSeedDefaultBrainPackV1.ts:34`.
 
+- Strategy generation now exposes RAG debug + deterministic brain_document references for troubleshooting “configured but not used”:
+  - `supabase/functions/ai-strategy-generate/index.ts:627`.
+
 ## Unfinished / Risks
 
 - **Retry + partial failures need visible UX**

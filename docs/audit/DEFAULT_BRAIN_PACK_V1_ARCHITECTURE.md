@@ -56,6 +56,7 @@ sequenceDiagram
   Strat->>DB: read agency_brains + client_brains
   Strat->>DB: RPC match_ai_embeddings (doc_type includes brain_document)
   Strat->>Strat: build prompt context with retrieved chunks
+  Strat->>Strat: append deterministic References + rag_debug
 ```
 
 Evidence for each step:
@@ -68,6 +69,8 @@ Evidence for each step:
 - Ingest-only (retry): `supabase/functions/_shared/seed-default-brain-pack.ts:113`.
 - Stage logging payload: `supabase/functions/_shared/default-brain-pack-usage-log.ts:47`.
 - Strategy retrieval uses `match_ai_embeddings`: `supabase/functions/ai-strategy-generate/index.ts:283`.
+- Strategy appends References section from `ai_documents.metadata` (module/title/brain_document_id/version): `supabase/functions/ai-strategy-generate/index.ts:370`.
+- Strategy returns `rag_debug` counts + references: `supabase/functions/ai-strategy-generate/index.ts:627`.
 
 ## Truth Table (UI vs AI)
 

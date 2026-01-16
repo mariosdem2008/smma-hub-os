@@ -35,7 +35,6 @@ import Messages from "./pages/Messages";
 import NotFound from "./pages/NotFound";
 import AiOnboardingAgency from "./pages/ai/AiOnboardingAgency";
 import AiOnboardingClient from "./pages/ai/AiOnboardingClientV4";
-import AiFieldDemo from "./pages/ai/AiFieldDemo";
 import AgencyAiAdmin from "./pages/ai/AgencyAiAdmin";
 import AgencyBrain from "./pages/agency/AgencyBrain";
 import BrainLayerDetail from "./pages/agency/BrainLayerDetail";
@@ -251,7 +250,6 @@ const App = () => {
                 {/* Legacy route redirects for backwards compatibility */}
                 <Route path="/ai/onboarding/client/:clientId" element={<AiOnboardingClient />} />
                 <Route path="/onboarding/ai/client/:clientId" element={<AiOnboardingClient />} />
-                <Route path="/ai/field-demo" element={<AiFieldDemo />} />
               </Route>
 
               {/* Client Detail Routes - No Sidebar */}

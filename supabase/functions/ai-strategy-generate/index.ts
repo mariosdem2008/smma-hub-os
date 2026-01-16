@@ -10,6 +10,7 @@ import { applyRagPolicy, getRagConfig, shouldUseRagPolicy } from "../../../src/a
 import { validateCitations } from "../../../src/ai/citations.ts";
 import { calculateCost } from "../_shared/budgets.ts";
 import { capMatchesByTokenBudget, clampMatchCount } from "../_shared/retrieval.ts";
+import { buildBrainDocumentReferences, formatBrainDocumentReferencesMarkdown } from "../_shared/strategy-references.ts";
 import { buildStrategyOutputSchema, type StrategyOutput } from "../_shared/strategy-output.ts";
 import { marked } from "npm:marked@9.1.6";
 import { getEndpointGuardResponse } from "../_shared/endpoint-guard.ts";
@@ -340,10 +341,50 @@ serve(async (req: Request) => {
   const docTypesUsed = ragResult?.docTypesUsed ?? Array.from(new Set(legacyMatches.map((row: any) => row.doc_type)));
   const ragPolicyVersion = useRagPolicy ? "v1" : "legacy";
 
+  const brainDocChunkRetrievedCount = (agencyMatches ?? []).filter((row: any) => row.doc_type === "brain_document").length;
+  const brainDocChunkUsedCount = selectedMatches.filter((row: any) => row.doc_type === "brain_document").length;
+
+  const brainDocAiDocumentIds = Array.from(
+    new Set(
+      selectedMatches
+        .filter((row: any) => row.doc_type === "brain_document" && row.document_id)
+        .map((row: any) => row.document_id),
+    ),
+  );
+
+  const { data: brainAiDocumentRows } = brainDocAiDocumentIds.length
+    ? await supabase
+        .from("ai_documents")
+        .select("id, title, metadata")
+        .eq("agency_id", agencyId)
+        .eq("doc_type", "brain_document")
+        .in("id", brainDocAiDocumentIds)
+    : { data: [] };
+
+  const brainDocReferences = buildBrainDocumentReferences({
+    matches: selectedMatches,
+    aiDocuments: (brainAiDocumentRows ?? []) as any[],
+    maxReferences: 20,
+  });
+
+  const referencesSection = formatBrainDocumentReferencesMarkdown({
+    references: brainDocReferences,
+    maxReferences: 20,
+  });
+
+  const { count: failedBrainDocChunksCount } = brainDocAiDocumentIds.length
+    ? await supabase
+        .from("ai_document_chunks")
+        .select("id", { count: "exact", head: true })
+        .in("document_id", brainDocAiDocumentIds)
+        .eq("embedding_status", "failed")
+    : { count: 0 };
+
   const promptContext = [
     `Onboarding Profile:\n${JSON.stringify(onboardingProfile ?? {})}`,
     `Structured Strategy:\n${JSON.stringify(moduleRows ?? [])}`,
     `RAG Context:\n${context}`,
+    referencesSection,
   ].join("\n\n");
 
   const outputSchema = buildStrategyOutputSchema();
@@ -409,20 +450,7 @@ serve(async (req: Request) => {
     score: row.score,
   }));
 
-  const brainDocIds = Array.from(
-    new Set(
-      selectedMatches
-        .filter((row: any) => row.doc_type === "brain_document" && row.document_id)
-        .map((row: any) => row.document_id)
-    )
-  );
-
-  const { data: brainDocRows } = brainDocIds.length
-    ? await supabase
-        .from("ai_documents")
-        .select("id, metadata")
-        .in("id", brainDocIds)
-    : { data: [] };
+  const brainDocRows = (brainAiDocumentRows ?? []) as any[];
 
   const brainDocVersions = (brainDocRows ?? [])
     .map((row: any) => ({
@@ -596,6 +624,15 @@ serve(async (req: Request) => {
       modules: output.modules,
       tasks_created: tasksPayload.length,
       citations,
+      rag_debug: {
+        brain_document_chunks_retrieved: brainDocChunkRetrievedCount,
+        brain_document_chunks_used: brainDocChunkUsedCount,
+        brain_document_failed_chunks: failedBrainDocChunksCount ?? 0,
+        brain_document_any_failed_chunks: (failedBrainDocChunksCount ?? 0) > 0,
+        brain_document_references_used: brainDocReferences,
+        context_truncated: contextTruncated,
+        rag_policy_version: ragPolicyVersion,
+      },
       confidence: Math.round(
         Object.values(output.modules)
           .map((mod: any) => Number(mod.confidence_0_100 ?? 0))

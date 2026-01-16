@@ -57,3 +57,10 @@
 - Example templates exist for all 9 modules: `src/lib/brain/examples.ts:22`.
 - Default Brain Pack v1 seeds only 3 modules: `supabase/functions/_shared/defaultBrainPackV1.ts:97`.
 - Users can “Open Example” for modules that will never be auto-seeded, which is fine, but the UI copy should not imply it is part of the default pack.
+
+## Trust/Clarity: Strategy references + debug
+
+- Strategy generation returns `rag_debug` including brain_document chunk counts + references:
+  - `supabase/functions/ai-strategy-generate/index.ts:627`.
+- References are deterministic and capped (module/title/brain_document_id/version):
+  - `supabase/functions/_shared/strategy-references.ts:1`.

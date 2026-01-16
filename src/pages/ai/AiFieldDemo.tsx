@@ -1,3 +1,9 @@
+// ============================================================================
+// QUARANTINED
+// This page was a local demo route and is no longer reachable from the router.
+// Keep for reference only; do not ship/enable without explicit product need.
+// ============================================================================
+
 import { AIField } from "@/components/ai/AIField";
 
 export default function AiFieldDemo() {
