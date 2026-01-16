@@ -24,6 +24,8 @@
 - Enforces exactly 3 docs in payload (but inserts only missing defaults): `supabase/migrations/20260116210000_repair_default_brain_pack_v1_rpc.sql:36`.
 - Permission enforcement (admin/owner only): `supabase/migrations/20260116210000_repair_default_brain_pack_v1_rpc.sql:51`.
 - Missing-module logic (skips existing modules, inserts only missing): `supabase/migrations/20260116210000_repair_default_brain_pack_v1_rpc.sql:62`.
+- Verify execute privileges:
+  - SQL: `select has_function_privilege('service_role', 'public.repair_default_brain_pack_v1(uuid, uuid, jsonb)', 'execute');`
 
 ## Unfinished / Risks
 
@@ -50,3 +52,5 @@
   - `supabase/migrations/20260116210500_ai_usage_logs_metadata.sql:3`.
 - Edge uses stage values in `metadata.stage` (no document content logged):
   - `supabase/functions/_shared/default-brain-pack-usage-log.ts:47`.
+- Verify columns exist:
+  - SQL: `select column_name from information_schema.columns where table_schema='public' and table_name='ai_usage_logs' and column_name in ('user_id','metadata');`
