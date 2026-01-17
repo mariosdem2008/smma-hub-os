@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import { Link } from "react-router-dom";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -89,6 +88,10 @@ export default function AISetup() {
     return { completed: activeCount, total: coreModules.length };
   }, [modulesByCategory.core]);
 
+  const coreDraftCount = useMemo(() => {
+    return modulesByCategory.core.filter((m) => m.status === "draft").length;
+  }, [modulesByCategory.core]);
+
   if (error) {
     return (
       <div className="space-y-4">
@@ -122,7 +125,7 @@ export default function AISetup() {
       </div>
 
       {coreProgress.completed < coreProgress.total && agencyId && (
-        <QuickSetupBanner agencyId={agencyId} canRun={canEditContent} progress={coreProgress} />
+        <QuickSetupBanner agencyId={agencyId} canRun={canEditContent} progress={coreProgress} draftsPending={coreDraftCount} />
       )}
 
       {isLoading ? (
@@ -134,12 +137,18 @@ export default function AISetup() {
           {CATEGORY_ORDER.map((category) => {
             const label = CATEGORY_LABELS[category];
             const modules = modulesByCategory[category];
+            const coreDrafts = category === "core" ? modules.filter((m) => m.status === "draft").length : 0;
             return (
               <AccordionItem key={category} value={category} className="border border-border/60 rounded-lg bg-card/30">
                 <AccordionTrigger className="px-4 hover:no-underline">
                   <div className="text-left">
                     <div className="text-base text-foreground font-medium">{label.title}</div>
                     <div className="text-sm text-muted-foreground">{label.description}</div>
+                    {category === "core" && coreDrafts > 0 && (
+                      <div className="text-sm text-muted-foreground mt-1">
+                        {coreDrafts} draft{coreDrafts === 1 ? "" : "s"} pending activation
+                      </div>
+                    )}
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className="px-4 pb-4">
@@ -153,11 +162,6 @@ export default function AISetup() {
                         lastUpdatedLabel={m.document ? `Updated ${new Date(m.document.updated_at).toLocaleDateString()}` : undefined}
                       />
                     ))}
-                    {category === "core" && (
-                      <p className="text-xs text-muted-foreground">
-                        Need help? See <Link className="text-primary hover:underline" to="/ai/admin">Agency AI</Link>.
-                      </p>
-                    )}
                   </div>
                 </AccordionContent>
               </AccordionItem>

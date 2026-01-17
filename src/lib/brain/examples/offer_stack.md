@@ -1,4 +1,4 @@
-# Offer Stack
+# Offer Configuration
 
 ## Example Context (Safe Defaults)
 

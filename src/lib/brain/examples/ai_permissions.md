@@ -1,4 +1,4 @@
-# AI Permissions
+# AI Permissions & Boundaries
 
 ## Example Context (Safe Defaults)
 

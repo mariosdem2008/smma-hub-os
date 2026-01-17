@@ -29,6 +29,8 @@ import type { BrainModule } from "@/lib/ai/brainModules";
 import { BRAIN_MODULE_LABELS } from "@/lib/ai/brainModules";
 import { getExampleContent } from "@/lib/brain/examples";
 import { useBrainDocumentUpload } from "@/hooks/useBrainDocumentUpload";
+import { useAgencyData } from "@/hooks/useAgencyData";
+import { renderTemplate } from "@/brain/defaultPackV1";
 
 interface DocumentUploadModalProps {
   open: boolean;
@@ -66,6 +68,7 @@ export function DocumentUploadModal({
   const [fileNotice, setFileNotice] = useState<string | null>(null);
 
   const { uploadAndAnalyze } = useBrainDocumentUpload();
+  const { agency } = useAgencyData();
 
   const label = BRAIN_MODULE_LABELS[module];
 
@@ -184,7 +187,13 @@ export function DocumentUploadModal({
   };
 
   const handleInsertExample = () => {
-    setEditorContent(getExampleContent(module));
+    const example = getExampleContent(module);
+    const fields = {
+      agency_name: agency?.name ?? "[Your Agency Name]",
+      agency_website: agency?.website ?? "[Your Website]",
+      agency_niche: agency?.niche ?? "[Your Niche]",
+    };
+    setEditorContent(renderTemplate(example, fields));
     setFile(null);
     setFileNotice(null);
   };

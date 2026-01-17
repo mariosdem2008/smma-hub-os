@@ -1,4 +1,4 @@
-# Quality Bar
+# Quality Standards
 
 ## Example Context (Safe Defaults)
 

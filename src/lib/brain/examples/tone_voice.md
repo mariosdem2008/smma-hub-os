@@ -1,4 +1,4 @@
-# Tone & Voice Guidelines
+# Tone Guidelines
 
 ## Example Context (Safe Defaults)
 

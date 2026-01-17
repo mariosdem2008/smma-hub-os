@@ -1,4 +1,4 @@
-# FAQ & Objections
+# FAQs & Common Questions
 
 ## Example Context (Safe Defaults)
 

@@ -6,6 +6,8 @@ import type { BrainModule } from "@/lib/ai/brainModules";
 import { getExampleContent } from "@/lib/brain/examples";
 import { toast } from "sonner";
 import { MODULE_CONFIG } from "@/lib/brain/moduleConfig";
+import { useAgencyData } from "@/hooks/useAgencyData";
+import { renderTemplate } from "@/brain/defaultPackV1";
 
 export function EditorStep({
   module,
@@ -18,16 +20,23 @@ export function EditorStep({
 }) {
   const { uploadAndAnalyze, isUploading } = useBrainDocumentUpload();
   const [content, setContent] = useState("");
+  const { agency } = useAgencyData();
 
   const moduleName = MODULE_CONFIG[module]?.name ?? "this module";
 
   useEffect(() => {
     if (method === "template") {
-      setContent(getExampleContent(module));
+      const example = getExampleContent(module);
+      const fields = {
+        agency_name: agency?.name ?? "[Your Agency Name]",
+        agency_website: agency?.website ?? "[Your Website]",
+        agency_niche: agency?.niche ?? "[Your Niche]",
+      };
+      setContent(renderTemplate(example, fields));
     } else {
       setContent("");
     }
-  }, [method, module]);
+  }, [agency?.name, agency?.niche, agency?.website, method, module]);
 
   const placeholder = useMemo(() => {
     return `Write notes for ${moduleName} here...`;
@@ -72,4 +81,3 @@ export function EditorStep({
     </div>
   );
 }
-

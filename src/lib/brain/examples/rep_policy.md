@@ -1,4 +1,4 @@
-# Rep Policy
+# Communication Style
 
 ## Example Context (Safe Defaults)
 

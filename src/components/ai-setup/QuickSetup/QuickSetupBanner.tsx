@@ -8,10 +8,12 @@ export function QuickSetupBanner({
   agencyId,
   canRun,
   progress,
+  draftsPending,
 }: {
   agencyId: string;
   canRun: boolean;
   progress: { completed: number; total: number };
+  draftsPending?: number;
 }) {
   const seedPack = useSeedDefaultBrainPack();
   const [isRunning, setIsRunning] = useState(false);
@@ -54,6 +56,11 @@ export function QuickSetupBanner({
           <p className="text-muted-foreground text-sm mt-1">
             Create safe defaults for all core AI settings. You can customize everything later.
           </p>
+          {Boolean(draftsPending) && (
+            <p className="text-muted-foreground text-sm mt-2">
+              {draftsPending} draft{draftsPending === 1 ? "" : "s"} pending activation.
+            </p>
+          )}
 
           {steps.length > 0 && (
             <div className="mt-4 space-y-1 text-sm">
@@ -82,4 +89,3 @@ export function QuickSetupBanner({
     </div>
   );
 }
-

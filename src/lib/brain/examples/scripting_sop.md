@@ -1,4 +1,4 @@
-# Scripting SOP
+# Script Templates
 
 ## Example Context (Safe Defaults)
 

@@ -431,7 +431,7 @@ describe("example doc mapping", () => {
     expect(content).toBeDefined();
     expect(typeof content).toBe("string");
     expect(content.length).toBeGreaterThan(100);
-    expect(content).toContain("# Rep Policy");
+    expect(content).toContain("# Communication Style");
     expect(content).toContain("AI Assistant Identity");
   });
 
@@ -440,7 +440,7 @@ describe("example doc mapping", () => {
     expect(content).toBeDefined();
     expect(typeof content).toBe("string");
     expect(content.length).toBeGreaterThan(100);
-    expect(content).toContain("# Strategy SOP");
+    expect(content).toContain("# Strategy Playbook");
     expect(content).toContain("Content Pillars");
   });
 

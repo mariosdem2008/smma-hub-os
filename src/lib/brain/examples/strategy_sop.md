@@ -1,4 +1,4 @@
-# Strategy SOP
+# Strategy Playbook
 
 ## Example Context (Safe Defaults)
 
