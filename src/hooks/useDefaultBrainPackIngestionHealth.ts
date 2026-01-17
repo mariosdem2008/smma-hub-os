@@ -20,23 +20,16 @@ export function useDefaultBrainPackIngestionHealth(args: {
     queryKey: ["default-brain-pack", "ingestion-health", agencyId, approvedModules.slice().sort().join(",")],
     enabled: Boolean(agencyId) && approvedModules.length > 0,
     queryFn: async (): Promise<DefaultBrainPackIngestionHealth> => {
-      const { data, error } = await supabase
-        .from("ai_documents")
-        .select("metadata")
-        .eq("agency_id", agencyId)
-        .eq("doc_type", "brain_document")
-        .in("metadata->>module", approvedModules);
+      const { data, error } = await supabase.functions.invoke("ai-default-brain-pack-ingestion-health", {
+        body: {
+          agency_id: agencyId,
+          approved_modules: approvedModules,
+        },
+      });
 
       if (error) throw error;
 
-      const ingestedModules = new Set<string>();
-      for (const row of data ?? []) {
-        const metadata = row?.metadata as Record<string, unknown> | null | undefined;
-        const module = typeof metadata?.module === "string" ? metadata.module : null;
-        if (module) ingestedModules.add(module);
-      }
-
-      const missingModules = approvedModules.filter((m) => !ingestedModules.has(m));
+      const missingModules = Array.isArray(data?.missingModules) ? (data.missingModules as BrainModule[]) : [];
       return { approvedModules, missingModules };
     },
   });

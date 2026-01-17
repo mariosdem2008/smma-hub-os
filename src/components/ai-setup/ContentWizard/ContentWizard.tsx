@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { BrainModule } from "@/lib/ai/brainModules";
 import { MODULE_CONFIG } from "@/lib/brain/moduleConfig";
 import { MethodStep } from "@/components/ai-setup/ContentWizard/MethodStep";
@@ -39,6 +39,7 @@ export function ContentWizard({
       <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
+          <DialogDescription className="sr-only">Create or upload content for this AI setup module.</DialogDescription>
         </DialogHeader>
 
         {!method ? (
@@ -54,4 +55,3 @@ export function ContentWizard({
     </Dialog>
   );
 }
-

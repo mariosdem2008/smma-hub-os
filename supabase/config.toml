@@ -1,5 +1,8 @@
 project_id = "dzyhrzdwwuaorruscxcn"
 
+[functions.ai-default-brain-pack-ingestion-health]
+verify_jwt = true
+
 [functions.create-conversation]
 verify_jwt = true
 

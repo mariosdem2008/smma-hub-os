@@ -1,5 +1,6 @@
 const UI_ENDPOINT_ALLOWLIST = new Set([
   "ai-agency-admin-chat",
+  "ai-default-brain-pack-ingestion-health",
   "ai-brain-analyze",
   "ai-brain-document-approve",
   "ai-brain-ingest",
