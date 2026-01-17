@@ -115,7 +115,16 @@ html {
     --status-active: 142 71% 52%;
     --status-inactive: 216 21% 67%;
     --status-paused: 38 92% 50%;
-    
+
+    /* AI Setup (compat tokens) */
+    --status-not-started: #6B7280;
+    --status-draft: #F59E0B;
+    --status-error: #EF4444;
+    --bg-page: #0F172A;
+    --bg-card: #1E293B;
+    --bg-elevated: #334155;
+    --bg-hover: #3B4861;
+
     --radius: 0.5rem;
   }
 

@@ -1,36 +1,31 @@
-# Default Brain Pack v1 — Architecture (End-to-End)
-
-## Build/Quality Gate (this audit run)
-
-- Tests: `npm test` (pass) (tool output, 2026-01-16).
-- Lint: `npm run lint` (pass) (tool output, 2026-01-16).
-- Build: `npm run build` (pass; warnings only) (tool output, 2026-01-16).
-- Typecheck: `npx tsc -p tsconfig.json --noEmit` (pass) (tool output, 2026-01-16).
+# Default Brain Pack v1 — Architecture (End-to-End, post AI Setup redesign)
 
 ## The Two “Brains” (critical naming collision)
 
-1) **`agency_brains` / `client_brains` (structured JSON brains)**  
-   - Strategy generation reads them directly: `supabase/functions/ai-strategy-generate/index.ts:169` (client brain) and `supabase/functions/ai-strategy-generate/index.ts:199` (agency brain).
-   - CreateAgency onboarding writes/locks/ingests these brains: `src/pages/CreateAgencyStub.tsx:224` and `src/pages/CreateAgencyStub.tsx:229`.
+1) **`agency_brains` / `client_brains` (structured JSON brains)**
+   - Strategy generation reads them directly: `supabase/functions/ai-strategy-generate/index.ts`
+   - Agency onboarding writes/locks/ingests these brains: `src/pages/CreateAgencyStub.tsx`
 
-2) **`brain_documents` (module docs shown in “Agency Brain” UI)**  
-   - UI routes: `src/App.tsx:245` and `src/App.tsx:246`.
-   - UI fetches `brain_documents` per agency: `src/hooks/useBrainDocuments.ts:24`.
-   - These become RAG inputs via ingestion to `ai_documents`/`ai_document_chunks`/`ai_embeddings`: `supabase/functions/_shared/brain-documents.ts:663`.
+2) **`brain_documents` (module docs shown in AI Setup UI)**
+   - UI routes:
+     - `/agency/ai-setup` → `src/pages/agency/AISetup.tsx`
+     - `/agency/ai-setup/:moduleKey` → `src/pages/agency/ModuleDetail.tsx`
+   - UI fetches `brain_documents` for active agency: `src/hooks/useBrainDocuments.ts`
+   - These become RAG inputs via ingestion to `ai_documents`/`ai_document_chunks`/`ai_embeddings`: `supabase/functions/_shared/brain-documents.ts`
 
-**Risk:** the product calls both “Agency Brain”, but strategy generation primarily uses `agency_brains` + RAG context (which may include ingested `brain_documents`). This is a major source of “looks configured but AI doesn’t use it” confusion.
+**Risk:** Users may assume editing module docs changes the strategy “brain JSON” directly. It doesn’t. Module docs only affect AI output if ingestion succeeds and retrieval includes those chunks.
 
 ## Default Brain Pack v1: Source of Truth
 
-- Template + placeholder renderer: `supabase/functions/_shared/defaultBrainPackV1.ts:97` and `supabase/functions/_shared/defaultBrainPackV1.ts:93`.
-- Exactly 3 modules: `bootstrap`, `rep_policy`, `quality_bar`: `supabase/functions/_shared/defaultBrainPackV1.ts:99`, `supabase/functions/_shared/defaultBrainPackV1.ts:117`, `supabase/functions/_shared/defaultBrainPackV1.ts:157`.
-- Frontend imports the same source (no drift): `src/brain/defaultPackV1.ts:1`.
+- Template + placeholder renderer: `supabase/functions/_shared/defaultBrainPackV1.ts`
+- Exactly 3 default modules: `bootstrap`, `rep_policy`, `quality_bar`
+- Frontend uses the same template source for examples where appropriate: `src/lib/brain/examples.ts`
 
 ## Seed/Repair → Approve → Ingest → Retrieve → Strategy (sequence)
 
 ```mermaid
 sequenceDiagram
-  participant UI as Frontend (Agency Brain)
+  participant UI as Frontend (AI Setup)
   participant Edge as Edge Function
   participant DB as Postgres (RLS/RPC)
   participant RAG as ai_documents/chunks/embeddings
@@ -39,7 +34,7 @@ sequenceDiagram
   UI->>Edge: invoke ai-seed-default-brain-pack (agency_id, mode?)
   Edge->>DB: check auth token user
   Edge->>DB: check agency_members membership + role
-  alt mode=ingest_only (Retry ingest)
+  alt mode=ingest_only (Retry Processing)
     Edge->>DB: fetch latest approved defaults
     Edge->>RAG: ingestBrainDocumentForRag(approvedDoc)
   else mode=seed_or_repair (default)
@@ -59,25 +54,13 @@ sequenceDiagram
   Strat->>Strat: append deterministic References + rag_debug
 ```
 
-Evidence for each step:
-- Edge auth: `supabase/functions/ai-seed-default-brain-pack/index.ts:33`.
-- Edge role gate (owner/admin): `supabase/functions/ai-seed-default-brain-pack/index.ts:77`.
-- Seed vs repair decision: `supabase/functions/ai-seed-default-brain-pack/index.ts:103`.
-- Seed RPC: `supabase/migrations/20260110120000_seed_default_brain_pack_v1_rpc.sql:7`.
-- Repair RPC: `supabase/migrations/20260116210000_repair_default_brain_pack_v1_rpc.sql:8`.
-- Approve+ingest (inserted docs): `supabase/functions/_shared/seed-default-brain-pack.ts:268`.
-- Ingest-only (retry): `supabase/functions/_shared/seed-default-brain-pack.ts:113`.
-- Stage logging payload: `supabase/functions/_shared/default-brain-pack-usage-log.ts:47`.
-- Strategy retrieval uses `match_ai_embeddings`: `supabase/functions/ai-strategy-generate/index.ts:283`.
-- Strategy appends References section from `ai_documents.metadata` (module/title/brain_document_id/version): `supabase/functions/ai-strategy-generate/index.ts:370`.
-- Strategy returns `rag_debug` counts + references: `supabase/functions/ai-strategy-generate/index.ts:627`.
-
 ## Truth Table (UI vs AI)
 
 | Concern | UI Source of Truth | AI Source of Truth | Notes |
 |---|---|---|---|
-| Module configured/approved state | `brain_documents` via `useDocumentsByModule` (`src/hooks/useBrainDocuments.ts:307`) | RAG retrieval of `ai_documents` `doc_type='brain_document'` (`supabase/migrations/20260108134500_match_ai_embeddings_filters.sql:42`) | Strategy does **not** read `brain_documents` directly. |
-| “Agency Brain” JSON used in strategy prompt | Not shown on Agency Brain UI (separate system) | `agency_brains.brain_json` (`supabase/functions/ai-strategy-generate/index.ts:199`) | Naming collision. |
-| Default Brain Pack create/repair | CTA shows when any default module missing (`src/pages/agency/BrainLayerDetail.tsx:107`) | Edge routes seed vs repair by total docs (`supabase/functions/ai-seed-default-brain-pack/index.ts:103`) | Repair inserts only missing defaults (`supabase/migrations/20260116210000_repair_default_brain_pack_v1_rpc.sql:8`). |
-| Ingestion health + retry | Banner shown when approved defaults missing in RAG (`src/pages/agency/BrainLayerDetail.tsx:415`) | Ingest-only mode re-indexes approved defaults (`supabase/functions/ai-seed-default-brain-pack/index.ts:104`) | Retry does not create docs. |
-| Approval | “Set Live” calls edge approve (`src/pages/agency/BrainLayerDetail.tsx:576`) | `approveBrainDocument` updates `brain_documents.status='approved'` (`supabase/functions/_shared/brain-documents.ts:346`) | Edge approve role-gated: `supabase/functions/_shared/ai-brain-document-approve-handler.ts:55`. |
+| Module draft/active state | `brain_documents` via `useBrainDocuments` / `useDocumentsByModule` | Retrieval of `ai_documents` + chunks + embeddings | Strategy does **not** read `brain_documents` directly. |
+| “Agency Brain” JSON used in strategy prompt | Not shown in AI Setup UI | `agency_brains.brain_json` | Naming collision (separate system). |
+| Default Brain Pack create/repair | Quick Setup (`mode=seed_or_repair`) | Edge chooses seed vs repair, DB RPCs enforce idempotency | Repair inserts only missing defaults. |
+| Ingestion health + retry | Display status uses `useDefaultBrainPackIngestionHealth` | `mode=ingest_only` reindexes approved defaults | Retry does not create docs. |
+| Activation | “Activate” calls approve edge function | Approve updates `brain_documents.status='approved'` then ingests | Role-gated at edge (owner/admin). |
+

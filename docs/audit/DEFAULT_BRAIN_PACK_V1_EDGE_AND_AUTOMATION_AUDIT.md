@@ -1,43 +1,33 @@
-# Default Brain Pack v1 — Edge + Automation Audit
+# Default Brain Pack v1 — Edge + Automation Audit (post AI Setup redesign)
 
 ## Finished (what exists and is wired)
 
-- Endpoint allowlist guard (default-on endpoints): `supabase/functions/_shared/endpoint-guard.ts:1`.
-  - Includes `ai-seed-default-brain-pack`: `supabase/functions/_shared/endpoint-guard.ts:6`.
-  - Includes `ai-seed-default-brain-pack-admin`: `supabase/functions/_shared/endpoint-guard.ts:7`.
-- User-facing seed endpoint (member-triggered)
-  - Requires Authorization: `supabase/functions/ai-seed-default-brain-pack/index.ts:33`.
-  - Resolves user from token: `supabase/functions/ai-seed-default-brain-pack/index.ts:43`.
-  - Checks membership + role (owner/admin): `supabase/functions/ai-seed-default-brain-pack/index.ts:52` and `supabase/functions/ai-seed-default-brain-pack/index.ts:77`.
+- Endpoint allowlist guard: `supabase/functions/_shared/endpoint-guard.ts`
+  - Includes `ai-seed-default-brain-pack` and `ai-seed-default-brain-pack-admin`.
+- User-facing seed endpoint (member-triggered, owner/admin gated)
+  - Auth + membership checks: `supabase/functions/ai-seed-default-brain-pack/index.ts`
   - Mode switch:
-    - Seed/repair default: `supabase/functions/ai-seed-default-brain-pack/index.ts:103`.
-    - Ingest-only retry: `supabase/functions/ai-seed-default-brain-pack/index.ts:104`.
-  - Runs seed/repair/ingest-only + approve/ingest: `supabase/functions/ai-seed-default-brain-pack/index.ts:116`.
-  - Writes stage-structured `ai_usage_logs`: `supabase/functions/ai-seed-default-brain-pack/index.ts:82`.
-- Admin backfill endpoint (cron-gated)
-  - Cron secret check: `supabase/functions/ai-seed-default-brain-pack-admin/index.ts:38` using `verifyCronSecret`: `supabase/functions/_shared/cron.ts:1`.
-  - Dry-run eligibility: `supabase/functions/ai-seed-default-brain-pack-admin/index.ts:58`.
-  - Picks an acting admin user: `supabase/functions/ai-seed-default-brain-pack-admin/index.ts:53`.
-- Background auto-seed during onboarding
-  - Called after onboarding completes: `src/pages/CreateAgencyStub.tsx:243`.
-  - Retries up to 3 attempts: `src/lib/brain/autoSeedDefaultBrainPackV1.ts:34`.
+    - `seed_or_repair` (default) → creates/repairs defaults then approves+ingests
+    - `ingest_only` → re-ingests approved defaults only
+- Admin backfill endpoint (cron-gated): `supabase/functions/ai-seed-default-brain-pack-admin/index.ts`
+- Background auto-seed during onboarding: `src/lib/brain/autoSeedDefaultBrainPackV1.ts` (called from `src/pages/CreateAgencyStub.tsx`)
 
-- Strategy generation now exposes RAG debug + deterministic brain_document references for troubleshooting “configured but not used”:
-  - `supabase/functions/ai-strategy-generate/index.ts:627`.
+## Current UI Entry Points (frontend-only)
 
-## Unfinished / Risks
+- Quick Setup banner (seed/repair): `src/components/ai-setup/QuickSetup/QuickSetupBanner.tsx`
+- Retry Processing on error state (ingest-only): `src/pages/agency/ModuleDetail.tsx`
+- Ingestion health detection: `src/hooks/useDefaultBrainPackIngestionHealth.ts`
 
-- **Retry + partial failures need visible UX**
-  - Ingest failures can still occur (embedding provider errors, etc.) but are now detectable via the ingestion health banner:
-    - UI banner: `src/pages/agency/BrainLayerDetail.tsx:415`.
-    - Retry ingest (ingest-only): `src/pages/agency/BrainLayerDetail.tsx:214`.
-- **Retry + idempotency behavior can hide partial failures**
-  - Auto-seed retries are silent unless final failure: `src/lib/brain/autoSeedDefaultBrainPackV1.ts:45`.
-  - CreateAgencyStub only toasts on failure or “failed_ids present”: `src/pages/CreateAgencyStub.tsx:246` and `src/pages/CreateAgencyStub.tsx:253`.
-  - Layer detail shows an alert for ingestion failure: `src/pages/agency/BrainLayerDetail.tsx:434`, but overview does not: `src/pages/agency/AgencyBrain.tsx:141`.
+## Remaining Risks / Follow-ups
+
+- Partial ingest failures can still occur (embedding provider issues, dimension mismatch, missing keys).
+  - Now visible because ingestion health drives display status (“Needs Attention”) on overview + detail pages.
+- Auto-seed retries are still mostly silent (only final failure surfaces via toast).
+  - Confirm logs in `ai_usage_logs.metadata.stage` are sufficient for support workflows.
 
 ## Backfill tooling
 
-- Script queries eligible agencies: `scripts/backfill-default-brain-pack.mjs:50`.
-- Script rate-limits and calls admin endpoint with `x-cron-secret`: `scripts/backfill-default-brain-pack.mjs:65`.
-- Candidate list RPC: `supabase/migrations/20260111100000_list_agencies_with_zero_brain_documents.sql:1`.
+- Script queries eligible agencies: `scripts/backfill-default-brain-pack.mjs`
+- Script rate-limits and calls admin endpoint with `x-cron-secret`: `scripts/backfill-default-brain-pack.mjs`
+- Candidate list RPC: `supabase/migrations/20260111100000_list_agencies_with_zero_brain_documents.sql`
+

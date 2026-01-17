@@ -322,8 +322,14 @@ export function useDocumentsByModule() {
   const effectiveByModule = Object.entries(byModule).reduce(
     (acc, [module, docs]) => {
       const sorted = [...docs].sort((a, b) => {
-        const statusOrder = { approved: 1, pending_approval: 2, draft: 3, archived: 4 };
-        return (statusOrder[a.status] || 4) - (statusOrder[b.status] || 4);
+        const statusOrder = { approved: 1, pending_approval: 2, draft: 3, archived: 4 } as const;
+        const statusDiff = (statusOrder[a.status] || 4) - (statusOrder[b.status] || 4);
+        if (statusDiff !== 0) return statusDiff;
+
+        // For documents with the same status, prefer the most recently updated.
+        const aTime = Date.parse(a.updated_at ?? a.created_at ?? "");
+        const bTime = Date.parse(b.updated_at ?? b.created_at ?? "");
+        return bTime - aTime;
       });
       acc[module as BrainModule] = sorted[0] || null;
       return acc;

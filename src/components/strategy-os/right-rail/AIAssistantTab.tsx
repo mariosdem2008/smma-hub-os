@@ -67,7 +67,7 @@ In ${aiCopilotMode} mode, I would ${
             : 'automatically apply changes (requires confirmation)'
         }.
 
-AI is not configured yet. Complete Agency Brain to enable this assistant.`,
+AI isn’t configured yet. Complete AI Setup to enable this assistant.`,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, assistantMessage]);
@@ -115,10 +115,10 @@ AI is not configured yet. Complete Agency Brain to enable this assistant.`,
           <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
             <div className="text-sm font-semibold">AI is not configured yet</div>
             <p className="text-xs text-muted-foreground">
-              Complete the Agency Brain to activate AI copilots and tailored strategy guidance.
+              Complete AI Setup to activate AI copilots and tailored strategy guidance.
             </p>
             <Button size="sm" asChild>
-              <Link to="/agency/brain">Complete Agency Brain</Link>
+              <Link to="/agency/ai-setup">Complete AI Setup</Link>
             </Button>
           </div>
           {messages.map((message) => (

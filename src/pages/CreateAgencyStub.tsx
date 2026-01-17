@@ -246,14 +246,14 @@ export default function CreateAgencyStub() {
           if (!result) {
             toast({
               title: "Defaults can be created later",
-              description: "We couldn't create the Default Brain Pack right now. You can create it from Agency Brain anytime.",
+              description: "We couldn't create your core AI settings right now. You can create them from AI Setup anytime.",
             });
             return;
           }
           if (result.failed_ids.length > 0) {
             toast({
               title: "Defaults created, but AI indexing failed",
-              description: "The Default Brain Pack was created, but AI indexing did not complete. You can retry from Agency Brain.",
+              description: "Core AI settings were created, but processing did not complete. You can retry from AI Setup.",
             });
           }
         },

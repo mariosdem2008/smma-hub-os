@@ -100,7 +100,7 @@ export function BrainModuleCard({
   const urlParam = MODULE_URL_PARAMS[module];
 
   const handleCardClick = () => {
-    navigate(`/agency/brain/${urlParam}`);
+    navigate(`/agency/ai-setup/${module}`);
   };
 
   const status = document?.status;

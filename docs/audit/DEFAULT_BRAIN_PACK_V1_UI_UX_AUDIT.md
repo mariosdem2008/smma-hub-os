@@ -1,66 +1,53 @@
-# Default Brain Pack v1 — UI/UX Audit
+# Default Brain Pack v1 — UI/UX Audit (post AI Setup redesign)
 
-## Screens & Components in Scope
+## Current Screens & Components
 
-- Routes: `src/App.tsx:245` (overview) and `src/App.tsx:246` (layer detail).
-- Overview page: `src/pages/agency/AgencyBrain.tsx:19`.
-- Layer detail page: `src/pages/agency/BrainLayerDetail.tsx:84`.
-- Visualization status (configured/approved): `src/components/brain/visualization/BrainModuleNode.tsx:64`.
-- Module editor (draft/save): `src/components/brain/BrainModuleEditor.tsx:36`.
-- “Example structure” panel: `src/pages/agency/BrainLayerDetail.tsx:295` and `src/components/brain/layer-detail/ExampleDocCard.tsx:115`.
+- Routes
+  - `/agency/ai-setup` → `src/pages/agency/AISetup.tsx`
+  - `/agency/ai-setup/:moduleKey` → `src/pages/agency/ModuleDetail.tsx`
+  - Legacy redirects
+    - `/agency/brain` → redirect in `src/App.tsx`
+    - `/agency/brain/:layer` → mapped redirect in `src/App.tsx`
+- Module naming + grouping: `src/lib/brain/moduleConfig.ts`
+- Status model (includes ingestion failure): `src/lib/brain/statusTypes.ts`
+- Overview list row: `src/components/ai-setup/ModuleCard.tsx`
+- Status badge: `src/components/ai-setup/StatusBadge.tsx`
+- Quick Setup (seed/repair defaults): `src/components/ai-setup/QuickSetup/QuickSetupBanner.tsx`
+- Content creation (template/upload/write → draft): `src/components/ai-setup/ContentWizard/ContentWizard.tsx`
 
-## Finished
+## What Changed vs Legacy “Agency Brain”
 
-- **Module overview rendering**
-  - Uses `effectiveByModule` for configured/approved: `src/pages/agency/AgencyBrain.tsx:20` and `src/pages/agency/AgencyBrain.tsx:112`.
-  - Pending modules banner: `src/pages/agency/AgencyBrain.tsx:94` (mobile) and `src/pages/agency/AgencyBrain.tsx:145` (desktop).
-- **Layer detail: active document selection**
-  - Picks approved > pending > draft: `src/pages/agency/BrainLayerDetail.tsx:109`.
-- **Example personalization placeholders**
-  - Uses agency values when available, otherwise keeps placeholders: `src/components/brain/layer-detail/ExampleDocCard.tsx:124`.
-  - Example markdown source per module: `src/lib/brain/examples.ts:22`.
+- Replaced the visualization-first overview with a checklist-style grouped list (“Core Setup”, “Response Templates”, “Advanced Settings”).
+- Reduced competing CTAs by rendering one primary action per state (not started/draft/active/error) on the module page.
+- Made ingestion failures visible (approved-but-not-indexed default modules show “Needs Attention”).
+- Added explicit role gating messaging (non-admins can view but cannot edit/activate).
 
-## Unfinished / UX Debt
+## Status Mapping (what users see)
 
-- **Default Brain Pack CTA + repair path**
-  - CTA shows when any default module missing: `src/pages/agency/BrainLayerDetail.tsx:107`.
-  - CTA action calls edge in seed/repair mode: `src/pages/agency/BrainLayerDetail.tsx:199`.
-  - Edge chooses seed vs repair automatically: `supabase/functions/ai-seed-default-brain-pack/index.ts:103`.
-  - Repair RPC inserts only missing defaults (no duplicates): `supabase/migrations/20260116210000_repair_default_brain_pack_v1_rpc.sql:8`.
+- Source-of-truth inputs:
+  - Document state: `brain_documents.status` (draft/pending_approval/approved)
+  - Ingestion health: `useDefaultBrainPackIngestionHealth` (approved defaults missing from `ai_documents`)
+- Display status: `computeDisplayStatus` in `src/lib/brain/statusTypes.ts`
+  - No document → `not-started`
+  - Draft/pending_approval → `draft`
+  - Approved + ingested → `active`
+  - Approved + missing ingestion (default modules only) → `error`
 
-- **Ingestion Health banner + retry ingest**
-  - Health check compares approved default modules vs `ai_documents` presence: `src/hooks/useDefaultBrainPackIngestionHealth.ts:7`.
-  - Warning banner + “Retry ingest” button: `src/pages/agency/BrainLayerDetail.tsx:415`.
-  - Retry calls edge in ingest-only mode (no inserts): `src/pages/agency/BrainLayerDetail.tsx:214` and `supabase/functions/ai-seed-default-brain-pack/index.ts:104`.
-- **Layer detail empty state mixes multiple actions without role gating**
-  - UI offers Upload/Configure/Generate even when module has 0 docs: `src/pages/agency/BrainLayerDetail.tsx:421`.
-  - DB RLS requires admin/owner for insert/update: `supabase/migrations/20251228174120_brain_documents_and_calibration_state.sql:113`.
-  - UNKNOWN whether UI hides/locks these actions for non-admin members (no gating found in `src/pages/agency/BrainLayerDetail.tsx`); verify by checking membership role logic at runtime.
-    - Verification: search for a role check around this page: `rg -n \"useRole|role\" src/pages/agency/BrainLayerDetail.tsx`.
-- **Error UX: “seeded but not ingested” is surfaced only on the layer detail page**
-  - Alert for partial failure exists: `src/pages/agency/BrainLayerDetail.tsx:434`.
-  - Overview page does not surface ingestion failures (only pending approvals): `src/pages/agency/AgencyBrain.tsx:141`.
+## Primary User Flows (current)
 
-## Editor + Save/Approve flows (what happens)
+- **Quick Setup (core defaults)**
+  - Trigger: shown when core modules are not all Active.
+  - Action: calls `ai-seed-default-brain-pack` with `mode=seed_or_repair` via `useSeedDefaultBrainPack`.
+- **Manual setup**
+  - Not started → choose Template / Upload / Write (template emphasized).
+  - Wizard save creates a draft via existing upload+analyze flow: `src/hooks/useBrainDocumentUpload.ts`.
+  - Draft → Activate calls existing approve endpoint: `src/hooks/useBrainDocuments.ts` (invokes `ai-brain-document-approve`).
+- **Error recovery (default modules only)**
+  - Error state → “Retry Processing” calls `ai-seed-default-brain-pack` with `mode=ingest_only`.
 
-- Save:
-  - New doc: inserts `brain_documents` draft: `src/hooks/useBrainDocuments.ts:146`.
-  - Existing doc: updates only if not approved: `src/hooks/useBrainDocuments.ts:207`.
-  - Query invalidation: `src/hooks/useBrainDocuments.ts:171` and `src/hooks/useBrainDocuments.ts:236`.
-- Approve (“Set Live”):
-  - UI calls `useApproveBrainDocument` which invokes edge: `src/hooks/useBrainDocuments.ts:256`.
-  - Edge approves and ingests: `supabase/functions/_shared/ai-brain-document-approve-handler.ts:60`.
-  - Layer detail uses this for “Set Live”: `src/pages/agency/BrainLayerDetail.tsx:576`.
+## Remaining UX Gaps / Follow-ups
 
-## Example UX vs Default Pack v1 (mismatch risk)
+- “Retry Processing” is pack-level (ingest-only reindexes approved defaults). This is correct for Default Brain Pack v1, but can feel ambiguous while viewing a specific module.
+- Preview is best-effort: renders `raw_content` if present, otherwise JSON (`content_json`).
+- Advanced/Templates modules are not part of Default Brain Pack v1 (only 3 core defaults are seeded). Keep copy clear so users don’t expect auto-creation.
 
-- Example templates exist for all 9 modules: `src/lib/brain/examples.ts:22`.
-- Default Brain Pack v1 seeds only 3 modules: `supabase/functions/_shared/defaultBrainPackV1.ts:97`.
-- Users can “Open Example” for modules that will never be auto-seeded, which is fine, but the UI copy should not imply it is part of the default pack.
-
-## Trust/Clarity: Strategy references + debug
-
-- Strategy generation returns `rag_debug` including brain_document chunk counts + references:
-  - `supabase/functions/ai-strategy-generate/index.ts:627`.
-- References are deterministic and capped (module/title/brain_document_id/version):
-  - `supabase/functions/_shared/strategy-references.ts:1`.

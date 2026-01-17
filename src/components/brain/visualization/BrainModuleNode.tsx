@@ -68,7 +68,7 @@ export function BrainModuleNode({
 
   const handleClick = () => {
     hapticSelection();
-    navigate(`/agency/brain/${MODULE_URL_PARAMS[module]}`);
+    navigate(`/agency/ai-setup/${module}`);
   };
 
   // Determine node color based on status

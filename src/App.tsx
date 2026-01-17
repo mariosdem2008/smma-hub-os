@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
 
 import { AuthProvider } from "@/lib/auth";
 import { ClientAuthProvider } from "@/lib/client-auth";
@@ -36,8 +36,8 @@ import NotFound from "./pages/NotFound";
 import AiOnboardingAgency from "./pages/ai/AiOnboardingAgency";
 import AiOnboardingClient from "./pages/ai/AiOnboardingClientV4";
 import AgencyAiAdmin from "./pages/ai/AgencyAiAdmin";
-import AgencyBrain from "./pages/agency/AgencyBrain";
-import BrainLayerDetail from "./pages/agency/BrainLayerDetail";
+import AISetup from "./pages/agency/AISetup";
+import ModuleDetail from "./pages/agency/ModuleDetail";
 import Bootstrap from "./pages/Bootstrap";
 import Welcome from "./pages/Welcome";
 import SelectAgency from "./pages/SelectAgency";
@@ -63,6 +63,29 @@ import PortalMessages from "./pages/client-portal/PortalMessages";
 import { PortalPerformance } from "./pages/client-portal/PortalPerformance";
 import ReportDetail from "./components/client-tabs/ReportDetail";
 import { PortalAiAssistant } from "./pages/client-portal/PortalAiAssistant";
+import { isValidBrainModule } from "@/lib/ai/brainModules";
+
+function LegacyBrainLayerRedirect() {
+  const { layer } = useParams<{ layer?: string }>();
+
+  const layerMap: Record<string, string> = {
+    bootstrap_profile: "bootstrap",
+    rep_policy: "rep_policy",
+    strategy_sop: "sop_strategy",
+    scripting_sop: "sop_scripting",
+    tone_voice: "tone_voice",
+    faq_objections: "faq_objections",
+    ai_permissions: "ai_permissions",
+    offer_stack: "offer_stack",
+    quality_bar: "quality_bar",
+  };
+
+  const next = layer ? (layerMap[layer] ?? layer) : null;
+  if (next && isValidBrainModule(next)) {
+    return <Navigate to={`/agency/ai-setup/${next}`} replace />;
+  }
+  return <Navigate to="/agency/ai-setup" replace />;
+}
 
 const queryClient = new QueryClient();
 
@@ -241,8 +264,12 @@ const App = () => {
                 <Route path="/billing" element={<Billing />} />
                 <Route path="/billing/overview" element={<BillingOverview />} />
                 <Route path="/settings" element={<Settings />} />
-                <Route path="/agency/brain" element={<AgencyBrain />} />
-                <Route path="/agency/brain/:layer" element={<BrainLayerDetail />} />
+                <Route path="/agency/ai-setup" element={<AISetup />} />
+                <Route path="/agency/ai-setup/:moduleKey" element={<ModuleDetail />} />
+
+                {/* Legacy Agency Brain redirects */}
+                <Route path="/agency/brain" element={<Navigate to="/agency/ai-setup" replace />} />
+                <Route path="/agency/brain/:layer" element={<LegacyBrainLayerRedirect />} />
                 <Route path="/ai/admin" element={<AgencyAiAdmin />} />
                 <Route path="/ai/onboarding/agency" element={<AiOnboardingAgency />} />
                 {/* Client Onboarding Routes */}
