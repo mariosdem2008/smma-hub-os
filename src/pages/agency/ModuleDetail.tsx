@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import ReactMarkdown from "react-markdown";
 import { AlertCircle, ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,6 +11,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { StatusBadge } from "@/components/ai-setup/StatusBadge";
+import { MarkdownPreview } from "@/components/ai-setup/MarkdownPreview";
 import { ContentWizard } from "@/components/ai-setup/ContentWizard/ContentWizard";
 import { useAgency } from "@/hooks/useAgency";
 import { useRole } from "@/hooks/useRole";
@@ -266,11 +266,7 @@ export default function ModuleDetail() {
                   {(() => {
                     const preview = getDocumentPreview(document);
                     if (preview.kind === "markdown") {
-                      return (
-                        <div className="prose prose-invert max-w-none">
-                          <ReactMarkdown>{preview.content}</ReactMarkdown>
-                        </div>
-                      );
+                      return <MarkdownPreview content={preview.content} />;
                     }
                     return (
                       <pre className="text-xs text-muted-foreground whitespace-pre-wrap">
