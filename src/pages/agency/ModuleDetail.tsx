@@ -266,7 +266,11 @@ export default function ModuleDetail() {
                   {(() => {
                     const preview = getDocumentPreview(document);
                     if (preview.kind === "markdown") {
-                      return <ReactMarkdown className="prose prose-invert max-w-none">{preview.content}</ReactMarkdown>;
+                      return (
+                        <div className="prose prose-invert max-w-none">
+                          <ReactMarkdown>{preview.content}</ReactMarkdown>
+                        </div>
+                      );
                     }
                     return (
                       <pre className="text-xs text-muted-foreground whitespace-pre-wrap">
