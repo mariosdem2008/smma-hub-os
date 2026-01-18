@@ -1,7 +1,8 @@
 import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Calculator, TrendingUp, Clock, DollarSign } from "lucide-react";
+import { Calculator, TrendingUp, Clock, DollarSign, Mail, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 const CAL_LINK = "https://cal.com/SMMAHUB/fit";
 
@@ -11,6 +12,62 @@ const PLAN_PRICES = {
   growth: 799,
   scale_pro: 1299,
 };
+
+function ROIReportForm({ calculations }: { calculations: any }) {
+  const [email, setEmail] = useState("");
+  const [isSubmitted, setIsSubmitted] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    // In a real app, you would send the email and calculations to a backend service.
+    // Here, we just simulate the success state.
+    if (email) {
+      console.log(`Submitting report for ${email}`, calculations);
+      setIsSubmitted(true);
+    }
+  };
+
+  if (isSubmitted) {
+    return (
+      <motion.div
+        className="p-4 rounded-lg bg-success/10 border border-success/20 text-center"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+      >
+        <p className="font-semibold text-success">Thank you!</p>
+        <p className="text-sm text-success/80">Your personalized ROI report has been sent to {email}.</p>
+      </motion.div>
+    );
+  }
+
+  return (
+    <motion.div
+        className="p-4 rounded-lg bg-card border border-primary/20"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+    >
+        <p className="text-sm font-semibold text-foreground text-center mb-3">Get Your Personalized ROI Report</p>
+      <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-2">
+        <div className="relative flex-grow">
+            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+            type="email"
+            placeholder="Enter your email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            className="w-full pl-10"
+            />
+        </div>
+        <Button type="submit" className="w-full sm:w-auto btn-shimmer">
+          <Download className="w-4 h-4 mr-2" />
+          Download Report
+        </Button>
+      </form>
+    </motion.div>
+  );
+}
+
 
 export function ROICalculator() {
   const [clients, setClients] = useState(10);
@@ -189,11 +246,8 @@ export function ROICalculator() {
             </p>
           </div>
 
-          <Button asChild size="lg" className="w-full btn-shimmer btn-glow">
-            <a href={CAL_LINK} target="_blank" rel="noreferrer">
-              Get Your Custom ROI Plan
-            </a>
-          </Button>
+          <ROIReportForm calculations={calculations} />
+
         </div>
       </div>
     </div>

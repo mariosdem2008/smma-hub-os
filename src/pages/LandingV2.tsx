@@ -23,6 +23,7 @@ import {
   Brain,
   FileCheck,
   Workflow,
+  Building,
 } from "lucide-react";
 
 import { ScrollProgress } from "@/components/landing/ScrollProgress";
@@ -31,26 +32,22 @@ import { BeforeAfterToggle } from "@/components/landing/BeforeAfterToggle";
 import { WorkflowStepper } from "@/components/landing/WorkflowStepper";
 import { ROICalculator } from "@/components/landing/ROICalculator";
 import { OutputExamples } from "@/components/landing/OutputExamples";
+import { CaseStudiesSection } from "@/components/landing/CaseStudies";
+import { EmbeddedVSL } from "@/components/landing/EmbeddedVSL";
 
 // ============================================================================
 // CONSTANTS
 // ============================================================================
 
 const CAL_LINK = "https://cal.com/SMMAHUB/fit";
-const LOOM_LINK = "https://loom.com/share/LOOM_ID";
+const LOOM_LINK = "https://loom.com/share/LOOM_ID"; // Kept for reference, but VSL is preferred
 
 const NAV_LINKS = [
   { label: "How it Works", href: "#how-it-works" },
   { label: "Outputs", href: "#outputs" },
+  { label: "Results", href: "#results" },
   { label: "Pricing", href: "#pricing" },
   { label: "FAQ", href: "#faq" },
-];
-
-const HERO_STATS = [
-  { label: "Time saved", value: "15–20 hours/client" },
-  { label: "Consistency", value: "Your proven SOPs" },
-  { label: "Scalability", value: "No hiring needed" },
-  { label: "Availability", value: "24/7 standby" },
 ];
 
 const HERO_OUTCOMES = [
@@ -158,42 +155,40 @@ const GUARDRAILS = [
 
 const PLANS = [
   {
-    name: "Free/Trial",
-    price: "$0",
-    period: "",
-    line: "3 clients · 1 user · 5 GB",
-    desc: "Test drive with a few clients and prove the time savings.",
-  },
-  {
-    name: "Starter",
-    price: "$399",
-    period: "/month",
-    line: "10 clients · 3 users · 50 GB",
-    desc: "For agencies ready to systemize and scale their operations.",
-  },
-  {
     name: "Growth",
     price: "$799",
     period: "/month",
-    line: "25 clients · 5 users · 200 GB",
-    desc: "For growing agencies managing multiple clients efficiently.",
+    line: "Up to 25 clients · 5 users",
+    desc: "For growing agencies ready to systemize and scale their core operations.",
+    valueAnchor: "Replaces a $4,000/month junior hire",
     highlight: true,
+    cta: "Book a Private Strategy Session",
+    link: CAL_LINK,
   },
   {
-    name: "Scale/Pro",
+    name: "Scale",
     price: "$1,299",
     period: "/month",
-    line: "Unlimited clients · 10 users · 500 GB",
-    desc: "For established agencies scaling to the next level.",
+    line: "Up to 50 clients · 10 users",
+    desc: "For established agencies scaling to the next level of efficiency and profitability.",
+    valueAnchor: "Replaces a $6,000/month senior strategist",
+    highlight: false,
+    cta: "Book a Private Strategy Session",
+    link: CAL_LINK,
+  },
+  {
+    name: "Enterprise",
+    price: "Custom",
+    period: "",
+    line: "Unlimited clients, users & features",
+    desc: "A bespoke partnership for industry leaders requiring custom integrations and dedicated support.",
+    valueAnchor: "Dedicated AI specialist & white-glove onboarding",
+    highlight: false,
+    cta: "Request a Scaling Demo",
+    link: CAL_LINK,
   },
 ];
 
-const ADDONS = [
-  "Extra storage",
-  "Extra clients",
-  "Extra users",
-  "Additional platforms",
-];
 
 const FAQS = [
   {
@@ -219,14 +214,6 @@ const FAQS = [
   {
     q: "Will clients know we're using AI?",
     a: "They'll notice better consistency, faster turnaround, and more strategic focus. The AI works behind the scenes following your approved processes—your team maintains control and final approval over everything.",
-  },
-  {
-    q: "What's the actual ROI?",
-    a: "At minimum, you save one full-time employee's worth of repetitive work. This means you can either manage more clients without hiring, or reduce overhead while maintaining current client load. Most agencies achieve both.",
-  },
-  {
-    q: "Which platforms are supported?",
-    a: "Instagram, Facebook, and LinkedIn with more platforms coming soon. The system is designed to work with your existing workflow regardless of which platforms you manage for clients.",
   },
 ];
 
@@ -268,20 +255,9 @@ function Navigation() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
-            asChild
-            size="sm"
-            variant="ghost"
-            className="hidden sm:inline-flex text-muted-foreground hover:text-foreground"
-          >
-            <a href={LOOM_LINK} target="_blank" rel="noreferrer">
-              <Play className="w-4 h-4 mr-1.5" />
-              Watch Demo
-            </a>
-          </Button>
           <Button asChild size="sm" className="btn-glow">
             <a href={CAL_LINK} target="_blank" rel="noreferrer">
-              Get an ROI Plan
+              Book a Strategy Session
             </a>
           </Button>
         </div>
@@ -291,7 +267,7 @@ function Navigation() {
 }
 
 // ============================================================================
-// HERO SECTION (2-column layout)
+// HERO SECTION
 // ============================================================================
 
 function HeroSection() {
@@ -299,121 +275,73 @@ function HeroSection() {
   const isInView = useInView(ref, { once: true });
 
   return (
-    <header ref={ref} className="relative overflow-hidden">
+    <header ref={ref} className="relative overflow-hidden border-b border-border/50">
       {/* Background Effects */}
       <div className="absolute inset-0 -z-10">
         <div className="absolute -top-40 left-1/2 h-[520px] w-[900px] -translate-x-1/2 rounded-full bg-primary/10 blur-3xl" />
         <div className="absolute -bottom-56 right-[-200px] h-[520px] w-[520px] rounded-full bg-primary/10 blur-3xl" />
       </div>
 
-      <div className="container mx-auto px-4 py-16 md:py-20">
-        <div className="mx-auto max-w-6xl">
-          <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
-            {/* Left Column - Message */}
-            <div>
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={isInView ? { opacity: 1, y: 0 } : {}}
-                transition={{ duration: 0.5 }}
-              >
-                <Badge className="mb-5" variant="secondary">
-                  For social media marketing agencies
-                </Badge>
-              </motion.div>
-
-              <motion.h1
-                className="text-4xl font-semibold leading-tight tracking-tight sm:text-5xl md:text-6xl"
-                initial={{ opacity: 0, y: 30 }}
-                animate={isInView ? { opacity: 1, y: 0 } : {}}
-                transition={{ duration: 0.6, delay: 0.1 }}
-              >
-                Replace 1 FTE with an SOP-Trained AI Employee
-              </motion.h1>
-
-              <motion.p
-                className="mt-6 text-lg text-muted-foreground"
-                initial={{ opacity: 0, y: 20 }}
-                animate={isInView ? { opacity: 1, y: 0 } : {}}
-                transition={{ duration: 0.5, delay: 0.2 }}
-              >
-                Scale your agency without the overhead. Save 15–20 hours per client monthly on repetitive work and replace at least one FTE with an AI system that applies your proven processes consistently across all clients.
-              </motion.p>
-
-              <motion.div
-                className="mt-6 grid gap-3"
-                initial={{ opacity: 0, y: 20 }}
-                animate={isInView ? { opacity: 1, y: 0 } : {}}
-                transition={{ duration: 0.5, delay: 0.25 }}
-              >
-                {HERO_OUTCOMES.map((outcome) => (
-                  <div key={outcome} className="flex items-start gap-2 text-sm text-muted-foreground">
-                    <Check className="mt-0.5 h-4 w-4 text-primary flex-shrink-0" />
-                    <span>{outcome}</span>
-                  </div>
-                ))}
-              </motion.div>
-
-              <motion.div
-                className="mt-8 flex flex-col gap-3 sm:flex-row"
-                initial={{ opacity: 0, y: 20 }}
-                animate={isInView ? { opacity: 1, y: 0 } : {}}
-                transition={{ duration: 0.5, delay: 0.3 }}
-              >
-                <Button asChild size="lg" className="w-full sm:w-auto">
-                  <a href={CAL_LINK} target="_blank" rel="noreferrer">
-                    Get an ROI Plan <ArrowRight className="ml-2 h-4 w-4" />
-                  </a>
-                </Button>
-                <Button asChild size="lg" variant="outline" className="w-full sm:w-auto">
-                  <a href={LOOM_LINK} target="_blank" rel="noreferrer">
-                    <Play className="mr-2 h-4 w-4" />
-                    Watch 6-min Demo
-                  </a>
-                </Button>
-              </motion.div>
-
-              <motion.p
-                className="mt-4 text-xs text-muted-foreground"
-                initial={{ opacity: 0 }}
-                animate={isInView ? { opacity: 1 } : {}}
-                transition={{ duration: 0.5, delay: 0.4 }}
-              >
-                Pilot agencies save $4,000+/month in avoided hiring costs
-              </motion.p>
-            </div>
-
-            {/* Right Column - FTE Proof Card */}
+      <div className="container mx-auto px-4 pt-16 pb-12 md:pt-20 md:pb-16">
+        <div className="mx-auto max-w-5xl text-center">
             <motion.div
-              className="rounded-lg border bg-card/40 p-6"
-              initial={{ opacity: 0, x: 30 }}
-              animate={isInView ? { opacity: 1, x: 0 } : {}}
-              transition={{ duration: 0.6, delay: 0.3 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={isInView ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.5 }}
             >
-              <div className="space-y-3">
-                <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  <Workflow className="h-4 w-4" />
-                  Your new competitive advantage
-                </div>
-                <h2 className="text-2xl font-semibold">The equivalent of a full-time employee</h2>
-              </div>
-              <div className="mt-4 space-y-4 text-sm text-muted-foreground">
-                <p>
-                  While your competitors struggle with hiring and training, you'll scale efficiently with an AI Employee that works 24/7, never forgets a detail, and applies your best strategies consistently.
-                </p>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {HERO_STATS.map((item) => (
-                    <div key={item.label} className="rounded-lg border bg-background/40 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                        {item.label}
-                      </p>
-                      <p className="mt-2 font-medium text-foreground">{item.value}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
+            <Badge className="mb-5" variant="secondary">
+                For social media marketing agencies
+            </Badge>
             </motion.div>
-          </div>
+
+            <motion.h1
+            className="text-4xl font-semibold leading-tight tracking-tight sm:text-5xl md:text-6xl"
+            initial={{ opacity: 0, y: 30 }}
+            animate={isInView ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.6, delay: 0.1 }}
+            >
+            Replace 1 FTE with an SOP-Trained AI Employee
+            </motion.h1>
+
+            <motion.p
+            className="mt-6 text-lg text-muted-foreground max-w-3xl mx-auto"
+            initial={{ opacity: 0, y: 20 }}
+            animate={isInView ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            >
+            Scale your agency without the overhead. Save 15–20 hours per client monthly and replace at least one full-time employee with an AI system that applies your proven processes 24/7.
+            </motion.p>
+
+            <motion.div
+            className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row"
+            initial={{ opacity: 0, y: 20 }}
+            animate={isInView ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.5, delay: 0.3 }}
+            >
+            <Button asChild size="lg" className="w-full sm:w-auto btn-glow">
+                <a href={CAL_LINK} target="_blank" rel="noreferrer">
+                Book a Private Strategy Session <ArrowRight className="ml-2 h-4 w-4" />
+                </a>
+            </Button>
+            </motion.div>
+
+            <motion.p
+            className="mt-4 text-xs text-muted-foreground"
+            initial={{ opacity: 0 }}
+            animate={isInView ? { opacity: 1 } : {}}
+            transition={{ duration: 0.5, delay: 0.4 }}
+            >
+            Pilot agencies save $4,000+/month in avoided hiring costs
+            </motion.p>
         </div>
+        
+        <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={isInView ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.7, delay: 0.5 }}
+        >
+            <EmbeddedVSL />
+        </motion.div>
       </div>
     </header>
   );
@@ -425,7 +353,7 @@ function HeroSection() {
 
 function BeforeAfterSection() {
   return (
-    <section className="py-20 border-y border-border/50 bg-surface/30">
+    <section className="py-20 border-y border-border/50">
       <div className="container mx-auto px-4">
         <AnimatedSection className="mx-auto max-w-4xl">
           <div className="text-center mb-10">
@@ -546,15 +474,20 @@ function OutputsSection() {
             {OUTPUTS.map((output) => (
               <StaggerItem key={output.title}>
                 <motion.div
-                  className="h-full p-6 rounded-lg bg-card border border-border"
+                  className="h-full p-6 rounded-lg bg-card border border-border flex flex-col"
                   whileHover={{ y: -4, borderColor: "hsl(var(--primary) / 0.3)" }}
                   transition={{ duration: 0.2 }}
                 >
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
-                    <output.icon className="w-5 h-5 text-primary" />
-                  </div>
-                  <h3 className="text-lg font-semibold mb-2">{output.title}</h3>
-                  <p className="text-sm text-muted-foreground">{output.desc}</p>
+                    <div className="flex-grow">
+                        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
+                            <output.icon className="w-5 h-5 text-primary" />
+                        </div>
+                        <h3 className="text-lg font-semibold mb-2">{output.title}</h3>
+                        <p className="text-sm text-muted-foreground">{output.desc}</p>
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-border/50">
+                        <img src="/placeholder.svg" alt={`${output.title} mockup`} className="w-full h-auto rounded-md bg-muted opacity-50" />
+                    </div>
                 </motion.div>
               </StaggerItem>
             ))}
@@ -658,7 +591,7 @@ function ROICalculatorSection() {
               What's Your Agency Losing to Manual Work?
             </h2>
             <p className="mt-4 text-muted-foreground max-w-2xl mx-auto">
-              Adjust the sliders to see your potential time and cost savings.
+              Adjust the sliders to see your potential time and cost savings, then download your personalized report.
             </p>
           </div>
 
@@ -685,72 +618,53 @@ function PricingSection() {
               Pricing
             </p>
             <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-              Pay for Results, Not Software
+              A Strategic Investment in Your Agency's Future
             </h2>
             <p className="mt-4 text-muted-foreground max-w-2xl mx-auto">
-              Every dollar spent should return as time saved and clients added. Most agencies save $4,000+/month in avoided hiring costs.
+              Every dollar spent returns multiples in time saved, overhead reduced, and clients added.
             </p>
           </div>
 
-          <StaggerContainer className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          <StaggerContainer className="grid gap-6 md:grid-cols-1 lg:grid-cols-3 items-start">
             {PLANS.map((plan) => (
               <StaggerItem key={plan.name}>
                 <motion.div
-                  className={`h-full p-6 rounded-lg border ${
+                  className={`h-full p-6 rounded-lg border flex flex-col ${
                     plan.highlight
-                      ? "bg-card ring-1 ring-primary/30"
+                      ? "bg-card ring-2 ring-primary shadow-2xl shadow-primary/20"
                       : "bg-card border-border"
                   }`}
                   whileHover={{ y: -4 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold">{plan.name}</h3>
-                    {plan.highlight && (
-                      <Badge variant="secondary" className="text-xs">
-                        Most chosen
-                      </Badge>
-                    )}
+                  <div className="flex-grow">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-xl font-semibold">{plan.name}</h3>
+                      {plan.highlight && (
+                        <Badge variant="secondary" className="text-xs">
+                          Most Popular
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="mb-2">
+                      <span className="text-4xl font-semibold tracking-tight">{plan.price}</span>
+                      <span className="text-muted-foreground">{plan.period}</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground font-medium h-10">{plan.valueAnchor}</p>
+                    <p className="text-sm text-muted-foreground mt-4 border-t border-border/50 pt-4">{plan.desc}</p>
+                    <p className="text-sm font-semibold mt-4">{plan.line}</p>
                   </div>
-                  <div className="mb-4">
-                    <span className="text-3xl font-semibold tracking-tight">{plan.price}</span>
-                    <span className="text-muted-foreground">{plan.period}</span>
+                  <div className="mt-6">
+                    <Button asChild size="lg" className="w-full btn-shimmer">
+                      <a href={plan.link} target="_blank" rel="noreferrer">
+                        {plan.cta}
+                      </a>
+                    </Button>
                   </div>
-                  <p className="text-sm text-muted-foreground mb-3">{plan.line}</p>
-                  <p className="text-sm text-muted-foreground">{plan.desc}</p>
                 </motion.div>
               </StaggerItem>
             ))}
           </StaggerContainer>
-
-          {/* Add-ons section */}
-          <div className="mt-10 rounded-lg border bg-card/40 p-8">
-            <div className="flex flex-col gap-8 md:flex-row md:items-start md:justify-between">
-              <div>
-                <p className="text-sm font-semibold">Add-ons available</p>
-                <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-                  {ADDONS.map((addon) => (
-                    <li key={addon} className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 text-primary" />
-                      <span>{addon}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div className="flex flex-col gap-3 md:items-end">
-                <Button asChild size="lg">
-                  <a href={CAL_LINK} target="_blank" rel="noreferrer">
-                    Get an ROI Plan
-                  </a>
-                </Button>
-                <Button asChild size="lg" variant="outline">
-                  <a href={LOOM_LINK} target="_blank" rel="noreferrer">
-                    Watch 6-min Demo
-                  </a>
-                </Button>
-              </div>
-            </div>
-          </div>
         </AnimatedSection>
       </div>
     </section>
@@ -808,33 +722,21 @@ function FinalCTASection() {
         <AnimatedSection className="mx-auto max-w-4xl">
           <div className="p-10 md:p-14 rounded-lg border bg-card/45 text-center">
             <Badge variant="secondary" className="mb-4">
-              Ready to scale efficiently?
+              Ready to scale your agency?
             </Badge>
 
             <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-              Stop trading time for revenue. Start scaling your agency.
+              Stop Trading Time for Revenue.
             </h2>
 
             <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-              Book a 15-minute fit call. We'll calculate exactly how much time you'll save
-              and how many more clients you can manage with your current team.
+              Book a complimentary, no-obligation strategy session today. We'll build a personalized ROI plan that shows you exactly how much time and money you can save with an AI employee.
             </p>
 
             <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <Button asChild size="lg" className="w-full sm:w-auto">
+              <Button asChild size="lg" className="w-full sm:w-auto btn-glow">
                 <a href={CAL_LINK} target="_blank" rel="noreferrer">
-                  Get an ROI Plan <ArrowRight className="ml-2 h-4 w-4" />
-                </a>
-              </Button>
-              <Button
-                asChild
-                size="lg"
-                variant="outline"
-                className="w-full sm:w-auto"
-              >
-                <a href={LOOM_LINK} target="_blank" rel="noreferrer">
-                  <Play className="mr-2 h-4 w-4" />
-                  Watch 6-min Demo
+                  Book My Strategy Session <ArrowRight className="ml-2 h-4 w-4" />
                 </a>
               </Button>
             </div>
@@ -895,6 +797,7 @@ export default function LandingV2() {
       <main>
         <HeroSection />
         <BeforeAfterSection />
+        <CaseStudiesSection />
         <HowItWorksSection />
         <WorkflowDemoSection />
         <OutputsSection />
