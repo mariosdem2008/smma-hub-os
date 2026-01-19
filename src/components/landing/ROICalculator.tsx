@@ -45,9 +45,9 @@ export function ROICalculator() {
 
   return (
     <div className="w-full">
-      <div className="grid gap-8 lg:grid-cols-2">
+      <div className="grid gap-[8px] lg:grid-cols-2">
         {/* Inputs */}
-        <div className="space-y-8">
+        <div className="space-y-[8px]">
           {/* Clients Slider */}
           <div className="space-y-3">
             <div className="flex justify-between items-center">
@@ -118,7 +118,7 @@ export function ROICalculator() {
 
         {/* Results */}
         <div className="space-y-6">
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-[4px] sm:grid-cols-2">
             <motion.div
               className="p-5 rounded-lg bg-card border border-border"
               initial={{ scale: 0.95, opacity: 0 }}
@@ -174,7 +174,7 @@ export function ROICalculator() {
             </p>
           </motion.div>
 
-          <div className="p-4 rounded-lg bg-card border border-border">
+          <div className="p-[4px] rounded-lg bg-card border border-border">
             <div className="flex items-center gap-2 mb-1">
               <Calculator className="w-4 h-4 text-primary" />
               <span className="text-sm font-semibold text-foreground">

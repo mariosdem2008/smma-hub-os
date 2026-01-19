@@ -35,14 +35,14 @@ const DualBrain = () => {
       {/* Background */}
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-accent/5 to-transparent pointer-events-none" />
 
-      <div className="container mx-auto px-4 relative z-10">
+      <div className="container mx-auto px-[4px] relative z-10">
         <div className="text-center">
           {/* Badge */}
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={isInView ? { opacity: 1, scale: 1 } : {}}
             transition={{ duration: 0.4 }}
-            className="inline-flex items-center gap-2 badge-gradient-border mb-24"
+            className="inline-flex items-center gap-2 badge-gradient-border mb-[24px]"
           >
             <Sparkles className="w-4 h-4 text-brand-primary icon-glow" />
             <span className="text-small-text font-medium tracking-small-text text-brand-primary">Proprietary Technology</span>
@@ -55,33 +55,33 @@ const DualBrain = () => {
           </h2>
 
           {/* Subheadline */}
-          <p className="mt-16 text-subheadline-mobile md:text-subheadline-desktop text-text-secondary tracking-subheadline">
+          <p className="mt-[16px] text-subheadline-mobile md:text-subheadline-desktop text-text-secondary tracking-subheadline">
             Why SMMAHUB Isn't "Just Another AI Tool"
           </p>
 
           {/* Body copy */}
-          <p className="mt-24 mx-auto max-w-prose-landing text-body-mobile md:text-body-desktop text-text-secondary leading-body">
+          <p className="mt-[24px] mx-auto max-w-prose-landing text-body-mobile md:text-body-desktop text-text-secondary leading-body">
             Generic AI tools (ChatGPT, Jasper, Copy.ai) have one fatal flaw: they have no memory. Every prompt starts from zero. You re-explain your SOPs, your client's brand voice, your quality bar—every. single. time.
           </p>
-          <p className="mt-16 mx-auto max-w-prose-landing text-body-mobile md:text-body-desktop text-foreground font-medium leading-body">
+          <p className="mt-[16px] mx-auto max-w-prose-landing text-body-mobile md:text-body-desktop text-foreground font-medium leading-body">
             SMMAHUB is different. It has two brains:
           </p>
         </div>
 
         {/* Dual Brain Visualization */}
-        <div className="mt-64 grid gap-32 lg:grid-cols-2">
+        <div className="mt-[64px] grid gap-[32px] lg:grid-cols-2">
           {/* Agency Brain */}
           <motion.div
             initial={{ opacity: 0, x: -30 }}
             animate={isInView ? { opacity: 1, x: 0 } : {}}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="glass-card glass-card-hover card-lift rounded-md p-32 md:p-40 relative overflow-hidden group"
+            className="glass-card glass-card-hover card-lift rounded-md p-[32px] md:p-[40px] relative overflow-hidden group"
           >
             {/* Glow effect */}
             <div className="absolute inset-0 bg-gradient-to-br from-brand-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
 
             <div className="relative z-10">
-              <div className="flex items-center gap-16 mb-24">
+              <div className="flex items-center gap-[16px] mb-[24px]">
                 <div className="w-14 h-14 rounded-xl bg-brand-primary/20 flex items-center justify-center brain-core">
                   <Brain className="w-7 h-7 text-brand-primary" />
                 </div>
@@ -91,18 +91,18 @@ const DualBrain = () => {
                 </div>
               </div>
 
-              <p className="text-text-secondary mb-24 leading-body text-body-mobile md:text-body-desktop">
+              <p className="text-text-secondary mb-[24px] leading-body text-body-mobile md:text-body-desktop">
                 Your SOPs, tone guides, successful strategies, and quality standards—captured once, applied to every client. The AI learns what "good" looks like for your agency.
               </p>
 
-              <div className="grid grid-cols-2 gap-12">
+              <div className="grid grid-cols-2 gap-[12px]">
                 {AGENCY_BRAIN_INPUTS.map((input, index) => (
                   <motion.div
                     key={input.label}
                     initial={{ opacity: 0, y: 10 }}
                     animate={isInView ? { opacity: 1, y: 0 } : {}}
                     transition={{ duration: 0.3, delay: 0.4 + index * 0.1 }}
-                    className="flex items-center gap-8 p-12 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
+                    className="flex items-center gap-[8px] p-[12px] rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
                   >
                     <input.icon className="w-4 h-4 text-brand-primary flex-shrink-0" />
                     <span className="text-small-text text-foreground">{input.label}</span>
@@ -117,13 +117,13 @@ const DualBrain = () => {
             initial={{ opacity: 0, x: 30 }}
             animate={isInView ? { opacity: 1, x: 0 } : {}}
             transition={{ duration: 0.5, delay: 0.4 }}
-            className="glass-card glass-card-hover card-lift rounded-md p-32 md:p-40 relative overflow-hidden group"
+            className="glass-card glass-card-hover card-lift rounded-md p-[32px] md:p-[40px] relative overflow-hidden group"
           >
             {/* Glow effect */}
             <div className="absolute inset-0 bg-gradient-to-br from-accent/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
 
             <div className="relative z-10">
-              <div className="flex items-center gap-16 mb-24">
+              <div className="flex items-center gap-[16px] mb-[24px]">
                 <div className="w-14 h-14 rounded-xl bg-accent/20 flex items-center justify-center brain-core">
                   <Users className="w-7 h-7 text-accent" />
                 </div>
@@ -133,18 +133,18 @@ const DualBrain = () => {
                 </div>
               </div>
 
-              <p className="text-text-secondary mb-24 leading-body text-body-mobile md:text-body-desktop">
+              <p className="text-text-secondary mb-[24px] leading-body text-body-mobile md:text-body-desktop">
                 Each client's goals, brand voice, audience demographics, past performance, and approval history. The AI remembers what works for Client A vs. Client B.
               </p>
 
-              <div className="grid grid-cols-2 gap-12">
+              <div className="grid grid-cols-2 gap-[12px]">
                 {CLIENT_BRAIN_INPUTS.map((input, index) => (
                   <motion.div
                     key={input.label}
                     initial={{ opacity: 0, y: 10 }}
                     animate={isInView ? { opacity: 1, y: 0 } : {}}
                     transition={{ duration: 0.3, delay: 0.6 + index * 0.1 }}
-                    className="flex items-center gap-8 p-12 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
+                    className="flex items-center gap-[8px] p-[12px] rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
                   >
                     <input.icon className="w-4 h-4 text-accent flex-shrink-0" />
                     <span className="text-small-text text-foreground">{input.label}</span>
@@ -160,22 +160,22 @@ const DualBrain = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.5, delay: 0.8 }}
-          className="mt-64 text-center"
+          className="mt-[64px] text-center"
         >
-          <div className="glass-card gradient-border-animated inline-block rounded-md p-32 md:p-40">
+          <div className="glass-card gradient-border-animated inline-block rounded-md p-[32px] md:p-[40px]">
             <p className="text-subheadline-mobile md:text-subheadline-desktop text-foreground max-w-2xl leading-subheadline">
               When you generate a strategy, SMMAHUB pulls from both brains. The result? Content that <span className="text-brand-primary font-semibold">sounds like your agency</span> and <span className="text-accent font-semibold">fits the specific client</span>—without you typing a 500-word prompt.
             </p>
           </div>
 
-          <div className="mt-48">
+          <div className="mt-[48px]">
             <Button
               asChild
               variant="outline"
               size="lg"
               className="btn-secondary-enhanced group tracking-cta-text"
             >
-              <a href={LOOM_LINK} target="_blank" rel="noreferrer" className="inline-flex items-center gap-8">
+              <a href={LOOM_LINK} target="_blank" rel="noreferrer" className="inline-flex items-center gap-[8px]">
                 <Play className="w-4 h-4" />
                 See It In Action
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />

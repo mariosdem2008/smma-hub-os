@@ -46,14 +46,14 @@ const HowItWorks = () => {
       {/* Background gradient */}
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-brand-primary/5 to-transparent pointer-events-none" />
 
-      <div className="container mx-auto px-4 relative z-10">
+      <div className="container mx-auto px-[4px] relative z-10">
         <div className="text-center">
           {/* Badge */}
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={isInView ? { opacity: 1, scale: 1 } : {}}
             transition={{ duration: 0.4 }}
-            className="inline-flex items-center gap-2 badge-gradient-border mb-24"
+            className="inline-flex items-center gap-2 badge-gradient-border mb-[24px]"
           >
             <Cog className="w-4 h-4 text-brand-primary icon-glow" />
             <span className="text-small-text font-medium tracking-small-text text-brand-primary">3 Simple Steps</span>
@@ -66,7 +66,7 @@ const HowItWorks = () => {
           </h2>
 
           {/* Subheadline */}
-          <p className="mt-24 mx-auto max-w-prose-landing text-body-mobile md:text-body-desktop text-text-secondary leading-body">
+          <p className="mt-[24px] mx-auto max-w-prose-landing text-body-mobile md:text-body-desktop text-text-secondary leading-body">
             Capture what makes your agency successful, then let AI apply it consistently across all clients.
           </p>
         </div>
@@ -82,7 +82,7 @@ const HowItWorks = () => {
             },
             hidden: { opacity: 0 }
           }}
-          className="mt-64 grid gap-24 lg:grid-cols-3"
+          className="mt-[64px] grid gap-[24px] lg:grid-cols-3"
         >
           {HOW_IT_WORKS_STEPS.map((step, index) => (
             <motion.div
@@ -98,7 +98,7 @@ const HowItWorks = () => {
                 <div className="hidden lg:block absolute top-12 left-full w-full h-px bg-gradient-to-r from-white/20 to-transparent z-0" style={{ width: 'calc(100% - 2rem)' }} />
               )}
 
-              <div className="glass-card glass-card-hover card-lift rounded-md p-32 md:p-40 h-full relative z-10">
+              <div className="glass-card glass-card-hover card-lift rounded-md p-[32px] md:p-[40px] h-full relative z-10">
                 {/* Step number badge */}
                 <div className="absolute -top-4 -left-2 md:-left-4">
                   <div className="text-5xl md:text-6xl font-bold text-white/5">
@@ -106,14 +106,14 @@ const HowItWorks = () => {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-16 mb-24">
+                <div className="flex items-center gap-[16px] mb-[24px]">
                   <div className={`w-12 h-12 rounded-lg bg-${step.color}/20 flex items-center justify-center group-hover:scale-110 transition-transform`}>
                     <step.icon className={`w-6 h-6 text-${step.color}`} />
                   </div>
                   <span className="text-small-text font-medium text-text-muted tracking-small-text">Step {step.step}</span>
                 </div>
 
-                <h3 className="text-xl font-semibold mb-16 text-foreground">{step.title}</h3>
+                <h3 className="text-xl font-semibold mb-[16px] text-foreground">{step.title}</h3>
                 <p className="text-text-secondary leading-body text-body-mobile md:text-body-desktop">{step.description}</p>
               </div>
             </motion.div>
@@ -124,14 +124,14 @@ const HowItWorks = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.5, delay: 0.8 }}
-          className="mt-64 text-center"
+          className="mt-[64px] text-center"
         >
           <Button
             asChild
             size="lg"
             className="btn-glow btn-shimmer btn-press btn-primary-enhanced tracking-cta-text"
           >
-            <a href={CAL_LINK} target="_blank" rel="noreferrer" className="inline-flex items-center gap-8">
+            <a href={CAL_LINK} target="_blank" rel="noreferrer" className="inline-flex items-center gap-[8px]">
               Book Your Strategy Audit
               <ArrowRight className="w-4 h-4" />
             </a>

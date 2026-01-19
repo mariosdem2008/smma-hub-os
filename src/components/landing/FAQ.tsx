@@ -72,14 +72,14 @@ const FAQ = () => {
       transition={{ duration: 0.4 }}
       className="section-md"
     >
-      <div className="container mx-auto px-4">
+      <div className="container mx-auto px-[4px]">
         <div className="text-center">
           {/* Badge */}
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={isInView ? { opacity: 1, scale: 1 } : {}}
             transition={{ duration: 0.4 }}
-            className="inline-flex items-center gap-2 badge-gradient-border mb-24"
+            className="inline-flex items-center gap-2 badge-gradient-border mb-[24px]"
           >
             <HelpCircle className="w-4 h-4 text-brand-primary icon-glow" />
             <span className="text-small-text font-medium tracking-small-text text-brand-primary">FAQ</span>
@@ -91,7 +91,7 @@ const FAQ = () => {
           </h2>
 
           {/* Subheadline */}
-          <p className="mt-24 mx-auto max-w-prose-landing text-body-mobile md:text-body-desktop text-text-secondary leading-body">
+          <p className="mt-[24px] mx-auto max-w-prose-landing text-body-mobile md:text-body-desktop text-text-secondary leading-body">
             Common questions answered—setup takes 2-4 weeks, we don't replace your team (we amplify them), and you own all your data.
           </p>
         </div>
@@ -100,29 +100,29 @@ const FAQ = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.5, delay: 0.2 }}
-          className="mt-64 mx-auto max-w-3xl"
+          className="mt-[64px] mx-auto max-w-3xl"
         >
           <Accordion
             type="single"
             collapsible
-            className="w-full space-y-12"
+            className="w-full space-y-[12px]"
             onValueChange={handleAccordionChange}
           >
             {FAQS.map((faq, i) => (
               <AccordionItem
                 value={`item-${i}`}
                 key={i}
-                className="accordion-landing rounded-md px-24 border-0 glass-card"
+                className="accordion-landing rounded-md px-[24px] border-0 glass-card"
               >
                 <AccordionTrigger
                   aria-controls={`faq-content-${i}`}
-                  className="text-left text-foreground hover:text-brand-primary py-20 hover:no-underline text-body-mobile md:text-body-desktop font-medium focus-ring"
+                  className="text-left text-foreground hover:text-brand-primary py-[20px] hover:no-underline text-body-mobile md:text-body-desktop font-medium focus-ring"
                 >
                   {faq.q}
                 </AccordionTrigger>
                 <AccordionContent
                   id={`faq-content-${i}`}
-                  className="text-text-secondary leading-body text-body-mobile md:text-body-desktop pb-20"
+                  className="text-text-secondary leading-body text-body-mobile md:text-body-desktop pb-[20px]"
                 >
                   {faq.a}
                 </AccordionContent>

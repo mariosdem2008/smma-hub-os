@@ -18,14 +18,14 @@ const ProblemSection = () => {
       {/* Subtle background gradient */}
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-red-500/5 to-transparent pointer-events-none" />
 
-      <div className="container mx-auto px-4 relative z-10">
+      <div className="container mx-auto px-[4px] relative z-10">
         <div className="text-center">
           {/* Badge */}
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={isInView ? { opacity: 1, scale: 1 } : {}}
             transition={{ duration: 0.4 }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-red-500/10 border border-red-500/20 mb-24"
+            className="inline-flex items-center gap-2 px-[4px] py-2 rounded-full bg-red-500/10 border border-red-500/20 mb-[24px]"
           >
             <AlertTriangle className="w-4 h-4 text-red-400" />
             <span className="text-small-text font-medium tracking-small-text text-red-400">The Constraint</span>
@@ -38,7 +38,7 @@ const ProblemSection = () => {
           </h2>
 
           {/* Body copy */}
-          <div className="mt-24 mx-auto max-w-prose-landing text-body-mobile md:text-body-desktop text-text-secondary leading-body space-y-24">
+          <div className="mt-[24px] mx-auto max-w-prose-landing text-body-mobile md:text-body-desktop text-text-secondary leading-body space-y-[24px]">
             <p>
               You're trapped in a linear scaling model. Revenue grows, but so does headcount. Onboarding takes 4-8 weeks. Quality varies by who's on the account. When a star strategist leaves, client knowledge walks out the door.
             </p>
@@ -52,15 +52,15 @@ const ProblemSection = () => {
         </div>
 
         {/* Comparison Cards */}
-        <div className="mt-64 grid gap-32 md:grid-cols-2">
+        <div className="mt-[64px] grid gap-[32px] md:grid-cols-2">
           {/* The Hiring Treadmill */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={isInView ? { opacity: 1, x: 0 } : {}}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="glass-card glass-card-hover rounded-md p-32 md:p-40 group graph-card-hiring"
+            className="glass-card glass-card-hover rounded-md p-[32px] md:p-[40px] group graph-card-hiring"
           >
-            <div className="flex items-center gap-12 mb-24">
+            <div className="flex items-center gap-[12px] mb-[24px]">
               <div className="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center">
                 <TrendingDown className="w-5 h-5 text-red-400" />
               </div>
@@ -68,8 +68,8 @@ const ProblemSection = () => {
             </div>
 
             {/* Visual graph representation */}
-            <div className="relative h-48 mb-24">
-              <div className="absolute inset-0 flex items-end justify-between gap-2 pb-32">
+            <div className="relative h-48 mb-[24px]">
+              <div className="absolute inset-0 flex items-end justify-between gap-2 pb-[32px]">
                 {[30, 45, 55, 60, 63, 65, 66].map((height, i) => (
                   <motion.div
                     key={i}
@@ -102,16 +102,16 @@ const ProblemSection = () => {
               </div>
             </div>
 
-            <div className="space-y-12 pt-16 border-t border-white/10">
-              <div className="flex items-center gap-8 text-sm text-text-secondary">
+            <div className="space-y-[12px] pt-[16px] border-t border-white/10">
+              <div className="flex items-center gap-[8px] text-sm text-text-secondary">
                 <Users className="w-4 h-4 text-red-400 flex-shrink-0" />
                 <span>Linear growth: 1 hire per 3 clients</span>
               </div>
-              <div className="flex items-center gap-8 text-sm text-text-secondary">
+              <div className="flex items-center gap-[8px] text-sm text-text-secondary">
                 <DollarSign className="w-4 h-4 text-red-400 flex-shrink-0" />
                 <span>Margins compress as headcount scales</span>
               </div>
-              <div className="flex items-center gap-8 text-sm text-text-secondary">
+              <div className="flex items-center gap-[8px] text-sm text-text-secondary">
                 <Clock className="w-4 h-4 text-red-400 flex-shrink-0" />
                 <span>4-8 weeks to onboard each hire</span>
               </div>
@@ -123,9 +123,9 @@ const ProblemSection = () => {
             initial={{ opacity: 0, x: 20 }}
             animate={isInView ? { opacity: 1, x: 0 } : {}}
             transition={{ duration: 0.5, delay: 0.4 }}
-            className="glass-card glass-card-hover rounded-md p-32 md:p-40 gradient-border-animated group graph-card-scaling"
+            className="glass-card glass-card-hover rounded-md p-[32px] md:p-[40px] gradient-border-animated group graph-card-scaling"
           >
-            <div className="flex items-center gap-12 mb-24">
+            <div className="flex items-center gap-[12px] mb-[24px]">
               <div className="w-10 h-10 rounded-lg bg-success/20 flex items-center justify-center">
                 <TrendingUp className="w-5 h-5 text-success" />
               </div>
@@ -133,8 +133,8 @@ const ProblemSection = () => {
             </div>
 
             {/* Visual graph representation */}
-            <div className="relative h-48 mb-24">
-              <div className="absolute inset-0 flex items-end justify-between gap-2 pb-32">
+            <div className="relative h-48 mb-[24px]">
+              <div className="absolute inset-0 flex items-end justify-between gap-2 pb-[32px]">
                 {[20, 22, 24, 25, 26, 27, 27].map((height, i) => (
                   <motion.div
                     key={i}
@@ -171,16 +171,16 @@ const ProblemSection = () => {
               </div>
             </div>
 
-            <div className="space-y-12 pt-16 border-t border-white/10">
-              <div className="flex items-center gap-8 text-sm text-text-secondary">
+            <div className="space-y-[12px] pt-[16px] border-t border-white/10">
+              <div className="flex items-center gap-[8px] text-sm text-text-secondary">
                 <Users className="w-4 h-4 text-success flex-shrink-0" />
                 <span>Same team handles 3x more clients</span>
               </div>
-              <div className="flex items-center gap-8 text-sm text-text-secondary">
+              <div className="flex items-center gap-[8px] text-sm text-text-secondary">
                 <DollarSign className="w-4 h-4 text-success flex-shrink-0" />
                 <span>Margins expand with SMMAHUB</span>
               </div>
-              <div className="flex items-center gap-8 text-sm text-text-secondary">
+              <div className="flex items-center gap-[8px] text-sm text-text-secondary">
                 <Clock className="w-4 h-4 text-success flex-shrink-0" />
                 <span>2-4 hours one-time setup</span>
               </div>

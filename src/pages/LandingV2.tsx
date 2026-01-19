@@ -59,7 +59,7 @@ function StickyCTABar() {
           transition={{ duration: 0.3, ease: "easeOut" }}
           className="fixed top-0 left-0 right-0 z-[99] bg-background/95 backdrop-blur-xl border-b border-white/10"
         >
-          <div className="container mx-auto flex items-center justify-between gap-4 px-4 py-3">
+          <div className="container mx-auto flex items-center justify-between gap-[4px] px-[4px] py-3">
             <div className="flex items-center gap-3">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
                 <Zap className="h-4 w-4 text-primary-foreground" />
@@ -70,7 +70,7 @@ function StickyCTABar() {
               </span>
             </div>
 
-            <div className="flex items-center gap-12">
+            <div className="flex items-center gap-[12px]">
               <Button
                 asChild
                 size="sm"
@@ -113,7 +113,7 @@ function Navigation() {
       className="sticky top-0 z-50 border-b border-white/5 backdrop-blur-xl"
       style={{ backgroundColor }}
     >
-      <div className="container mx-auto flex items-center justify-between gap-4 px-4 py-4">
+      <div className="container mx-auto flex items-center justify-between gap-[4px] px-[4px] py-[4px]">
         <a href="#top" className="flex items-center gap-2">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
             <Zap className="h-5 w-5 text-primary-foreground" />
@@ -121,7 +121,7 @@ function Navigation() {
           <span className="text-lg font-semibold tracking-tight">SMMAHUB</span>
         </a>
 
-        <div className="flex items-center gap-12">
+        <div className="flex items-center gap-[12px]">
           <Button
             asChild
             size="sm"
@@ -152,11 +152,11 @@ function Navigation() {
 function Footer() {
   return (
     <footer className="border-t border-border/50">
-      <div className="container mx-auto px-4 py-64">
-        <div className="grid gap-32 md:grid-cols-3">
+      <div className="container mx-auto px-[4px] py-[64px]">
+        <div className="grid gap-[32px] md:grid-cols-3">
           {/* Brand */}
-          <div className="flex flex-col gap-16">
-            <div className="flex items-center gap-8">
+          <div className="flex flex-col gap-[16px]">
+            <div className="flex items-center gap-[8px]">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
                 <Zap className="h-5 w-5 text-primary-foreground" />
               </div>
@@ -168,25 +168,25 @@ function Footer() {
           </div>
 
           {/* Trust Signals */}
-          <div className="flex flex-col gap-16">
+          <div className="flex flex-col gap-[16px]">
             <span className="text-body-desktop font-medium text-foreground">Trust & Security</span>
-            <div className="flex flex-wrap gap-12 text-small-text text-text-muted">
-              <span className="flex items-center gap-8 px-12 py-8 rounded-lg bg-white/5">
+            <div className="flex flex-wrap gap-[12px] text-small-text text-text-muted">
+              <span className="flex items-center gap-[8px] px-[12px] py-[8px] rounded-lg bg-white/5">
                 SOC 2 Type II
               </span>
-              <span className="flex items-center gap-8 px-12 py-8 rounded-lg bg-white/5">
+              <span className="flex items-center gap-[8px] px-[12px] py-[8px] rounded-lg bg-white/5">
                 GDPR Ready
               </span>
-              <span className="flex items-center gap-8 px-12 py-8 rounded-lg bg-white/5">
+              <span className="flex items-center gap-[8px] px-[12px] py-[8px] rounded-lg bg-white/5">
                 256-bit Encryption
               </span>
             </div>
           </div>
 
           {/* Links */}
-          <div className="flex flex-col gap-16">
+          <div className="flex flex-col gap-[16px]">
             <span className="text-body-desktop font-medium text-foreground">Links</span>
-            <div className="flex flex-wrap gap-24 text-body-mobile text-text-muted">
+            <div className="flex flex-wrap gap-[24px] text-body-mobile text-text-muted">
               <a href="#" className="hover:text-foreground transition-colors focus-ring">Terms</a>
               <a href="#" className="hover:text-foreground transition-colors focus-ring">Privacy</a>
               <a href="mailto:contact@smmahub.com" className="hover:text-foreground transition-colors focus-ring">Contact</a>
@@ -194,7 +194,7 @@ function Footer() {
           </div>
         </div>
 
-        <div className="mt-48 pt-24 border-t border-border/50 flex flex-col md:flex-row md:items-center md:justify-between gap-16 text-small-text text-text-muted">
+        <div className="mt-[48px] pt-[24px] border-t border-border/50 flex flex-col md:flex-row md:items-center md:justify-between gap-[16px] text-small-text text-text-muted">
           <span>© 2026 SMMAHUB. All rights reserved.</span>
           <span>Built for social media marketing agencies.</span>
         </div>

@@ -84,14 +84,14 @@ const ROI = () => {
       {/* Background */}
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-success/5 to-transparent pointer-events-none" />
 
-      <div className="container mx-auto px-4 relative z-10">
+      <div className="container mx-auto px-[4px] relative z-10">
         <div className="text-center">
           {/* Badge */}
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={isInView ? { opacity: 1, scale: 1 } : {}}
             transition={{ duration: 0.4 }}
-            className="inline-flex items-center gap-2 badge-gradient-border mb-24"
+            className="inline-flex items-center gap-2 badge-gradient-border mb-[24px]"
           >
             <Calculator className="w-4 h-4 text-brand-primary icon-glow" />
             <span className="text-small-text font-medium tracking-small-text text-brand-primary">The Math</span>
@@ -104,31 +104,31 @@ const ROI = () => {
           </h2>
 
           {/* Subheadline */}
-          <p className="mt-24 mx-auto max-w-prose-landing text-body-mobile md:text-body-desktop text-text-secondary leading-body">
+          <p className="mt-[24px] mx-auto max-w-prose-landing text-body-mobile md:text-body-desktop text-text-secondary leading-body">
             Here's the calculation agencies are using to justify the investment.
           </p>
         </div>
 
         {/* ROI Cards */}
-        <div className="mt-64 grid gap-24 md:grid-cols-3">
+        <div className="mt-[64px] grid gap-[24px] md:grid-cols-3">
           {ROI_CARDS.map((card, index) => (
             <motion.div
               key={card.title}
               initial={{ opacity: 0, y: 20 }}
               animate={isInView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.5, delay: 0.2 + index * 0.1 }}
-              className="glass-card glass-card-hover card-lift rounded-md p-32 md:p-40"
+              className="glass-card glass-card-hover card-lift rounded-md p-[32px] md:p-[40px]"
             >
-              <div className="flex items-center gap-12 mb-16">
+              <div className="flex items-center gap-[12px] mb-[16px]">
                 <div className={`w-10 h-10 rounded-lg bg-${card.color}/20 flex items-center justify-center`}>
                   <card.icon className={`w-5 h-5 text-${card.color}`} />
                 </div>
                 <h3 className="text-xl font-semibold text-foreground">{card.title}</h3>
               </div>
 
-              <p className="text-small-text text-text-muted leading-small-text mb-24">{card.formula}</p>
+              <p className="text-small-text text-text-muted leading-small-text mb-[24px]">{card.formula}</p>
 
-              <div className="mb-16">
+              <div className="mb-[16px]">
                 <Odometer value={card.value} prefix={card.prefix} suffix={card.suffix} />
               </div>
 
@@ -142,16 +142,16 @@ const ROI = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.5, delay: 0.6 }}
-          className="mt-64"
+          className="mt-[64px]"
         >
-          <div className="glass-card gradient-border-animated rounded-md p-32 md:p-40 max-w-2xl mx-auto text-center">
-            <div className="flex items-center justify-center gap-8 mb-16">
+          <div className="glass-card gradient-border-animated rounded-md p-[32px] md:p-[40px] max-w-2xl mx-auto text-center">
+            <div className="flex items-center justify-center gap-[8px] mb-[16px]">
               <Calculator className="w-5 h-5 text-brand-primary icon-glow" />
               <span className="text-body-desktop font-semibold text-foreground">
                 See Your Exact Numbers
               </span>
             </div>
-            <p className="text-body-mobile md:text-body-desktop text-text-secondary leading-body mb-24">
+            <p className="text-body-mobile md:text-body-desktop text-text-secondary leading-body mb-[24px]">
               These numbers are based on averages. Calculate your{' '}
               <span className="text-brand-primary font-medium">personalized ROI</span>{' '}
               based on your agency's specific metrics.

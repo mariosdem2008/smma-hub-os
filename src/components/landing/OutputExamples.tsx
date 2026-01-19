@@ -9,7 +9,7 @@ export function OutputExamples() {
         className="p-6 rounded-lg bg-card border border-border"
         whileHover={{ y: -4, transition: { duration: 0.2 } }}
       >
-        <div className="flex items-center gap-3 mb-4">
+        <div className="flex items-center gap-3 mb-[4px]">
           <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
             <FileText className="w-5 h-5 text-primary" />
           </div>
@@ -56,7 +56,7 @@ export function OutputExamples() {
         className="p-6 rounded-lg bg-card border border-border"
         whileHover={{ y: -4, transition: { duration: 0.2 } }}
       >
-        <div className="flex items-center gap-3 mb-4">
+        <div className="flex items-center gap-3 mb-[4px]">
           <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
             <Calendar className="w-5 h-5 text-accent" />
           </div>
@@ -95,7 +95,7 @@ export function OutputExamples() {
         className="p-6 rounded-lg bg-card border border-border"
         whileHover={{ y: -4, transition: { duration: 0.2 } }}
       >
-        <div className="flex items-center gap-3 mb-4">
+        <div className="flex items-center gap-3 mb-[4px]">
           <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
             <MessageSquare className="w-5 h-5 text-primary" />
           </div>
@@ -134,7 +134,7 @@ export function OutputExamples() {
           ))}
         </div>
 
-        <p className="mt-4 text-xs text-muted-foreground text-center">
+        <p className="mt-[4px] text-xs text-muted-foreground text-center">
           AI generates variations based on approved brand voice
         </p>
       </motion.div>

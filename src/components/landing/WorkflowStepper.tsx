@@ -84,7 +84,7 @@ export function WorkflowStepper() {
   return (
     <div className="w-full">
       {/* Step Navigation */}
-      <div className="relative mb-8">
+      <div className="relative mb-[8px]">
         {/* Progress Line */}
         <div className="absolute top-5 left-0 right-0 h-[2px] bg-border hidden sm:block" />
         <motion.div
@@ -134,7 +134,7 @@ export function WorkflowStepper() {
       </div>
 
       {/* Content Area */}
-      <div className="relative bg-card/50 border border-border rounded-2xl p-6 sm:p-8 min-h-[200px]">
+      <div className="relative bg-card/50 border border-border rounded-2xl p-6 sm:p-[8px] min-h-[200px]">
         <AnimatePresence mode="wait">
           <motion.div
             key={currentStep.id}
@@ -142,7 +142,7 @@ export function WorkflowStepper() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.3 }}
-            className="space-y-4"
+            className="space-y-[4px]"
           >
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">

@@ -25,7 +25,7 @@ const FinalCTA = () => {
       transition={{ duration: 0.4 }}
       className="section-lg relative overflow-hidden"
     >
-      <div className="container mx-auto px-4">
+      <div className="container mx-auto px-[4px]">
         <motion.div
           initial={{ opacity: 0, scale: 0.98 }}
           animate={isInView ? { opacity: 1, scale: 1 } : {}}
@@ -33,7 +33,7 @@ const FinalCTA = () => {
           className="relative overflow-hidden"
         >
           {/* Background with gradient */}
-          <div className="glass-card gradient-border-animated rounded-md p-32 md:p-64 text-center relative">
+          <div className="glass-card gradient-border-animated rounded-md p-[32px] md:p-[64px] text-center relative">
             {/* Background orbs */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
               <div className="absolute top-0 left-1/4 w-96 h-96 bg-brand-primary/15 rounded-full blur-3xl" />
@@ -46,7 +46,7 @@ const FinalCTA = () => {
                 initial={{ opacity: 0, y: 10 }}
                 animate={isInView ? { opacity: 1, y: 0 } : {}}
                 transition={{ duration: 0.4, delay: 0.3 }}
-                className="inline-flex items-center gap-2 badge-gradient-border mb-24"
+                className="inline-flex items-center gap-2 badge-gradient-border mb-[24px]"
               >
                 <Sparkles className="w-4 h-4 text-success icon-glow" />
                 <span className="text-small-text font-medium tracking-small-text text-success">Start Scaling Today</span>
@@ -58,7 +58,7 @@ const FinalCTA = () => {
               </h2>
 
               {/* Subheadline */}
-              <p className="mt-24 mx-auto max-w-prose-landing text-body-mobile md:text-body-desktop text-text-secondary leading-body">
+              <p className="mt-[24px] mx-auto max-w-prose-landing text-body-mobile md:text-body-desktop text-text-secondary leading-body">
                 Book a free Strategy Audit to see your custom ROI. We'll analyze your workflow, estimate your time savings, and show you exactly how SMMAHUB fits your agency.
               </p>
 
@@ -67,14 +67,14 @@ const FinalCTA = () => {
                 initial={{ opacity: 0, y: 10 }}
                 animate={isInView ? { opacity: 1, y: 0 } : {}}
                 transition={{ duration: 0.4, delay: 0.5 }}
-                className="mt-48 flex flex-col sm:flex-row justify-center gap-16"
+                className="mt-[48px] flex flex-col sm:flex-row justify-center gap-[16px]"
               >
                 <Button
                   asChild
                   size="lg"
                   className="btn-glow btn-shimmer btn-press btn-primary-enhanced tracking-cta-text"
                 >
-                  <a href={CAL_LINK} target="_blank" rel="noreferrer" className="inline-flex items-center gap-8">
+                  <a href={CAL_LINK} target="_blank" rel="noreferrer" className="inline-flex items-center gap-[8px]">
                     Book Your Strategy Audit (Free)
                     <ArrowRight className="w-4 h-4" />
                   </a>
@@ -86,7 +86,7 @@ const FinalCTA = () => {
                   variant="outline"
                   className="btn-secondary-enhanced group tracking-cta-text"
                 >
-                  <a href={LOOM_LINK} target="_blank" rel="noreferrer" className="inline-flex items-center gap-8">
+                  <a href={LOOM_LINK} target="_blank" rel="noreferrer" className="inline-flex items-center gap-[8px]">
                     <Play className="w-4 h-4" />
                     Watch 6-Min Demo
                   </a>
@@ -98,10 +98,10 @@ const FinalCTA = () => {
                 initial={{ opacity: 0 }}
                 animate={isInView ? { opacity: 1 } : {}}
                 transition={{ duration: 0.4, delay: 0.7 }}
-                className="mt-48 flex flex-wrap justify-center gap-24 md:gap-32"
+                className="mt-[48px] flex flex-wrap justify-center gap-[24px] md:gap-[32px]"
               >
                 {TRUST_INDICATORS.map((indicator) => (
-                  <span key={indicator} className="flex items-center gap-8 text-small-text text-text-secondary">
+                  <span key={indicator} className="flex items-center gap-[8px] text-small-text text-text-secondary">
                     <span className="flex h-5 w-5 items-center justify-center rounded-full bg-success/20 flex-shrink-0">
                       <Check className="h-3 w-3 text-success" />
                     </span>

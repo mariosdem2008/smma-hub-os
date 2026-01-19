@@ -26,10 +26,10 @@ const PROGRAM_BENEFITS = [
 
 export function FoundersProgram() {
   return (
-    <section id="founders-program" className="py-20 bg-primary/5">
-      <div className="container mx-auto px-4">
+    <section id="founders-program" className="py-[20px] bg-primary/5">
+      <div className="container mx-auto px-[4px]">
         <AnimatedSection className="mx-auto max-w-4xl text-center">
-            <Badge variant="secondary" className="mb-4">An Exclusive, One-Time Opportunity</Badge>
+            <Badge variant="secondary" className="mb-[4px]">An Exclusive, One-Time Opportunity</Badge>
             <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl mb-6">
                 Become a Founding Member
             </h2>
@@ -41,7 +41,7 @@ export function FoundersProgram() {
                 {PROGRAM_BENEFITS.map(benefit => (
                     <StaggerItem key={benefit.title}>
                         <div className="h-full p-6 rounded-lg bg-card border border-border">
-                            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
+                            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-[4px]">
                                 <benefit.icon className="w-5 h-5 text-primary" />
                             </div>
                             <h3 className="text-lg font-semibold mb-2">{benefit.title}</h3>

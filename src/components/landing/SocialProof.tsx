@@ -45,7 +45,7 @@ const SocialProof = () => {
       {/* Subtle divider line */}
       <div className="absolute top-0 left-0 right-0 section-divider" />
 
-      <div className="container mx-auto px-4">
+      <div className="container mx-auto px-[4px]">
         {/* Refined social proof line */}
         <motion.p
           initial={{ opacity: 0 }}
@@ -69,7 +69,7 @@ const SocialProof = () => {
             },
             hidden: { opacity: 0 }
           }}
-          className="mt-48 grid gap-24 md:grid-cols-3"
+          className="mt-[48px] grid gap-[24px] md:grid-cols-3"
         >
           {PROOF_CARDS.map((card) => (
             <motion.div
@@ -78,21 +78,21 @@ const SocialProof = () => {
                 hidden: { opacity: 0, y: 20 },
                 visible: { opacity: 1, y: 0, transition: { duration: 0.4 } },
               }}
-              className="glass-card glass-card-hover card-lift rounded-md p-24 md:p-32 text-center"
+              className="glass-card glass-card-hover card-lift rounded-md p-[24px] md:p-[32px] text-center"
             >
-              <div className={`w-12 h-12 rounded-xl bg-${card.color}/20 flex items-center justify-center mx-auto mb-16`}>
+              <div className={`w-12 h-12 rounded-xl bg-${card.color}/20 flex items-center justify-center mx-auto mb-[16px]`}>
                 <card.icon className={`w-6 h-6 text-${card.color}`} />
               </div>
-              <h3 className="text-small-text font-medium text-text-muted tracking-small-text uppercase mb-8">
+              <h3 className="text-small-text font-medium text-text-muted tracking-small-text uppercase mb-[8px]">
                 {card.title}
               </h3>
               <p className="text-2xl md:text-3xl font-bold text-gradient-premium stat-number">
                 {card.value}
               </p>
-              <p className="text-body-mobile md:text-body-desktop text-foreground font-medium mt-4">
+              <p className="text-body-mobile md:text-body-desktop text-foreground font-medium mt-[4px]">
                 {card.metric}
               </p>
-              <p className="mt-12 text-small-text text-text-muted leading-small-text">
+              <p className="mt-[12px] text-small-text text-text-muted leading-small-text">
                 {card.description}
               </p>
             </motion.div>

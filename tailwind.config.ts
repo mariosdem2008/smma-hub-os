@@ -21,25 +21,6 @@ export default {
         sans: ["Inter", "sans-serif"],
         sora: ["Sora", "sans-serif"],
       },
-      spacing: {
-        // 8px grid system for ultra-premium spacing
-        '4': '4px',
-        '8': '8px',
-        '12': '12px',
-        '16': '16px',
-        '20': '20px',
-        '24': '24px',
-        '32': '32px',
-        '40': '40px',
-        '48': '48px',
-        '56': '56px',
-        '64': '64px',
-        '80': '80px',
-        '96': '96px',
-        '128': '128px',
-        '160': '160px',
-        '192': '192px',
-      },
       fontSize: {
         // Ultra-premium typography (exact values per design spec)
         'hero-headline-desktop': '52px',

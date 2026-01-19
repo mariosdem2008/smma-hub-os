@@ -43,9 +43,9 @@ const Hero = () => {
         <div className="orb-3 bottom-[-100px] left-[30%]" />
       </div>
 
-      <div className="container mx-auto px-4 py-160 md:py-160 relative z-10">
+      <div className="container mx-auto px-[4px] py-[160px] md:py-[160px] relative z-10">
         <div className="mx-auto max-w-6xl">
-          <div className="grid gap-80 lg:grid-cols-2 lg:items-center">
+          <div className="grid gap-[80px] lg:grid-cols-2 lg:items-center">
             {/* Left Column - Message */}
             <div>
               {/* Badge */}
@@ -53,7 +53,7 @@ const Hero = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.2 }}
-                className="inline-flex items-center gap-2 badge-gradient-border mb-24"
+                className="inline-flex items-center gap-2 badge-gradient-border mb-[24px]"
               >
                 <Sparkles className="w-4 h-4 text-brand-primary icon-glow" />
                 <span className="text-small-text font-medium tracking-small-text text-brand-primary">For Growth-Stage Agencies</span>
@@ -74,7 +74,7 @@ const Hero = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.6 }}
-                className="mt-16 max-w-prose-landing text-subheadline-mobile md:text-subheadline-desktop text-text-secondary leading-subheadline tracking-subheadline"
+                className="mt-[16px] max-w-prose-landing text-subheadline-mobile md:text-subheadline-desktop text-text-secondary leading-subheadline tracking-subheadline"
               >
                 Encode your SOPs once. Your team produces on-brand strategies for every client—in minutes, not hours. No hiring. No training cycles. Just predictable scale.
               </motion.p>
@@ -91,7 +91,7 @@ const Hero = () => {
                     },
                   },
                 }}
-                className="mt-32 space-y-16"
+                className="mt-[32px] space-y-[16px]"
               >
                 {HERO_BULLETS.map((bullet) => (
                   <motion.div
@@ -100,7 +100,7 @@ const Hero = () => {
                       hidden: { opacity: 0, y: 20 },
                       visible: { opacity: 1, y: 0, transition: { duration: 0.3 } },
                     }}
-                    className="flex items-start gap-12 text-body-mobile md:text-body-desktop text-text-secondary leading-body"
+                    className="flex items-start gap-[12px] text-body-mobile md:text-body-desktop text-text-secondary leading-body"
                   >
                     <div className="mt-1 flex h-5 w-5 items-center justify-center rounded-full bg-brand-primary/20 flex-shrink-0">
                       <Check className="h-3 w-3 text-brand-primary" />
@@ -115,7 +115,7 @@ const Hero = () => {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.4, delay: 1.1 }}
-                className="mt-48 flex flex-col sm:flex-row gap-16"
+                className="mt-[48px] flex flex-col sm:flex-row gap-[16px]"
               >
                 <Button
                   asChild
@@ -144,7 +144,7 @@ const Hero = () => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.4, delay: 1.3 }}
-                className="mt-32 text-small-text text-text-muted leading-small-text tracking-small-text"
+                className="mt-[32px] text-small-text text-text-muted leading-small-text tracking-small-text"
               >
                 <span className="text-brand-primary font-semibold">68% faster</span> strategy production. Agencies across 12 countries use SMMAHUB to manage 500+ clients without scaling headcount.
               </motion.p>
@@ -159,7 +159,7 @@ const Hero = () => {
             >
               <div className="preview-window-enhanced rounded-lg overflow-hidden">
                 {/* Window header */}
-                <div className="flex items-center gap-2 px-4 py-3 border-b border-white/5">
+                <div className="flex items-center gap-2 px-[4px] py-3 border-b border-white/5">
                   <div className="window-dots">
                     <div className="window-dot window-dot-red" />
                     <div className="window-dot window-dot-yellow" />
@@ -169,17 +169,17 @@ const Hero = () => {
                 </div>
 
                 {/* Dashboard content */}
-                <div className="p-24 space-y-16">
+                <div className="p-[24px] space-y-[16px]">
                   {/* Dual Brain visualization */}
-                  <div className="grid grid-cols-2 gap-16">
-                    <div className="glass-card rounded-lg p-16">
-                      <div className="flex items-center gap-8 mb-12">
+                  <div className="grid grid-cols-2 gap-[16px]">
+                    <div className="glass-card rounded-lg p-[16px]">
+                      <div className="flex items-center gap-[8px] mb-[12px]">
                         <div className="w-8 h-8 rounded-lg bg-brand-primary/20 flex items-center justify-center brain-core">
                           <Brain className="w-4 h-4 text-brand-primary" />
                         </div>
                         <span className="text-sm font-medium">Agency Brain</span>
                       </div>
-                      <div className="space-y-8">
+                      <div className="space-y-[8px]">
                         <motion.div
                           className="h-2 bg-brand-primary/30 rounded-full progress-animated"
                           style={{ '--progress': '100%' } as React.CSSProperties}
@@ -195,14 +195,14 @@ const Hero = () => {
                       </div>
                     </div>
 
-                    <div className="glass-card rounded-lg p-16">
-                      <div className="flex items-center gap-8 mb-12">
+                    <div className="glass-card rounded-lg p-[16px]">
+                      <div className="flex items-center gap-[8px] mb-[12px]">
                         <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center brain-core">
                           <Users className="w-4 h-4 text-accent" />
                         </div>
                         <span className="text-sm font-medium">Client Brain</span>
                       </div>
-                      <div className="space-y-8">
+                      <div className="space-y-[8px]">
                         <motion.div
                           className="h-2 bg-accent/30 rounded-full progress-animated"
                           style={{ '--progress': '100%' } as React.CSSProperties}
@@ -220,15 +220,15 @@ const Hero = () => {
                   </div>
 
                   {/* Strategy output preview */}
-                  <div className="glass-card rounded-lg p-16">
-                    <div className="flex items-center gap-8 mb-12">
+                  <div className="glass-card rounded-lg p-[16px]">
+                    <div className="flex items-center gap-[8px] mb-[12px]">
                       <div className="w-8 h-8 rounded-lg bg-gradient-premium flex items-center justify-center">
                         <Zap className="w-4 h-4 text-white" />
                       </div>
                       <span className="text-sm font-medium">Strategy Output</span>
-                      <span className="ml-auto text-xs text-success px-8 py-4 bg-success/10 rounded-full pulse-glow-green">Ready</span>
+                      <span className="ml-auto text-xs text-success px-[8px] py-[4px] bg-success/10 rounded-full pulse-glow-green">Ready</span>
                     </div>
-                    <div className="space-y-8">
+                    <div className="space-y-[8px]">
                       <div className="h-2 bg-white/10 rounded-full w-full" />
                       <div className="h-2 bg-white/10 rounded-full w-11/12" />
                       <div className="h-2 bg-white/10 rounded-full w-4/5" />
@@ -237,24 +237,24 @@ const Hero = () => {
                   </div>
 
                   {/* Stats row */}
-                  <div className="grid grid-cols-3 gap-12">
-                    <div className="text-center p-12 rounded-lg bg-white/5">
+                  <div className="grid grid-cols-3 gap-[12px]">
+                    <div className="text-center p-[12px] rounded-lg bg-white/5">
                       <div className="text-brand-primary">
                         <AnimatedStat value={68} suffix="%" />
                       </div>
-                      <div className="text-xs text-text-muted mt-4">Faster</div>
+                      <div className="text-xs text-text-muted mt-[4px]">Faster</div>
                     </div>
-                    <div className="text-center p-12 rounded-lg bg-white/5">
+                    <div className="text-center p-[12px] rounded-lg bg-white/5">
                       <div className="text-accent">
                         <AnimatedStat value={18} suffix="h" />
                       </div>
-                      <div className="text-xs text-text-muted mt-4">Saved/Client</div>
+                      <div className="text-xs text-text-muted mt-[4px]">Saved/Client</div>
                     </div>
-                    <div className="text-center p-12 rounded-lg bg-white/5">
+                    <div className="text-center p-[12px] rounded-lg bg-white/5">
                       <div className="text-success">
                         <AnimatedStat value={95} suffix="%" />
                       </div>
-                      <div className="text-xs text-text-muted mt-4">First Pass</div>
+                      <div className="text-xs text-text-muted mt-[4px]">First Pass</div>
                     </div>
                   </div>
                 </div>

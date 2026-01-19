@@ -55,14 +55,14 @@ const Features = () => {
       {/* Background gradient */}
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-brand-primary/5 to-transparent pointer-events-none" />
 
-      <div className="container mx-auto px-4 relative z-10">
+      <div className="container mx-auto px-[4px] relative z-10">
         <div className="text-center">
           {/* Badge */}
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={isInView ? { opacity: 1, scale: 1 } : {}}
             transition={{ duration: 0.4 }}
-            className="inline-flex items-center gap-2 badge-gradient-border mb-24"
+            className="inline-flex items-center gap-2 badge-gradient-border mb-[24px]"
           >
             <Box className="w-4 h-4 text-brand-primary icon-glow" />
             <span className="text-small-text font-medium tracking-small-text text-brand-primary">Complete Solution</span>
@@ -75,7 +75,7 @@ const Features = () => {
           </h2>
 
           {/* Subheadline */}
-          <p className="mt-24 mx-auto max-w-prose-landing text-body-mobile md:text-body-desktop text-text-secondary leading-body">
+          <p className="mt-[24px] mx-auto max-w-prose-landing text-body-mobile md:text-body-desktop text-text-secondary leading-body">
             SMMAHUB handles everything from client onboarding to strategy generation to approval workflows.
           </p>
         </div>
@@ -91,7 +91,7 @@ const Features = () => {
             },
             hidden: { opacity: 0 }
           }}
-          className="mt-64 grid gap-24 lg:grid-cols-3"
+          className="mt-[64px] grid gap-[24px] lg:grid-cols-3"
         >
           {FEATURE_BUCKETS.map((bucket, bucketIndex) => (
             <motion.div
@@ -100,23 +100,23 @@ const Features = () => {
                 hidden: { opacity: 0, y: 30 },
                 visible: { opacity: 1, y: 0, transition: { duration: 0.4 } },
               }}
-              className="glass-card glass-card-hover card-lift rounded-md p-32 md:p-40 h-full"
+              className="glass-card glass-card-hover card-lift rounded-md p-[32px] md:p-[40px] h-full"
             >
-              <div className="flex items-center gap-16 mb-24">
+              <div className="flex items-center gap-[16px] mb-[24px]">
                 <div className={`w-12 h-12 rounded-xl bg-${bucket.color}/20 flex items-center justify-center`}>
                   <bucket.icon className={`w-6 h-6 text-${bucket.color}`} />
                 </div>
                 <h3 className="text-xl font-semibold text-foreground">{bucket.title}</h3>
               </div>
 
-              <ul className="space-y-16">
+              <ul className="space-y-[16px]">
                 {bucket.features.map((feature, index) => (
                   <motion.li
                     key={feature}
                     initial={{ opacity: 0, x: -10 }}
                     animate={isInView ? { opacity: 1, x: 0 } : {}}
                     transition={{ duration: 0.3, delay: 0.4 + bucketIndex * 0.15 + index * 0.1 }}
-                    className="flex items-start gap-12 text-text-secondary"
+                    className="flex items-start gap-[12px] text-text-secondary"
                   >
                     <div className={`mt-1 flex h-5 w-5 items-center justify-center rounded-full bg-${bucket.color}/20 flex-shrink-0`}>
                       <Check className={`h-3 w-3 text-${bucket.color}`} />
