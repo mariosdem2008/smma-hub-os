@@ -1,0 +1,19 @@
+﻿=== C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\prompts\admin_chat\playbooks\strategy_v1.md ===
+# playbook_strategy_v1
+purpose: Produce a tactical growth strategy with measurable outputs.
+inputs: context_blob, user_message.
+outputs: strategy object in output_contracts_v1.
+non_goals: vague plans without metrics, ideas, or experiments.
+
+Required sections:
+1) Goal metric
+2) Funnel map
+3) 3 content pillars
+4) 12 content ideas (numbers + formats)
+5) 3 experiments
+6) 1 next action
+
+Behavior:
+- Mark one experiment as RECOMMENDED when ambiguity exists.
+- Put any assumptions in assumptions[] only.
+

@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react";
 import type { ReactElement, ReactNode } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { format } from "date-fns";
 import { renderToStaticMarkup } from "react-dom/server";
-import { FileText, Download, UploadCloud, History, ArrowLeft, RotateCcw, Search } from "lucide-react";
+import { FileText, Download, UploadCloud, History, ArrowLeft, RotateCcw, Search, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +19,7 @@ import { useStrategies } from "@/hooks/useStrategies";
 import { useStrategyModules } from "@/hooks/useStrategyModules";
 import StrategyOSV3 from "@/components/strategy-os/StrategyOSV3";
 import type { StrategyDocumentRecord, StrategyModule } from "@/lib/strategy/types";
+import { useToast } from "@/hooks/use-toast";
 
 type ViewMode = "document" | "details";
 
@@ -137,6 +138,7 @@ function DocumentHeaderActions({
   onUploadClick,
   onHistoryClick,
   isGenerating,
+  generationPhase,
   isUploading,
 }: {
   hasDocument: boolean;
@@ -148,6 +150,7 @@ function DocumentHeaderActions({
   onUploadClick: () => void;
   onHistoryClick: () => void;
   isGenerating: boolean;
+  generationPhase: string | null;
   isUploading: boolean;
 }) {
   if (!hasDocument) {
@@ -157,6 +160,12 @@ function DocumentHeaderActions({
           <FileText className="h-4 w-4" />
           {isGenerating ? "Building..." : "Strategy Builder"}
         </Button>
+        {generationPhase && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground animate-pulse">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            {generationPhase}
+          </div>
+        )}
       </div>
     );
   }
@@ -176,6 +185,12 @@ function DocumentHeaderActions({
           {isGenerating ? "Regenerating..." : "Regenerate"}
         </Button>
       </div>
+      {generationPhase && (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground animate-pulse">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          {generationPhase}
+        </div>
+      )}
       <Button size="sm" variant="outline" onClick={onDownload} className="gap-2">
         <Download className="h-4 w-4" />
         Download PDF
@@ -381,11 +396,14 @@ function StrategyDocumentView({
 
 export function StrategyKnowledgeCenter({ clientId, agencyId }: StrategyKnowledgeCenterProps) {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const view = (searchParams.get("strategy_view") as ViewMode) ?? "document";
   const [instruction, setInstruction] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [generationPhase, setGenerationPhase] = useState<string | null>(null);
   const uploadInputId = `strategy-upload-${clientId}`;
   const [historyOpen, setHistoryOpen] = useState(false);
+  const { toast } = useToast();
 
   const { data: documents = [] } = useStrategyDocuments(clientId);
   const activeDocument = documents.find((doc) => doc.is_active) ?? documents[0] ?? null;
@@ -429,16 +447,70 @@ export function StrategyKnowledgeCenter({ clientId, agencyId }: StrategyKnowledg
   };
 
   const handleGenerate = async () => {
-    await generateDocument.mutateAsync({ clientId });
+    setGenerationPhase("Preparing context...");
+
+    const phases = [
+      { delay: 5000, text: "Analyzing brand positioning..." },
+      { delay: 15000, text: "Building content strategy..." },
+      { delay: 30000, text: "Generating pillars and campaigns..." },
+      { delay: 60000, text: "Finalizing strategy document..." },
+    ];
+
+    const timers = phases.map(({ delay, text }) => setTimeout(() => setGenerationPhase(text), delay));
+    try {
+      await generateDocument.mutateAsync({ clientId });
+      toast({
+        title: "Strategy generated",
+        description: "Your strategy document is ready.",
+      });
+    } catch {
+      // Error toast is handled inside the hook for consistent edge-function responses.
+    } finally {
+      timers.forEach(clearTimeout);
+      setGenerationPhase(null);
+    }
   };
 
   const handleRegenerate = async () => {
-    await generateDocument.mutateAsync({ clientId, instruction: instruction.trim() || undefined });
-    setInstruction("");
+    setGenerationPhase("Preparing context...");
+
+    const phases = [
+      { delay: 5000, text: "Analyzing brand positioning..." },
+      { delay: 15000, text: "Building content strategy..." },
+      { delay: 30000, text: "Generating pillars and campaigns..." },
+      { delay: 60000, text: "Finalizing strategy document..." },
+    ];
+
+    const timers = phases.map(({ delay, text }) => setTimeout(() => setGenerationPhase(text), delay));
+    try {
+      await generateDocument.mutateAsync({ clientId, instruction: instruction.trim() || undefined });
+      setInstruction("");
+      toast({
+        title: "Strategy updated",
+        description: "Your strategy document was regenerated.",
+      });
+    } catch {
+      // Error toast is handled inside the hook for consistent edge-function responses.
+    } finally {
+      timers.forEach(clearTimeout);
+      setGenerationPhase(null);
+    }
   };
 
   const handleUpload = async (file: File) => {
-    await uploadDocument.mutateAsync({ clientId, agencyId, file });
+    try {
+      await uploadDocument.mutateAsync({ clientId, agencyId, file });
+      toast({
+        title: "Uploaded",
+        description: "Strategy document uploaded and set active.",
+      });
+    } catch (error) {
+      toast({
+        title: "Upload failed",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleDownload = () => {
@@ -521,6 +593,7 @@ export function StrategyKnowledgeCenter({ clientId, agencyId }: StrategyKnowledg
           }}
           onHistoryClick={() => setHistoryOpen(true)}
           isGenerating={generateDocument.isPending}
+          generationPhase={generationPhase}
           isUploading={uploadDocument.isPending}
         />
       </div>

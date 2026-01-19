@@ -1,0 +1,356 @@
+﻿    1: import { buildAdminSetupGuidedPrompt } from "./prompts/adminSetupGuided.ts"
+    2: import { buildAdminGeneralChatPrompt } from "./prompts/adminGeneralChat.ts"
+    3: import { buildAdminSetupExtractPrompt } from "./prompts/adminSetupExtract.ts"
+    4: import { buildChatGeneralPrompt } from "./prompts/chatGeneral.ts"
+    5: import { buildClassifyIntentPrompt } from "./prompts/classifyIntent.ts"
+    6: import { buildClientPortalQaPrompt } from "./prompts/clientPortalQa.ts"
+    7: import { buildContentIdeasPrompt } from "./prompts/contentIdeas.ts"
+    8: import { buildExtractStructuredPrompt } from "./prompts/extractStructured.ts"
+    9: import { buildOnboardingAudiencePrompt, buildOnboardingDifferentiatorsPrompt, buildOnboardingOffersPrompt } from "./prompts/onboardingGuide.ts"
+   10: import { buildStrategyPlanPrompt } from "./prompts/strategyPlan.ts"
+   11: import { buildSummarizePrompt } from "./prompts/summarize.ts"
+   12: import { buildToolExecutionPrompt } from "./prompts/toolExecution.ts"
+   13: import { resolveModelPolicy } from "./modelPolicy.ts"
+   14: import { adminChatSchema, adminChatStrategicSchema, arraySchema, objectSchema, OutputSchema } from "./schema.ts"
+   15: import { TaskType } from "./taskTypes.ts"
+   16: import type { ChatMessage } from "./providers/types.ts"
+   17: 
+   18: export type SafetyMode = "strict_unknown" | "normal";
+   19: export type OutputMode = "freeform" | "json_schema" | "embedding";
+   20: 
+   21: export type BrainRequirements = {
+   22:   agency: boolean;
+   23:   client: boolean;
+   24: };
+   25: 
+   26: export type PromptBuilderArgs = {
+   27:   input?: string;
+   28:   metadata?: Record<string, unknown>;
+   29:   brains?: {
+   30:     agency?: Record<string, unknown> | null;
+   31:     client?: Record<string, unknown> | null;
+   32:   };
+   33: };
+   34: 
+   35: type TaskConfigBase = {
+   36:   taskType: TaskType;
+   37:   outputMode: OutputMode;
+   38:   safetyMode: SafetyMode;
+   39:   promptBuilder?: (args: PromptBuilderArgs) => ChatMessage[];
+   40:   requires: BrainRequirements;
+   41:   usageEndpoint: string;
+   42:   buildUnknown?: (args: { reason: string }) => unknown;
+   43: };
+   44: 
+   45: type FreeformTaskConfig = TaskConfigBase & {
+   46:   outputMode: "freeform";
+   47:   freeformReason: string;
+   48:   schema?: undefined;
+   49: };
+   50: 
+   51: type JsonSchemaTaskConfig = TaskConfigBase & {
+   52:   outputMode: "json_schema";
+   53:   schema: OutputSchema<unknown>;
+   54:   freeformReason?: undefined;
+   55: };
+   56: 
+   57: type EmbeddingTaskConfig = TaskConfigBase & {
+   58:   outputMode: "embedding";
+   59:   schema?: undefined;
+   60:   freeformReason?: undefined;
+   61: };
+   62: 
+   63: export type TaskConfig = FreeformTaskConfig | JsonSchemaTaskConfig | EmbeddingTaskConfig;
+   64: 
+   65: const DEFAULT_UNKNOWN_RESPONSE = { answer: "UNKNOWN", unknown: true, questions: ["What additional context is required?"], confidence: 0 };
+   66: 
+   67: function readEnvFlag(name: string) {
+   68:   if (typeof Deno !== "undefined" && typeof (Deno as any)?.env?.get === "function") {
+   69:     return (Deno as any).env.get(name) as string | undefined;
+   70:   }
+   71:   if (typeof process !== "undefined") {
+   72:     return process.env[name];
+   73:   }
+   74:   return undefined;
+   75: }
+   76: 
+   77: function isAdminChatSchemaEnabled() {
+   78:   return readEnvFlag("AI_ADMIN_CHAT_SCHEMA") === "true";
+   79: }
+   80: 
+   81: function isAdminChatStrategicEnabled() {
+   82:   return readEnvFlag("AI_ADMIN_CHAT_STRATEGIC") === "true";
+   83: }
+   84: 
+   85: const ADMIN_CHAT_SCHEMA_CONFIG: TaskConfig = {
+   86:   taskType: TaskType.AGENCY_ADMIN_GENERAL_CHAT,
+   87:   outputMode: "json_schema",
+   88:   safetyMode: "strict_unknown",
+   89:   promptBuilder: (args) =>
+   90:     buildAdminGeneralChatPrompt({
+   91:       contextSnapshot: (args.metadata?.contextSnapshot as Record<string, unknown>) ?? {},
+   92:       conversation: (args.metadata?.conversation as string) ?? "",
+   93:       latestUserMessage: (args.metadata?.latestUserMessage as string) ?? "",
+   94:       outputMode: "schema",
+   95:     }),
+   96:   requires: { agency: true, client: false },
+   97:   usageEndpoint: "ai-agency-admin-chat",
+   98:   schema: adminChatSchema(),
+   99:   buildUnknown: () => ({
+  100:     assistant_message: "UNKNOWN. I need more details to answer. What should I help with first?",
+  101:     suggestions: [],
+  102:     actions: [],
+  103:     escalated: false,
+  104:     unknown: true,
+  105:   }),
+  106: };
+  107: 
+  108: const ADMIN_CHAT_STRATEGIC_CONFIG: TaskConfig = {
+  109:   taskType: TaskType.AGENCY_ADMIN_GENERAL_CHAT,
+  110:   outputMode: "json_schema",
+  111:   safetyMode: "strict_unknown",
+  112:   promptBuilder: (args) =>
+  113:     buildAdminGeneralChatPrompt({
+  114:       contextSnapshot: (args.metadata?.contextSnapshot as Record<string, unknown>) ?? {},
+  115:       conversation: (args.metadata?.conversation as string) ?? "",
+  116:       latestUserMessage: (args.metadata?.latestUserMessage as string) ?? "",
+  117:       outputMode: "strategic",
+  118:       ragContext: (args.metadata?.ragContext as string | undefined) ?? undefined,
+  119:       contextBlob: (args.metadata?.contextBlob as Record<string, unknown> | undefined) ?? undefined,
+  120:       playbook: (args.metadata?.playbook as any) ?? undefined,
+  121:     }),
+  122:   requires: { agency: true, client: false },
+  123:   usageEndpoint: "ai-agency-admin-chat",
+  124:   schema: adminChatStrategicSchema(),
+  125:   buildUnknown: () => ({
+  126:     playbook: "core_offer",
+  127:     clarifying_questions: [],
+  128:     assumptions: [],
+  129:     core_offer: null,
+  130:     strategy: null,
+  131:     copywriting: null,
+  132:     unknown: { missing: ["context"], question: "What should I help with first?" },
+  133:     suggestions: [],
+  134:   }),
+  135: };
+  136: 
+  137: export const TASK_REGISTRY: Record<TaskType, TaskConfig> = {
+  138:   [TaskType.CHAT_GENERAL]: {
+  139:     taskType: TaskType.CHAT_GENERAL,
+  140:     outputMode: "freeform",
+  141:     freeformReason: "General chat returns conversational text without a rigid schema.",
+  142:     safetyMode: "normal",
+  143:     promptBuilder: (args) => buildChatGeneralPrompt({ input: args.input ?? "" }),
+  144:     requires: { agency: false, client: false },
+  145:     usageEndpoint: "ai-router",
+  146:   },
+  147:   [TaskType.CHAT_ADMIN_ONBOARDING]: {
+  148:     taskType: TaskType.CHAT_ADMIN_ONBOARDING,
+  149:     outputMode: "freeform",
+  150:     freeformReason: "Admin onboarding chat uses conversational replies for guided setup.",
+  151:     safetyMode: "strict_unknown",
+  152:     promptBuilder: (args) => buildChatGeneralPrompt({ input: args.input ?? "" }),
+  153:     requires: { agency: true, client: false },
+  154:     usageEndpoint: "ai-agency-admin-chat",
+  155:   },
+  156:   [TaskType.AGENCY_ADMIN_SETUP_GUIDED_V2]: {
+  157:     taskType: TaskType.AGENCY_ADMIN_SETUP_GUIDED_V2,
+  158:     outputMode: "json_schema",
+  159:     safetyMode: "strict_unknown",
+  160:     promptBuilder: (args) =>
+  161:       buildAdminSetupGuidedPrompt({
+  162:         agencyBrain: args.brains?.agency ?? {},
+  163:         conversation: (args.metadata?.conversation as string) ?? "",
+  164:         latestUserMessage: (args.metadata?.latestUserMessage as string) ?? "",
+  165:         contextSnapshot: (args.metadata?.contextSnapshot as Record<string, unknown>) ?? {},
+  166:       }),
+  167:     requires: { agency: true, client: false },
+  168:     usageEndpoint: "ai-agency-admin-chat",
+  169:     schema: objectSchema("agency_admin_setup_guided_v2", [
+  170:       "assistant_message",
+  171:       "expects",
+  172:       "choices",
+  173:       "suggestions",
+  174:       "progress_percent",
+  175:       "done",
+  176:       "memory_patch",
+  177:       "state",
+  178:     ]),
+  179:     buildUnknown: () => ({
+  180:       assistant_message: "What detail should we start with for your agency setup?",
+  181:       expects: "text",
+  182:       choices: [],
+  183:       suggestions: [],
+  184:       progress_percent: 0,
+  185:       done: false,
+  186:       memory_patch: {},
+  187:       state: {
+  188:         intent: "CLARIFICATION_REQUEST",
+  189:         pending_question_key: null,
+  190:         pending_question_text: null,
+  191:       },
+  192:     }),
+  193:   },
+  194:   [TaskType.AGENCY_ADMIN_GENERAL_CHAT]: {
+  195:     taskType: TaskType.AGENCY_ADMIN_GENERAL_CHAT,
+  196:     outputMode: "freeform",
+  197:     freeformReason: "Admin chat uses conversational output with suggestion parsing.",
+  198:     safetyMode: "strict_unknown",
+  199:     promptBuilder: (args) =>
+  200:       buildAdminGeneralChatPrompt({
+  201:         contextSnapshot: (args.metadata?.contextSnapshot as Record<string, unknown>) ?? {},
+  202:         conversation: (args.metadata?.conversation as string) ?? "",
+  203:         latestUserMessage: (args.metadata?.latestUserMessage as string) ?? "",
+  204:         outputMode: "legacy",
+  205:       }),
+  206:     requires: { agency: true, client: false },
+  207:     usageEndpoint: "ai-agency-admin-chat",
+  208:     buildUnknown: () => ({
+  209:       assistant_message: "UNKNOWN. I need more details to answer. What should I help with first?",
+  210:       suggestions: [],
+  211:     }),
+  212:   },
+  213:   [TaskType.AGENCY_ADMIN_SETUP_EXTRACT]: {
+  214:     taskType: TaskType.AGENCY_ADMIN_SETUP_EXTRACT,
+  215:     outputMode: "json_schema",
+  216:     safetyMode: "normal",
+  217:     promptBuilder: (args) =>
+  218:       buildAdminSetupExtractPrompt({
+  219:         questionKey: (args.metadata?.questionKey as string) ?? "",
+  220:         questionText: (args.metadata?.questionText as string) ?? "",
+  221:         targetPath: (args.metadata?.targetPath as string) ?? "",
+  222:         answer: args.input ?? "",
+  223:         contextSnapshot: (args.metadata?.contextSnapshot as Record<string, unknown>) ?? {},
+  224:       }),
+  225:     requires: { agency: true, client: false },
+  226:     usageEndpoint: "ai-agency-admin-chat",
+  227:     schema: objectSchema("agency_admin_setup_extract", ["value"]),
+  228:     buildUnknown: () => ({ value: null }),
+  229:   },
+  230:   [TaskType.CLIENT_PORTAL_QA]: {
+  231:     taskType: TaskType.CLIENT_PORTAL_QA,
+  232:     outputMode: "json_schema",
+  233:     safetyMode: "strict_unknown",
+  234:     promptBuilder: (args) =>
+  235:       buildClientPortalQaPrompt({
+  236:         question: args.input ?? "",
+  237:         context: (args.metadata?.context as string) ?? "",
+  238:       }),
+  239:     requires: { agency: false, client: false },
+  240:     usageEndpoint: "ai-ask",
+  241:     schema: objectSchema("client_portal_qa", ["answer", "unknown", "questions", "confidence"]),
+  242:     buildUnknown: () => DEFAULT_UNKNOWN_RESPONSE,
+  243:   },
+  244:   [TaskType.SUMMARIZE]: {
+  245:     taskType: TaskType.SUMMARIZE,
+  246:     outputMode: "freeform",
+  247:     freeformReason: "Report summarization produces narrative text for email/PDF rendering.",
+  248:     safetyMode: "normal",
+  249:     promptBuilder: (args) =>
+  250:       buildSummarizePrompt({
+  251:         input: args.input ?? "",
+  252:         systemPrompt: (args.metadata?.systemPrompt as string) ?? undefined,
+  253:       }),
+  254:     requires: { agency: false, client: false },
+  255:     usageEndpoint: "generate-monthly-report",
+  256:   },
+  257:   [TaskType.EXTRACT_STRUCTURED]: {
+  258:     taskType: TaskType.EXTRACT_STRUCTURED,
+  259:     outputMode: "json_schema",
+  260:     safetyMode: "strict_unknown",
+  261:     promptBuilder: (args) =>
+  262:       buildExtractStructuredPrompt({
+  263:         input: args.input ?? "",
+  264:         instructions: (args.metadata?.instructions as string) ?? undefined,
+  265:       }),
+  266:     requires: { agency: false, client: false },
+  267:     usageEndpoint: "ai-router",
+  268:     schema: arraySchema("extract_structured"),
+  269:     buildUnknown: () => DEFAULT_UNKNOWN_RESPONSE,
+  270:   },
+  271:   [TaskType.CLASSIFY_INTENT]: {
+  272:     taskType: TaskType.CLASSIFY_INTENT,
+  273:     outputMode: "json_schema",
+  274:     safetyMode: "normal",
+  275:     promptBuilder: (args) => buildClassifyIntentPrompt({ input: args.input ?? "" }),
+  276:     requires: { agency: false, client: false },
+  277:     usageEndpoint: "ai-router",
+  278:     schema: objectSchema("classify_intent", ["intent"]),
+  279:   },
+  280:   [TaskType.STRATEGY_PLAN]: {
+  281:     taskType: TaskType.STRATEGY_PLAN,
+  282:     outputMode: "json_schema",
+  283:     safetyMode: "strict_unknown",
+  284:     promptBuilder: (args) =>
+  285:       buildStrategyPlanPrompt({
+  286:         agencyBrain: args.brains?.agency ?? {},
+  287:         clientBrain: (args.metadata?.client_brain as any) ?? args.brains?.client ?? {},
+  288:         context: (args.metadata?.context as string) ?? "",
+  289:         instruction: (args.metadata?.instruction as string | undefined) ?? undefined,
+  290:       }),
+  291:     requires: { agency: false, client: false },
+  292:     usageEndpoint: "ai-strategy-generate",
+  293:     schema: objectSchema("strategy_plan", ["summary", "sections"]),
+  294:     buildUnknown: () => ({ unknown: true, missing_fields: [], questions: ["What additional context is required?"], escalation: false }),
+  295:   },
+  296:   [TaskType.CONTENT_IDEAS]: {
+  297:     taskType: TaskType.CONTENT_IDEAS,
+  298:     outputMode: "json_schema",
+  299:     safetyMode: "normal",
+  300:     promptBuilder: (args) =>
+  301:       buildContentIdeasPrompt({
+  302:         mode: (args.metadata?.mode as any) ?? "ideas",
+  303:         platform: (args.metadata?.platform as string) ?? undefined,
+  304:         brandContext: (args.metadata?.brand_context as string) ?? undefined,
+  305:         inputText: (args.metadata?.input_text as string) ?? undefined,
+  306:       }),
+  307:     requires: { agency: false, client: false },
+  308:     usageEndpoint: "generate-ai-content",
+  309:     schema: arraySchema("content_ideas"),
+  310:   },
+  311:   [TaskType.SCRIPT_WRITING]: {
+  312:     taskType: TaskType.SCRIPT_WRITING,
+  313:     outputMode: "json_schema",
+  314:     safetyMode: "normal",
+  315:     promptBuilder: (args) =>
+  316:       buildContentIdeasPrompt({
+  317:         mode: "script",
+  318:         platform: (args.metadata?.platform as string) ?? undefined,
+  319:         brandContext: (args.metadata?.brand_context as string) ?? undefined,
+  320:         inputText: (args.metadata?.input_text as string) ?? undefined,
+  321:       }),
+  322:     requires: { agency: false, client: false },
+  323:     usageEndpoint: "generate-ai-content",
+  324:     schema: arraySchema("script_writing"),
+  325:   },
+  326:   [TaskType.TOOL_EXECUTION]: {
+  327:     taskType: TaskType.TOOL_EXECUTION,
+  328:     outputMode: "json_schema",
+  329:     safetyMode: "normal",
+  330:     promptBuilder: (args) => buildToolExecutionPrompt({ input: args.input ?? "" }),
+  331:     requires: { agency: false, client: false },
+  332:     usageEndpoint: "ai-router",
+  333:     schema: objectSchema("tool_execution", []),
+  334:   },
+  335:   [TaskType.EMBED_TEXT]: {
+  336:     taskType: TaskType.EMBED_TEXT,
+  337:     outputMode: "embedding",
+  338:     safetyMode: "normal",
+  339:     requires: { agency: false, client: false },
+  340:     usageEndpoint: "ai-embeddings",
+  341:   },
+  342: };
+  343: 
+  344: export function getTaskConfig(taskType: TaskType): TaskConfig {
+  345:   if (taskType === TaskType.AGENCY_ADMIN_GENERAL_CHAT && isAdminChatStrategicEnabled()) {
+  346:     return ADMIN_CHAT_STRATEGIC_CONFIG;
+  347:   }
+  348:   if (taskType === TaskType.AGENCY_ADMIN_GENERAL_CHAT && isAdminChatSchemaEnabled()) {
+  349:     return ADMIN_CHAT_SCHEMA_CONFIG;
+  350:   }
+  351:   return TASK_REGISTRY[taskType];
+  352: }
+  353: 
+  354: export function resolveTaskModel(taskType: TaskType, env?: "dev" | "prod") {
+  355:   return resolveModelPolicy({ taskType, environment: env });
+  356: }

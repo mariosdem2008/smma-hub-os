@@ -72,9 +72,9 @@ export function useRole() {
   const canDeleteClients = isOwner || isAdmin || isManager;
   const canEditSettings = isOwner || isAdmin || isManager;
   const canCreateContent = isOwner || isAdmin || isManager;
-  const canEditContent = isOwner || isAdmin || isManager;
+  const canEditContent = isOwner || isAdmin;
   const canDeleteContent = isOwner || isAdmin || isManager;
-  const canApproveContent = isOwner || isAdmin || isManager;
+  const canApproveContent = isOwner || isAdmin;
   const canChangeRoles = isOwner || isAdmin;
   const canRemoveTeamMembers = isOwner || isAdmin;
 

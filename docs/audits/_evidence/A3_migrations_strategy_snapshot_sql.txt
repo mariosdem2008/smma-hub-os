@@ -1,0 +1,186 @@
+﻿=== 20260108143000_strategy_snapshot_rpc.sql ===
+-- Atomic strategy snapshot write: modules + document + optional decisions/tasks
+
+create or replace function public.create_strategy_snapshot(
+  p_client_id uuid,
+  p_agency_id uuid,
+  p_strategy_id uuid,
+  p_user_id uuid,
+  p_modules jsonb,
+  p_document_markdown text,
+  p_document_html text,
+  p_model text,
+  p_instruction text,
+  p_derived_hash text,
+  p_decisions jsonb default null,
+  p_tasks jsonb default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_strategy_id uuid := p_strategy_id;
+  v_document_id uuid;
+  v_version int;
+  v_module jsonb;
+  v_decision jsonb;
+  v_task jsonb;
+  v_module_id uuid;
+begin
+  if v_strategy_id is null then
+    select coalesce(max(version_int), 0) + 1 into v_version
+    from public.strategies
+    where client_id = p_client_id;
+
+    insert into public.strategies (client_id, agency_id, version_int, status, created_by)
+    values (p_client_id, p_agency_id, v_version, 'active', p_user_id)
+    returning id into v_strategy_id;
+  end if;
+
+  update public.strategy_documents
+  set is_active = false
+  where client_id = p_client_id;
+
+  insert into public.strategy_documents (
+    agency_id,
+    client_id,
+    content_markdown,
+    content_html,
+    source,
+    is_active,
+    generated_by_user_id,
+    model,
+    generation_instruction,
+    derived_from_hash
+  )
+  values (
+    p_agency_id,
+    p_client_id,
+    p_document_markdown,
+    p_document_html,
+    'ai',
+    true,
+    p_user_id,
+    p_model,
+    p_instruction,
+    p_derived_hash
+  )
+  returning id into v_document_id;
+
+  for v_module in select * from jsonb_array_elements(p_modules) loop
+    insert into public.strategy_modules (
+      client_id,
+      agency_id,
+      strategy_id,
+      module,
+      content_json,
+      status,
+      ai_generated,
+      ai_confidence,
+      created_by
+    )
+    values (
+      p_client_id,
+      p_agency_id,
+      v_strategy_id,
+      (v_module->>'module')::public.strategy_module,
+      v_module->'content_json',
+      'draft',
+      true,
+      case when v_module ? 'ai_confidence' then (v_module->>'ai_confidence')::int else null end,
+      p_user_id
+    )
+    on conflict (strategy_id, module) do update set
+      content_json = excluded.content_json,
+      status = excluded.status,
+      ai_generated = excluded.ai_generated,
+      ai_confidence = excluded.ai_confidence,
+      version = public.strategy_modules.version + 1,
+      updated_at = now()
+    returning id into v_module_id;
+  end loop;
+
+  if p_decisions is not null then
+    for v_decision in select * from jsonb_array_elements(p_decisions) loop
+      insert into public.strategy_decisions (
+        strategy_id,
+        client_id,
+        module,
+        decision_key,
+        value,
+        locked
+      )
+      values (
+        v_strategy_id,
+        p_client_id,
+        (v_decision->>'module')::public.strategy_module,
+        v_decision->>'decision_key',
+        v_decision->'value',
+        coalesce((v_decision->>'locked')::boolean, false)
+      )
+      on conflict (strategy_id, module, decision_key) do update set
+        value = excluded.value,
+        locked = excluded.locked,
+        updated_at = now();
+    end loop;
+  end if;
+
+  if p_tasks is not null then
+    for v_task in select * from jsonb_array_elements(p_tasks) loop
+      if v_task->>'module' is not null then
+        select id into v_module_id
+        from public.strategy_modules
+        where strategy_id = v_strategy_id
+          and module = (v_task->>'module')::public.strategy_module;
+      else
+        v_module_id := null;
+      end if;
+
+      insert into public.strategy_tasks (
+        strategy_id,
+        client_id,
+        module_id,
+        module,
+        title,
+        description,
+        priority,
+        status,
+        period_key,
+        slug,
+        dedupe_key,
+        created_by
+      )
+      values (
+        v_strategy_id,
+        p_client_id,
+        v_module_id,
+        case when v_task->>'module' is null then null else (v_task->>'module')::public.strategy_module end,
+        v_task->>'title',
+        v_task->>'description',
+        coalesce(v_task->>'priority', 'medium'),
+        'todo',
+        v_task->>'period_key',
+        v_task->>'slug',
+        v_task->>'dedupe_key',
+        p_user_id
+      );
+    end loop;
+  end if;
+
+  return jsonb_build_object(
+    'strategy_id', v_strategy_id,
+    'document_id', v_document_id
+  );
+end;
+$$;
+
+revoke all on function public.create_strategy_snapshot(
+  uuid, uuid, uuid, uuid, jsonb, text, text, text, text, text, jsonb, jsonb
+) from public;
+
+grant execute on function public.create_strategy_snapshot(
+  uuid, uuid, uuid, uuid, jsonb, text, text, text, text, text, jsonb, jsonb
+) to service_role;
+

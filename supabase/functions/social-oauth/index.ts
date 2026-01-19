@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
-import { SUPABASE_URL, PUBLIC_URL } from "../_shared/env.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_URL, PUBLIC_URL } from "../_shared/env.ts";
 
 interface OAuthRequest {
   platform: string;
@@ -8,8 +9,29 @@ interface OAuthRequest {
   source?: string;
 }
 
+function toBase64Url(input: Uint8Array): string {
+  const b64 = btoa(String.fromCharCode(...input));
+  return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+async function signState(payloadB64Url: string): Promise<string> {
+  const secret = Deno.env.get("OAUTH_STATE_SECRET") || SUPABASE_SERVICE_ROLE_KEY;
+  if (!secret) throw new Error("Missing OAUTH_STATE_SECRET/SUPABASE_SERVICE_ROLE_KEY");
+
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+
+  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payloadB64Url));
+  return toBase64Url(new Uint8Array(sig));
+}
+
 serve(async (req: Request) => {
-const headers = corsHeaders(req);
+  const headers = corsHeaders(req);
 
   if (req.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers });
@@ -28,6 +50,70 @@ const headers = corsHeaders(req);
       );
     }
 
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !SUPABASE_SERVICE_ROLE_KEY) {
+      return new Response(
+        JSON.stringify({ error: "Supabase env not configured" }),
+        { headers: { ...headers, "Content-Type": "application/json" }, status: 500 },
+      );
+    }
+
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.toLowerCase().startsWith("bearer ")) {
+      return new Response(JSON.stringify({ error: "Missing Authorization header" }), {
+        status: 401,
+        headers: { ...headers, "Content-Type": "application/json" },
+      });
+    }
+
+    const token = authHeader.replace(/bearer\s+/i, "");
+    const supabaseAuth = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const {
+      data: { user },
+      error: authError,
+    } = await supabaseAuth.auth.getUser(token);
+
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: "Invalid token" }), {
+        status: 401,
+        headers: { ...headers, "Content-Type": "application/json" },
+      });
+    }
+
+    const actingUserId = user.id;
+
+    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+
+    const { data: clientRow, error: clientError } = await supabaseAdmin
+      .from("clients")
+      .select("agency_id")
+      .eq("id", clientId)
+      .maybeSingle();
+
+    if (clientError || !clientRow?.agency_id) {
+      return new Response(JSON.stringify({ error: "Client not found" }), {
+        status: 404,
+        headers: { ...headers, "Content-Type": "application/json" },
+      });
+    }
+
+    const { data: membership } = await supabaseAdmin
+      .from("agency_members")
+      .select("role")
+      .eq("agency_id", clientRow.agency_id)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (!membership) {
+      return new Response(JSON.stringify({ error: "Not a member" }), {
+        status: 403,
+        headers: { ...headers, "Content-Type": "application/json" },
+      });
+    }
+
     const META_APP_ID = Deno.env.get('META_APP_ID');
     const META_REDIRECT_URI = Deno.env.get('META_REDIRECT_URI') || `${SUPABASE_URL}/functions/v1/social-oauth-callback`;
     const GRAPH_API_VERSION = Deno.env.get('GRAPH_API_VERSION') || 'v21.0';
@@ -42,8 +128,10 @@ const headers = corsHeaders(req);
 
     console.log('[OAUTH] Using redirect URI:', META_REDIRECT_URI);
 
-    const statePayload = { clientId, platform, source };
-    const state = btoa(JSON.stringify(statePayload));
+    const statePayload = { clientId, platform, source, userId: actingUserId };
+    const statePayloadB64Url = toBase64Url(new TextEncoder().encode(JSON.stringify(statePayload)));
+    const stateSigB64Url = await signState(statePayloadB64Url);
+    const state = `${statePayloadB64Url}.${stateSigB64Url}`;
     console.log('[OAUTH] STATE:', state);
 
     const scopes = [

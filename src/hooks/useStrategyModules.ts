@@ -8,14 +8,13 @@ import type {
   ModuleContent,
   StrategyStatus,
 } from '@/lib/strategy/types';
-import { getDefaultModuleContent, getTemplateDraftContent } from '@/lib/strategy/defaults';
+import { getDefaultModuleContent } from '@/lib/strategy/defaults';
 import { STRATEGY_MODULES } from '@/lib/strategy/constants';
 import { evaluateStrategyModule } from '@/lib/strategy/rulesEngine';
 import { strategyDocumentsKeys } from '@/hooks/useStrategyDocuments';
 
 type StrategyGenerateResult =
   | { mode: 'ai'; documentId?: string | null }
-  | { mode: 'template'; modules: StrategyModuleRecord[]; reason: string }
   | { mode: 'unknown'; missing_fields?: string[]; questions?: string[] };
 
 async function readFunctionErrorPayload(error: unknown): Promise<{ code?: string; error?: string } | null> {
@@ -249,53 +248,31 @@ export function useToggleModuleLock() {
   });
 }
 
-// Generate strategy (AI first, template fallback only if AI is disabled or fails hard)
+// Generate strategy via edge function
 export function useGenerateStrategy() {
   const queryClient = useQueryClient();
-  const upsertModule = useUpsertStrategyModule();
 
   return useMutation({
     mutationFn: async ({
       clientId,
-      agencyId,
-      strategyId,
     }: {
       clientId: string;
       agencyId: string;
       strategyId: string;
     }) => {
-      const fallbackCodes = new Set(['MISSING_API_KEY', 'EMBEDDING_FAILED']);
       const { data, error } = await supabase.functions.invoke('ai-strategy-generate', {
         body: { client_id: clientId },
       });
 
-      const fallbackByUnknown =
-        data?.unknown === true &&
-        Array.isArray(data?.missing_fields) &&
-        data?.missing_fields.includes('embedding_api_key');
-
       if (error) {
         const payload = await readFunctionErrorPayload(error);
-        if (payload?.code && fallbackCodes.has(payload.code)) {
-          const modules = await seedTemplateModules({
-            clientId,
-            agencyId,
-            strategyId,
-            upsertModule,
-          });
-          return { mode: 'template', modules, reason: payload.code } as StrategyGenerateResult;
+        if (payload?.code === 'MISSING_API_KEY') {
+          throw new Error('AI service not configured. Contact your administrator.');
+        }
+        if (payload?.code === 'RAG_FAILURE') {
+          throw new Error('Failed to retrieve context. Please try again.');
         }
         throw error;
-      }
-
-      if (fallbackByUnknown) {
-        const modules = await seedTemplateModules({
-          clientId,
-          agencyId,
-          strategyId,
-          upsertModule,
-        });
-        return { mode: 'template', modules, reason: 'AI_DISABLED' } as StrategyGenerateResult;
       }
 
       if (data?.unknown === true) {
@@ -314,57 +291,6 @@ export function useGenerateStrategy() {
       queryClient.invalidateQueries({ queryKey: strategyDocumentsKeys.byClient(variables.clientId) });
     },
   });
-}
-
-async function seedTemplateModules({
-  clientId,
-  agencyId,
-  strategyId,
-  upsertModule,
-}: {
-  clientId: string;
-  agencyId: string;
-  strategyId: string;
-  upsertModule: ReturnType<typeof useUpsertStrategyModule>;
-}) {
-  const results: StrategyModuleRecord[] = [];
-
-  for (const moduleDef of STRATEGY_MODULES) {
-    const content = getTemplateDraftContent(moduleDef.key);
-    const evaluation = evaluateStrategyModule(moduleDef.key, content, {
-      currentStatus: 'draft',
-      isLocked: false,
-    });
-
-    try {
-      const result = await upsertModule.mutateAsync({
-        clientId,
-        agencyId,
-        strategyId,
-        module: moduleDef.key,
-        contentJson: content,
-        status: evaluation.status,
-        aiGenerated: false,
-      });
-      const { data, error } = await supabase
-        .from('strategy_modules')
-        .update({
-          completion_percent: evaluation.completion_percent,
-          blockers: evaluation.blockers,
-          blocker_count: evaluation.blockers.length,
-        })
-        .eq('id', result.id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      results.push(data as unknown as StrategyModuleRecord);
-    } catch (err) {
-      console.error(`Failed to seed module ${moduleDef.key}:`, err);
-    }
-  }
-
-  return results;
 }
 
 // Initialize empty modules for a client (if none exist)

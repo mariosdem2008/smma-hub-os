@@ -7,13 +7,86 @@ export default {
   theme: {
     container: {
       center: true,
-      padding: "2rem",
+      padding: "1rem",
       screens: {
-        "2xl": "1400px",
+        sm: "640px",
+        md: "768px",
+        lg: "1024px",
+        xl: "1280px",
+        "2xl": "1280px",
       },
     },
     extend: {
+      fontFamily: {
+        sans: ["Inter", "sans-serif"],
+        sora: ["Sora", "sans-serif"],
+      },
+      spacing: {
+        // 8px grid system for ultra-premium spacing
+        '4': '4px',
+        '8': '8px',
+        '12': '12px',
+        '16': '16px',
+        '20': '20px',
+        '24': '24px',
+        '32': '32px',
+        '40': '40px',
+        '48': '48px',
+        '56': '56px',
+        '64': '64px',
+        '80': '80px',
+        '96': '96px',
+        '128': '128px',
+        '160': '160px',
+        '192': '192px',
+      },
+      fontSize: {
+        // Ultra-premium typography (exact values per design spec)
+        'hero-headline-desktop': '52px',
+        'hero-headline-mobile': '36px',
+        'section-headline-desktop': '32px',
+        'section-headline-mobile': '24px',
+        'subheadline-desktop': '20px',
+        'subheadline-mobile': '18px',
+        'body-desktop': '18px',
+        'body-mobile': '16px',
+        'secondary-body-desktop': '16px',
+        'secondary-body-mobile': '15px',
+        'small-text': '14px',
+        'cta-text': '16px',
+        'cta-text-mobile': '15px',
+      },
+      lineHeight: {
+        // Precise line-heights for premium typography
+        'hero-headline': '1.15',
+        'section-headline': '1.2',
+        'subheadline': '1.4',
+        'body': '1.6',
+        'small-text': '1.5',
+        'cta-text': '1',
+      },
+      letterSpacing: {
+        // Tight letter-spacing for premium feel
+        'hero-headline': '-0.025em',
+        'section-headline': '-0.02em',
+        'subheadline': '-0.01em',
+        'body': '0em',
+        'small-text': '0.01em',
+        'cta-text': '0.02em',
+        'uppercase': '0.05em',
+      },
+      maxWidth: {
+        // Optimal reading width
+        'prose': '680px',
+        'container-lg': '1280px',
+      },
       colors: {
+        brand: {
+          primary: '#5B5FFF',
+          secondary: '#1A1D28',
+        },
+        'text-primary': 'hsl(var(--text-primary))',
+        'text-secondary': 'hsl(var(--text-secondary))',
         /* Core semantic tokens */
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -23,10 +96,6 @@ export default {
 
         /* Surface tokens */
         surface: "hsl(var(--surface))",
-
-        /* Text tokens */
-        "text-primary": "hsl(var(--text-primary))",
-        "text-secondary": "hsl(var(--text-secondary))",
 
         /* Premium accent colors */
         "premium-blue": "#4C7DFF",
@@ -129,18 +198,24 @@ export default {
         },
       },
       borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        sm: "8px",
+        md: "12px",
+        lg: "16px",
       },
       boxShadow: {
-        'card': '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
-        'card-hover': '0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.1)',
+        'lifted': '0 4px 24px rgba(0,0,0,0.12)',
+        'card': '0 4px 16px rgba(0, 0, 0, 0.1)',
+        'card-hover': '0 12px 32px rgba(0, 0, 0, 0.2)',
         'sidebar': '2px 0 12px 0 rgba(0, 0, 0, 0.1)',
-        'premium': '0 10px 40px -10px rgba(78, 93, 255, 0.3)',
-        'glow-sm': '0 0 15px rgba(76, 125, 255, 0.3)',
-        'glow-md': '0 0 30px rgba(76, 125, 255, 0.4)',
-        'glow-lg': '0 0 50px rgba(76, 125, 255, 0.5)',
+        'premium': '0 10px 40px -10px rgba(91, 95, 255, 0.3)',
+        'glow-sm': '0 0 15px rgba(91, 95, 255, 0.3)',
+        'glow-md': '0 0 30px rgba(91, 95, 255, 0.4)',
+        'glow-lg': '0 0 50px rgba(91, 95, 255, 0.5)',
+        // CTA button shadows
+        'btn-primary': '0 8px 24px rgba(91, 95, 255, 0.3)',
+        'btn-primary-hover': '0 12px 32px rgba(91, 95, 255, 0.5)',
+        // Dashboard preview shadow
+        'dashboard': '0 20px 40px rgba(0, 0, 0, 0.3), 0 8px 16px rgba(0, 0, 0, 0.2), 0 0 80px rgba(91, 95, 255, 0.1)',
       },
       backgroundImage: {
         'gradient-premium': 'linear-gradient(135deg, #4C7DFF 0%, #22D3EE 100%)',

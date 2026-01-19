@@ -82,13 +82,7 @@ function getReadinessSignals(client: any) {
   return { status: "COMPLETE", hasContact, hasAssets, hasPublished, trueCount };
 }
 
-function isAiSetupComplete(answers: any) {
-  const repPolicy = answers?.rep_policy_v1;
-  const hasRepPolicy = typeof repPolicy === "string" ? repPolicy.trim().length > 0 : Boolean(repPolicy);
-  const faq = answers?.faq_v1;
-  const hasFaq = Array.isArray(faq) && faq.length >= 3;
-  return hasRepPolicy && hasFaq;
-}
+const AI_SETUP_CORE_MODULES = ["bootstrap", "rep_policy", "quality_bar"] as const;
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -181,12 +175,15 @@ export default function Dashboard() {
     const fetchAiSetupStatus = async (nextAgencyId: string) => {
       try {
         const { data, error } = await supabase
-          .from("agency_onboarding_sessions")
-          .select("answers_json")
+          .from("brain_documents")
+          .select("module")
           .eq("agency_id", nextAgencyId)
-          .maybeSingle();
+          .in("module", [...AI_SETUP_CORE_MODULES])
+          .eq("status", "approved");
         if (error) throw error;
-        setAiSetupComplete(isAiSetupComplete(data?.answers_json));
+
+        const approvedModules = new Set((data ?? []).map((row: any) => row?.module).filter(Boolean));
+        setAiSetupComplete(AI_SETUP_CORE_MODULES.every((module) => approvedModules.has(module)));
       } catch (error) {
         console.warn("AI setup status fetch warning:", (error as any)?.message ?? error);
         setAiSetupComplete(false);

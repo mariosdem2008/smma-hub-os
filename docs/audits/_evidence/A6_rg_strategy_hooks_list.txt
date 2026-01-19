@@ -1,0 +1,7 @@
+﻿src/hooks\useOnboardingProfile.ts
+src/hooks\useStrategies.ts
+src/hooks\useStrategyDecisions.ts
+src/hooks\useStrategyDocuments.ts
+src/hooks\useStrategyHistory.ts
+src/hooks\useStrategyTasks.ts
+src/hooks\useStrategyModules.ts

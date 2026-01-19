@@ -1,0 +1,100 @@
+﻿tests\integration\ai\rag-correctness.test.ts:18:    const config = getRagConfig(TaskType.CLIENT_PORTAL_QA);
+tests\integration\ai\rag-correctness.test.ts:46:    const config = getRagConfig(TaskType.STRATEGY_PLAN);
+tests\integration\ai\rag-correctness.test.ts:77:    const config = getRagConfig(TaskType.CLIENT_PORTAL_QA);
+src\__tests__\strategy-generation.integration.test.ts:26:    expect(router).toContain("case TaskType.STRATEGY_PLAN");
+src\__tests__\strategy-generation.integration.test.ts:32:    expect(registry).toContain("[TaskType.STRATEGY_PLAN]");
+src\ai\modelPolicy.ts:37:  [TaskType.CHAT_GENERAL]: {
+src\ai\modelPolicy.ts:42:  [TaskType.CHAT_ADMIN_ONBOARDING]: {
+src\ai\modelPolicy.ts:47:  [TaskType.AGENCY_ADMIN_SETUP_GUIDED_V2]: {
+src\ai\modelPolicy.ts:52:  [TaskType.AGENCY_ADMIN_GENERAL_CHAT]: {
+src\ai\modelPolicy.ts:57:  [TaskType.AGENCY_ADMIN_SETUP_EXTRACT]: {
+src\ai\modelPolicy.ts:62:  [TaskType.CLIENT_PORTAL_QA]: {
+src\ai\modelPolicy.ts:68:  [TaskType.SUMMARIZE]: {
+src\ai\modelPolicy.ts:73:  [TaskType.EXTRACT_STRUCTURED]: {
+src\ai\modelPolicy.ts:78:  [TaskType.CLASSIFY_INTENT]: {
+src\ai\modelPolicy.ts:83:  [TaskType.STRATEGY_PLAN]: {
+src\ai\modelPolicy.ts:89:  [TaskType.CONTENT_IDEAS]: {
+src\ai\modelPolicy.ts:94:  [TaskType.SCRIPT_WRITING]: {
+src\ai\modelPolicy.ts:99:  [TaskType.TOOL_EXECUTION]: {
+src\ai\modelPolicy.ts:104:  [TaskType.EMBED_TEXT]: {
+src\ai\modelPolicy.ts:132:  if (taskType === TaskType.EMBED_TEXT) {
+src\ai\modelPolicy.ts:144:    (taskType === TaskType.EMBED_TEXT ? undefined : readEnv("AI_TEXT_MODEL_DEFAULT")) ??
+supabase\functions\ai-onboarding-suggest\index.ts:106:      task_type: TaskType.EXTRACT_STRUCTURED,
+supabase\functions\ai-onboarding-scan\index.ts:272:      task_type: TaskType.EXTRACT_STRUCTURED,
+supabase\functions\ai-onboarding-guide\index.ts:324:      taskType: TaskType.EXTRACT_STRUCTURED,
+supabase\functions\ai-onboarding-guide\index.ts:356:      taskType: TaskType.EXTRACT_STRUCTURED,
+supabase\functions\ai-onboarding-guide\index.ts:385:      taskType: TaskType.EXTRACT_STRUCTURED,
+src\ai\__tests__\router.test.ts:29:      taskType: TaskType.TOOL_EXECUTION,
+src\ai\__tests__\router.test.ts:37:      taskType: TaskType.TOOL_EXECUTION,
+src\ai\__tests__\router.test.ts:49:      taskType: TaskType.TOOL_EXECUTION,
+src\ai\__tests__\router.test.ts:66:      taskType: TaskType.EXTRACT_STRUCTURED,
+src\ai\__tests__\router.test.ts:77:      taskType: TaskType.STRATEGY_PLAN,
+src\ai\__tests__\router.test.ts:88:      taskType: TaskType.CONTENT_IDEAS,
+src\ai\__tests__\router.test.ts:115:        taskType: TaskType.EXTRACT_STRUCTURED,
+src\ai\router.ts:87:    case TaskType.EMBED_TEXT:
+src\ai\router.ts:89:    case TaskType.STRATEGY_PLAN:
+src\ai\router.ts:90:    case TaskType.CLIENT_PORTAL_QA:
+src\ai\router.ts:92:    case TaskType.SUMMARIZE:
+src\ai\router.ts:94:    case TaskType.CHAT_GENERAL:
+src\ai\router.ts:95:    case TaskType.CONTENT_IDEAS:
+src\ai\__tests__\modelPolicy.test.ts:36:      [TaskType.CHAT_GENERAL]: { dev: "gemini-1.5-flash", prod: "gemini-1.5-flash" },
+src\ai\__tests__\modelPolicy.test.ts:37:      [TaskType.CHAT_ADMIN_ONBOARDING]: { dev: "gemini-1.5-flash", prod: "gemini-1.5-flash" },
+src\ai\__tests__\modelPolicy.test.ts:38:      [TaskType.CLIENT_PORTAL_QA]: { dev: "gemini-1.5-flash", prod: "gemini-1.5-flash" },
+src\ai\__tests__\modelPolicy.test.ts:39:      [TaskType.SUMMARIZE]: { dev: "gemini-1.5-flash", prod: "gemini-1.5-flash" },
+src\ai\__tests__\modelPolicy.test.ts:40:      [TaskType.EXTRACT_STRUCTURED]: { dev: "gemini-1.5-flash", prod: "gemini-1.5-flash" },
+src\ai\__tests__\modelPolicy.test.ts:41:      [TaskType.CLASSIFY_INTENT]: { dev: "gemini-1.5-flash", prod: "gemini-1.5-flash" },
+src\ai\__tests__\modelPolicy.test.ts:42:      [TaskType.STRATEGY_PLAN]: { dev: "gemini-1.5-flash", prod: "gemini-1.5-flash" },
+src\ai\__tests__\modelPolicy.test.ts:43:      [TaskType.CONTENT_IDEAS]: { dev: "gemini-1.5-flash", prod: "gemini-1.5-flash" },
+src\ai\__tests__\modelPolicy.test.ts:44:      [TaskType.SCRIPT_WRITING]: { dev: "gemini-1.5-flash", prod: "gemini-1.5-flash" },
+src\ai\__tests__\modelPolicy.test.ts:45:      [TaskType.TOOL_EXECUTION]: { dev: "gemini-1.5-flash", prod: "gemini-1.5-flash" },
+src\ai\__tests__\modelPolicy.test.ts:67:    const result = getModelForTask({ taskType: TaskType.TOOL_EXECUTION, planTier: "pro" });
+src\ai\__tests__\modelPolicy.test.ts:73:    const result = getModelForTask({ taskType: TaskType.TOOL_EXECUTION, planTier: "pro" });
+src\ai\__tests__\modelPolicy.test.ts:78:    const text = getModelForTask({ taskType: TaskType.SUMMARIZE, mode: "prod", planTier: "free" });
+src\ai\__tests__\modelPolicy.test.ts:81:    const embed = getModelForTask({ taskType: TaskType.EMBED_TEXT, mode: "prod", planTier: "free" });
+src\ai\__tests__\modelPolicy.test.ts:87:    const result = getModelForTask({ taskType: TaskType.CHAT_GENERAL, mode: "prod", planTier: "free" });
+src\ai\__tests__\modelPolicy.test.ts:93:    const result = getModelForTask({ taskType: TaskType.CHAT_GENERAL, mode: "prod", planTier: "free" });
+src\ai\ragPolicy.ts:35:  [TaskType.CLIENT_PORTAL_QA]: {
+src\ai\ragPolicy.ts:46:  [TaskType.STRATEGY_PLAN]: {
+src\ai\taskToModuleMap.ts:42:  [TaskType.CHAT_GENERAL]: [],
+src\ai\taskToModuleMap.ts:45:  [TaskType.CHAT_ADMIN_ONBOARDING]: [
+src\ai\taskToModuleMap.ts:54:  [TaskType.AGENCY_ADMIN_SETUP_GUIDED_V2]: [
+src\ai\taskToModuleMap.ts:63:  [TaskType.AGENCY_ADMIN_GENERAL_CHAT]: [
+src\ai\taskToModuleMap.ts:82:  [TaskType.AGENCY_ADMIN_SETUP_EXTRACT]: [
+src\ai\taskToModuleMap.ts:91:  [TaskType.CLIENT_PORTAL_QA]: [
+src\ai\taskToModuleMap.ts:105:  [TaskType.SUMMARIZE]: [],
+src\ai\taskToModuleMap.ts:108:  [TaskType.EXTRACT_STRUCTURED]: [],
+src\ai\taskToModuleMap.ts:111:  [TaskType.CLASSIFY_INTENT]: [],
+src\ai\taskToModuleMap.ts:114:  [TaskType.STRATEGY_PLAN]: [
+src\ai\taskToModuleMap.ts:138:  [TaskType.CONTENT_IDEAS]: [
+src\ai\taskToModuleMap.ts:157:  [TaskType.SCRIPT_WRITING]: [
+src\ai\taskToModuleMap.ts:176:  [TaskType.TOOL_EXECUTION]: [],
+src\ai\taskToModuleMap.ts:179:  [TaskType.EMBED_TEXT]: [],
+src\ai\taskRegistry.ts:86:  taskType: TaskType.AGENCY_ADMIN_GENERAL_CHAT,
+src\ai\taskRegistry.ts:109:  taskType: TaskType.AGENCY_ADMIN_GENERAL_CHAT,
+src\ai\taskRegistry.ts:138:  [TaskType.CHAT_GENERAL]: {
+src\ai\taskRegistry.ts:139:    taskType: TaskType.CHAT_GENERAL,
+src\ai\taskRegistry.ts:147:  [TaskType.CHAT_ADMIN_ONBOARDING]: {
+src\ai\taskRegistry.ts:148:    taskType: TaskType.CHAT_ADMIN_ONBOARDING,
+src\ai\taskRegistry.ts:156:  [TaskType.AGENCY_ADMIN_SETUP_GUIDED_V2]: {
+src\ai\taskRegistry.ts:157:    taskType: TaskType.AGENCY_ADMIN_SETUP_GUIDED_V2,
+src\ai\taskRegistry.ts:194:  [TaskType.AGENCY_ADMIN_GENERAL_CHAT]: {
+src\ai\taskRegistry.ts:195:    taskType: TaskType.AGENCY_ADMIN_GENERAL_CHAT,
+src\ai\taskRegistry.ts:213:  [TaskType.AGENCY_ADMIN_SETUP_EXTRACT]: {
+src\ai\taskRegistry.ts:214:    taskType: TaskType.AGENCY_ADMIN_SETUP_EXTRACT,
+src\ai\taskRegistry.ts:230:  [TaskType.CLIENT_PORTAL_QA]: {
+src\ai\taskRegistry.ts:231:    taskType: TaskType.CLIENT_PORTAL_QA,
+src\ai\taskRegistry.ts:244:  [TaskType.SUMMARIZE]: {
+src\ai\taskRegistry.ts:245:    taskType: TaskType.SUMMARIZE,
+src\ai\taskRegistry.ts:257:  [TaskType.EXTRACT_STRUCTURED]: {
+src\ai\taskRegistry.ts:258:    taskType: TaskType.EXTRACT_STRUCTURED,
+src\ai\taskRegistry.ts:271:  [TaskType.CLASSIFY_INTENT]: {
+src\ai\taskRegistry.ts:272:    taskType: TaskType.CLASSIFY_INTENT,
+src\ai\taskRegistry.ts:280:  [TaskType.STRATEGY_PLAN]: {
+src\ai\taskRegistry.ts:281:    taskType: TaskType.STRATEGY_PLAN,
+src\ai\taskRegistry.ts:296:  [TaskType.CONTENT_IDEAS]: {
+src\ai\taskRegistry.ts:297:    taskType: TaskType.CONTENT_IDEAS,
+src\ai\taskRegistry.ts:311:  [TaskType.SCRIPT_WRITING]: {
+src\ai\taskRegistry.ts:312:    taskType: TaskType.SCRIPT_WRITING,
+src\ai\taskRegistry.ts:326:  [TaskType.TOOL_EXECUTION]: {
+src\ai\taskRegistry.ts:327:    taskType: TaskType.TOOL_EXECUTION,
+src\ai\taskRegistry.ts:335:  [TaskType.EMBED_TEXT]: {

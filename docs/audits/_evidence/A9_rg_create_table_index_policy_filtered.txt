@@ -1,0 +1,126 @@
+﻿
+supabase/migrations\20251124133649_334878d3-6f11-41c7-ac57-53e7e85a4c1b.sql:6:CREATE TABLE IF NOT EXISTS 
+public.ai_generation_usage (
+supabase/migrations\20251124133649_334878d3-6f11-41c7-ac57-53e7e85a4c1b.sql:44:CREATE INDEX idx_ai_usage_month_agency 
+ON public.ai_generation_usage(month_year, agency_id);
+supabase/migrations\20260106120000_strategy_documents.sql:3:CREATE TABLE IF NOT EXISTS public.strategy_documents (
+supabase/migrations\20260106120000_strategy_documents.sql:21:CREATE INDEX IF NOT EXISTS 
+idx_strategy_documents_client_active
+supabase/migrations\20260106120000_strategy_documents.sql:26:CREATE POLICY strategy_documents_select ON 
+public.strategy_documents
+supabase/migrations\20260106120000_strategy_documents.sql:35:CREATE POLICY strategy_documents_insert ON 
+public.strategy_documents
+supabase/migrations\20260106120000_strategy_documents.sql:44:CREATE POLICY strategy_documents_update ON 
+public.strategy_documents
+supabase/migrations\20260106120000_strategy_documents.sql:53:CREATE POLICY strategy_documents_delete ON 
+public.strategy_documents
+supabase/migrations\20260106120000_strategy_documents.sql:93:CREATE POLICY "Agency members can upload strategy 
+documents"
+supabase/migrations\20260106120000_strategy_documents.sql:106:CREATE POLICY "Agency members can delete strategy 
+documents"
+supabase/migrations\20260106120000_strategy_documents.sql:119:CREATE POLICY "Public can view strategy documents"
+supabase/migrations\20251228174120_brain_documents_and_calibration_state.sql:39:CREATE TABLE public.brain_documents (
+supabase/migrations\20251228174120_brain_documents_and_calibration_state.sql:57:CREATE TABLE 
+public.brain_document_versions (
+supabase/migrations\20251228174120_brain_documents_and_calibration_state.sql:69:CREATE INDEX 
+idx_brain_docs_agency_module ON public.brain_documents(agency_id, module);
+supabase/migrations\20251228174120_brain_documents_and_calibration_state.sql:70:CREATE INDEX 
+idx_brain_docs_agency_status ON public.brain_documents(agency_id, status);
+supabase/migrations\20251228174120_brain_documents_and_calibration_state.sql:71:CREATE INDEX idx_brain_docs_updated_at 
+ON public.brain_documents(updated_at DESC);
+supabase/migrations\20251228174120_brain_documents_and_calibration_state.sql:78:CREATE INDEX 
+idx_brain_doc_versions_doc ON public.brain_document_versions(document_id, version);
+supabase/migrations\20251228174120_brain_documents_and_calibration_state.sql:79:CREATE INDEX 
+idx_brain_doc_versions_created ON public.brain_document_versions(created_at DESC);
+supabase/migrations\20251228174120_brain_documents_and_calibration_state.sql:103:CREATE POLICY 
+brain_docs_select_policy ON public.brain_documents
+supabase/migrations\20251228174120_brain_documents_and_calibration_state.sql:114:CREATE POLICY 
+brain_docs_insert_policy ON public.brain_documents
+supabase/migrations\20251228174120_brain_documents_and_calibration_state.sql:126:CREATE POLICY 
+brain_docs_update_policy ON public.brain_documents
+supabase/migrations\20251228174120_brain_documents_and_calibration_state.sql:138:CREATE POLICY 
+brain_docs_delete_policy ON public.brain_documents
+supabase/migrations\20251228174120_brain_documents_and_calibration_state.sql:150:CREATE POLICY 
+brain_doc_versions_select_policy ON public.brain_document_versions
+supabase/migrations\20251228174120_brain_documents_and_calibration_state.sql:162:CREATE POLICY 
+brain_doc_versions_insert_policy ON public.brain_document_versions
+supabase/migrations\20251228174120_brain_documents_and_calibration_state.sql:414:CREATE INDEX IF NOT EXISTS 
+idx_agency_brains_calibration_state
+supabase/migrations\20251228174120_brain_documents_and_calibration_state.sql:422:CREATE TABLE 
+public.task_module_requirements (
+supabase/migrations\20251228174120_brain_documents_and_calibration_state.sql:450:CREATE POLICY 
+task_module_requirements_select_policy ON public.task_module_requirements
+supabase/migrations\20251230090000_strategy_os_ops.sql:4:CREATE TABLE IF NOT EXISTS public.strategies (
+supabase/migrations\20251230090000_strategy_os_ops.sql:18:CREATE INDEX IF NOT EXISTS idx_strategies_client ON 
+public.strategies(client_id);
+supabase/migrations\20251230090000_strategy_os_ops.sql:19:CREATE INDEX IF NOT EXISTS idx_strategies_agency ON 
+public.strategies(agency_id);
+supabase/migrations\20251230090000_strategy_os_ops.sql:22:CREATE TABLE IF NOT EXISTS public.strategy_decisions (
+supabase/migrations\20251230090000_strategy_os_ops.sql:37:CREATE INDEX IF NOT EXISTS idx_strategy_decisions_strategy 
+ON public.strategy_decisions(strategy_id);
+supabase/migrations\20251230090000_strategy_os_ops.sql:38:CREATE INDEX IF NOT EXISTS idx_strategy_decisions_client ON 
+public.strategy_decisions(client_id);
+supabase/migrations\20251230090000_strategy_os_ops.sql:47:CREATE INDEX IF NOT EXISTS idx_strategy_modules_strategy ON 
+public.strategy_modules(strategy_id);
+supabase/migrations\20251230090000_strategy_os_ops.sql:60:CREATE INDEX IF NOT EXISTS idx_strategy_history_strategy ON 
+public.strategy_history(strategy_id);
+supabase/migrations\20251230090000_strategy_os_ops.sql:89:CREATE INDEX IF NOT EXISTS idx_strategy_tasks_strategy ON 
+public.strategy_tasks(strategy_id);
+supabase/migrations\20251230090000_strategy_os_ops.sql:90:CREATE INDEX IF NOT EXISTS idx_strategy_tasks_task ON 
+public.strategy_tasks(task_id);
+supabase/migrations\20251230090000_strategy_os_ops.sql:91:CREATE INDEX IF NOT EXISTS idx_strategy_tasks_project ON 
+public.strategy_tasks(project_id);
+supabase/migrations\20251230090000_strategy_os_ops.sql:302:CREATE POLICY strategies_select ON public.strategies
+supabase/migrations\20251230090000_strategy_os_ops.sql:311:CREATE POLICY strategies_insert ON public.strategies
+supabase/migrations\20251230090000_strategy_os_ops.sql:320:CREATE POLICY strategies_update ON public.strategies
+supabase/migrations\20251230090000_strategy_os_ops.sql:329:CREATE POLICY strategy_decisions_select ON 
+public.strategy_decisions
+supabase/migrations\20251230090000_strategy_os_ops.sql:339:CREATE POLICY strategy_decisions_insert ON 
+public.strategy_decisions
+supabase/migrations\20251230090000_strategy_os_ops.sql:349:CREATE POLICY strategy_decisions_update ON 
+public.strategy_decisions
+supabase/migrations\20251230090000_strategy_os_ops.sql:359:CREATE POLICY strategy_decisions_delete ON 
+public.strategy_decisions
+supabase/migrations\20251201192305_5dcbd960-b7b6-4885-86b9-f4add3806cf2.sql:2:CREATE TABLE IF NOT EXISTS 
+public.ai_history (
+supabase/migrations\20251201192305_5dcbd960-b7b6-4885-86b9-f4add3806cf2.sql:40:CREATE INDEX idx_ai_history_agency_id 
+ON public.ai_history(agency_id);
+supabase/migrations\20251201192305_5dcbd960-b7b6-4885-86b9-f4add3806cf2.sql:41:CREATE INDEX idx_ai_history_client_id 
+ON public.ai_history(client_id);
+supabase/migrations\20251201192305_5dcbd960-b7b6-4885-86b9-f4add3806cf2.sql:42:CREATE INDEX idx_ai_history_project_id 
+ON public.ai_history(project_id);
+supabase/migrations\20251201192305_5dcbd960-b7b6-4885-86b9-f4add3806cf2.sql:43:CREATE INDEX idx_ai_history_created_at 
+ON public.ai_history(created_at DESC);
+supabase/migrations\20251229100000_strategy_os.sql:33:CREATE TABLE IF NOT EXISTS public.strategy_modules (
+supabase/migrations\20251229100000_strategy_os.sql:56:CREATE TABLE IF NOT EXISTS public.strategy_history (
+supabase/migrations\20251229100000_strategy_os.sql:68:CREATE TABLE IF NOT EXISTS public.strategy_tasks (
+supabase/migrations\20251229100000_strategy_os.sql:84:CREATE INDEX IF NOT EXISTS idx_strategy_modules_client ON 
+public.strategy_modules(client_id);
+supabase/migrations\20251229100000_strategy_os.sql:85:CREATE INDEX IF NOT EXISTS idx_strategy_modules_agency ON 
+public.strategy_modules(agency_id);
+supabase/migrations\20251229100000_strategy_os.sql:86:CREATE INDEX IF NOT EXISTS idx_strategy_modules_status ON 
+public.strategy_modules(status);
+supabase/migrations\20251229100000_strategy_os.sql:87:CREATE INDEX IF NOT EXISTS idx_strategy_history_client ON 
+public.strategy_history(client_id);
+supabase/migrations\20251229100000_strategy_os.sql:88:CREATE INDEX IF NOT EXISTS idx_strategy_history_module ON 
+public.strategy_history(module_id);
+supabase/migrations\20251229100000_strategy_os.sql:89:CREATE INDEX IF NOT EXISTS idx_strategy_history_created ON 
+public.strategy_history(created_at DESC);
+supabase/migrations\20251229100000_strategy_os.sql:90:CREATE INDEX IF NOT EXISTS idx_strategy_tasks_client ON 
+public.strategy_tasks(client_id);
+supabase/migrations\20251229100000_strategy_os.sql:91:CREATE INDEX IF NOT EXISTS idx_strategy_tasks_module ON 
+public.strategy_tasks(module_id);
+supabase/migrations\20251229100000_strategy_os.sql:92:CREATE INDEX IF NOT EXISTS idx_strategy_tasks_status ON 
+public.strategy_tasks(status);
+supabase/migrations\20251229100000_strategy_os.sql:100:CREATE POLICY strategy_modules_select ON public.strategy_modules
+supabase/migrations\20251229100000_strategy_os.sql:109:CREATE POLICY strategy_modules_insert ON public.strategy_modules
+supabase/migrations\20251229100000_strategy_os.sql:118:CREATE POLICY strategy_modules_update ON public.strategy_modules
+supabase/migrations\20251229100000_strategy_os.sql:127:CREATE POLICY strategy_modules_delete ON public.strategy_modules
+supabase/migrations\20251229100000_strategy_os.sql:138:CREATE POLICY strategy_history_select ON public.strategy_history
+supabase/migrations\20251229100000_strategy_os.sql:148:CREATE POLICY strategy_history_insert ON public.strategy_history
+supabase/migrations\20251229100000_strategy_os.sql:159:CREATE POLICY strategy_tasks_select ON public.strategy_tasks
+supabase/migrations\20251229100000_strategy_os.sql:169:CREATE POLICY strategy_tasks_insert ON public.strategy_tasks
+supabase/migrations\20251229100000_strategy_os.sql:179:CREATE POLICY strategy_tasks_update ON public.strategy_tasks
+supabase/migrations\20251229100000_strategy_os.sql:189:CREATE POLICY strategy_tasks_delete ON public.strategy_tasks
+
+

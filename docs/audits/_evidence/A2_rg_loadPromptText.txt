@@ -1,0 +1,34 @@
+﻿src\ai\__tests__\promptRegistry.test.ts:2:import { loadPromptText } from "../promptRegistry.ts";
+src\ai\__tests__\promptRegistry.test.ts-3-
+src\ai\__tests__\promptRegistry.test.ts-4-describe("prompt registry", () => {
+--
+src\ai\__tests__\promptRegistry.test.ts:6:    expect(() => loadPromptText("admin_chat/empty_test.md")).toThrow();
+src\ai\__tests__\promptRegistry.test.ts:7:    expect(() => loadPromptText("admin_chat/empty_test.md")).toThrow();
+src\ai\__tests__\promptRegistry.test.ts-8-  });
+src\ai\__tests__\promptRegistry.test.ts-9-});
+--
+src\ai\__tests__\adminGeneralChatPrompt.test.ts:3:import { loadPromptText } from "../promptRegistry.ts";
+src\ai\__tests__\adminGeneralChatPrompt.test.ts-4-
+src\ai\__tests__\adminGeneralChatPrompt.test.ts-5-describe("admin general chat prompt mapping", () => {
+--
+src\ai\__tests__\adminGeneralChatPrompt.test.ts:23:      const expected = loadPromptText(entry.file).trim();
+src\ai\__tests__\adminGeneralChatPrompt.test.ts-24-      expect(system).toContain(expected);
+src\ai\__tests__\adminGeneralChatPrompt.test.ts-25-    }
+--
+src\ai\prompts\adminGeneralChat.ts:2:import { loadPromptText } from "../promptRegistry.ts";
+src\ai\prompts\adminGeneralChat.ts-3-
+src\ai\prompts\adminGeneralChat.ts-4-type PromptArgs = {
+--
+src\ai\prompts\adminGeneralChat.ts:17:  const systemRegistry = isStrategic ? loadPromptText("admin_chat/system_v1.md") : "";
+src\ai\prompts\adminGeneralChat.ts:18:  const developerRegistry = isStrategic ? loadPromptText("admin_chat/developer_v1.md") : "";
+src\ai\prompts\adminGeneralChat.ts:19:  const contractsRegistry = isStrategic ? loadPromptText("admin_chat/output_contracts_v1.md") : "";
+src\ai\prompts\adminGeneralChat.ts-20-  const PLAYBOOK_FILES: Record<NonNullable<PromptArgs["playbook"]>, string> = {
+src\ai\prompts\adminGeneralChat.ts-21-    core_offer: "admin_chat/playbooks/offer_core_offer_v1.md",
+--
+src\ai\prompts\adminGeneralChat.ts:26:  const playbookRegistry = isStrategic ? loadPromptText(PLAYBOOK_FILES[selectedPlaybook]) : "";
+src\ai\prompts\adminGeneralChat.ts-27-
+src\ai\prompts\adminGeneralChat.ts-28-  if (isStrategic) {
+--
+src\ai\promptRegistry.ts:78:export function loadPromptText(relativePath: string): string {
+src\ai\promptRegistry.ts-79-  if (relativePath.includes("..") || relativePath.startsWith("/") || relativePath.startsWith("\\")) {
+src\ai\promptRegistry.ts-80-    throw new Error(`Invalid prompt path: ${relativePath}`);

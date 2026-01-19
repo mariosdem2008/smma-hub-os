@@ -1,0 +1,49 @@
+﻿supabase\functions\ai-onboarding-suggest\index.ts:105:    const result = await runAiTask({
+supabase\functions\ai-onboarding-suggest\index.ts-106-      task_type: TaskType.EXTRACT_STRUCTURED,
+supabase\functions\ai-onboarding-suggest\index.ts-107-      tenant: {
+supabase\functions\ai-onboarding-suggest\index.ts-108-        agency_id: opts.agencyId,
+--
+supabase\functions\ai-onboarding-scan\index.ts:271:    const result = await runAiTask({
+supabase\functions\ai-onboarding-scan\index.ts-272-      task_type: TaskType.EXTRACT_STRUCTURED,
+supabase\functions\ai-onboarding-scan\index.ts-273-      tenant: {
+supabase\functions\ai-onboarding-scan\index.ts-274-        agency_id: opts.agencyId,
+--
+supabase\functions\_shared\ai.ts:212:export async function runAiTask(input: RunAiTaskInput) {
+supabase\functions\_shared\ai.ts-213-  const startTime = Date.now();
+supabase\functions\_shared\ai.ts-214-  const supabase = input.supabase as MinimalSupabase | undefined;
+supabase\functions\_shared\ai.ts-215-  const agencyId = input.tenant.agency_id;
+--
+supabase\functions\_shared\agency-admin-general-ai.ts:596:  const result = await runAiTask({
+supabase\functions\_shared\agency-admin-general-ai.ts-597-    task_type: TaskType.AGENCY_ADMIN_GENERAL_CHAT,
+supabase\functions\_shared\agency-admin-general-ai.ts-598-    mode,
+supabase\functions\_shared\agency-admin-general-ai.ts-599-    tenant: { agency_id: opts.agencyId, user_id: opts.userId },
+--
+supabase\functions\_shared\agency-admin-setup.ts:826:  const result = await runAiTask({
+supabase\functions\_shared\agency-admin-setup.ts-827-    task_type: TaskType.SUMMARIZE,
+supabase\functions\_shared\agency-admin-setup.ts-828-    mode: getAiMode(),
+supabase\functions\_shared\agency-admin-setup.ts-829-    tenant: { agency_id: opts.agencyId, user_id: opts.userId },
+--
+supabase\functions\_shared\agency-admin-setup.ts:1510:        const result = await runAiTask({
+supabase\functions\_shared\agency-admin-setup.ts-1511-          task_type: TaskType.AGENCY_ADMIN_SETUP_EXTRACT,
+supabase\functions\_shared\agency-admin-setup.ts-1512-          mode: getAiMode(),
+supabase\functions\_shared\agency-admin-setup.ts-1513-          tenant: { agency_id: opts.agencyId, user_id: opts.userId },
+--
+supabase\functions\_shared\__tests__\ai-guards.test.ts:109:    const result = await runAiTask({
+supabase\functions\_shared\__tests__\ai-guards.test.ts-110-      task_type: TaskType.SUMMARIZE,
+supabase\functions\_shared\__tests__\ai-guards.test.ts-111-      tenant: { agency_id: "agency-1", user_id: "user-1", client_id: "client-1" },
+supabase\functions\_shared\__tests__\ai-guards.test.ts-112-      input: { message: "hello" },
+--
+supabase\functions\_shared\__tests__\ai-guards.test.ts:128:    const result = await runAiTask({
+supabase\functions\_shared\__tests__\ai-guards.test.ts-129-      task_type: TaskType.SUMMARIZE,
+supabase\functions\_shared\__tests__\ai-guards.test.ts-130-      tenant: { agency_id: "agency-1", user_id: "user-1", client_id: "client-1" },
+supabase\functions\_shared\__tests__\ai-guards.test.ts-131-      input: { message: "hello" },
+--
+supabase\functions\_shared\__tests__\ai-guards.test.ts:156:    const success = await runAiTask({
+supabase\functions\_shared\__tests__\ai-guards.test.ts-157-      task_type: TaskType.SUMMARIZE,
+supabase\functions\_shared\__tests__\ai-guards.test.ts-158-      tenant: { agency_id: "agency-1", user_id: "user-1", client_id: "client-1" },
+supabase\functions\_shared\__tests__\ai-guards.test.ts-159-      input: { message: "hello" },
+--
+supabase\functions\_shared\__tests__\ai-guards.test.ts:172:    await expect(runAiTask({
+supabase\functions\_shared\__tests__\ai-guards.test.ts-173-      task_type: TaskType.SUMMARIZE,
+supabase\functions\_shared\__tests__\ai-guards.test.ts-174-      tenant: { agency_id: "agency-1", user_id: "user-1", client_id: "client-1" },
+supabase\functions\_shared\__tests__\ai-guards.test.ts-175-      input: { message: "hello" },

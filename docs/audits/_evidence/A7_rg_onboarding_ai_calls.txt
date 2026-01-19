@@ -1,0 +1,34 @@
+﻿src/components/onboarding-v5\OnboardingV5Wizard.tsx:597:      const { data: createResp, error: createErr } = await supabase.functions.invoke('ai-brains-client', {
+src/components/onboarding-v5\OnboardingV5Wizard.tsx-598-        body: {
+src/components/onboarding-v5\OnboardingV5Wizard.tsx-599-          action: 'create',
+src/components/onboarding-v5\OnboardingV5Wizard.tsx-600-          agency_id: agencyId,
+--
+src/components/onboarding-v5\OnboardingV5Wizard.tsx:610:      const { error: updateErr } = await supabase.functions.invoke('ai-brains-client', {
+src/components/onboarding-v5\OnboardingV5Wizard.tsx-611-        body: {
+src/components/onboarding-v5\OnboardingV5Wizard.tsx-612-          action: 'update',
+src/components/onboarding-v5\OnboardingV5Wizard.tsx-613-          agency_id: agencyId,
+--
+src/components/onboarding-v5\OnboardingV5Wizard.tsx:621:      const { error: ingestErr } = await supabase.functions.invoke('ai-brain-ingest', {
+src/components/onboarding-v5\OnboardingV5Wizard.tsx-622-        body: {
+src/components/onboarding-v5\OnboardingV5Wizard.tsx-623-          scope: 'client',
+src/components/onboarding-v5\OnboardingV5Wizard.tsx-624-          agency_id: agencyId,
+--
+src/components/onboarding-v5\OnboardingV5Wizard.tsx:634:      const { data: strategyResp, error: strategyErr } = await supabase.functions.invoke('ai-strategy-generate', {
+src/components/onboarding-v5\OnboardingV5Wizard.tsx-635-        body: { client_id: clientId },
+src/components/onboarding-v5\OnboardingV5Wizard.tsx-636-      });
+src/components/onboarding-v5\OnboardingV5Wizard.tsx-637-      if (strategyErr) throw strategyErr;
+--
+src/components/onboarding-v4\OnboardingContext.tsx:499:      const { data: createResp, error: createErr } = await supabase.functions.invoke('ai-brains-client', {
+src/components/onboarding-v4\OnboardingContext.tsx-500-        body: {
+src/components/onboarding-v4\OnboardingContext.tsx-501-          action: 'create',
+src/components/onboarding-v4\OnboardingContext.tsx-502-          agency_id: agencyId,
+--
+src/components/onboarding-v4\OnboardingContext.tsx:517:      const { error: updateErr } = await supabase.functions.invoke('ai-brains-client', {
+src/components/onboarding-v4\OnboardingContext.tsx-518-        body: {
+src/components/onboarding-v4\OnboardingContext.tsx-519-          action: 'update',
+src/components/onboarding-v4\OnboardingContext.tsx-520-          agency_id: agencyId,
+--
+src/components/onboarding-v4\OnboardingContext.tsx:531:      const { error: ingestErr } = await supabase.functions.invoke('ai-brain-ingest', {
+src/components/onboarding-v4\OnboardingContext.tsx-532-        body: {
+src/components/onboarding-v4\OnboardingContext.tsx-533-          scope: 'client',
+src/components/onboarding-v4\OnboardingContext.tsx-534-          agency_id: agencyId,

@@ -2,8 +2,6 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { BrainModule } from "@/lib/ai/brainModules";
 
-const DEFAULT_MODULES: BrainModule[] = ["bootstrap", "rep_policy", "quality_bar"];
-
 export type DefaultBrainPackIngestionHealth = {
   approvedModules: BrainModule[];
   missingModules: BrainModule[];
@@ -14,7 +12,7 @@ export function useDefaultBrainPackIngestionHealth(args: {
   approvedModules: BrainModule[];
 }) {
   const agencyId = args.agencyId;
-  const approvedModules = (args.approvedModules ?? []).filter((m) => DEFAULT_MODULES.includes(m));
+  const approvedModules = Array.from(new Set(args.approvedModules ?? []));
 
   return useQuery({
     queryKey: ["default-brain-pack", "ingestion-health", agencyId, approvedModules.slice().sort().join(",")],

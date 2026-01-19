@@ -1,0 +1,97 @@
+﻿supabase/functions\ai-documents-ingest\index.ts:257:  await supabase.from("ai_usage_logs").insert({
+supabase/functions\ai-documents-ingest\index.ts-258-    agency_id: agencyId,
+supabase/functions\ai-documents-ingest\index.ts-259-    client_id: clientId ?? null,
+--
+supabase/functions\ai-retrieve-context\index.ts:143:  await supabase.from("ai_usage_logs").insert({
+supabase/functions\ai-retrieve-context\index.ts-144-    agency_id: agencyId,
+supabase/functions\ai-retrieve-context\index.ts-145-    client_id: clientId ?? null,
+--
+supabase/functions\ai-seed-default-brain-pack\index.ts:84:      await supabase.from("ai_usage_logs").insert(
+supabase/functions\ai-seed-default-brain-pack\index.ts-85-        buildDefaultBrainPackUsageLog({
+supabase/functions\ai-seed-default-brain-pack\index.ts-86-          agencyId,
+--
+supabase/functions\ai-strategy-generate\index.ts:247:    await supabase.from("ai_usage_logs").insert({
+supabase/functions\ai-strategy-generate\index.ts-248-      agency_id: agencyId,
+supabase/functions\ai-strategy-generate\index.ts-249-      client_id: clientId,
+--
+supabase/functions\ai-strategy-generate\index.ts:357:    await supabase.from("ai_usage_logs").insert({
+supabase/functions\ai-strategy-generate\index.ts-358-      agency_id: agencyId,
+supabase/functions\ai-strategy-generate\index.ts-359-      client_id: clientId,
+--
+supabase/functions\ai-strategy-generate\index.ts:478:    await supabase.from("ai_usage_logs").insert({
+supabase/functions\ai-strategy-generate\index.ts-479-      agency_id: agencyId,
+supabase/functions\ai-strategy-generate\index.ts-480-      client_id: clientId,
+--
+supabase/functions\ai-strategy-generate\index.ts:858:  await supabase.from("ai_usage_logs").insert({
+supabase/functions\ai-strategy-generate\index.ts-859-    agency_id: agencyId,
+supabase/functions\ai-strategy-generate\index.ts-860-    client_id: clientId,
+--
+supabase/functions\ai-rep-chat\index.ts:129:  await supabase.from("ai_usage_logs").insert({
+supabase/functions\ai-rep-chat\index.ts-130-    agency_id: clientRow.agency_id,
+supabase/functions\ai-rep-chat\index.ts-131-    client_id: clientId,
+--
+supabase/functions\ai-brain-ingest\index.ts:416:  await supabase.from("ai_usage_logs").insert({
+supabase/functions\ai-brain-ingest\index.ts-417-    agency_id: agencyId,
+supabase/functions\ai-brain-ingest\index.ts-418-    client_id: clientId ?? null,
+--
+supabase/functions\generate-ai-content\index.ts:7:import { logUsage } from "../../../src/ai/logging.ts";
+supabase/functions\generate-ai-content\index.ts-8-import { calculateCost, incrementBudget } from "../_shared/budgets.ts";
+supabase/functions\generate-ai-content\index.ts-9-import { getEndpointGuardResponse } from "../_shared/endpoint-guard.ts";
+--
+supabase/functions\generate-ai-content\index.ts:241:    await logUsage(supabaseClient, {
+supabase/functions\generate-ai-content\index.ts-242-      taskType: TaskType.CONTENT_IDEAS,
+supabase/functions\generate-ai-content\index.ts-243-      endpoint: "generate-ai-content",
+--
+supabase/functions\ai-ask\index.ts:332:    await supabase.from("ai_usage_logs").insert({
+supabase/functions\ai-ask\index.ts-333-      agency_id: agencyId,
+supabase/functions\ai-ask\index.ts-334-      client_id: clientId ?? null,
+--
+supabase/functions\ai-ask\index.ts:413:    await supabase.from("ai_usage_logs").insert({
+supabase/functions\ai-ask\index.ts-414-      agency_id: agencyId,
+supabase/functions\ai-ask\index.ts-415-      client_id: clientId ?? null,
+--
+supabase/functions\ai-seed-default-brain-pack-admin\index.ts:105:    await supabase.from("ai_usage_logs").insert({
+supabase/functions\ai-seed-default-brain-pack-admin\index.ts-106-      agency_id: agencyId,
+supabase/functions\ai-seed-default-brain-pack-admin\index.ts-107-      client_id: null,
+--
+supabase/functions\_shared\ai.ts:2:import { logUsage } from "../../../src/ai/logging.ts";
+supabase/functions\_shared\ai.ts-3-import type { ChatMessage } from "../../../src/ai/providers/types.ts";
+supabase/functions\_shared\ai.ts-4-import type { OutputSchema } from "../../../src/ai/schema.ts";
+--
+supabase/functions\_shared\ai.ts:168:    await logUsage(opts.supabase, {
+supabase/functions\_shared\ai.ts-169-      taskType: opts.taskType,
+supabase/functions\_shared\ai.ts-170-      endpoint,
+--
+supabase/functions\_shared\lockdown.ts:31:    await supabase.from("ai_usage_logs").insert({
+supabase/functions\_shared\lockdown.ts-32-      agency_id: agencyId,
+supabase/functions\_shared\lockdown.ts-33-      client_id: clientId ?? null,
+--
+supabase/functions\_shared\__tests__\ai-guards.test.ts:18:    ai_usage_logs: [],
+supabase/functions\_shared\__tests__\ai-guards.test.ts-19-    ai_rate_limits: [],
+supabase/functions\_shared\__tests__\ai-guards.test.ts-20-    ai_budgets: [],
+--
+supabase/functions\_shared\__tests__\ai-guards.test.ts:59:      if (table === "ai_usage_logs") {
+supabase/functions\_shared\__tests__\ai-guards.test.ts-60-        return {
+supabase/functions\_shared\__tests__\ai-guards.test.ts-61-          insert: async (payload: any) => {
+supabase/functions\_shared\__tests__\ai-guards.test.ts:62:            inserts.ai_usage_logs.push(payload);
+supabase/functions\_shared\__tests__\ai-guards.test.ts-63-            return { data: null, error: null };
+supabase/functions\_shared\__tests__\ai-guards.test.ts-64-          },
+--
+supabase/functions\_shared\__tests__\ai-guards.test.ts:119:    expect(inserts.ai_usage_logs.length).toBe(1);
+supabase/functions\_shared\__tests__\ai-guards.test.ts-120-  });
+supabase/functions\_shared\__tests__\ai-guards.test.ts-121-
+--
+supabase/functions\_shared\__tests__\ai-guards.test.ts:138:    expect(inserts.ai_usage_logs.length).toBe(1);
+supabase/functions\_shared\__tests__\ai-guards.test.ts-139-  });
+supabase/functions\_shared\__tests__\ai-guards.test.ts-140-
+--
+supabase/functions\_shared\__tests__\ai-guards.test.ts:165:    expect(inserts.ai_usage_logs.length).toBe(1);
+supabase/functions\_shared\__tests__\ai-guards.test.ts-166-
+supabase/functions\_shared\__tests__\ai-guards.test.ts-167-    inserts.ai_runs.length = 0;
+supabase/functions\_shared\__tests__\ai-guards.test.ts:168:    inserts.ai_usage_logs.length = 0;
+supabase/functions\_shared\__tests__\ai-guards.test.ts-169-
+supabase/functions\_shared\__tests__\ai-guards.test.ts-170-    runMock.mockRejectedValueOnce(new Error("boom"));
+--
+supabase/functions\_shared\__tests__\ai-guards.test.ts:181:    expect(inserts.ai_usage_logs.length).toBe(1);
+supabase/functions\_shared\__tests__\ai-guards.test.ts-182-  });
+supabase/functions\_shared\__tests__\ai-guards.test.ts-183-});

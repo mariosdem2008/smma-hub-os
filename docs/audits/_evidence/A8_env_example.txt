@@ -1,0 +1,47 @@
+﻿# ============================================
+# SMMAHUB Environment Variables
+# ============================================
+# Copy this file to .env and fill in your values
+# For local development, also create .env.local
+
+# ============================================
+# PUBLIC URL
+# ============================================
+# Production: https://smmahub.net
+# Local: http://localhost:5173
+VITE_PUBLIC_URL=https://smmahub.net
+
+# ============================================
+# SUPABASE CONFIGURATION
+# ============================================
+# These are automatically set by Lovable Cloud
+# For local development, use your local Supabase values
+
+VITE_SUPABASE_PROJECT_ID="your-project-id"
+VITE_SUPABASE_URL="https://your-project.supabase.co"
+VITE_SUPABASE_ANON_KEY="your-anon-key"
+VITE_SUPABASE_PUBLISHABLE_KEY="your-anon-key" # fallback if ANON not provided
+
+# ============================================
+# LOCAL DEVELOPMENT (Optional)
+# ============================================
+# Run `supabase start` to get these values
+# VITE_SUPABASE_URL=http://localhost:54321
+# VITE_SUPABASE_PUBLISHABLE_KEY=your-local-anon-key
+
+# ============================================
+# NOTES
+# ============================================
+# - All secrets (STRIPE_SECRET_KEY, OPENAI_API_KEY, etc.)
+#   are stored in Supabase/Lovable Cloud secrets
+# - Do NOT commit actual keys to version control
+# - The frontend only needs VITE_* prefixed variables
+
+# ============================================
+# AI PROVIDERS (Server-side / Edge)
+# ============================================
+# GEMINI_API_KEY=your-gemini-api-key
+# AI_PROVIDER=gemini
+# AI_TEXT_MODEL_DEFAULT=gemini-1.5-flash
+# AI_EMBED_DIM_EXPECTED=1536
+# ENABLE_UNUSED_AI_ENDPOINTS=false

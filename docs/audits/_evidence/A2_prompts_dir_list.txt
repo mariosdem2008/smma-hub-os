@@ -1,0 +1,7 @@
+﻿
+FullName                                                                         
+--------                                                                         
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\prompts\admin_chat          
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\prompts\admin_chat\playbooks
+
+

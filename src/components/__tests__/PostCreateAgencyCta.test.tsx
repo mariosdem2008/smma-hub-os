@@ -16,7 +16,7 @@ describe("PostCreateAgencyCta", () => {
 
   afterEach(() => cleanup());
 
-  it("shows CTA for admin when setup incomplete and routes to guided onboarding", async () => {
+  it("shows CTA for admin when setup incomplete and routes to AI Setup", async () => {
     const user = userEvent.setup();
 
     render(
@@ -31,14 +31,14 @@ describe("PostCreateAgencyCta", () => {
               </>
             }
           />
-          <Route path="/ai/admin" element={<LocationDisplay />} />
+          <Route path="/agency/ai-setup" element={<LocationDisplay />} />
         </Routes>
       </MemoryRouter>,
     );
 
     expect(screen.getByText("Finish AI Setup")).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Open AI Setup" }));
-    expect(screen.getByTestId("location").textContent).toBe("/ai/admin?mode=guided_onboarding");
+    expect(screen.getByTestId("location").textContent).toBe("/agency/ai-setup");
   });
 
   it("hides CTA for non-admin", () => {

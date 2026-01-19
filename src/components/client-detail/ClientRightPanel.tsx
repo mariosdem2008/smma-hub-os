@@ -146,7 +146,7 @@ AI isn’t configured yet. Complete AI Setup to enable this assistant.`,
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="w-full sm:w-[400px] md:w-[450px] p-0 flex flex-col"
+        className="w-full sm:w-[400px] md:w-[450px] p-0 flex flex-col [&>button]:hidden"
       >
         <SheetHeader className="px-4 py-3 border-b">
           <div className="flex items-center justify-between">

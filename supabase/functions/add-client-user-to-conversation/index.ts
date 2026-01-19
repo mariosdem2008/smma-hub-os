@@ -14,16 +14,40 @@ interface ClientPortalJwtPayload {
 }
 
 async function verifyClientPortalToken(token: string): Promise<ClientPortalJwtPayload | null> {
-  if (!CLIENT_PORTAL_JWT_SECRET) return null;
+  if (!CLIENT_PORTAL_JWT_SECRET) {
+    console.error("CLIENT_PORTAL_JWT_SECRET not configured");
+    return null;
+  }
   
   try {
-    const parts = token.split('.');
+    const parts = token.split(".");
     if (parts.length !== 3) return null;
     
-    const [header, payload, signature] = parts;
+    const [encodedHeader, encodedPayload, encodedSignature] = parts;
+
+    const key = await crypto.subtle.importKey(
+      "raw",
+      new TextEncoder().encode(CLIENT_PORTAL_JWT_SECRET),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["verify"],
+    );
+
+    const sigBase64 = encodedSignature.replace(/-/g, "+").replace(/_/g, "/");
+    const sigPadded = sigBase64 + "=".repeat((4 - (sigBase64.length % 4)) % 4);
+    const signature = Uint8Array.from(atob(sigPadded), (c) => c.charCodeAt(0));
+
+    const isValid = await crypto.subtle.verify(
+      "HMAC",
+      key,
+      signature,
+      new TextEncoder().encode(`${encodedHeader}.${encodedPayload}`),
+    );
+
+    if (!isValid) return null;
     
     // Decode payload
-    const payloadBase64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const payloadBase64 = encodedPayload.replace(/-/g, "+").replace(/_/g, "/");
     const payloadPadded = payloadBase64 + '='.repeat((4 - (payloadBase64.length % 4)) % 4);
     const decodedPayload: ClientPortalJwtPayload = JSON.parse(atob(payloadPadded));
     

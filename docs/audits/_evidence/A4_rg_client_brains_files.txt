@@ -1,0 +1,6 @@
+﻿supabase\functions\ai-brain-ingest\index.ts
+supabase\functions\ai-brains-client\index.ts
+supabase\functions\ai-strategy-generate\index.ts
+supabase\functions\ai-rep-chat\index.ts
+src\ai\brains\client.ts
+src\integrations\supabase\types.ts

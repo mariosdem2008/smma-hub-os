@@ -88,7 +88,7 @@ function getTimeoutMs(taskType: TaskType) {
       return 10_000;
     case TaskType.STRATEGY_PLAN:
     case TaskType.CLIENT_PORTAL_QA:
-      return 60_000;
+      return 180_000;
     case TaskType.SUMMARIZE:
       return 45_000;
     case TaskType.CHAT_GENERAL:

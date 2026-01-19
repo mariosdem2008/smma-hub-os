@@ -30,7 +30,7 @@ export function PostCreateAgencyCta({ isAdmin, aiSetupComplete }: Props) {
           <p className="text-sm text-muted-foreground">Complete the guided AI setup to unlock smarter outputs.</p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
-          <Button onClick={() => navigate("/ai/admin?mode=guided_onboarding")}>Open AI Setup</Button>
+          <Button onClick={() => navigate("/agency/ai-setup")}>Open AI Setup</Button>
           <Button
             variant="outline"
             onClick={() => {

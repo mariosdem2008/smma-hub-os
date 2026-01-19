@@ -1,0 +1,12 @@
+﻿
+FullName                                                                                                
+--------                                                                                                
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\prompts\admin_chat\developer_v1.md                 
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\prompts\admin_chat\empty_test.md                   
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\prompts\admin_chat\output_contracts_v1.md          
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\prompts\admin_chat\playbooks\copywriting_v1.md     
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\prompts\admin_chat\playbooks\offer_core_offer_v1.md
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\prompts\admin_chat\playbooks\strategy_v1.md        
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\prompts\admin_chat\system_v1.md                    
+
+

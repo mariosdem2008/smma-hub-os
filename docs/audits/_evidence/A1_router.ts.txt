@@ -1,0 +1,526 @@
+﻿    1: import { getAgencyBrainContext, getClientBrainContext } from "./brains/index.ts"
+    2: import { logUsage } from "./logging.ts"
+    3: import { resolveTaskModel, getTaskConfig } from "./taskRegistry.ts"
+    4: import { TaskType } from "./taskTypes.ts"
+    5: import { nowMs } from "./utils.ts"
+    6: import { providers as defaultProviders } from "./providers/index.ts"
+    7: import { createBrainResolver, type CalibrationRequirement, type ResolvedBrainContext } from "./brainResolver.ts"
+    8: import type { ChatMessage, GenerateResult } from "./providers/types.ts"
+    9: import type { OutputSchema } from "./schema.ts"
+   10: 
+   11: type MinimalSupabase = {
+   12:   from: (table: string) => any;
+   13: };
+   14: 
+   15: export type AiContext = {
+   16:   agencyId?: string;
+   17:   clientId?: string;
+   18:   userId?: string;
+   19:   role?: string;
+   20:   plan?: string;
+   21:   environment?: "dev" | "prod";
+   22:   supabase?: MinimalSupabase | null;
+   23:   skipUsageLog?: boolean;
+   24: };
+   25: 
+   26: export type AiRunOptions = {
+   27:   taskType: TaskType;
+   28:   input?: string;
+   29:   messages?: ChatMessage[];
+   30:   context: AiContext;
+   31:   metadata?: Record<string, unknown>;
+   32:   outputSchema?: OutputSchema<unknown>;
+   33: };
+   34: 
+   35: export type AiRunResult = {
+   36:   text: string;
+   37:   output?: unknown;
+   38:   unknown?: boolean;
+   39:   error?: string | null;
+   40:   raw?: unknown;
+   41:   rawText?: string;
+   42:   schemaOk?: boolean;
+   43:   usage?: GenerateResult["usage"];
+   44:   meta?: {
+   45:     provider: string;
+   46:     model: string;
+   47:   };
+   48:   /** Present when on-demand calibration is needed */
+   49:   calibrationNeeded?: CalibrationRequirement;
+   50:   /** Resolved brain context used for the request */
+   51:   resolvedContext?: ResolvedBrainContext;
+   52: };
+   53: 
+   54: export type AiStreamChunk =
+   55:   | { type: "delta"; text: string }
+   56:   | { type: "done"; result: AiRunResult };
+   57: 
+   58: type ProviderMap = typeof defaultProviders;
+   59: 
+   60: type RouterDeps = {
+   61:   providers?: ProviderMap;
+   62:   now?: () => number;
+   63:   /** Enable brain resolver for on-demand calibration */
+   64:   useBrainResolver?: boolean;
+   65: };
+   66: 
+   67: function extractJson(text: string) {
+   68:   const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/) || text.match(/```\n([\s\S]*?)\n```/);
+   69:   const rawJson = jsonMatch ? jsonMatch[1] : text;
+   70:   return JSON.parse(rawJson);
+   71: }
+   72: 
+   73: function buildUnknownResponse(taskType: TaskType, reason: string) {
+   74:   const config = getTaskConfig(taskType);
+   75:   if (config?.buildUnknown) {
+   76:     return config.buildUnknown({ reason });
+   77:   }
+   78:   return { answer: "UNKNOWN", unknown: true, questions: ["What additional context is required?"], confidence: 0 };
+   79: }
+   80: 
+   81: function shouldReturnUnknown(contextMissing: boolean, safetyMode: "strict_unknown" | "normal") {
+   82:   return contextMissing && safetyMode === "strict_unknown";
+   83: }
+   84: 
+   85: function getTimeoutMs(taskType: TaskType) {
+   86:   switch (taskType) {
+   87:     case TaskType.EMBED_TEXT:
+   88:       return 10_000;
+   89:     case TaskType.STRATEGY_PLAN:
+   90:     case TaskType.CLIENT_PORTAL_QA:
+   91:       return 180_000;
+   92:     case TaskType.SUMMARIZE:
+   93:       return 45_000;
+   94:     case TaskType.CHAT_GENERAL:
+   95:     case TaskType.CONTENT_IDEAS:
+   96:       return 30_000;
+   97:     default:
+   98:       return 30_000;
+   99:   }
+  100: }
+  101: 
+  102: async function generateWithRetry(opts: {
+  103:   provider: { generate: (params: any) => Promise<GenerateResult> };
+  104:   params: any;
+  105:   schema?: OutputSchema<unknown>;
+  106:   taskType: TaskType;
+  107: }): Promise<{
+  108:   text: string;
+  109:   output?: unknown;
+  110:   raw?: unknown;
+  111:   rawText?: string;
+  112:   schemaOk?: boolean;
+  113:   usage?: GenerateResult["usage"];
+  114:   model?: string;
+  115: }> {
+  116:   const providerAny = opts.provider as any;
+  117:   const generateFn =
+  118:     opts.schema && typeof providerAny.generateJson === "function"
+  119:       ? providerAny.generateJson.bind(opts.provider)
+  120:       : opts.provider.generate.bind(opts.provider);
+  121:   const first = await generateFn(opts.params);
+  122:   if (!opts.schema) {
+  123:     return { text: first.text, raw: first.raw, rawText: first.text, schemaOk: true, usage: first.usage, model: first.model };
+  124:   }
+  125: 
+  126:   try {
+  127:     const parsed = extractJson(first.text);
+  128:     const validated = opts.schema.validate(parsed);
+  129:     if (validated.ok) {
+  130:       return {
+  131:         text: first.text,
+  132:         output: validated.data,
+  133:         raw: first.raw,
+  134:         rawText: first.text,
+  135:         schemaOk: true,
+  136:         usage: first.usage,
+  137:         model: first.model,
+  138:       };
+  139:     }
+  140:   } catch {
+  141:     // fall through to repair
+  142:   }
+  143: 
+  144:   const repairMessages = [
+  145:     ...opts.params.messages,
+  146:     {
+  147:       role: "system",
+  148:       content: `Repair the response. Return only valid JSON matching schema: ${opts.schema.name}. No markdown.`,
+  149:     },
+  150:   ];
+  151: 
+  152:   const retry = await opts.provider.generate({ ...opts.params, messages: repairMessages });
+  153:   try {
+  154:     const parsed = extractJson(retry.text);
+  155:     const validated = opts.schema.validate(parsed);
+  156:     if (validated.ok) {
+  157:       return {
+  158:         text: retry.text,
+  159:         output: validated.data,
+  160:         raw: retry.raw,
+  161:         rawText: retry.text,
+  162:         schemaOk: true,
+  163:         usage: retry.usage,
+  164:         model: retry.model,
+  165:       };
+  166:     }
+  167:   } catch {
+  168:     return {
+  169:       text: "UNKNOWN",
+  170:       output: buildUnknownResponse(opts.taskType, "schema_repair_failed"),
+  171:       raw: retry.raw,
+  172:       rawText: retry.text,
+  173:       schemaOk: false,
+  174:       usage: retry.usage,
+  175:       model: retry.model,
+  176:     };
+  177:   }
+  178: 
+  179:   return {
+  180:     text: "UNKNOWN",
+  181:     output: buildUnknownResponse(opts.taskType, "schema_repair_failed"),
+  182:     raw: retry.raw,
+  183:     rawText: retry.text,
+  184:     schemaOk: false,
+  185:     usage: retry.usage,
+  186:     model: retry.model,
+  187:   };
+  188: }
+  189: 
+  190: export function createAiRouter(deps: RouterDeps = {}) {
+  191:   const providers = deps.providers ?? defaultProviders;
+  192:   const now = deps.now ?? nowMs;
+  193:   const useBrainResolver = deps.useBrainResolver ?? false;
+  194: 
+  195:   async function run(options: AiRunOptions): Promise<AiRunResult> {
+  196:     const start = now();
+  197:     const taskConfig = getTaskConfig(options.taskType);
+  198:     if (!taskConfig) {
+  199:       return { text: "UNKNOWN", unknown: true, error: "Unknown task type" };
+  200:     }
+  201: 
+  202:     const context = options.context ?? {};
+  203:     const supabase = context.supabase ?? null;
+  204:     const contextMissing = (taskConfig.requires.agency && !context.agencyId) ||
+  205:       (taskConfig.requires.client && !context.clientId);
+  206: 
+  207:     if (shouldReturnUnknown(contextMissing, taskConfig.safetyMode)) {
+  208:       const latencyMs = now() - start;
+  209:       if (!context.skipUsageLog) {
+  210:         await logUsage(supabase, {
+  211:           taskType: options.taskType,
+  212:           endpoint: taskConfig.usageEndpoint,
+  213:           provider: "none",
+  214:           model: "context-missing",
+  215:           agencyId: context.agencyId,
+  216:           clientId: context.clientId,
+  217:           latencyMs,
+  218:           tokensIn: 0,
+  219:           tokensOut: 0,
+  220:           unknown: true,
+  221:           success: true,
+  222:           errorCode: "context_missing",
+  223:         });
+  224:       }
+  225:       return { text: "UNKNOWN", output: buildUnknownResponse(options.taskType, "context_missing"), unknown: true };
+  226:     }
+  227: 
+  228:     let agencyBrain: Record<string, unknown> | null = null;
+  229:     let clientBrain: Record<string, unknown> | null = null;
+  230:     let resolvedContext: ResolvedBrainContext | undefined;
+  231: 
+  232:     // Use Brain Resolver when enabled (v2 modular documents)
+  233:     if (useBrainResolver && context.agencyId && supabase) {
+  234:       const resolver = createBrainResolver(supabase);
+  235:       const resolveResult = await resolver.resolveContext(options.taskType, context.agencyId);
+  236: 
+  237:       if (resolveResult.status === "calibration_needed") {
+  238:         // Return early with calibration requirement - caller handles on-demand calibration
+  239:         return {
+  240:           text: "",
+  241:           calibrationNeeded: resolveResult.calibration,
+  242:           unknown: false,
+  243:         };
+  244:       }
+  245: 
+  246:       if (resolveResult.status === "error") {
+  247:         return {
+  248:           text: "UNKNOWN",
+  249:           output: buildUnknownResponse(options.taskType, "brain_resolver_error"),
+  250:           unknown: true,
+  251:           error: resolveResult.error,
+  252:         };
+  253:       }
+  254: 
+  255:       // Use resolved context
+  256:       resolvedContext = resolveResult.context;
+  257:       agencyBrain = resolver.flattenContext(resolveResult.context);
+  258:     } else if (taskConfig.requires.agency && context.agencyId && supabase) {
+  259:       // Legacy: use monolithic brain_json
+  260:       const res = await getAgencyBrainContext(supabase, context.agencyId);
+  261:       agencyBrain = res.data;
+  262:       if (!res.data && shouldReturnUnknown(true, taskConfig.safetyMode)) {
+  263:         return { text: "UNKNOWN", output: buildUnknownResponse(options.taskType, "agency_brain_missing"), unknown: true };
+  264:       }
+  265:     }
+  266: 
+  267:     if (taskConfig.requires.client && context.clientId && supabase) {
+  268:       const res = await getClientBrainContext(supabase, context.clientId);
+  269:       clientBrain = res.data;
+  270:       if (!res.data && shouldReturnUnknown(true, taskConfig.safetyMode)) {
+  271:         return { text: "UNKNOWN", output: buildUnknownResponse(options.taskType, "client_brain_missing"), unknown: true };
+  272:       }
+  273:     }
+  274: 
+  275:     const modelConfigBase = resolveTaskModel(options.taskType, context.environment);
+  276:     const overrideModel = options.metadata?.modelOverride as string | undefined;
+  277:     const overrideProvider = options.metadata?.providerOverride as string | undefined;
+  278:     const modelConfig = overrideModel ? { ...modelConfigBase, model: overrideModel } : modelConfigBase;
+  279:     const providerKey = overrideProvider ?? modelConfig.provider;
+  280:     const provider = providers[providerKey];
+  281:     if (!provider) {
+  282:       return { text: "UNKNOWN", unknown: true, error: "Provider not available" };
+  283:     }
+  284: 
+  285:     if (taskConfig.outputMode === "embedding") {
+  286:       if (!("embed" in provider)) {
+  287:         return { text: "UNKNOWN", unknown: true, error: "Embedding not supported" };
+  288:       }
+  289:       const embeddingResult = await (provider as any).embed({
+  290:         model: modelConfig.model,
+  291:         input: options.input ?? "",
+  292:         outputDimensionality: options.metadata?.outputDimensionality,
+  293:         timeoutMs: getTimeoutMs(options.taskType),
+  294:       });
+  295:       const latencyMs = now() - start;
+  296:       if (!context.skipUsageLog) {
+  297:         await logUsage(supabase, {
+  298:           taskType: options.taskType,
+  299:           endpoint: taskConfig.usageEndpoint,
+  300:           provider: providerKey,
+  301:           model: modelConfig.model,
+  302:           agencyId: context.agencyId,
+  303:           clientId: context.clientId,
+  304:           latencyMs,
+  305:           tokensIn: 0,
+  306:           tokensOut: 0,
+  307:           unknown: false,
+  308:           success: true,
+  309:           errorCode: null,
+  310:         });
+  311:       }
+  312:       return {
+  313:         text: "",
+  314:         output: embeddingResult.embedding,
+  315:         raw: embeddingResult.raw,
+  316:         meta: { provider: modelConfig.provider, model: modelConfig.model },
+  317:       };
+  318:     }
+  319: 
+  320:     const promptBuilder = taskConfig.promptBuilder;
+  321:     const messages = options.messages ?? (promptBuilder
+  322:       ? promptBuilder({
+  323:           input: options.input,
+  324:           metadata: options.metadata,
+  325:           brains: { agency: agencyBrain ?? undefined, client: clientBrain ?? undefined },
+  326:         })
+  327:       : []);
+  328: 
+  329:     const schema = options.outputSchema ?? taskConfig.schema;
+  330:     const result = await generateWithRetry({
+  331:       provider: provider as any,
+  332:       params: {
+  333:         model: modelConfig.model,
+  334:         messages,
+  335:         temperature: modelConfig.params?.temperature,
+  336:         max_tokens: modelConfig.params?.max_tokens,
+  337:         top_p: modelConfig.params?.top_p,
+  338:         timeoutMs: getTimeoutMs(options.taskType),
+  339:       },
+  340:       schema,
+  341:       taskType: options.taskType,
+  342:     });
+  343: 
+  344:     const latencyMs = now() - start;
+  345:     const runtimeModel = result.model ?? modelConfig.model;
+  346:     if (!context.skipUsageLog) {
+  347:       await logUsage(supabase, {
+  348:         taskType: options.taskType,
+  349:         endpoint: taskConfig.usageEndpoint,
+  350:         provider: providerKey,
+  351:         model: runtimeModel,
+  352:         agencyId: context.agencyId,
+  353:         clientId: context.clientId,
+  354:         latencyMs,
+  355:         tokensIn: result.usage?.inputTokens,
+  356:         tokensOut: result.usage?.outputTokens,
+  357:         unknown: result.text.startsWith("UNKNOWN"),
+  358:         success: true,
+  359:         errorCode: null,
+  360:       });
+  361:     }
+  362: 
+  363:     return {
+  364:       text: result.text,
+  365:       output: result.output,
+  366:       raw: result.raw,
+  367:       rawText: result.rawText,
+  368:       schemaOk: result.schemaOk,
+  369:       usage: result.usage,
+  370:       unknown: result.text.startsWith("UNKNOWN"),
+  371:       meta: { provider: providerKey, model: runtimeModel },
+  372:       resolvedContext,
+  373:     };
+  374:   }
+  375: 
+  376:   async function* runStream(options: AiRunOptions): AsyncGenerator<AiStreamChunk> {
+  377:     const start = now();
+  378:     const taskConfig = getTaskConfig(options.taskType);
+  379:     if (!taskConfig) {
+  380:       yield { type: "done", result: { text: "UNKNOWN", unknown: true, error: "Unknown task type" } };
+  381:       return;
+  382:     }
+  383: 
+  384:     const context = options.context ?? {};
+  385:     const supabase = context.supabase ?? null;
+  386:     const contextMissing = (taskConfig.requires.agency && !context.agencyId) ||
+  387:       (taskConfig.requires.client && !context.clientId);
+  388: 
+  389:     if (shouldReturnUnknown(contextMissing, taskConfig.safetyMode)) {
+  390:       const latencyMs = now() - start;
+  391:       if (!context.skipUsageLog) {
+  392:         await logUsage(supabase, {
+  393:           taskType: options.taskType,
+  394:           endpoint: taskConfig.usageEndpoint,
+  395:           provider: "none",
+  396:           model: "context-missing",
+  397:           agencyId: context.agencyId,
+  398:           clientId: context.clientId,
+  399:           latencyMs,
+  400:           tokensIn: 0,
+  401:           tokensOut: 0,
+  402:           unknown: true,
+  403:           success: true,
+  404:           errorCode: "context_missing",
+  405:         });
+  406:       }
+  407:       const unknownResult: AiRunResult = {
+  408:         text: "UNKNOWN",
+  409:         output: buildUnknownResponse(options.taskType, "context_missing"),
+  410:         unknown: true,
+  411:       };
+  412:       yield { type: "delta", text: unknownResult.text };
+  413:       yield { type: "done", result: unknownResult };
+  414:       return;
+  415:     }
+  416: 
+  417:     let agencyBrain: Record<string, unknown> | null = null;
+  418:     let clientBrain: Record<string, unknown> | null = null;
+  419:     if (taskConfig.requires.agency && context.agencyId && supabase) {
+  420:       const res = await getAgencyBrainContext(supabase, context.agencyId);
+  421:       agencyBrain = res.data;
+  422:       if (!res.data && shouldReturnUnknown(true, taskConfig.safetyMode)) {
+  423:         const unknownResult: AiRunResult = {
+  424:           text: "UNKNOWN",
+  425:           output: buildUnknownResponse(options.taskType, "agency_brain_missing"),
+  426:           unknown: true,
+  427:         };
+  428:         yield { type: "delta", text: unknownResult.text };
+  429:         yield { type: "done", result: unknownResult };
+  430:         return;
+  431:       }
+  432:     }
+  433:     if (taskConfig.requires.client && context.clientId && supabase) {
+  434:       const res = await getClientBrainContext(supabase, context.clientId);
+  435:       clientBrain = res.data;
+  436:       if (!res.data && shouldReturnUnknown(true, taskConfig.safetyMode)) {
+  437:         const unknownResult: AiRunResult = {
+  438:           text: "UNKNOWN",
+  439:           output: buildUnknownResponse(options.taskType, "client_brain_missing"),
+  440:           unknown: true,
+  441:         };
+  442:         yield { type: "delta", text: unknownResult.text };
+  443:         yield { type: "done", result: unknownResult };
+  444:         return;
+  445:       }
+  446:     }
+  447: 
+  448:     if (taskConfig.outputMode !== "freeform") {
+  449:       const result = await run(options);
+  450:       yield { type: "delta", text: result.text };
+  451:       yield { type: "done", result };
+  452:       return;
+  453:     }
+  454: 
+  455:     const modelConfigBase = resolveTaskModel(options.taskType, context.environment);
+  456:     const overrideModel = options.metadata?.modelOverride as string | undefined;
+  457:     const overrideProvider = options.metadata?.providerOverride as string | undefined;
+  458:     const modelConfig = overrideModel ? { ...modelConfigBase, model: overrideModel } : modelConfigBase;
+  459:     const providerKey = overrideProvider ?? modelConfig.provider;
+  460:     const provider = providers[providerKey];
+  461:     if (!provider || !("generateStream" in provider)) {
+  462:       const result = await run(options);
+  463:       yield { type: "delta", text: result.text };
+  464:       yield { type: "done", result };
+  465:       return;
+  466:     }
+  467: 
+  468:     const promptBuilder = taskConfig.promptBuilder;
+  469:     const messages = options.messages ?? (promptBuilder
+  470:       ? promptBuilder({
+  471:           input: options.input,
+  472:           metadata: options.metadata,
+  473:           brains: { agency: agencyBrain ?? undefined, client: clientBrain ?? undefined },
+  474:         })
+  475:       : []);
+  476: 
+  477:     const params = {
+  478:       model: modelConfig.model,
+  479:       messages,
+  480:       temperature: modelConfig.params?.temperature,
+  481:       max_tokens: modelConfig.params?.max_tokens,
+  482:       top_p: modelConfig.params?.top_p,
+  483:       timeoutMs: getTimeoutMs(options.taskType),
+  484:     };
+  485: 
+  486:     let text = "";
+  487:     for await (const chunk of (provider as any).generateStream(params)) {
+  488:       if (chunk?.delta) {
+  489:         text += chunk.delta;
+  490:         yield { type: "delta", text: chunk.delta };
+  491:       }
+  492:     }
+  493: 
+  494:     const latencyMs = now() - start;
+  495:     if (!context.skipUsageLog) {
+  496:       await logUsage(supabase, {
+  497:         taskType: options.taskType,
+  498:         endpoint: taskConfig.usageEndpoint,
+  499:         provider: providerKey,
+  500:         model: modelConfig.model,
+  501:         agencyId: context.agencyId,
+  502:         clientId: context.clientId,
+  503:         latencyMs,
+  504:         tokensIn: 0,
+  505:         tokensOut: 0,
+  506:         unknown: text.startsWith("UNKNOWN"),
+  507:         success: true,
+  508:         errorCode: null,
+  509:       });
+  510:     }
+  511: 
+  512:     const result: AiRunResult = {
+  513:       text,
+  514:       output: undefined,
+  515:       raw: undefined,
+  516:       unknown: text.startsWith("UNKNOWN"),
+  517:       meta: { provider: providerKey, model: modelConfig.model },
+  518:     };
+  519: 
+  520:     yield { type: "done", result };
+  521:   }
+  522: 
+  523:   return { run, runStream };
+  524: }
+  525: 
+  526: export const ai = createAiRouter();

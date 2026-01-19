@@ -284,11 +284,11 @@ export const TASK_REGISTRY: Record<TaskType, TaskConfig> = {
     promptBuilder: (args) =>
       buildStrategyPlanPrompt({
         agencyBrain: args.brains?.agency ?? {},
-        clientBrain: args.brains?.client ?? {},
+        clientBrain: (args.metadata?.client_brain as any) ?? args.brains?.client ?? {},
         context: (args.metadata?.context as string) ?? "",
         instruction: (args.metadata?.instruction as string | undefined) ?? undefined,
       }),
-    requires: { agency: true, client: true },
+    requires: { agency: false, client: false },
     usageEndpoint: "ai-strategy-generate",
     schema: objectSchema("strategy_plan", ["summary", "sections"]),
     buildUnknown: () => ({ unknown: true, missing_fields: [], questions: ["What additional context is required?"], escalation: false }),

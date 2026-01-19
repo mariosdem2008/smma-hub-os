@@ -1,0 +1,176 @@
+﻿src\integrations\supabase\types.ts:448:          brain_json: Json
+src\integrations\supabase\types.ts-449-          calibration_state: Json | null
+src\integrations\supabase\types.ts-450-          confidence: number
+--
+src\integrations\supabase\types.ts:461:          brain_json: Json
+src\integrations\supabase\types.ts-462-          calibration_state?: Json | null
+src\integrations\supabase\types.ts-463-          confidence?: number
+--
+src\integrations\supabase\types.ts:474:          brain_json?: Json
+src\integrations\supabase\types.ts-475-          calibration_state?: Json | null
+src\integrations\supabase\types.ts-476-          confidence?: number
+--
+src\integrations\supabase\types.ts:2018:          brain_json: Json
+src\integrations\supabase\types.ts-2019-          client_id: string
+src\integrations\supabase\types.ts-2020-          confidence: number
+--
+src\integrations\supabase\types.ts:2032:          brain_json: Json
+src\integrations\supabase\types.ts-2033-          client_id: string
+src\integrations\supabase\types.ts-2034-          confidence?: number
+--
+src\integrations\supabase\types.ts:2046:          brain_json?: Json
+src\integrations\supabase\types.ts-2047-          client_id?: string
+src\integrations\supabase\types.ts-2048-          confidence?: number
+--
+src\data\__tests__\agencyAdminChatHandler.test.ts:46:            return { data: { id: "brain-1", brain_json: brain }, error: null };
+src\data\__tests__\agencyAdminChatHandler.test.ts-47-          }
+src\data\__tests__\agencyAdminChatHandler.test.ts-48-
+--
+src\data\__tests__\agencyAdminChatHandler.test.ts:66:            brain = payload.brain_json;
+src\data\__tests__\agencyAdminChatHandler.test.ts-67-          }
+src\data\__tests__\agencyAdminChatHandler.test.ts-68-          return {
+--
+src\data\__tests__\agencyAdminChatHandler.test.ts:83:                  brain = payload.brain_json;
+src\data\__tests__\agencyAdminChatHandler.test.ts-84-                }
+src\data\__tests__\agencyAdminChatHandler.test.ts-85-                return { data: { id: "id-1" }, error: null };
+--
+src\data\__tests__\agencyAdminChatHandler.test.ts:163:              return { data: brain ? { id: "brain-1", brain_json: brain } : null, error: null };
+src\data\__tests__\agencyAdminChatHandler.test.ts-164-            }
+src\data\__tests__\agencyAdminChatHandler.test.ts-165-            if (table === "agencies") {
+--
+src\data\__tests__\agencyAdminChatHandler.test.ts:178:              brain = payload.brain_json;
+src\data\__tests__\agencyAdminChatHandler.test.ts-179-            }
+src\data\__tests__\agencyAdminChatHandler.test.ts-180-            return {
+--
+src\data\__tests__\agencyAdminChatHandler.test.ts:191:                    brain = payload.brain_json;
+src\data\__tests__\agencyAdminChatHandler.test.ts-192-                  }
+src\data\__tests__\agencyAdminChatHandler.test.ts-193-                  return { data: { id: "id-1" }, error: null };
+--
+src\data\__tests__\agencyAdminSetupGuided.test.ts:38:            return { data: { id: "brain-1", brain_json: brain }, error: null };
+src\data\__tests__\agencyAdminSetupGuided.test.ts-39-          }
+src\data\__tests__\agencyAdminSetupGuided.test.ts-40-          if (table === "agencies") {
+--
+src\data\__tests__\agencyAdminSetupGuided.test.ts:65:            brain = payload.brain_json;
+src\data\__tests__\agencyAdminSetupGuided.test.ts-66-          }
+src\data\__tests__\agencyAdminSetupGuided.test.ts-67-          return {
+--
+src\data\__tests__\agencyAdminSetupGuided.test.ts:78:                  brain = payload.brain_json;
+src\data\__tests__\agencyAdminSetupGuided.test.ts-79-                }
+src\data\__tests__\agencyAdminSetupGuided.test.ts-80-                return { data: { id: "id-1" }, error: null };
+--
+src\ai\brains\client.ts:8:    .select("brain_json, updated_at, version")
+src\ai\brains\client.ts-9-    .eq("client_id", clientId)
+src\ai\brains\client.ts-10-    .order("version", { ascending: false })
+--
+src\ai\brains\client.ts:16:  return { data: (res?.data?.brain_json as Record<string, unknown>) ?? null, error: null as string | null };
+src\ai\brains\client.ts-17-}
+--
+src\ai\brains\agency.ts:8:    .select("brain_json, updated_at, version")
+src\ai\brains\agency.ts-9-    .eq("agency_id", agencyId)
+src\ai\brains\agency.ts-10-    .order("version", { ascending: false })
+--
+src\ai\brains\agency.ts:16:  return { data: (res?.data?.brain_json as Record<string, unknown>) ?? null, error: null as string | null };
+src\ai\brains\agency.ts-17-}
+--
+src\ai\router.ts:259:      // Legacy: use monolithic brain_json
+src\ai\router.ts-260-      const res = await getAgencyBrainContext(supabase, context.agencyId);
+src\ai\router.ts-261-      agencyBrain = res.data;
+--
+src\pages\CreateAgencyStub.tsx:178:        body: { action: "create", agency_id: newAgencyId, brain_json: brain },
+src\pages\CreateAgencyStub.tsx-179-      });
+src\pages\CreateAgencyStub.tsx-180-      if (brainErr) throw brainErr;
+--
+src\pages\CreateAgencyStub.tsx:218:        body: { action: "update", agency_id: agencyId, brain_id: brainId, brain_json: brainJson },
+src\pages\CreateAgencyStub.tsx-219-      });
+src\pages\CreateAgencyStub.tsx-220-      if (updateErr) throw updateErr;
+--
+supabase\functions\ai-rep-chat\index.ts:111:    .select("brain_json, updated_at, version")
+supabase\functions\ai-rep-chat\index.ts-112-    .eq("client_id", clientId)
+supabase\functions\ai-rep-chat\index.ts-113-    .order("version", { ascending: false })
+--
+supabase\functions\ai-rep-chat\index.ts:117:  const brainJson = (brainRow?.brain_json as any) ?? {};
+supabase\functions\ai-rep-chat\index.ts-118-  const brief = (brainJson?.client_brief_v1 as any) ?? null;
+supabase\functions\ai-rep-chat\index.ts-119-
+--
+supabase\functions\ai-brain-ingest\index.ts:142:  let query = supabase.from(table).select("id, brain_json, status, version").eq("agency_id", agencyId);
+supabase\functions\ai-brain-ingest\index.ts-143-  if (scope === "client" && clientId) {
+supabase\functions\ai-brain-ingest\index.ts-144-    query = query.eq("client_id", clientId);
+--
+supabase\functions\ai-brain-ingest\index.ts:159:  const rawResponses = rawResponsesOverride ?? (brainRow.brain_json as any)?.raw_responses ?? {};
+supabase\functions\ai-brain-ingest\index.ts:160:  const followupResponses = followupOverride ?? (brainRow.brain_json as any)?.followup_responses ?? {};
+supabase\functions\ai-brain-ingest\index.ts-161-  const generatedAt = new Date().toISOString();
+supabase\functions\ai-brain-ingest\index.ts-162-
+--
+supabase\functions\ai-brain-ingest\index.ts:213:      .update({ brain_json: agencyBrain })
+supabase\functions\ai-brain-ingest\index.ts-214-      .eq("id", brainRow.id)
+supabase\functions\ai-brain-ingest\index.ts-215-      .select("updated_at")
+--
+supabase\functions\ai-brain-ingest\index.ts:317:    .update({ brain_json: clientBrain, status, usable: gate.usable })
+supabase\functions\ai-brain-ingest\index.ts-318-    .eq("id", brainRow.id);
+supabase\functions\ai-brain-ingest\index.ts-319-
+--
+supabase\functions\ai-brains-client\index.ts:90:        brain_json: body.brain_json ?? {},
+supabase\functions\ai-brains-client\index.ts-91-        json_diff: body.json_diff ?? null,
+supabase\functions\ai-brains-client\index.ts-92-        confidence: body.confidence ?? 0,
+--
+supabase\functions\ai-brains-client\index.ts:111:      brain_json: body.brain_json ?? {},
+supabase\functions\ai-brains-client\index.ts-112-      json_diff: body.json_diff ?? null,
+supabase\functions\ai-brains-client\index.ts-113-    };
+--
+supabase\functions\ai-strategy-generate\index.ts:219:    .select("id, brain_json, usable, status, updated_at")
+supabase\functions\ai-strategy-generate\index.ts-220-    .eq("agency_id", agencyId)
+supabase\functions\ai-strategy-generate\index.ts-221-    .eq("client_id", clientId)
+--
+supabase\functions\ai-strategy-generate\index.ts:244:  const gate = evaluateClientBrainForStrategy((brainRow.brain_json as any) ?? {});
+supabase\functions\ai-strategy-generate\index.ts-245-
+supabase\functions\ai-strategy-generate\index.ts-246-  if (!gate.usable || !brainRow.usable) {
+--
+supabase\functions\ai-strategy-generate\index.ts:633:      metadata: { context: promptContext, instruction, client_brain: brainRow.brain_json },
+supabase\functions\ai-strategy-generate\index.ts-634-      outputSchema,
+supabase\functions\ai-strategy-generate\index.ts-635-    });
+--
+supabase\functions\_shared\brain-documents.ts:440:        brain_json: {},
+supabase\functions\_shared\brain-documents.ts-441-        calibration_state: state,
+supabase\functions\_shared\brain-documents.ts-442-        confidence: 0,
+--
+supabase\functions\_shared\ai-context.ts:61:  const res: MaybeSingleResult<{ id: string; brain_json: Record<string, unknown> | null } | null> = await supabase
+supabase\functions\_shared\ai-context.ts-62-    .from("agency_brains")
+supabase\functions\_shared\ai-context.ts:63:    .select("id, brain_json")
+supabase\functions\_shared\ai-context.ts-64-    .eq("agency_id", agencyId)
+supabase\functions\_shared\ai-context.ts-65-    .order("created_at", { ascending: false })
+--
+supabase\functions\_shared\ai-context.ts:69:  return { id: res?.data?.id ?? null, brain: (res?.data?.brain_json ?? {}) as Record<string, unknown> };
+supabase\functions\_shared\ai-context.ts-70-}
+supabase\functions\_shared\ai-context.ts-71-
+--
+supabase\functions\_shared\ai-context.ts:81:      .update({ brain_json: brain })
+supabase\functions\_shared\ai-context.ts-82-      .eq("id", brainId)
+supabase\functions\_shared\ai-context.ts-83-      .select("id")
+--
+supabase\functions\_shared\ai-context.ts:96:      brain_json: brain,
+supabase\functions\_shared\ai-context.ts-97-      json_diff: null,
+supabase\functions\_shared\ai-context.ts-98-      confidence: 0,
+--
+src\components\onboarding-v4\OnboardingContext.tsx:504:          brain_json: { raw_responses: rawResponses, followup_responses: {} },
+src\components\onboarding-v4\OnboardingContext.tsx-505-        },
+src\components\onboarding-v4\OnboardingContext.tsx-506-      });
+--
+src\components\onboarding-v4\OnboardingContext.tsx:523:          brain_json: { raw_responses: rawResponses, followup_responses: {} },
+src\components\onboarding-v4\OnboardingContext.tsx-524-        },
+src\components\onboarding-v4\OnboardingContext.tsx-525-      });
+--
+supabase\functions\ai-brains-agency\index.ts:87:        brain_json: body.brain_json ?? {},
+supabase\functions\ai-brains-agency\index.ts-88-        json_diff: body.json_diff ?? null,
+supabase\functions\ai-brains-agency\index.ts-89-        confidence: body.confidence ?? 0,
+--
+supabase\functions\ai-brains-agency\index.ts:108:      brain_json: body.brain_json ?? {},
+supabase\functions\ai-brains-agency\index.ts-109-      json_diff: body.json_diff ?? null,
+supabase\functions\ai-brains-agency\index.ts-110-    };
+--
+src\components\onboarding-v5\OnboardingV5Wizard.tsx:602:          brain_json: { raw_responses: rawResponses, followup_responses: {} },
+src\components\onboarding-v5\OnboardingV5Wizard.tsx-603-        },
+src\components\onboarding-v5\OnboardingV5Wizard.tsx-604-      });
+--
+src\components\onboarding-v5\OnboardingV5Wizard.tsx:616:          brain_json: { raw_responses: rawResponses, followup_responses: {} },
+src\components\onboarding-v5\OnboardingV5Wizard.tsx-617-        },
+src\components\onboarding-v5\OnboardingV5Wizard.tsx-618-      });

@@ -1,0 +1,95 @@
+﻿src\__tests__\strategy-generation.integration.test.ts:36:  it("hardens match_ai_embeddings to service_role only", () => {
+src\__tests__\strategy-generation.integration.test.ts:37:    const migration = read("supabase/migrations/20260118000001_harden_match_ai_embeddings_final.sql");
+src\__tests__\strategy-generation.integration.test.ts:38:    expect(migration).toMatch(/revoke all on function public\.match_ai_embeddings/i);
+src\__tests__\strategy-generation.integration.test.ts:39:    expect(migration).toMatch(/grant execute on function public\.match_ai_embeddings/i);
+src\__tests__\strategy-generation.integration.test.ts-40-    expect(migration).toMatch(/service_role/i);
+src\__tests__\strategy-generation.integration.test.ts-41-  });
+src\__tests__\strategy-generation.integration.test.ts-42-});
+--
+tests\integration\ai\match-embedding-filters.test.ts:5:describe("match_ai_embeddings filters", () => {
+tests\integration\ai\match-embedding-filters.test.ts-6-  it("adds module filter, min similarity, and hard cap", () => {
+tests\integration\ai\match-embedding-filters.test.ts-7-    const migrationPath = resolve(
+tests\integration\ai\match-embedding-filters.test.ts-8-      process.cwd(),
+tests\integration\ai\match-embedding-filters.test.ts:9:      "supabase/migrations/20260108134500_match_ai_embeddings_filters.sql"
+tests\integration\ai\match-embedding-filters.test.ts-10-    );
+tests\integration\ai\match-embedding-filters.test.ts-11-    const sql = readFileSync(migrationPath, "utf8");
+tests\integration\ai\match-embedding-filters.test.ts-12-    expect(sql).toContain("p_modules");
+tests\integration\ai\match-embedding-filters.test.ts-13-    expect(sql).toContain("metadata->>'module'");
+tests\integration\ai\match-embedding-filters.test.ts-14-    expect(sql).toContain("p_min_similarity");
+--
+tests\integration\ai\embedding-retrieval-filter.test.ts:6:  it("filters out failed chunks in match_ai_embeddings", () => {
+tests\integration\ai\embedding-retrieval-filter.test.ts-7-    const migrationPath = resolve(process.cwd(), "supabase/migrations/20260105140000_embedding_chunk_status.sql");
+tests\integration\ai\embedding-retrieval-filter.test.ts-8-    const sql = readFileSync(migrationPath, "utf8");
+tests\integration\ai\embedding-retrieval-filter.test.ts-9-    expect(sql).toContain("embedding_status = 'ok'");
+tests\integration\ai\embedding-retrieval-filter.test.ts-10-  });
+tests\integration\ai\embedding-retrieval-filter.test.ts-11-});
+--
+src\integrations\supabase\types.ts:5995:      match_ai_embeddings: {
+src\integrations\supabase\types.ts-5996-        Args: {
+src\integrations\supabase\types.ts-5997-          p_agency_id: string
+src\integrations\supabase\types.ts-5998-          p_client_id?: string
+src\integrations\supabase\types.ts-5999-          p_doc_types?: string[]
+src\integrations\supabase\types.ts-6000-          p_match_count?: number
+--
+supabase\functions\ai-strategy-generate\index.ts:422:  const { data: clientMatches, error: clientMatchesError } = await supabase.rpc("match_ai_embeddings", {
+supabase\functions\ai-strategy-generate\index.ts-423-    p_agency_id: agencyId,
+supabase\functions\ai-strategy-generate\index.ts-424-    p_client_id: clientId,
+supabase\functions\ai-strategy-generate\index.ts-425-    p_query_embedding: queryEmbedding,
+supabase\functions\ai-strategy-generate\index.ts-426-    p_match_count: clampMatchCount(useRagPolicy ? ragConfig.client_memory_top_k : 6),
+supabase\functions\ai-strategy-generate\index.ts-427-    p_doc_types: useRagPolicy ? ragConfig.client_doc_types : legacyClientDocTypes,
+--
+supabase\functions\ai-strategy-generate\index.ts:432:  const { data: agencyMatches, error: agencyMatchesError } = await supabase.rpc("match_ai_embeddings", {
+supabase\functions\ai-strategy-generate\index.ts-433-    p_agency_id: agencyId,
+supabase\functions\ai-strategy-generate\index.ts-434-    p_client_id: null,
+supabase\functions\ai-strategy-generate\index.ts-435-    p_query_embedding: queryEmbedding,
+supabase\functions\ai-strategy-generate\index.ts-436-    p_match_count: clampMatchCount(useRagPolicy ? ragConfig.agency_memory_top_k : 4),
+supabase\functions\ai-strategy-generate\index.ts-437-    p_doc_types: useRagPolicy ? ragConfig.agency_doc_types : legacyAgencyDocTypes,
+--
+supabase\functions\ai-strategy-generate\index.ts:442:  const { data: exemplarMatches, error: exemplarMatchesError } = await supabase.rpc("match_ai_embeddings", {
+supabase\functions\ai-strategy-generate\index.ts-443-    p_agency_id: agencyId,
+supabase\functions\ai-strategy-generate\index.ts-444-    p_client_id: null,
+supabase\functions\ai-strategy-generate\index.ts-445-    p_query_embedding: queryEmbedding,
+supabase\functions\ai-strategy-generate\index.ts-446-    p_match_count: clampMatchCount(useRagPolicy ? ragConfig.exemplar_top_k : 2),
+supabase\functions\ai-strategy-generate\index.ts-447-    p_doc_types: useRagPolicy ? ragConfig.exemplar_doc_types : legacyExemplarDocTypes,
+--
+supabase\functions\_shared\agency-admin-general-ai.ts:501:    const { data: matches } = await opts.supabase.rpc("match_ai_embeddings", {
+supabase\functions\_shared\agency-admin-general-ai.ts-502-      p_agency_id: opts.agencyId,
+supabase\functions\_shared\agency-admin-general-ai.ts-503-      p_client_id: null,
+supabase\functions\_shared\agency-admin-general-ai.ts-504-      p_query_embedding: queryEmbedding,
+supabase\functions\_shared\agency-admin-general-ai.ts-505-      p_match_count: clampMatchCount(5),
+supabase\functions\_shared\agency-admin-general-ai.ts-506-      p_doc_types: null,
+--
+supabase\functions\ai-retrieve-context\index.ts:129:  const { data: matches, error: matchError } = await supabase.rpc("match_ai_embeddings", {
+supabase\functions\ai-retrieve-context\index.ts-130-    p_agency_id: agencyId,
+supabase\functions\ai-retrieve-context\index.ts-131-    p_client_id: clientId ?? null,
+supabase\functions\ai-retrieve-context\index.ts-132-    p_query_embedding: queryEmbedding,
+supabase\functions\ai-retrieve-context\index.ts-133-    p_match_count: clampMatchCount(topK),
+supabase\functions\ai-retrieve-context\index.ts-134-    p_doc_types: docTypes,
+--
+supabase\functions\ai-rep-chat\index.ts:29:    const { data: matches, error } = await opts.supabase.rpc("match_ai_embeddings", {
+supabase\functions\ai-rep-chat\index.ts-30-      p_agency_id: opts.agencyId,
+supabase\functions\ai-rep-chat\index.ts-31-      p_client_id: opts.clientId,
+supabase\functions\ai-rep-chat\index.ts-32-      p_query_embedding: queryEmbedding,
+supabase\functions\ai-rep-chat\index.ts-33-      p_match_count: clampMatchCount(6),
+supabase\functions\ai-rep-chat\index.ts-34-      p_doc_types: null,
+--
+supabase\functions\ai-ask\index.ts:353:  const { data: clientMatches } = await supabase.rpc("match_ai_embeddings", {
+supabase\functions\ai-ask\index.ts-354-    p_agency_id: agencyId,
+supabase\functions\ai-ask\index.ts-355-    p_client_id: clientId ?? null,
+supabase\functions\ai-ask\index.ts-356-    p_query_embedding: queryEmbedding,
+supabase\functions\ai-ask\index.ts-357-    p_match_count: clampMatchCount(useRagPolicy ? ragConfig.client_memory_top_k : CLIENT_MEMORY_TOP_K),
+supabase\functions\ai-ask\index.ts-358-    p_doc_types: useRagPolicy ? ragConfig.client_doc_types : legacyClientDocTypes,
+--
+supabase\functions\ai-ask\index.ts:363:  const { data: agencyMatches } = await supabase.rpc("match_ai_embeddings", {
+supabase\functions\ai-ask\index.ts-364-    p_agency_id: agencyId,
+supabase\functions\ai-ask\index.ts-365-    p_client_id: null,
+supabase\functions\ai-ask\index.ts-366-    p_query_embedding: queryEmbedding,
+supabase\functions\ai-ask\index.ts-367-    p_match_count: clampMatchCount(useRagPolicy ? ragConfig.agency_memory_top_k : AGENCY_MEMORY_TOP_K),
+supabase\functions\ai-ask\index.ts-368-    p_doc_types: useRagPolicy ? ragConfig.agency_doc_types : legacyAgencyDocTypes,
+--
+supabase\functions\ai-ask\index.ts:373:  const { data: exemplarMatches } = await supabase.rpc("match_ai_embeddings", {
+supabase\functions\ai-ask\index.ts-374-    p_agency_id: agencyId,
+supabase\functions\ai-ask\index.ts-375-    p_client_id: null,
+supabase\functions\ai-ask\index.ts-376-    p_query_embedding: queryEmbedding,
+supabase\functions\ai-ask\index.ts-377-    p_match_count: clampMatchCount(useRagPolicy ? ragConfig.exemplar_top_k : EXEMPLAR_TOP_K),
+supabase\functions\ai-ask\index.ts-378-    p_doc_types: useRagPolicy ? ragConfig.exemplar_doc_types : legacyExemplarDocTypes,

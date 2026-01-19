@@ -1,0 +1,55 @@
+﻿tests\integration\ai\embedding-fail-hard.test.ts:5:  it("throws MISSING_API_KEY when fail-hard is on and key is missing", async () => {
+tests\integration\ai\embedding-fail-hard.test.ts:11:    })).rejects.toMatchObject({ code: "MISSING_API_KEY" });
+tests\integration\ai\embedding-fail-hard.test.ts:34:    expect(result.errorCode).toBe("MISSING_API_KEY");
+src\ai\providers\openai.ts:12:  return getEnvVar("OPENAI_API_KEY");
+src\ai\providers\openai.ts:159:    throw new Error("OPENAI_API_KEY is not configured");
+src\ai\providers\openai.ts:317:    throw new Error("OPENAI_API_KEY is not configured");
+src\ai\providers\openai.ts:485:    throw new Error("OPENAI_API_KEY is not configured");
+src\ai\providers\gemini.ts:11:  return getEnvVar("GEMINI_API_KEY");
+src\ai\providers\gemini.ts:109:    throw new Error("GEMINI_API_KEY is not configured");
+src\ai\providers\anthropic.ts:11:  return getEnvVar("ANTHROPIC_API_KEY");
+src\ai\providers\anthropic.ts:85:    throw new Error("ANTHROPIC_API_KEY is not configured");
+src\hooks\useStrategyModules.ts:269:        if (payload?.code === 'MISSING_API_KEY') {
+src\hooks\useStrategyDocuments.ts:84:        if (payload?.code === "MISSING_API_KEY") {
+supabase\functions\generate-ai-content\index.ts:186:    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+supabase\functions\generate-ai-content\index.ts:187:    if (!OPENAI_API_KEY) {
+supabase\functions\_shared\embedding-policy.ts:19:      const error = new Error("OPENAI_API_KEY is not configured") as Error & { code?: string };
+supabase\functions\_shared\embedding-policy.ts:20:      error.code = "MISSING_API_KEY";
+supabase\functions\_shared\embedding-policy.ts:23:    return { status: "failed", errorCode: "MISSING_API_KEY" };
+supabase\functions\ai-brain-ingest\index.ts:238:        const embeddingApiKey = Deno.env.get("OPENAI_API_KEY");
+supabase\functions\ai-brain-ingest\index.ts:268:            if (error?.code === "MISSING_API_KEY") {
+supabase\functions\ai-brain-ingest\index.ts:269:              return jsonResponse({ error: "OPENAI_API_KEY is not configured", code: "MISSING_API_KEY" }, 500, corsHeaders(req));
+supabase\functions\ai-brain-ingest\index.ts:351:      const embeddingApiKey = Deno.env.get("OPENAI_API_KEY");
+supabase\functions\ai-brain-ingest\index.ts:381:          if (error?.code === "MISSING_API_KEY") {
+supabase\functions\ai-brain-ingest\index.ts:382:            return jsonResponse({ error: "OPENAI_API_KEY is not configured", code: "MISSING_API_KEY" }, 500, corsHeaders(req));
+supabase\functions\ai-documents-ingest\index.ts:192:  const embeddingApiKey = Deno.env.get("OPENAI_API_KEY");
+supabase\functions\ai-documents-ingest\index.ts:224:      if (error?.code === "MISSING_API_KEY") {
+supabase\functions\ai-documents-ingest\index.ts:225:        return jsonResponse({ error: "OPENAI_API_KEY is not configured", code: "MISSING_API_KEY" }, 500, corsHeaders(req));
+supabase\functions\ai-onboarding-guide\index.ts:680:    const openaiKey = Deno.env.get("OPENAI_API_KEY");
+supabase\functions\ai-onboarding-guide\index.ts:682:      console.error("CRITICAL: OPENAI_API_KEY not set");
+supabase\functions\ai-ask\index.ts:308:  const embeddingApiKey = Deno.env.get("OPENAI_API_KEY");
+supabase\functions\ai-rep-chat\index.ts:23:  const embeddingApiKey = Deno.env.get("OPENAI_API_KEY");
+supabase\functions\ai-retrieve-context\index.ts:121:  const embeddingApiKey = Deno.env.get("OPENAI_API_KEY");
+supabase\functions\send-waitlist-email\index.ts:3:const BREVO_API_KEY = Deno.env.get("BREVO_API_KEY");
+supabase\functions\send-waitlist-email\index.ts:34:        "api-key": BREVO_API_KEY || "",
+supabase\functions\_shared\agency-admin-general-ai.ts:489:    const embeddingApiKey = typeof Deno !== "undefined" ? Deno.env.get("OPENAI_API_KEY") : process.env.OPENAI_API_KEY;
+supabase\functions\client-auth-forgot-password\index.ts:60:    const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+supabase\functions\client-auth-forgot-password\index.ts:67:        Authorization: `Bearer ${RESEND_API_KEY}`,
+supabase\functions\ai-strategy-generate\index.ts:355:  const embeddingApiKey = Deno.env.get("OPENAI_API_KEY");
+supabase\functions\ai-strategy-generate\index.ts:380:      metadata: { code: "MISSING_API_KEY" },
+supabase\functions\ai-strategy-generate\index.ts:382:    console.error("OPENAI_API_KEY not configured");
+supabase\functions\ai-strategy-generate\index.ts:386:        message: "Please configure OPENAI_API_KEY in your Supabase project secrets before generating strategies.",
+supabase\functions\ai-strategy-generate\index.ts:387:        code: "MISSING_API_KEY",
+supabase\functions\generate-monthly-report\index.ts:151:    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+supabase\functions\generate-monthly-report\index.ts:155:    if (OPENAI_API_KEY) {
+supabase\functions\notify-assigned-editor\index.ts:41:    const brevoApiKey = Deno.env.get("BREVO_API_KEY");
+supabase\functions\notify-assigned-editor\index.ts:42:    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+supabase\functions\send-approval-notification\index.ts:5:const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
+supabase\functions\send-approval-notification\index.ts:241:          'Authorization': `Bearer ${RESEND_API_KEY}`,
+supabase\functions\send-approval-notification\index.ts:389:          'Authorization': `Bearer ${RESEND_API_KEY}`,
+supabase\functions\send-approval-notification\index.ts:519:        "Authorization": `Bearer ${RESEND_API_KEY}`,
+supabase\functions\_shared\brain-documents.ts:631:      ? Deno.env.get("OPENAI_API_KEY")
+supabase\functions\_shared\brain-documents.ts:633:      ? process.env.OPENAI_API_KEY
+supabase\functions\send-team-invite\index.ts:6:const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+supabase\functions\send-portal-invite\index.ts:4:const resendApiKey = Deno.env.get("RESEND_API_KEY") || "";
+supabase\functions\send-portal-invite\index.ts:145:  if (!resendApiKey) missingEnv.push("RESEND_API_KEY");

@@ -1,0 +1,1201 @@
+﻿=== 20251224090000_brain_spine_v1.sql ===
+-- Brain & Memory Spine v1 (additive)
+
+alter table public.client_brains
+  add column if not exists usable boolean not null default false;
+
+create table if not exists public.ai_memory_items (
+  id uuid primary key default gen_random_uuid(),
+  agency_id uuid not null references public.agencies(id) on delete cascade,
+  client_id uuid references public.clients(id) on delete set null,
+  type text not null,
+  content text not null,
+  metadata jsonb,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.ai_usage_logs (
+  id uuid primary key default gen_random_uuid(),
+  agency_id uuid not null references public.agencies(id) on delete cascade,
+  client_id uuid references public.clients(id) on delete set null,
+  endpoint text not null,
+  model text,
+  tokens_estimate integer,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_ai_memory_items_agency_client on public.ai_memory_items(agency_id, client_id, created_at);
+create index if not exists idx_ai_usage_logs_agency_client on public.ai_usage_logs(agency_id, client_id, created_at);
+
+alter table public.ai_memory_items enable row level security;
+alter table public.ai_usage_logs enable row level security;
+
+create policy "ai_memory_items_select" on public.ai_memory_items
+  for select to authenticated
+  using (agency_id in (select agency_id from public.agency_members where user_id = auth.uid()));
+
+create policy "ai_memory_items_insert" on public.ai_memory_items
+  for insert to authenticated
+  with check (agency_id in (select agency_id from public.agency_members where user_id = auth.uid()));
+
+create policy "ai_memory_items_update" on public.ai_memory_items
+  for update to authenticated
+  using (agency_id in (select agency_id from public.agency_members where user_id = auth.uid()));
+
+create policy "ai_memory_items_delete" on public.ai_memory_items
+  for delete to authenticated
+  using (agency_id in (select agency_id from public.agency_members where user_id = auth.uid()));
+
+create policy "ai_usage_logs_select" on public.ai_usage_logs
+  for select to authenticated
+  using (agency_id in (select agency_id from public.agency_members where user_id = auth.uid()));
+
+create policy "ai_usage_logs_insert" on public.ai_usage_logs
+  for insert to authenticated
+  with check (agency_id in (select agency_id from public.agency_members where user_id = auth.uid()));
+
+create policy "ai_usage_logs_update" on public.ai_usage_logs
+  for update to authenticated
+  using (agency_id in (select agency_id from public.agency_members where user_id = auth.uid()));
+
+create policy "ai_usage_logs_delete" on public.ai_usage_logs
+  for delete to authenticated
+  using (agency_id in (select agency_id from public.agency_members where user_id = auth.uid()));
+
+create or replace function public.match_ai_embeddings(
+  p_agency_id uuid,
+  p_query_embedding vector(1536),
+  p_client_id uuid default null,
+  p_match_count int default 8,
+  p_doc_types text[] default null
+)
+returns table (
+  document_id uuid,
+  chunk_id uuid,
+  doc_type text,
+  chunk_text text,
+  score float8
+)
+language sql
+stable
+as $$
+  select
+    e.document_id,
+    e.chunk_id,
+    e.doc_type,
+    c.chunk_text,
+    1 - (e.embedding <=> p_query_embedding) as score
+  from public.ai_embeddings e
+  join public.ai_document_chunks c on c.id = e.chunk_id
+  join public.ai_documents d on d.id = e.document_id
+  where e.agency_id = p_agency_id
+    and (p_client_id is null or e.client_id = p_client_id)
+    and (p_doc_types is null or e.doc_type = any(p_doc_types))
+  order by e.embedding <=> p_query_embedding
+  limit p_match_count;
+$$;
+
+=== 20251224121500_get_client_brain_status_rpc.sql ===
+-- Tenant-safe client brain status surface
+
+create or replace function public.get_client_brain_status(p_client_id uuid)
+returns table (
+  client_id uuid,
+  usable boolean,
+  missing_fields_count integer,
+  missing_fields text[],
+  status text,
+  locked boolean,
+  version integer,
+  updated_at timestamptz
+)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  brain_row record;
+  missing text[] := ARRAY[]::text[];
+  banned_claims_len integer := 0;
+  taboo_topics_len integer := 0;
+begin
+  if auth.uid() is null then
+    raise exception 'Not authenticated' using errcode = '28000';
+  end if;
+
+  if not exists (
+    select 1
+    from public.clients c
+    join public.agency_members am on am.agency_id = c.agency_id
+    where c.id = p_client_id
+      and am.user_id = auth.uid()
+  ) then
+    raise exception 'Forbidden' using errcode = '42501';
+  end if;
+
+  select
+    cb.client_id,
+    cb.usable,
+    cb.status,
+    cb.locked,
+    cb.version,
+    cb.updated_at,
+    cb.brain_json
+  into brain_row
+  from public.client_brains cb
+  where cb.client_id = p_client_id
+  order by cb.version desc
+  limit 1;
+
+  if brain_row.client_id is null then
+    return;
+  end if;
+
+  if coalesce(nullif(btrim(brain_row.brain_json #>> '{brand_basics,name}'), ''), '') = '' then
+    missing := array_append(missing, 'brand_basics.name');
+  end if;
+
+  if (
+    case
+      when jsonb_typeof(brain_row.brain_json #> '{offer_details,products_services}') = 'array'
+        then jsonb_array_length(brain_row.brain_json #> '{offer_details,products_services}')
+      else 0
+    end
+  ) = 0 then
+    missing := array_append(missing, 'offer_details.products_services');
+  end if;
+
+  if (
+    case
+      when jsonb_typeof(brain_row.brain_json #> '{audience,problems}') = 'array'
+        then jsonb_array_length(brain_row.brain_json #> '{audience,problems}')
+      else 0
+    end
+  ) = 0 then
+    missing := array_append(missing, 'audience.problems');
+  end if;
+
+  if (
+    case
+      when jsonb_typeof(brain_row.brain_json -> 'pillars') = 'array'
+        then jsonb_array_length(brain_row.brain_json -> 'pillars')
+      else 0
+    end
+  ) = 0 then
+    missing := array_append(missing, 'pillars');
+  end if;
+
+  if (
+    case
+      when jsonb_typeof(brain_row.brain_json -> 'goals') = 'array'
+        then jsonb_array_length(brain_row.brain_json -> 'goals')
+      else 0
+    end
+  ) = 0 then
+    missing := array_append(missing, 'goals');
+  end if;
+
+  banned_claims_len := case
+    when jsonb_typeof(brain_row.brain_json #> '{constraints,banned_claims}') = 'array'
+      then jsonb_array_length(brain_row.brain_json #> '{constraints,banned_claims}')
+    else 0
+  end;
+  taboo_topics_len := case
+    when jsonb_typeof(brain_row.brain_json #> '{constraints,taboo_topics}') = 'array'
+      then jsonb_array_length(brain_row.brain_json #> '{constraints,taboo_topics}')
+    else 0
+  end;
+
+  if banned_claims_len = 0 and taboo_topics_len = 0 then
+    missing := array_append(missing, 'constraints.banned_claims_or_taboo_topics');
+  end if;
+
+  client_id := brain_row.client_id;
+  usable := brain_row.usable;
+  missing_fields := coalesce(missing, ARRAY[]::text[]);
+  missing_fields_count := coalesce(array_length(missing, 1), 0);
+  status := brain_row.status;
+  locked := brain_row.locked;
+  version := brain_row.version;
+  updated_at := brain_row.updated_at;
+
+  return next;
+end;
+$$;
+
+alter function public.get_client_brain_status(uuid) owner to postgres;
+
+revoke all on function public.get_client_brain_status(uuid) from public;
+revoke execute on function public.get_client_brain_status(uuid) from anon;
+grant execute on function public.get_client_brain_status(uuid) to authenticated;
+grant execute on function public.get_client_brain_status(uuid) to service_role;
+
+=== 20251228174120_brain_documents_and_calibration_state.sql ===
+-- Migration: Brain Documents System + Calibration State
+-- Purpose: Implement versioned brain documents for Agency Brain system
+--          and add calibration_state for idempotent setup flow
+
+-- ============================================================================
+-- PHASE 1: Brain Documents Tables
+-- ============================================================================
+
+-- Brain document module types (matches BrainModule enum in TypeScript)
+CREATE TYPE public.brain_module AS ENUM (
+  'bootstrap',
+  'rep_policy',
+  'sop_strategy',
+  'sop_scripting',
+  'tone_voice',
+  'faq_objections',
+  'ai_permissions',
+  'offer_stack',
+  'quality_bar'
+);
+
+-- Brain document status types
+CREATE TYPE public.brain_document_status AS ENUM (
+  'draft',
+  'pending_approval',
+  'approved',
+  'archived'
+);
+
+-- Brain document source types
+CREATE TYPE public.brain_document_source AS ENUM (
+  'onboarding',
+  'chat',
+  'manual',
+  'ai_proposed'
+);
+
+-- brain_documents: individual brain artifacts with versioning
+CREATE TABLE public.brain_documents (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  agency_id UUID NOT NULL REFERENCES public.agencies(id) ON DELETE CASCADE,
+  module public.brain_module NOT NULL,
+  title TEXT NOT NULL,
+  content_json JSONB NOT NULL DEFAULT '{}',
+  status public.brain_document_status NOT NULL DEFAULT 'draft',
+  version INTEGER NOT NULL DEFAULT 1,
+  approved_at TIMESTAMPTZ,
+  approved_by UUID REFERENCES auth.users(id),
+  parent_version_id UUID REFERENCES public.brain_documents(id),
+  source public.brain_document_source NOT NULL DEFAULT 'manual',
+  created_by UUID REFERENCES auth.users(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- brain_document_versions: immutable version history for audit trail
+CREATE TABLE public.brain_document_versions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  document_id UUID NOT NULL REFERENCES public.brain_documents(id) ON DELETE CASCADE,
+  version INTEGER NOT NULL,
+  content_json JSONB NOT NULL,
+  diff_json JSONB,
+  change_summary TEXT,
+  created_by UUID REFERENCES auth.users(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Indexes for brain_documents
+CREATE INDEX idx_brain_docs_agency_module ON public.brain_documents(agency_id, module);
+CREATE INDEX idx_brain_docs_agency_status ON public.brain_documents(agency_id, status);
+CREATE INDEX idx_brain_docs_updated_at ON public.brain_documents(updated_at DESC);
+
+-- Unique constraint: only one approved document per module per agency
+CREATE UNIQUE INDEX idx_brain_docs_unique_approved ON public.brain_documents(agency_id, module)
+  WHERE status = 'approved';
+
+-- Indexes for brain_document_versions
+CREATE INDEX idx_brain_doc_versions_doc ON public.brain_document_versions(document_id, version);
+CREATE INDEX idx_brain_doc_versions_created ON public.brain_document_versions(created_at DESC);
+
+-- Trigger to update updated_at on brain_documents
+CREATE OR REPLACE FUNCTION public.update_brain_document_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_brain_documents_updated_at
+  BEFORE UPDATE ON public.brain_documents
+  FOR EACH ROW
+  EXECUTE FUNCTION public.update_brain_document_updated_at();
+
+-- ============================================================================
+-- PHASE 1: RLS Policies for Brain Documents
+-- ============================================================================
+
+ALTER TABLE public.brain_documents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.brain_document_versions ENABLE ROW LEVEL SECURITY;
+
+-- Policy: Users can read brain documents for agencies they are members of
+CREATE POLICY brain_docs_select_policy ON public.brain_documents
+  FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.agency_members am
+      WHERE am.agency_id = brain_documents.agency_id
+        AND am.user_id = auth.uid()
+    )
+  );
+
+-- Policy: Users can insert brain documents for agencies they are admin/owner of
+CREATE POLICY brain_docs_insert_policy ON public.brain_documents
+  FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.agency_members am
+      WHERE am.agency_id = brain_documents.agency_id
+        AND am.user_id = auth.uid()
+        AND am.role IN ('owner', 'admin')
+    )
+  );
+
+-- Policy: Users can update brain documents for agencies they are admin/owner of
+CREATE POLICY brain_docs_update_policy ON public.brain_documents
+  FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.agency_members am
+      WHERE am.agency_id = brain_documents.agency_id
+        AND am.user_id = auth.uid()
+        AND am.role IN ('owner', 'admin')
+    )
+  );
+
+-- Policy: Only owners can delete brain documents
+CREATE POLICY brain_docs_delete_policy ON public.brain_documents
+  FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.agency_members am
+      WHERE am.agency_id = brain_documents.agency_id
+        AND am.user_id = auth.uid()
+        AND am.role = 'owner'
+    )
+  );
+
+-- Policy: Users can read version history for documents they can access
+CREATE POLICY brain_doc_versions_select_policy ON public.brain_document_versions
+  FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.brain_documents bd
+      JOIN public.agency_members am ON am.agency_id = bd.agency_id
+      WHERE bd.id = brain_document_versions.document_id
+        AND am.user_id = auth.uid()
+    )
+  );
+
+-- Policy: Users can insert version history for documents they can edit
+CREATE POLICY brain_doc_versions_insert_policy ON public.brain_document_versions
+  FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.brain_documents bd
+      JOIN public.agency_members am ON am.agency_id = bd.agency_id
+      WHERE bd.id = brain_document_versions.document_id
+        AND am.user_id = auth.uid()
+        AND am.role IN ('owner', 'admin')
+    )
+  );
+
+-- ============================================================================
+-- PHASE 1: RPCs for Brain Documents
+-- ============================================================================
+
+-- Get all approved brain documents for an agency
+CREATE OR REPLACE FUNCTION public.get_approved_brain_documents(p_agency_id UUID)
+RETURNS SETOF public.brain_documents
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+AS $$
+  SELECT *
+  FROM public.brain_documents
+  WHERE agency_id = p_agency_id
+    AND status = 'approved'
+  ORDER BY module;
+$$;
+
+-- Get brain document by agency and module (includes drafts)
+CREATE OR REPLACE FUNCTION public.get_brain_document(
+  p_agency_id UUID,
+  p_module public.brain_module,
+  p_status public.brain_document_status DEFAULT NULL
+)
+RETURNS SETOF public.brain_documents
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+AS $$
+  SELECT *
+  FROM public.brain_documents
+  WHERE agency_id = p_agency_id
+    AND module = p_module
+    AND (p_status IS NULL OR status = p_status)
+  ORDER BY
+    CASE status
+      WHEN 'approved' THEN 1
+      WHEN 'pending_approval' THEN 2
+      WHEN 'draft' THEN 3
+      ELSE 4
+    END,
+    updated_at DESC
+  LIMIT 1;
+$$;
+
+-- Create a new brain document draft
+CREATE OR REPLACE FUNCTION public.create_brain_document_draft(
+  p_agency_id UUID,
+  p_module public.brain_module,
+  p_title TEXT,
+  p_content_json JSONB,
+  p_source public.brain_document_source DEFAULT 'manual'
+)
+RETURNS public.brain_documents
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_user_id UUID;
+  v_result public.brain_documents;
+BEGIN
+  v_user_id := auth.uid();
+
+  -- Verify user has permission
+  IF NOT EXISTS (
+    SELECT 1 FROM public.agency_members am
+    WHERE am.agency_id = p_agency_id
+      AND am.user_id = v_user_id
+      AND am.role IN ('owner', 'admin')
+  ) THEN
+    RAISE EXCEPTION 'Permission denied: user is not an admin of this agency';
+  END IF;
+
+  -- Insert new draft
+  INSERT INTO public.brain_documents (
+    agency_id, module, title, content_json, status, source, created_by
+  ) VALUES (
+    p_agency_id, p_module, p_title, p_content_json, 'draft', p_source, v_user_id
+  )
+  RETURNING * INTO v_result;
+
+  -- Create initial version record
+  INSERT INTO public.brain_document_versions (
+    document_id, version, content_json, change_summary, created_by
+  ) VALUES (
+    v_result.id, 1, p_content_json, 'Initial draft created', v_user_id
+  );
+
+  RETURN v_result;
+END;
+$$;
+
+-- Update a brain document (creates new version)
+CREATE OR REPLACE FUNCTION public.update_brain_document(
+  p_document_id UUID,
+  p_content_json JSONB,
+  p_change_summary TEXT DEFAULT NULL
+)
+RETURNS public.brain_documents
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_user_id UUID;
+  v_current_doc public.brain_documents;
+  v_new_version INTEGER;
+  v_diff JSONB;
+BEGIN
+  v_user_id := auth.uid();
+
+  -- Get current document
+  SELECT * INTO v_current_doc
+  FROM public.brain_documents
+  WHERE id = p_document_id;
+
+  IF v_current_doc IS NULL THEN
+    RAISE EXCEPTION 'Document not found';
+  END IF;
+
+  -- Verify user has permission
+  IF NOT EXISTS (
+    SELECT 1 FROM public.agency_members am
+    WHERE am.agency_id = v_current_doc.agency_id
+      AND am.user_id = v_user_id
+      AND am.role IN ('owner', 'admin')
+  ) THEN
+    RAISE EXCEPTION 'Permission denied';
+  END IF;
+
+  -- Prevent editing approved documents directly
+  IF v_current_doc.status = 'approved' THEN
+    RAISE EXCEPTION 'Cannot edit approved document directly. Create a new draft instead.';
+  END IF;
+
+  -- Calculate new version
+  v_new_version := v_current_doc.version + 1;
+
+  -- Update document
+  UPDATE public.brain_documents
+  SET
+    content_json = p_content_json,
+    version = v_new_version,
+    updated_at = now()
+  WHERE id = p_document_id
+  RETURNING * INTO v_current_doc;
+
+  -- Create version record
+  INSERT INTO public.brain_document_versions (
+    document_id, version, content_json, change_summary, created_by
+  ) VALUES (
+    p_document_id, v_new_version, p_content_json,
+    COALESCE(p_change_summary, 'Content updated'),
+    v_user_id
+  );
+
+  RETURN v_current_doc;
+END;
+$$;
+
+-- Approve a brain document
+CREATE OR REPLACE FUNCTION public.approve_brain_document(p_document_id UUID)
+RETURNS public.brain_documents
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_user_id UUID;
+  v_doc public.brain_documents;
+BEGIN
+  v_user_id := auth.uid();
+
+  -- Get document
+  SELECT * INTO v_doc
+  FROM public.brain_documents
+  WHERE id = p_document_id;
+
+  IF v_doc IS NULL THEN
+    RAISE EXCEPTION 'Document not found';
+  END IF;
+
+  -- Verify user has permission
+  IF NOT EXISTS (
+    SELECT 1 FROM public.agency_members am
+    WHERE am.agency_id = v_doc.agency_id
+      AND am.user_id = v_user_id
+      AND am.role IN ('owner', 'admin')
+  ) THEN
+    RAISE EXCEPTION 'Permission denied';
+  END IF;
+
+  -- Archive existing approved document for this module
+  UPDATE public.brain_documents
+  SET status = 'archived'
+  WHERE agency_id = v_doc.agency_id
+    AND module = v_doc.module
+    AND status = 'approved'
+    AND id != p_document_id;
+
+  -- Approve the document
+  UPDATE public.brain_documents
+  SET
+    status = 'approved',
+    approved_at = now(),
+    approved_by = v_user_id,
+    updated_at = now()
+  WHERE id = p_document_id
+  RETURNING * INTO v_doc;
+
+  RETURN v_doc;
+END;
+$$;
+
+-- Get version history for a document
+CREATE OR REPLACE FUNCTION public.get_brain_document_history(p_document_id UUID)
+RETURNS SETOF public.brain_document_versions
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+AS $$
+  SELECT v.*
+  FROM public.brain_document_versions v
+  JOIN public.brain_documents d ON d.id = v.document_id
+  JOIN public.agency_members am ON am.agency_id = d.agency_id
+  WHERE v.document_id = p_document_id
+    AND am.user_id = auth.uid()
+  ORDER BY v.version DESC;
+$$;
+
+-- ============================================================================
+-- PHASE 3: Calibration State Column
+-- ============================================================================
+
+-- Add calibration_state column to agency_brains for idempotent setup tracking
+ALTER TABLE public.agency_brains
+ADD COLUMN IF NOT EXISTS calibration_state JSONB DEFAULT '{}';
+
+COMMENT ON COLUMN public.agency_brains.calibration_state IS
+  'Server-side calibration tracking for idempotent setup flow. Schema: { session_id, current_step, answered_keys[], last_question_id, last_question_hash, completed_at }';
+
+-- Create index for faster calibration state lookups
+CREATE INDEX IF NOT EXISTS idx_agency_brains_calibration_state
+  ON public.agency_brains USING gin (calibration_state);
+
+-- ============================================================================
+-- PHASE 4 (Preview): Task Module Requirements Table
+-- ============================================================================
+
+-- task_module_requirements: which brain modules each task type needs
+CREATE TABLE public.task_module_requirements (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  task_type TEXT NOT NULL,
+  module public.brain_module NOT NULL,
+  required BOOLEAN NOT NULL DEFAULT true,
+  field_paths TEXT[] DEFAULT '{}',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(task_type, module)
+);
+
+-- Seed data for task-to-module mapping
+INSERT INTO public.task_module_requirements (task_type, module, required, field_paths) VALUES
+  ('STRATEGY_PLAN', 'bootstrap', true, ARRAY['identity.offers', 'icp.industries']),
+  ('STRATEGY_PLAN', 'tone_voice', true, ARRAY['adjectives', 'writing_rules']),
+  ('STRATEGY_PLAN', 'sop_strategy', true, ARRAY['pillars']),
+  ('CONTENT_IDEAS', 'bootstrap', true, ARRAY['identity.offers']),
+  ('CONTENT_IDEAS', 'tone_voice', false, ARRAY[]::TEXT[]),
+  ('SCRIPT_WRITING', 'sop_scripting', true, ARRAY['hooks', 'cta_templates']),
+  ('SCRIPT_WRITING', 'tone_voice', true, ARRAY['adjectives', 'banned_words']),
+  ('CLIENT_PORTAL_QA', 'faq_objections', true, ARRAY['faqs']),
+  ('CLIENT_PORTAL_QA', 'rep_policy', true, ARRAY['boundaries']),
+  ('AGENCY_ADMIN_GENERAL_CHAT', 'bootstrap', false, ARRAY[]::TEXT[]),
+  ('AGENCY_ADMIN_GENERAL_CHAT', 'rep_policy', false, ARRAY[]::TEXT[])
+ON CONFLICT (task_type, module) DO NOTHING;
+
+-- RLS for task_module_requirements (read-only for all authenticated users)
+ALTER TABLE public.task_module_requirements ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY task_module_requirements_select_policy ON public.task_module_requirements
+  FOR SELECT
+  USING (auth.uid() IS NOT NULL);
+
+-- ============================================================================
+-- Grant permissions
+-- ============================================================================
+
+GRANT USAGE ON TYPE public.brain_module TO authenticated;
+GRANT USAGE ON TYPE public.brain_document_status TO authenticated;
+GRANT USAGE ON TYPE public.brain_document_source TO authenticated;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.brain_documents TO authenticated;
+GRANT SELECT, INSERT ON public.brain_document_versions TO authenticated;
+GRANT SELECT ON public.task_module_requirements TO authenticated;
+
+GRANT EXECUTE ON FUNCTION public.get_approved_brain_documents(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_brain_document(UUID, public.brain_module, public.brain_document_status) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.create_brain_document_draft(UUID, public.brain_module, TEXT, JSONB, public.brain_document_source) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.update_brain_document(UUID, JSONB, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.approve_brain_document(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_brain_document_history(UUID) TO authenticated;
+
+=== 20260108123000_brain_documents_rag.sql ===
+-- Add brain_document doc type and enforce approved-only retrieval for brain docs
+
+alter table public.ai_documents
+  drop constraint if exists ai_documents_doc_type_check;
+
+alter table public.ai_documents
+  add constraint ai_documents_doc_type_check
+  check (doc_type in (
+    'agency_exemplar_strategy',
+    'agency_sop',
+    'client_guidelines',
+    'client_notes',
+    'approved_posts',
+    'ai_artifact',
+    'strategy_draft',
+    'brain_document'
+  ));
+
+drop function if exists public.match_ai_embeddings(
+  uuid,
+  vector(1536),
+  uuid,
+  int,
+  text[]
+);
+
+create or replace function public.match_ai_embeddings(
+  p_agency_id uuid,
+  p_query_embedding vector(1536),
+  p_client_id uuid default null,
+  p_match_count int default 8,
+  p_doc_types text[] default null
+)
+returns table (
+  document_id uuid,
+  chunk_id uuid,
+  doc_type text,
+  chunk_text text,
+  score float8,
+  title text,
+  source jsonb,
+  source_url text
+)
+language sql
+stable
+as $$
+  select
+    e.document_id,
+    e.chunk_id,
+    e.doc_type,
+    c.chunk_text,
+    1 - (e.embedding <=> p_query_embedding) as score,
+    d.title,
+    d.source,
+    d.source_url
+  from public.ai_embeddings e
+  join public.ai_document_chunks c on c.id = e.chunk_id
+  join public.ai_documents d on d.id = e.document_id
+  where d.agency_id = p_agency_id
+    and c.embedding_status = 'ok'
+    and (p_client_id is null or d.client_id = p_client_id)
+    and (p_doc_types is null or e.doc_type = any(p_doc_types))
+    and (e.doc_type <> 'brain_document' or (d.metadata->>'status') = 'approved')
+  order by e.embedding <=> p_query_embedding
+  limit p_match_count;
+$$;
+
+=== 20260110120000_seed_default_brain_pack_v1_rpc.sql ===
+begin;
+
+-- Seed Default Brain Pack v1 (draft) for an agency, atomically and idempotently.
+--
+-- Idempotency rule: seed ONLY when the agency has 0 brain_documents total.
+-- Atomicity: function runs in a single transaction, with an advisory lock per agency to prevent races.
+create or replace function public.seed_default_brain_pack_v1(
+  p_agency_id uuid,
+  p_user_id uuid,
+  p_docs jsonb
+)
+returns table (document_id uuid, module text)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user_id uuid;
+begin
+  if p_agency_id is null then
+    raise exception 'p_agency_id is required';
+  end if;
+
+  if p_user_id is null then
+    raise exception 'p_user_id is required';
+  end if;
+
+  if p_docs is null or jsonb_typeof(p_docs) <> 'array' then
+    raise exception 'p_docs must be a JSON array';
+  end if;
+
+  if jsonb_array_length(p_docs) <> 3 then
+    raise exception 'p_docs must contain exactly 3 docs';
+  end if;
+
+  -- Prevent races on concurrent seed attempts per agency
+  perform pg_advisory_xact_lock(hashtextextended(p_agency_id::text, 0));
+
+  -- Resolve user identity: prefer auth.uid() when present, otherwise allow explicit p_user_id.
+  v_user_id := auth.uid();
+  if v_user_id is null then
+    v_user_id := p_user_id;
+  elsif v_user_id <> p_user_id then
+    raise exception 'p_user_id must match auth.uid()';
+  end if;
+
+  -- Permission check: only admin/owner can seed
+  if not exists (
+    select 1
+    from public.agency_members am
+    where am.agency_id = p_agency_id
+      and am.user_id = v_user_id
+      and am.role in ('owner', 'admin')
+  ) then
+    raise exception 'Permission denied: user is not an admin of this agency';
+  end if;
+
+  -- Idempotent no-op if any brain_documents exist for this agency
+  if exists (
+    select 1
+    from public.brain_documents
+    where agency_id = p_agency_id
+    limit 1
+  ) then
+    return;
+  end if;
+
+  return query
+  with input_docs as (
+    select
+      (doc->>'module')::public.brain_module as module,
+      nullif(btrim(doc->>'title'), '') as title,
+      coalesce(doc->'content_json', '{}'::jsonb) as content_json,
+      coalesce(nullif(doc->>'source', ''), 'onboarding')::public.brain_document_source as source
+    from jsonb_array_elements(p_docs) doc
+  ),
+  validated as (
+    select
+      module,
+      coalesce(title, initcap(replace(module::text, '_', ' '))) as title,
+      content_json,
+      source
+    from input_docs
+  ),
+  inserted as (
+    insert into public.brain_documents (
+      agency_id,
+      module,
+      title,
+      content_json,
+      status,
+      version,
+      source,
+      created_by
+    )
+    select
+      p_agency_id,
+      v.module,
+      v.title,
+      v.content_json,
+      'draft'::public.brain_document_status,
+      1,
+      v.source,
+      v_user_id
+    from validated v
+    returning id, module, content_json
+  ),
+  versions as (
+    insert into public.brain_document_versions (
+      document_id,
+      version,
+      content_json,
+      change_summary,
+      created_by
+    )
+    select
+      i.id,
+      1,
+      i.content_json,
+      'Seeded Default Brain Pack v1',
+      v_user_id
+    from inserted i
+    returning document_id
+  )
+  select i.id as document_id, i.module::text as module
+  from inserted i
+  order by i.module::text;
+end;
+$$;
+
+revoke all on function public.seed_default_brain_pack_v1(uuid, uuid, jsonb) from public;
+grant execute on function public.seed_default_brain_pack_v1(uuid, uuid, jsonb) to authenticated;
+
+commit;
+
+
+=== 20260111100000_list_agencies_with_zero_brain_documents.sql ===
+create or replace function public.list_agencies_with_zero_brain_documents(
+  p_limit int default 200,
+  p_offset int default 0
+)
+returns table (agency_id uuid)
+language sql
+stable
+as $$
+  select a.id as agency_id
+  from public.agencies a
+  where not exists (
+    select 1
+    from public.brain_documents d
+    where d.agency_id = a.id
+  )
+  order by a.created_at asc
+  limit greatest(p_limit, 0)
+  offset greatest(p_offset, 0);
+$$;
+
+
+=== 20260111140000_seed_default_brain_pack_v1_grant_service_role.sql ===
+begin;
+-- Allow Edge Functions using the service role key to invoke the seed RPC.
+grant execute on function public.seed_default_brain_pack_v1(uuid, uuid, jsonb) to service_role;
+commit;
+
+=== 20260116210000_repair_default_brain_pack_v1_rpc.sql ===
+begin;
+
+-- Repair Default Brain Pack v1 for an agency (seed missing defaults only), atomically and idempotently.
+--
+-- Modules: bootstrap, rep_policy, quality_bar
+-- Atomicity: function runs in a single transaction, with an advisory lock per agency to prevent races.
+-- Idempotency rule: insert ONLY modules that do not already exist (status <> 'archived') for this agency.
+create or replace function public.repair_default_brain_pack_v1(
+  p_agency_id uuid,
+  p_user_id uuid,
+  p_docs jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user_id uuid;
+  v_existing_modules text[];
+  v_missing_modules text[];
+  v_inserted_ids uuid[];
+begin
+  if p_agency_id is null then
+    raise exception 'p_agency_id is required';
+  end if;
+
+  if p_user_id is null then
+    raise exception 'p_user_id is required';
+  end if;
+
+  if p_docs is null or jsonb_typeof(p_docs) <> 'array' then
+    raise exception 'p_docs must be a JSON array';
+  end if;
+
+  if jsonb_array_length(p_docs) <> 3 then
+    raise exception 'p_docs must contain exactly 3 docs';
+  end if;
+
+  -- Prevent races on concurrent repair attempts per agency
+  perform pg_advisory_xact_lock(hashtextextended(p_agency_id::text, 0));
+
+  -- Resolve user identity: prefer auth.uid() when present, otherwise allow explicit p_user_id.
+  v_user_id := auth.uid();
+  if v_user_id is null then
+    v_user_id := p_user_id;
+  elsif v_user_id <> p_user_id then
+    raise exception 'p_user_id must match auth.uid()';
+  end if;
+
+  -- Permission check: only admin/owner can repair
+  if not exists (
+    select 1
+    from public.agency_members am
+    where am.agency_id = p_agency_id
+      and am.user_id = v_user_id
+      and am.role in ('owner', 'admin')
+  ) then
+    raise exception 'Permission denied: user is not an admin of this agency';
+  end if;
+
+  select coalesce(array_agg(distinct bd.module::text), '{}'::text[])
+    into v_existing_modules
+  from public.brain_documents bd
+  where bd.agency_id = p_agency_id
+    and bd.status <> 'archived'
+    and bd.module in ('bootstrap'::public.brain_module, 'rep_policy'::public.brain_module, 'quality_bar'::public.brain_module);
+
+  select array_agg(m.module)
+    into v_missing_modules
+  from (
+    select unnest(array['bootstrap','rep_policy','quality_bar']::text[]) as module
+    except
+    select unnest(v_existing_modules)
+  ) m;
+
+  if v_missing_modules is null or array_length(v_missing_modules, 1) is null then
+    return jsonb_build_object(
+      'inserted_count', 0,
+      'inserted_document_ids', '[]'::jsonb,
+      'skipped_existing_modules', coalesce(to_jsonb(v_existing_modules), '[]'::jsonb)
+    );
+  end if;
+
+  with input_docs as (
+    select
+      (doc->>'module')::public.brain_module as module,
+      nullif(btrim(doc->>'title'), '') as title,
+      coalesce(doc->'content_json', '{}'::jsonb) as content_json,
+      coalesce(nullif(doc->>'source', ''), 'onboarding')::public.brain_document_source as source
+    from jsonb_array_elements(p_docs) doc
+  ),
+  filtered as (
+    select
+      d.module,
+      coalesce(d.title, initcap(replace(d.module::text, '_', ' '))) as title,
+      d.content_json,
+      d.source
+    from input_docs d
+    where d.module::text = any(v_missing_modules)
+  ),
+  inserted as (
+    insert into public.brain_documents (
+      agency_id,
+      module,
+      title,
+      content_json,
+      status,
+      version,
+      source,
+      created_by
+    )
+    select
+      p_agency_id,
+      f.module,
+      f.title,
+      f.content_json,
+      'draft'::public.brain_document_status,
+      1,
+      f.source,
+      v_user_id
+    from filtered f
+    returning id, content_json
+  ),
+  versions as (
+    insert into public.brain_document_versions (
+      document_id,
+      version,
+      content_json,
+      change_summary,
+      created_by
+    )
+    select
+      i.id,
+      1,
+      i.content_json,
+      'Repaired Default Brain Pack v1 (seed missing modules)',
+      v_user_id
+    from inserted i
+    returning document_id
+  )
+  select coalesce(array_agg(i.id), '{}'::uuid[])
+    into v_inserted_ids
+  from inserted i;
+
+  return jsonb_build_object(
+    'inserted_count', coalesce(array_length(v_inserted_ids, 1), 0),
+    'inserted_document_ids', coalesce(to_jsonb(v_inserted_ids), '[]'::jsonb),
+    'skipped_existing_modules', coalesce(to_jsonb(v_existing_modules), '[]'::jsonb)
+  );
+end;
+$$;
+
+revoke all on function public.repair_default_brain_pack_v1(uuid, uuid, jsonb) from public;
+grant execute on function public.repair_default_brain_pack_v1(uuid, uuid, jsonb) to authenticated;
+grant execute on function public.repair_default_brain_pack_v1(uuid, uuid, jsonb) to service_role;
+
+commit;
+
+
+=== 20260117160000_brain_documents_storage_bucket.sql ===
+begin;
+
+-- Storage bucket for Agency AI Setup document uploads (used by ai-brain-analyze).
+insert into storage.buckets (id, name, public)
+values ('brain-documents', 'brain-documents', false)
+on conflict (id) do update set name = excluded.name;
+
+-- RLS policies for storage.objects (brain-documents)
+drop policy if exists "Brain documents can read" on storage.objects;
+drop policy if exists "Brain documents can insert" on storage.objects;
+drop policy if exists "Brain documents can update" on storage.objects;
+drop policy if exists "Brain documents can delete" on storage.objects;
+
+create policy "Brain documents can read"
+  on storage.objects
+  for select
+  using (
+    bucket_id = 'brain-documents'
+    and (
+      exists (
+        select 1
+        from public.agency_members m
+        where m.user_id = auth.uid()
+          and m.agency_id = (
+            case
+              when split_part(name, '/', 1) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+                then split_part(name, '/', 1)::uuid
+              else null
+            end
+          )
+      )
+      or exists (
+        select 1
+        from public.agencies a
+        where a.user_id = auth.uid()
+          and a.id = (
+            case
+              when split_part(name, '/', 1) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+                then split_part(name, '/', 1)::uuid
+              else null
+            end
+          )
+      )
+    )
+  );
+
+create policy "Brain documents can insert"
+  on storage.objects
+  for insert
+  with check (
+    bucket_id = 'brain-documents'
+    and auth.role() = 'authenticated'
+    and (
+      exists (
+        select 1
+        from public.agency_members m
+        where m.user_id = auth.uid()
+          and m.role in ('owner', 'admin', 'manager')
+          and m.agency_id = (
+            case
+              when split_part(name, '/', 1) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+                then split_part(name, '/', 1)::uuid
+              else null
+            end
+          )
+      )
+      or exists (
+        select 1
+        from public.agencies a
+        where a.user_id = auth.uid()
+          and a.id = (
+            case
+              when split_part(name, '/', 1) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+                then split_part(name, '/', 1)::uuid
+              else null
+            end
+          )
+      )
+    )
+  );
+
+create policy "Brain documents can update"
+  on storage.objects
+  for update
+  using (
+    bucket_id = 'brain-documents'
+    and auth.role() = 'authenticated'
+  );
+
+create policy "Brain documents can delete"
+  on storage.objects
+  for delete
+  using (
+    bucket_id = 'brain-documents'
+    and auth.role() = 'authenticated'
+  );
+
+commit;
+
+

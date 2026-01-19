@@ -1,0 +1,49 @@
+﻿supabase\functions\ai-ask\index.ts:500:    aiResult = await ai.run({
+supabase\functions\ai-ask\index.ts-501-      taskType: TaskType.CLIENT_PORTAL_QA,
+supabase\functions\ai-ask\index.ts-502-      input: question,
+supabase\functions\ai-ask\index.ts-503-      context: {
+--
+supabase\functions\generate-monthly-report\index.ts:172:        const aiResult = await ai.run({
+supabase\functions\generate-monthly-report\index.ts-173-          taskType: TaskType.SUMMARIZE,
+supabase\functions\generate-monthly-report\index.ts-174-          input: aiPrompt,
+supabase\functions\generate-monthly-report\index.ts-175-          context: { agencyId: agency_id, clientId: client_id, userId: user.id, environment: "prod", supabase: supabaseClient },
+--
+supabase\functions\generate-ai-content\index.ts:206:      aiResult = await ai.run({
+supabase\functions\generate-ai-content\index.ts-207-        taskType: TaskType.CONTENT_IDEAS,
+supabase\functions\generate-ai-content\index.ts-208-        input: "",
+supabase\functions\generate-ai-content\index.ts-209-        context: { agencyId: agency_id, clientId: client_id, userId: user.id, environment: "prod", supabase: supabaseClient },
+--
+supabase\functions\_shared\agency-admin-setup-orchestrator.ts:139:  const result = await ai.run({
+supabase\functions\_shared\agency-admin-setup-orchestrator.ts-140-    taskType: TaskType.AGENCY_ADMIN_SETUP_GUIDED_V2,
+supabase\functions\_shared\agency-admin-setup-orchestrator.ts-141-    messages: [
+supabase\functions\_shared\agency-admin-setup-orchestrator.ts-142-      {
+--
+supabase\functions\ai-onboarding-guide\index.ts:323:    const aiResult = await ai.run({
+supabase\functions\ai-onboarding-guide\index.ts-324-      taskType: TaskType.EXTRACT_STRUCTURED,
+supabase\functions\ai-onboarding-guide\index.ts-325-      messages: buildOnboardingOffersPrompt({ website, niche }),
+supabase\functions\ai-onboarding-guide\index.ts-326-      context: { environment: "prod" },
+--
+supabase\functions\ai-onboarding-guide\index.ts:355:    const aiResult = await ai.run({
+supabase\functions\ai-onboarding-guide\index.ts-356-      taskType: TaskType.EXTRACT_STRUCTURED,
+supabase\functions\ai-onboarding-guide\index.ts-357-      messages: buildOnboardingAudiencePrompt({ niche, offers }),
+supabase\functions\ai-onboarding-guide\index.ts-358-      context: { environment: "prod" },
+--
+supabase\functions\ai-onboarding-guide\index.ts:384:    const aiResult = await ai.run({
+supabase\functions\ai-onboarding-guide\index.ts-385-      taskType: TaskType.EXTRACT_STRUCTURED,
+supabase\functions\ai-onboarding-guide\index.ts-386-      messages: buildOnboardingDifferentiatorsPrompt({ brand, niche }),
+supabase\functions\ai-onboarding-guide\index.ts-387-      context: { environment: "prod" },
+--
+supabase\functions\ai-strategy-generate\index.ts:629:    aiResult = await ai.run({
+supabase\functions\ai-strategy-generate\index.ts-630-      taskType: TaskType.STRATEGY_PLAN,
+supabase\functions\ai-strategy-generate\index.ts-631-      input: "",
+supabase\functions\ai-strategy-generate\index.ts-632-      context: { agencyId, clientId, userId: actingUserId, environment: "prod", supabase: null, skipUsageLog: true },
+--
+supabase\functions\_shared\embeddings.ts:46:  const result = await ai.run({
+supabase\functions\_shared\embeddings.ts-47-    taskType: TaskType.EMBED_TEXT,
+supabase\functions\_shared\embeddings.ts-48-    input: text,
+supabase\functions\_shared\embeddings.ts-49-    context: { environment: "prod" },
+--
+supabase\functions\_shared\ai.ts:274:    const result = await ai.run({
+supabase\functions\_shared\ai.ts-275-      taskType: input.task_type,
+supabase\functions\_shared\ai.ts-276-      input: input.input?.message ?? "",
+supabase\functions\_shared\ai.ts-277-      messages: input.context?.messages,

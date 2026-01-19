@@ -1,6 +1,22 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { createElement } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { StrategyDocumentRecord } from "@/lib/strategy/types";
+import { parseEdgeFunctionResponse } from "@/lib/edgeFunctionError";
+import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
+import { useNavigate } from "react-router-dom";
+
+async function readFunctionErrorPayload(error: unknown): Promise<{ code?: string; error?: string; message?: string } | null> {
+  if (!error || typeof error !== "object") return null;
+  const context = (error as { context?: Response }).context;
+  if (!context || typeof (context as any).json !== "function") return null;
+  try {
+    return (await (context as any).json()) as { code?: string; error?: string; message?: string };
+  } catch {
+    return null;
+  }
+}
 
 export const strategyDocumentsKeys = {
   all: ["strategy-documents"] as const,
@@ -55,6 +71,8 @@ export function useActivateStrategyDocument() {
 
 export function useGenerateStrategyDocument() {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const navigate = useNavigate();
 
   return useMutation({
     mutationFn: async ({
@@ -68,8 +86,61 @@ export function useGenerateStrategyDocument() {
         body: { client_id: clientId, instruction },
       });
 
-      if (error) throw error;
-      return data as { document: StrategyDocumentRecord | null };
+      if (error) {
+        const payload = await readFunctionErrorPayload(error);
+        const code = payload?.code ?? "EDGE_FUNCTION_ERROR";
+        const message =
+          payload?.message ?? payload?.error ?? (error instanceof Error ? error.message : "Failed to call strategy generation");
+
+        toast({
+          variant: "destructive",
+          title: "Strategy Generation Failed",
+          description: message,
+        });
+
+        const err: any = new Error(message);
+        err.code = code;
+        throw err;
+      }
+
+      const parsed = parseEdgeFunctionResponse<{
+        document?: StrategyDocumentRecord | null;
+        unknown?: boolean;
+        [key: string]: unknown;
+      }>(data);
+
+      if (!parsed.success && parsed.error) {
+        const err = parsed.error;
+
+        toast({
+          variant: "destructive",
+          title: "Strategy Generation Failed",
+          description: err.message,
+          action: err.deepLink
+            ? createElement(ToastAction, { altText: "Fix now", onClick: () => navigate(err.deepLink!) }, "Fix Now")
+            : undefined,
+        });
+
+        const thrown: any = new Error(err.message);
+        thrown.code = err.code;
+        thrown.deepLink = err.deepLink;
+        thrown.missingFields = err.missingFields;
+        throw thrown;
+      }
+
+      const document = (parsed.result?.document ?? null) as StrategyDocumentRecord | null;
+      if (!document) {
+        toast({
+          variant: "destructive",
+          title: "Strategy Generation Failed",
+          description: "Strategy generation did not return a document.",
+        });
+        const err: any = new Error("Strategy generation did not return a document.");
+        err.code = "MISSING_DOCUMENT";
+        throw err;
+      }
+
+      return { document };
     },
     onSuccess: (data) => {
       if (!data?.document) return;

@@ -3,6 +3,53 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
 
+function fromBase64Url(input: string): Uint8Array | null {
+  try {
+    const base64 = input.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
+    return Uint8Array.from(atob(padded), (c) => c.charCodeAt(0));
+  } catch {
+    return null;
+  }
+}
+
+async function verifySignedState(state: string): Promise<any | null> {
+  const secret = Deno.env.get("OAUTH_STATE_SECRET") || SUPABASE_SERVICE_ROLE_KEY;
+  if (!secret) return null;
+
+  const parts = state.split(".");
+  if (parts.length !== 2) return null;
+
+  const [payloadB64Url, sigB64Url] = parts;
+  const sigBytes = fromBase64Url(sigB64Url);
+  if (!sigBytes) return null;
+
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["verify"],
+  );
+
+  const isValid = await crypto.subtle.verify(
+    "HMAC",
+    key,
+    sigBytes,
+    new TextEncoder().encode(payloadB64Url),
+  );
+  if (!isValid) return null;
+
+  const payloadBytes = fromBase64Url(payloadB64Url);
+  if (!payloadBytes) return null;
+
+  try {
+    return JSON.parse(new TextDecoder().decode(payloadBytes));
+  } catch {
+    return null;
+  }
+}
+
 serve(async (req: Request) => {
   const headers = corsHeaders(req);
 
@@ -36,7 +83,15 @@ serve(async (req: Request) => {
       );
     }
 
-    const decodedState = JSON.parse(atob(state));
+    const decodedState = await verifySignedState(state);
+    if (!decodedState) {
+      console.error("[OAUTH-CALLBACK] Invalid or unsigned state");
+      return new Response(
+        '<html><body><script>alert("Invalid state"); window.close();</script></body></html>',
+        { headers: { ...headers, "Content-Type": "text/html" } },
+      );
+    }
+
     const { platform, clientId, userId, source = 'agency' } = decodedState;
     console.log('[OAUTH-CALLBACK] STATE:', decodedState);
 
@@ -53,6 +108,26 @@ serve(async (req: Request) => {
     console.log('[OAUTH-CALLBACK] Environment variables validated');
 
     const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    if (!clientId || typeof clientId !== "string") {
+      return new Response(
+        '<html><body><script>alert("Invalid clientId"); window.close();</script></body></html>',
+        { headers: { ...headers, "Content-Type": "text/html" } },
+      );
+    }
+
+    const { data: clientRow, error: clientError } = await admin
+      .from("clients")
+      .select("id")
+      .eq("id", clientId)
+      .maybeSingle();
+
+    if (clientError || !clientRow) {
+      return new Response(
+        '<html><body><script>alert("Client not found"); window.close();</script></body></html>',
+        { headers: { ...headers, "Content-Type": "text/html" } },
+      );
+    }
 
     const tokens = await exchangeCodeForToken(code, META_APP_ID, META_APP_SECRET, META_REDIRECT_URI, GRAPH_API_VERSION);
     console.log('[OAUTH-CALLBACK] TOKEN EXCHANGE RESPONSE:', tokens ? 'success' : 'failed');

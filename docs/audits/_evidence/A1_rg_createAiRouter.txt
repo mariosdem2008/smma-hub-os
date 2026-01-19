@@ -1,0 +1,74 @@
+﻿src\ai\router.ts-188-}
+src\ai\router.ts-189-
+src\ai\router.ts:190:export function createAiRouter(deps: RouterDeps = {}) {
+src\ai\router.ts-191-  const providers = deps.providers ?? defaultProviders;
+src\ai\router.ts-192-  const now = deps.now ?? nowMs;
+src\ai\router.ts-193-  const useBrainResolver = deps.useBrainResolver ?? false;
+src\ai\router.ts-194-
+src\ai\router.ts-195-  async function run(options: AiRunOptions): Promise<AiRunResult> {
+--
+src\ai\router.ts-524-}
+src\ai\router.ts-525-
+src\ai\router.ts:526:export const ai = createAiRouter();
+--
+src\ai\__tests__\router.test.ts-1-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+src\ai\__tests__\router.test.ts:2:import { createAiRouter } from "../router.ts"
+src\ai\__tests__\router.test.ts-3-import { TaskType } from "../taskTypes.ts"
+src\ai\__tests__\router.test.ts-4-
+src\ai\__tests__\router.test.ts-5-describe("ai router", () => {
+src\ai\__tests__\router.test.ts-6-  const baseProvider = {
+src\ai\__tests__\router.test.ts-7-    generate: vi.fn(async () => ({ text: "OK", usage: { inputTokens: 1, outputTokens: 1 } })),
+--
+src\ai\__tests__\router.test.ts-25-
+src\ai\__tests__\router.test.ts-26-  it("selects dev/prod mapping based on environment", async () => {
+src\ai\__tests__\router.test.ts:27:    const router = createAiRouter({ providers });
+src\ai\__tests__\router.test.ts-28-    await router.run({
+src\ai\__tests__\router.test.ts-29-      taskType: TaskType.TOOL_EXECUTION,
+src\ai\__tests__\router.test.ts-30-      input: "Run tool",
+src\ai\__tests__\router.test.ts-31-      context: { environment: "dev" },
+src\ai\__tests__\router.test.ts-32-    });
+--
+src\ai\__tests__\router.test.ts-45-  it("uses env override when set", async () => {
+src\ai\__tests__\router.test.ts-46-    process.env.AI_MODEL__TOOL_EXECUTION__prod = "override-model";
+src\ai\__tests__\router.test.ts:47:    const router = createAiRouter({ providers });
+src\ai\__tests__\router.test.ts-48-    await router.run({
+src\ai\__tests__\router.test.ts-49-      taskType: TaskType.TOOL_EXECUTION,
+src\ai\__tests__\router.test.ts-50-      input: "Run tool",
+src\ai\__tests__\router.test.ts-51-      context: { environment: "prod" },
+src\ai\__tests__\router.test.ts-52-    });
+--
+src\ai\__tests__\router.test.ts-60-      .mockResolvedValueOnce({ text: "not-json" })
+src\ai\__tests__\router.test.ts-61-      .mockResolvedValueOnce({ text: "[{\"id\":\"one\"}]" });
+src\ai\__tests__\router.test.ts:62:    const router = createAiRouter({
+src\ai\__tests__\router.test.ts-63-      providers: { ...providers, gemini: { ...baseProvider, generate } },
+src\ai\__tests__\router.test.ts-64-    });
+src\ai\__tests__\router.test.ts-65-    const result = await router.run({
+src\ai\__tests__\router.test.ts-66-      taskType: TaskType.EXTRACT_STRUCTURED,
+src\ai\__tests__\router.test.ts-67-      input: "Give data",
+--
+src\ai\__tests__\router.test.ts-73-
+src\ai\__tests__\router.test.ts-74-  it("returns UNKNOWN when required brain context is missing", async () => {
+src\ai\__tests__\router.test.ts:75:    const router = createAiRouter({ providers });
+src\ai\__tests__\router.test.ts-76-    const result = await router.run({
+src\ai\__tests__\router.test.ts-77-      taskType: TaskType.STRATEGY_PLAN,
+src\ai\__tests__\router.test.ts-78-      input: "",
+src\ai\__tests__\router.test.ts-79-      context: { environment: "dev" },
+src\ai\__tests__\router.test.ts-80-    });
+--
+src\ai\__tests__\router.test.ts-84-
+src\ai\__tests__\router.test.ts-85-  it("passes expected shape to provider adapter", async () => {
+src\ai\__tests__\router.test.ts:86:    const router = createAiRouter({ providers });
+src\ai\__tests__\router.test.ts-87-    await router.run({
+src\ai\__tests__\router.test.ts-88-      taskType: TaskType.CONTENT_IDEAS,
+src\ai\__tests__\router.test.ts-89-      input: "",
+src\ai\__tests__\router.test.ts-90-      context: { environment: "dev" },
+src\ai\__tests__\router.test.ts-91-      metadata: { mode: "ideas", platform: "Instagram" },
+--
+src\ai\__tests__\router.test.ts-108-      })),
+src\ai\__tests__\router.test.ts-109-    };
+src\ai\__tests__\router.test.ts:110:    const router = createAiRouter({
+src\ai\__tests__\router.test.ts-111-      providers: { ...providers, gemini: { ...baseProvider, generateJson } as any },
+src\ai\__tests__\router.test.ts-112-    });
+src\ai\__tests__\router.test.ts-113-    await expect(
+src\ai\__tests__\router.test.ts-114-      router.run({
+src\ai\__tests__\router.test.ts-115-        taskType: TaskType.EXTRACT_STRUCTURED,

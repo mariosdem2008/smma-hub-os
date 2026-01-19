@@ -1,0 +1,95 @@
+﻿    1: type PromptCache = Map<string, string>;
+    2: 
+    3: const PROMPT_CACHE: PromptCache = new Map();
+    4: 
+    5: function isProductionEnv() {
+    6:   if (typeof Deno !== "undefined" && typeof Deno.env?.get === "function") {
+    7:     return Deno.env.get("AI_MODE") === "prod" || Deno.env.get("NODE_ENV") === "production";
+    8:   }
+    9:   if (typeof process !== "undefined") {
+   10:     return process.env.AI_MODE === "prod" || process.env.NODE_ENV === "production";
+   11:   }
+   12:   return false;
+   13: }
+   14: 
+   15: function normalizePath(input: string | URL): string | URL {
+   16:   if (input instanceof URL) return input;
+   17:   if (/^[a-zA-Z][a-zA-Z\d+\-.]*:\/\//.test(input)) {
+   18:     try {
+   19:       return new URL(input);
+   20:     } catch {
+   21:       return input;
+   22:     }
+   23:   }
+   24:   return input;
+   25: }
+   26: 
+   27: function readTextFileSync(path: string | URL): string {
+   28:   const normalized = normalizePath(path);
+   29:   if (typeof Deno !== "undefined" && typeof (Deno as any).readTextFileSync === "function") {
+   30:     return (Deno as any).readTextFileSync(normalized);
+   31:   }
+   32:   if (typeof process !== "undefined" && process?.versions?.node) {
+   33:     let filePath: string | null = null;
+   34:     if (normalized instanceof URL) {
+   35:       if (normalized.protocol !== "file:") return "";
+   36:       filePath = decodeURIComponent(normalized.pathname);
+   37:       if (/^\/[A-Za-z]:/.test(filePath)) {
+   38:         filePath = filePath.slice(1);
+   39:       }
+   40:     } else {
+   41:       filePath = normalized;
+   42:     }
+   43:     try {
+   44:       const nodeRequire = new Function("return typeof require !== 'undefined' ? require : undefined")();
+   45:       if (nodeRequire) {
+   46:         const readFileSync = nodeRequire("fs").readFileSync;
+   47:         return readFileSync(filePath, "utf8");
+   48:       }
+   49:     } catch {
+   50:       // fall through to binding-based read
+   51:     }
+   52:     try {
+   53:       const fsBinding = (process as any).binding?.("fs");
+   54:       if (fsBinding?.readFileUtf8 && filePath) {
+   55:         return fsBinding.readFileUtf8(filePath, 0);
+   56:       }
+   57:     } catch {
+   58:       return "";
+   59:     }
+   60:   }
+   61:   try {
+   62:     const readFileSync = new Function("return require('fs').readFileSync")();
+   63:     return readFileSync(normalized, "utf8");
+   64:   } catch {
+   65:     return "";
+   66:   }
+   67: }
+   68: 
+   69: function resolvePromptPath(relativePath: string) {
+   70:   if (typeof process !== "undefined" && process?.cwd) {
+   71:     const separator = process.platform === "win32" ? "\\" : "/";
+   72:     const safeRelative = relativePath.split("/").join(separator);
+   73:     return `${process.cwd()}${separator}prompts${separator}${safeRelative}`;
+   74:   }
+   75:   return new URL(`../../prompts/${relativePath}`, import.meta.url);
+   76: }
+   77: 
+   78: export function loadPromptText(relativePath: string): string {
+   79:   if (relativePath.includes("..") || relativePath.startsWith("/") || relativePath.startsWith("\\")) {
+   80:     throw new Error(`Invalid prompt path: ${relativePath}`);
+   81:   }
+   82:   const cached = PROMPT_CACHE.get(relativePath);
+   83:   if (cached) return cached;
+   84:   const url = resolvePromptPath(relativePath);
+   85:   const text = readTextFileSync(url);
+   86:   if (!text || !text.trim()) {
+   87:     const message = `Prompt missing or empty: ${relativePath}`;
+   88:     if (isProductionEnv()) {
+   89:       throw new Error(message);
+   90:     }
+   91:     throw new Error(message);
+   92:   }
+   93:   PROMPT_CACHE.set(relativePath, text);
+   94:   return text;
+   95: }

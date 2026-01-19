@@ -26,14 +26,13 @@ export default function AISetup() {
   const { canEditContent } = useRole();
   const { byModule, documents, isLoading, error, refetch } = useDocumentsByModule();
 
-  const approvedCoreModules = useMemo(() => {
-    const core: BrainModule[] = ["bootstrap", "rep_policy", "quality_bar"];
-    return core.filter((m) => documents.some((d) => d.module === m && d.status === "approved"));
+  const approvedModules = useMemo(() => {
+    return Array.from(new Set(documents.filter((doc) => doc.status === "approved").map((doc) => doc.module)));
   }, [documents]);
 
   const { data: ingestionHealth } = useDefaultBrainPackIngestionHealth({
     agencyId: agencyId ?? undefined,
-    approvedModules: approvedCoreModules,
+    approvedModules,
   });
 
   const missingRagModules = ingestionHealth?.missingModules ?? [];

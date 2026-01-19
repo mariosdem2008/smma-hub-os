@@ -1,0 +1,30 @@
+﻿
+supabase/migrations\20251223150000_ai_employee_v1_sprint1.sql:71:create table if not exists public.ai_embeddings (
+supabase/migrations\20251223150000_ai_employee_v1_sprint1.sql:159:create index if not exists idx_ai_embeddings_filter 
+on public.ai_embeddings(agency_id, client_id, doc_type);
+supabase/migrations\20251223150000_ai_employee_v1_sprint1.sql:258:create policy "ai_embeddings_select" on 
+public.ai_embeddings
+supabase/migrations\20251223150000_ai_employee_v1_sprint1.sql:262:create policy "ai_embeddings_insert" on 
+public.ai_embeddings
+supabase/migrations\20251223150000_ai_employee_v1_sprint1.sql:266:create policy "ai_embeddings_update" on 
+public.ai_embeddings
+supabase/migrations\20251223150000_ai_employee_v1_sprint1.sql:270:create policy "ai_embeddings_delete" on 
+public.ai_embeddings
+supabase/migrations\20251224103000_strategy_docs_and_embeddings.sql:26:create or replace function 
+public.match_ai_embeddings(
+supabase/migrations\20251224103000_strategy_docs_and_embeddings.sql:76:create policy "ai_embeddings_select_service" on 
+public.ai_embeddings
+supabase/migrations\20251224090000_brain_spine_v1.sql:64:create or replace function public.match_ai_embeddings(
+supabase/migrations\20251228120000_ai_ops_metrics_views.sql:11:      when model ilike 'gpt-%' or model ilike 
+'text-embedding-%' then 'openai'
+supabase/migrations\20251228120000_ai_ops_metrics_views.sql:18:        or model in ('context-missing', 
+'embeddings-not-configured', 'retrieval-only')
+supabase/migrations\20251228120000_ai_ops_metrics_views.sql:178:create or replace view public.v_ai_embeddings_health as
+supabase/migrations\20251228120000_ai_ops_metrics_views.sql:193:        or model in ('embeddings-not-configured', 
+'embedding-error')
+supabase/migrations\20260105140000_embedding_chunk_status.sql:11:create or replace function public.match_ai_embeddings(
+supabase/migrations\20260108123000_brain_documents_rag.sql:27:create or replace function public.match_ai_embeddings(
+supabase/migrations\20260108134500_match_ai_embeddings_filters.sql:11:create or replace function 
+public.match_ai_embeddings(
+
+

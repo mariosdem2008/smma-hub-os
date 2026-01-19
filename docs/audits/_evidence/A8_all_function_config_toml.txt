@@ -1,0 +1,22 @@
+﻿=== supabase\functions\ai-strategy-generate\config.toml ===
+verify_jwt = false
+
+
+=== supabase\functions\client-auth-login\config.toml ===
+verify_jwt = false
+
+=== supabase\functions\client-auth-logout\config.toml ===
+verify_jwt = false
+
+=== supabase\functions\client-auth-reset-password\config.toml ===
+verify_jwt = false
+
+=== supabase\functions\client-auth-signup\config.toml ===
+verify_jwt = false
+
+=== supabase\functions\client-auth-validate-invite\config.toml ===
+verify_jwt = false
+
+=== supabase\functions\client-refresh-token\config.toml ===
+verify_jwt = false
+

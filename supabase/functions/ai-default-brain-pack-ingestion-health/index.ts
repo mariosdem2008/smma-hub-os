@@ -11,8 +11,6 @@ function jsonResponse(body: unknown, status = 200, headers: Record<string, strin
   });
 }
 
-const DEFAULT_MODULES = new Set(["bootstrap", "rep_policy", "quality_bar"]);
-
 type Body = { agency_id?: string; approved_modules?: string[] };
 
 serve(async (req: Request) => {
@@ -50,7 +48,9 @@ serve(async (req: Request) => {
   }
 
   const requested = Array.isArray(body.approved_modules) ? body.approved_modules : [];
-  const approvedModules = requested.filter((m) => DEFAULT_MODULES.has(m));
+  const approvedModules = Array.from(
+    new Set(requested.filter((module): module is string => typeof module === "string" && module.length > 0)),
+  );
   if (approvedModules.length === 0) {
     return jsonResponse({ approvedModules: [], missingModules: [] }, 200, corsHeaders(req));
   }
@@ -101,4 +101,3 @@ serve(async (req: Request) => {
   const missingModules = approvedModules.filter((m) => !ingestedModules.has(m));
   return jsonResponse({ approvedModules, missingModules }, 200, corsHeaders(req));
 });
-

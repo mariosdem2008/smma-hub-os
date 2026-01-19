@@ -1,0 +1,9 @@
+﻿src\__tests__\strategy-generation.integration.test.ts
+src\ai\brains\agency.ts
+src\integrations\supabase\types.ts
+src\data\__tests__\agencyAdminSetupGuided.test.ts
+src\data\__tests__\agencyAdminChatHandler.test.ts
+supabase\functions\ai-brains-agency\index.ts
+supabase\functions\ai-brain-ingest\index.ts
+supabase\functions\_shared\ai-context.ts
+supabase\functions\_shared\brain-documents.ts

@@ -1,0 +1,34 @@
+﻿src/__tests__\strategy-generation.integration.test.ts:11:    const fn = read("supabase/functions/ai-strategy-generate/index.ts");
+src/__tests__\strategy-generation.integration.test.ts-12-    expect(fn).toContain("BRAIN_INCOMPLETE");
+src/__tests__\strategy-generation.integration.test.ts-13-    expect(fn).toContain("AGENCY_BRAIN_INCOMPLETE");
+src/__tests__\strategy-generation.integration.test.ts-14-    expect(fn).toContain("/agency/ai-setup");
+--
+src/__tests__\strategy-generation.integration.test.ts:20:    const fn = read("supabase/functions/ai-strategy-generate/index.ts");
+src/__tests__\strategy-generation.integration.test.ts-21-    expect(fn).toContain('replace(/^References:/, "## References")');
+src/__tests__\strategy-generation.integration.test.ts-22-  });
+src/__tests__\strategy-generation.integration.test.ts-23-
+--
+src/ai\ragPolicy.ts:47:    // Mirrors legacy ai-strategy-generate retrieval defaults.
+src/ai\ragPolicy.ts-48-    client_memory_top_k: 6,
+src/ai\ragPolicy.ts-49-    client_doc_types: ["client_guidelines", "client_notes", "approved_posts", "ai_artifact", "strategy_draft"],
+src/ai\ragPolicy.ts-50-    agency_memory_top_k: 4,
+--
+src/ai\taskRegistry.ts:292:    usageEndpoint: "ai-strategy-generate",
+src/ai\taskRegistry.ts-293-    schema: objectSchema("strategy_plan", ["summary", "sections"]),
+src/ai\taskRegistry.ts-294-    buildUnknown: () => ({ unknown: true, missing_fields: [], questions: ["What additional context is required?"], escalation: false }),
+src/ai\taskRegistry.ts-295-  },
+--
+src/hooks\useStrategyModules.ts:263:      const { data, error } = await supabase.functions.invoke('ai-strategy-generate', {
+src/hooks\useStrategyModules.ts-264-        body: { client_id: clientId },
+src/hooks\useStrategyModules.ts-265-      });
+src/hooks\useStrategyModules.ts-266-
+--
+src/hooks\useStrategyDocuments.ts:78:      const { data, error } = await supabase.functions.invoke("ai-strategy-generate", {
+src/hooks\useStrategyDocuments.ts-79-        body: { client_id: clientId, instruction },
+src/hooks\useStrategyDocuments.ts-80-      });
+src/hooks\useStrategyDocuments.ts-81-
+--
+src/components\onboarding-v5\OnboardingV5Wizard.tsx:634:      const { data: strategyResp, error: strategyErr } = await supabase.functions.invoke('ai-strategy-generate', {
+src/components\onboarding-v5\OnboardingV5Wizard.tsx-635-        body: { client_id: clientId },
+src/components\onboarding-v5\OnboardingV5Wizard.tsx-636-      });
+src/components\onboarding-v5\OnboardingV5Wizard.tsx-637-      if (strategyErr) throw strategyErr;

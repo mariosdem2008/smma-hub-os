@@ -30,12 +30,19 @@ function emptySources() {
   };
 }
 
-function buildUnknownResponse(gate: { missing_fields: string[]; questions: string[] }) {
+type GatedCode = "BRAIN_INCOMPLETE" | "AGENCY_BRAIN_INCOMPLETE";
+
+function buildUnknownResponse(
+  gate: { missing_fields: string[]; questions: string[] },
+  options?: { code?: GatedCode; deep_link?: string },
+) {
   return {
     unknown: true,
     missing_fields: gate.missing_fields,
     questions: gate.questions,
     escalation: false,
+    ...(options?.code ? { code: options.code } : {}),
+    ...(options?.deep_link ? { deep_link: options.deep_link } : {}),
   };
 }
 
@@ -85,6 +92,47 @@ const MODULE_LABELS: Record<string, string> = {
   rules_constraints: "Rules + constraints",
 };
 
+async function safeInsertAiRun(
+  supabase: ReturnType<typeof createClient>,
+  payload: {
+    agencyId: string;
+    clientId: string;
+    userId: string | null;
+    model: string;
+    tokensIn: number;
+    tokensOut: number;
+    costUsd: number;
+    startTime: number;
+    success: boolean;
+    unknown: boolean;
+    citations: unknown;
+    metadata?: Record<string, unknown>;
+  },
+) {
+  try {
+    await supabase.from("ai_runs").insert({
+      agency_id: payload.agencyId,
+      client_id: payload.clientId,
+      user_id: payload.userId,
+      prompt_id: null,
+      prompt_version: null,
+      model: payload.model,
+      tokens_in: payload.tokensIn,
+      tokens_out: payload.tokensOut,
+      cost_usd: payload.costUsd,
+      latency_ms: Date.now() - payload.startTime,
+      success: payload.success,
+      citations: payload.citations,
+      unknown: payload.unknown,
+      escalate_to_human: false,
+      escalation_reason: null,
+      metadata: payload.metadata ?? {},
+    });
+  } catch (error) {
+    console.error("Failed to write ai_runs", error);
+  }
+}
+
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders(req) });
@@ -103,7 +151,6 @@ serve(async (req: Request) => {
 
   const startTime = Date.now();
   const strictSchema = Deno.env.get("AI_SCHEMA_STRICT") === "true";
-  const failHard = Deno.env.get("AI_EMBEDDING_FAIL_HARD") === "true";
   const body = await req.json().catch(() => ({}));
   const clientId = body.client_id as string | undefined;
   const instruction = body.instruction as string | undefined;
@@ -112,7 +159,7 @@ serve(async (req: Request) => {
   const isCron = cronSecret.length > 0 && cronHeader === cronSecret;
 
   if (!clientId) {
-    return jsonResponse({ error: "client_id is required" }, 400, corsHeaders(req));
+    return jsonResponse({ error: "client_id is required", code: "MISSING_CLIENT_ID" }, 400, corsHeaders(req));
   }
 
   const { data: clientRow, error: clientError } = await supabase
@@ -122,7 +169,7 @@ serve(async (req: Request) => {
     .maybeSingle();
 
   if (clientError || !clientRow?.agency_id) {
-    return jsonResponse({ error: "Client not found" }, 404, corsHeaders(req));
+    return jsonResponse({ error: "Client not found", code: "CLIENT_NOT_FOUND" }, 404, corsHeaders(req));
   }
 
   const agencyId = clientRow.agency_id as string;
@@ -162,7 +209,7 @@ serve(async (req: Request) => {
       .maybeSingle();
 
     if (!membership) {
-      return jsonResponse({ error: "Forbidden" }, 403, corsHeaders(req));
+      return jsonResponse({ error: "Forbidden", code: "FORBIDDEN" }, 403, corsHeaders(req));
     }
     actingUserId = user.id;
   }
@@ -177,7 +224,21 @@ serve(async (req: Request) => {
     .maybeSingle();
 
   if (brainError || !brainRow) {
-    return jsonResponse({ error: "Client brain not found" }, 404, corsHeaders(req));
+    await safeInsertAiRun(supabase, {
+      agencyId,
+      clientId,
+      userId: actingUserId,
+      model: "gate-only",
+      tokensIn: 0,
+      tokensOut: 0,
+      costUsd: 0,
+      startTime,
+      success: false,
+      unknown: false,
+      citations: emptySources(),
+      metadata: { code: "CLIENT_BRAIN_MISSING" },
+    });
+    return jsonResponse({ error: "Client brain not found", code: "CLIENT_BRAIN_MISSING" }, 400, corsHeaders(req));
   }
 
   const gate = evaluateClientBrainForStrategy((brainRow.brain_json as any) ?? {});
@@ -194,16 +255,79 @@ serve(async (req: Request) => {
       latency_ms: Date.now() - startTime,
       unknown: true,
     });
-    return jsonResponse(buildUnknownResponse(gate), 200, corsHeaders(req));
+    await safeInsertAiRun(supabase, {
+      agencyId,
+      clientId,
+      userId: actingUserId,
+      model: "gate-only",
+      tokensIn: 0,
+      tokensOut: 0,
+      costUsd: 0,
+      startTime,
+      success: false,
+      unknown: true,
+      citations: emptySources(),
+      metadata: {
+        code: "BRAIN_INCOMPLETE",
+        missing_fields: gate.missing_fields,
+      },
+    });
+    return jsonResponse(
+      buildUnknownResponse(gate, { code: "BRAIN_INCOMPLETE", deep_link: `/onboarding/client/${clientId}` }),
+      200,
+      corsHeaders(req),
+    );
   }
 
-  const { data: agencyBrainRow } = await supabase
-    .from("agency_brains")
-    .select("brain_json")
+  const { count: approvedBrainDocCount, error: approvedBrainDocError } = await supabase
+    .from("ai_documents")
+    .select("id", { count: "exact", head: true })
     .eq("agency_id", agencyId)
-    .order("version", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .eq("doc_type", "brain_document")
+    .eq("metadata->>status", "approved");
+
+  if (approvedBrainDocError) {
+    await safeInsertAiRun(supabase, {
+      agencyId,
+      clientId,
+      userId: actingUserId,
+      model: "retrieval-only",
+      tokensIn: 0,
+      tokensOut: 0,
+      costUsd: 0,
+      startTime,
+      success: false,
+      unknown: false,
+      citations: emptySources(),
+      metadata: { code: "RAG_FAILURE", error: approvedBrainDocError.message },
+    });
+    return jsonResponse({ error: "Failed to check agency brain readiness", code: "RAG_FAILURE" }, 500, corsHeaders(req));
+  }
+
+  if ((approvedBrainDocCount ?? 0) === 0) {
+    const gateResponse = buildUnknownResponse(
+      {
+        missing_fields: ["agency_brain_documents"],
+        questions: ["Agency AI setup is incomplete. Approve and ingest at least one brain module to continue."],
+      },
+      { code: "AGENCY_BRAIN_INCOMPLETE", deep_link: "/agency/ai-setup" },
+    );
+    await safeInsertAiRun(supabase, {
+      agencyId,
+      clientId,
+      userId: actingUserId,
+      model: "gate-only",
+      tokensIn: 0,
+      tokensOut: 0,
+      costUsd: 0,
+      startTime,
+      success: false,
+      unknown: true,
+      citations: emptySources(),
+      metadata: { code: "AGENCY_BRAIN_INCOMPLETE" },
+    });
+    return jsonResponse(gateResponse, 200, corsHeaders(req));
+  }
 
   const { data: onboardingProfile } = await supabase
     .from("client_onboarding_profiles")
@@ -230,26 +354,39 @@ serve(async (req: Request) => {
 
   const embeddingApiKey = Deno.env.get("OPENAI_API_KEY");
   if (!embeddingApiKey) {
-    if (failHard) {
-      return jsonResponse({ error: "OPENAI_API_KEY is not configured", code: "MISSING_API_KEY" }, 500, corsHeaders(req));
-    }
     await supabase.from("ai_usage_logs").insert({
       agency_id: agencyId,
       client_id: clientId,
       endpoint: "ai-strategy-generate",
-      model: "embeddings-not-configured",
+      model: "missing-openai-api-key",
       tokens_estimate: 0,
       tokens_in: 0,
       tokens_out: 0,
       latency_ms: Date.now() - startTime,
       unknown: true,
     });
+    await safeInsertAiRun(supabase, {
+      agencyId,
+      clientId,
+      userId: actingUserId,
+      model: "missing-openai-api-key",
+      tokensIn: 0,
+      tokensOut: 0,
+      costUsd: 0,
+      startTime,
+      success: false,
+      unknown: false,
+      citations: emptySources(),
+      metadata: { code: "MISSING_API_KEY" },
+    });
+    console.error("OPENAI_API_KEY not configured");
     return jsonResponse(
-      buildUnknownResponse({
-        missing_fields: ["embedding_api_key"],
-        questions: ["AI generation is not configured. Please contact support."],
-      }),
-      200,
+      {
+        error: "AI configuration missing",
+        message: "Please configure OPENAI_API_KEY in your Supabase project secrets before generating strategies.",
+        code: "MISSING_API_KEY",
+      },
+      500,
       corsHeaders(req),
     );
   }
@@ -261,17 +398,28 @@ serve(async (req: Request) => {
   try {
     queryEmbedding = await embedText("strategy_draft", embeddingApiKey, embeddingModel);
   } catch (error: any) {
-    if (failHard) {
-      return jsonResponse({ error: "Embedding failed", code: "EMBEDDING_FAILED" }, 500, corsHeaders(req));
-    }
-    throw error;
+    await safeInsertAiRun(supabase, {
+      agencyId,
+      clientId,
+      userId: actingUserId,
+      model: embeddingModel,
+      tokensIn: 0,
+      tokensOut: 0,
+      costUsd: 0,
+      startTime,
+      success: false,
+      unknown: false,
+      citations: emptySources(),
+      metadata: { code: "RAG_FAILURE", error: error?.message ?? String(error) },
+    });
+    return jsonResponse({ error: "Embedding failed", code: "RAG_FAILURE" }, 500, corsHeaders(req));
   }
 
   const legacyClientDocTypes = ["client_guidelines", "client_notes", "approved_posts", "ai_artifact", "strategy_draft"];
   const legacyAgencyDocTypes = ["agency_sop", "brain_document"];
   const legacyExemplarDocTypes = ["agency_exemplar_strategy"];
 
-  const { data: clientMatches } = await supabase.rpc("match_ai_embeddings", {
+  const { data: clientMatches, error: clientMatchesError } = await supabase.rpc("match_ai_embeddings", {
     p_agency_id: agencyId,
     p_client_id: clientId,
     p_query_embedding: queryEmbedding,
@@ -281,7 +429,7 @@ serve(async (req: Request) => {
     p_min_similarity: useRagPolicy ? ragConfig.min_similarity : 0.2,
   });
 
-  const { data: agencyMatches } = await supabase.rpc("match_ai_embeddings", {
+  const { data: agencyMatches, error: agencyMatchesError } = await supabase.rpc("match_ai_embeddings", {
     p_agency_id: agencyId,
     p_client_id: null,
     p_query_embedding: queryEmbedding,
@@ -291,7 +439,7 @@ serve(async (req: Request) => {
     p_min_similarity: useRagPolicy ? ragConfig.min_similarity : 0.2,
   });
 
-  const { data: exemplarMatches } = await supabase.rpc("match_ai_embeddings", {
+  const { data: exemplarMatches, error: exemplarMatchesError } = await supabase.rpc("match_ai_embeddings", {
     p_agency_id: agencyId,
     p_client_id: null,
     p_query_embedding: queryEmbedding,
@@ -300,6 +448,25 @@ serve(async (req: Request) => {
     p_modules: null,
     p_min_similarity: useRagPolicy ? ragConfig.min_similarity : 0.2,
   });
+
+  if (clientMatchesError || agencyMatchesError || exemplarMatchesError) {
+    const message = clientMatchesError?.message ?? agencyMatchesError?.message ?? exemplarMatchesError?.message ?? "unknown";
+    await safeInsertAiRun(supabase, {
+      agencyId,
+      clientId,
+      userId: actingUserId,
+      model: "retrieval-only",
+      tokensIn: 0,
+      tokensOut: 0,
+      costUsd: 0,
+      startTime,
+      success: false,
+      unknown: false,
+      citations: emptySources(),
+      metadata: { code: "RAG_FAILURE", error: message },
+    });
+    return jsonResponse({ error: "Failed to retrieve context", code: "RAG_FAILURE" }, 500, corsHeaders(req));
+  }
 
   const matches = [
     ...(clientMatches || []),
@@ -319,14 +486,57 @@ serve(async (req: Request) => {
       latency_ms: Date.now() - startTime,
       unknown: true,
     });
+    await safeInsertAiRun(supabase, {
+      agencyId,
+      clientId,
+      userId: actingUserId,
+      model: "retrieval-only",
+      tokensIn: 0,
+      tokensOut: 0,
+      costUsd: 0,
+      startTime,
+      success: false,
+      unknown: true,
+      citations: emptySources(),
+      metadata: { code: "BRAIN_INCOMPLETE", missing_fields: ["memory_context"] },
+    });
     return jsonResponse(
-      buildUnknownResponse({
-        missing_fields: ["memory_context"],
-        questions: ["Upload client guidelines or approvals to ground strategy."],
-      }),
+      buildUnknownResponse(
+        {
+          missing_fields: ["memory_context"],
+          questions: ["Upload client guidelines or approvals to ground strategy."],
+        },
+        { code: "BRAIN_INCOMPLETE", deep_link: `/onboarding/client/${clientId}` },
+      ),
       200,
       corsHeaders(req),
     );
+  }
+
+  const agencyBrainMatchCount = (agencyMatches ?? []).filter((row: any) => row.doc_type === "brain_document").length;
+  if (agencyBrainMatchCount === 0) {
+    const gateResponse = buildUnknownResponse(
+      {
+        missing_fields: ["agency_brain_documents"],
+        questions: ["No agency brain context was retrieved. Approve and ingest brain modules, then retry."],
+      },
+      { code: "AGENCY_BRAIN_INCOMPLETE", deep_link: "/agency/ai-setup" },
+    );
+    await safeInsertAiRun(supabase, {
+      agencyId,
+      clientId,
+      userId: actingUserId,
+      model: "retrieval-only",
+      tokensIn: 0,
+      tokensOut: 0,
+      costUsd: 0,
+      startTime,
+      success: false,
+      unknown: true,
+      citations: emptySources(),
+      metadata: { code: "AGENCY_BRAIN_INCOMPLETE" },
+    });
+    return jsonResponse(gateResponse, 200, corsHeaders(req));
   }
 
   const legacyMatches = useRagPolicy ? matches : capMatchesByTokenBudget(matches, 1200).matches;
@@ -372,6 +582,31 @@ serve(async (req: Request) => {
     maxReferences: 20,
   });
 
+  if (brainDocReferences.length === 0) {
+    const gateResponse = buildUnknownResponse(
+      {
+        missing_fields: ["agency_brain_documents"],
+        questions: ["No agency brain references were used. Complete AI Setup and retry generation."],
+      },
+      { code: "AGENCY_BRAIN_INCOMPLETE", deep_link: "/agency/ai-setup" },
+    );
+    await safeInsertAiRun(supabase, {
+      agencyId,
+      clientId,
+      userId: actingUserId,
+      model: "retrieval-only",
+      tokensIn: 0,
+      tokensOut: 0,
+      costUsd: 0,
+      startTime,
+      success: false,
+      unknown: true,
+      citations: emptySources(),
+      metadata: { code: "AGENCY_BRAIN_INCOMPLETE" },
+    });
+    return jsonResponse(gateResponse, 200, corsHeaders(req));
+  }
+
   const { count: failedBrainDocChunksCount } = brainDocAiDocumentIds.length
     ? await supabase
         .from("ai_document_chunks")
@@ -394,20 +629,30 @@ serve(async (req: Request) => {
     aiResult = await ai.run({
       taskType: TaskType.STRATEGY_PLAN,
       input: "",
-      context: { agencyId, clientId, userId: actingUserId, environment: "prod", supabase },
-      metadata: { context: promptContext, instruction },
+      context: { agencyId, clientId, userId: actingUserId, environment: "prod", supabase: null, skipUsageLog: true },
+      metadata: { context: promptContext, instruction, client_brain: brainRow.brain_json },
       outputSchema,
     });
     output = (aiResult.output ?? null) as StrategyOutput | null;
-  } catch {
-    return jsonResponse(
-      buildUnknownResponse({
-        missing_fields: ["strategy_generation"],
-        questions: ["Strategy generation failed. Please retry."],
-      }),
-      200,
-      corsHeaders(req),
-    );
+  } catch (error: any) {
+    const isTimeout = error instanceof DOMException && error.name === "AbortError";
+    const code = isTimeout ? "GENERATION_TIMEOUT" : "GENERATION_ERROR";
+    const status = isTimeout ? 504 : 500;
+    await safeInsertAiRun(supabase, {
+      agencyId,
+      clientId,
+      userId: actingUserId,
+      model: aiResult?.meta?.model ?? (Deno.env.get("STRATEGY_MODEL_ID") ?? "gpt-4o-mini"),
+      tokensIn: 0,
+      tokensOut: 0,
+      costUsd: 0,
+      startTime,
+      success: false,
+      unknown: false,
+      citations: emptySources(),
+      metadata: { code, error: error?.message ?? String(error) },
+    });
+    return jsonResponse({ error: "Failed to generate strategy", code }, status, corsHeaders(req));
   }
 
   if (!aiResult?.schemaOk || !output) {
@@ -416,31 +661,29 @@ serve(async (req: Request) => {
     const tokensOut = 0;
     const costUsd = calculateCost("openai", runtimeModel, tokensIn, tokensOut);
 
-    await supabase.from("ai_runs").insert({
-      agency_id: agencyId,
-      client_id: clientId,
-      user_id: actingUserId,
-      prompt_id: null,
-      prompt_version: null,
+    await safeInsertAiRun(supabase, {
+      agencyId,
+      clientId,
+      userId: actingUserId,
       model: runtimeModel,
-      tokens_in: tokensIn,
-      tokens_out: tokensOut,
-      cost_usd: costUsd,
-      latency_ms: Date.now() - startTime,
+      tokensIn,
+      tokensOut,
+      costUsd,
+      startTime,
       success: false,
-      citations: {},
-      unknown: true,
-      escalate_to_human: false,
-      escalation_reason: null,
-      metadata: {
-        error: "strategy_schema_invalid",
-      },
+      unknown: false,
+      citations: emptySources(),
+      metadata: { code: "STRATEGY_SCHEMA_INVALID" },
     });
 
     return jsonResponse({ error: "Strategy JSON invalid", code: "STRATEGY_SCHEMA_INVALID" }, 500, corsHeaders(req));
   }
 
-  const markdown = output.document.markdown;
+  const referencesMarkdown = referencesSection.replace(/^References:/, "## References");
+  const baseMarkdown = output.document.markdown?.trim() ?? "";
+  const markdown = /\n##\s+References\b/i.test(baseMarkdown)
+    ? baseMarkdown
+    : `${baseMarkdown}\n\n${referencesMarkdown}`;
   const html = marked.parse(markdown);
 
   const citations = selectedMatches.map((row: any) => ({
@@ -523,7 +766,21 @@ serve(async (req: Request) => {
   });
 
   if (rpcResult?.error) {
-    return jsonResponse({ error: "Failed to save strategy snapshot" }, 500, corsHeaders(req));
+    await safeInsertAiRun(supabase, {
+      agencyId,
+      clientId,
+      userId: actingUserId,
+      model: aiResult?.meta?.model ?? (Deno.env.get("STRATEGY_MODEL_ID") ?? "gpt-4o-mini"),
+      tokensIn: 0,
+      tokensOut: 0,
+      costUsd: 0,
+      startTime,
+      success: false,
+      unknown: false,
+      citations: emptySources(),
+      metadata: { code: "PERSISTENCE_ERROR", error: rpcResult.error.message },
+    });
+    return jsonResponse({ error: "Failed to save strategy snapshot", code: "PERSISTENCE_ERROR" }, 500, corsHeaders(req));
   }
 
   const usage = extractUsageFromRaw(aiResult?.raw);
@@ -542,7 +799,7 @@ serve(async (req: Request) => {
         similarity: row.score ?? row.similarity ?? 0,
       }))
       .filter((row: any) => typeof row.doc_id === "string"),
-    client_brain_fields: [],
+    client_brain_fields: ["client_brain.summary"],
     agency_brain_fields: [],
   };
 
@@ -552,22 +809,18 @@ serve(async (req: Request) => {
   );
 
   if (!citationValidation.valid && strictSchema) {
-    await supabase.from("ai_runs").insert({
-      agency_id: agencyId,
-      client_id: clientId,
-      user_id: actingUserId,
-      prompt_id: null,
-      prompt_version: null,
+    await safeInsertAiRun(supabase, {
+      agencyId,
+      clientId,
+      userId: actingUserId,
       model: runtimeModel,
-      tokens_in: tokensIn,
-      tokens_out: tokensOut,
-      cost_usd: costUsd,
-      latency_ms: Date.now() - startTime,
+      tokensIn,
+      tokensOut,
+      costUsd,
+      startTime,
       success: false,
-      citations: citationsForRun,
       unknown: false,
-      escalate_to_human: false,
-      escalation_reason: null,
+      citations: citationsForRun,
       metadata: {
         cost_estimation_method: costEstimationMethod,
         retrieval_count: retrievalCount,
@@ -580,22 +833,18 @@ serve(async (req: Request) => {
     return jsonResponse({ error: "Citation validation failed", code: "CITATION_VALIDATION_FAILED" }, 500, corsHeaders(req));
   }
 
-  await supabase.from("ai_runs").insert({
-    agency_id: agencyId,
-    client_id: clientId,
-    user_id: actingUserId,
-    prompt_id: null,
-    prompt_version: null,
+  await safeInsertAiRun(supabase, {
+    agencyId,
+    clientId,
+    userId: actingUserId,
     model: runtimeModel,
-    tokens_in: tokensIn,
-    tokens_out: tokensOut,
-    cost_usd: costUsd,
-    latency_ms: Date.now() - startTime,
+    tokensIn,
+    tokensOut,
+    costUsd,
+    startTime,
     success: true,
-    citations: citationsForRun,
     unknown: false,
-    escalate_to_human: false,
-    escalation_reason: null,
+    citations: citationsForRun,
     metadata: {
       cost_estimation_method: costEstimationMethod,
       retrieval_count: retrievalCount,

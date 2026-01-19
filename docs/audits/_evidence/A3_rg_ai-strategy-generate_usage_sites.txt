@@ -1,0 +1,12 @@
+﻿tests\integration\ui\onboarding-v5-strategy-wire.test.ts
+src\__tests__\strategy-generation.integration.test.ts
+tests\integration\ai\rag-correctness.test.ts
+src\ai\taskRegistry.ts
+src\ai\ragPolicy.ts
+src\components\onboarding-v5\OnboardingV5Wizard.tsx
+supabase\functions\_shared\__tests__\endpoint-guard.test.ts
+supabase\functions\ai-job-worker\index.ts
+supabase\functions\ai-strategy-generate\index.ts
+supabase\functions\_shared\endpoint-guard.ts
+src\hooks\useStrategyDocuments.ts
+src\hooks\useStrategyModules.ts

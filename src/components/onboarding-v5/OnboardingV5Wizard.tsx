@@ -631,6 +631,37 @@ export function OnboardingV5Wizard({
       });
       if (ingestErr) throw ingestErr;
 
+      const { data: brainCheck, error: brainCheckErr } = await supabase
+        .from('client_brains')
+        .select('usable')
+        .eq('agency_id', agencyId)
+        .eq('client_id', clientId)
+        .order('version', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (brainCheckErr || !brainCheck?.usable) {
+        toast({
+          variant: 'destructive',
+          title: 'Profile Incomplete',
+          description: 'Some required information is missing. Please review all sections.',
+        });
+        setIsGenerating(false);
+        return;
+      }
+
+      const { data: strategyResp, error: strategyErr } = await supabase.functions.invoke('ai-strategy-generate', {
+        body: { client_id: clientId },
+      });
+      if (strategyErr) throw strategyErr;
+      if (strategyResp?.unknown) {
+        throw new Error(
+          Array.isArray(strategyResp?.questions) && strategyResp.questions.length > 0
+            ? String(strategyResp.questions[0])
+            : 'Strategy generation is not ready yet.',
+        );
+      }
+
       trackOnboardingEvent('onboarding_strategy_created', { client_id: clientId });
 
       toast({

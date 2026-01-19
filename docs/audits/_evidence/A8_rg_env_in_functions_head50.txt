@@ -1,0 +1,50 @@
+﻿supabase/functions\add-client-user-to-conversation\index.ts:5:const CLIENT_PORTAL_JWT_SECRET = Deno.env.get('CLIENT_PORTAL_JWT_SECRET');
+supabase/functions\ai-ask\index.ts:109:  const strictSchema = Deno.env.get("AI_SCHEMA_STRICT") === "true";
+supabase/functions\ai-ask\index.ts:143:  const ragModelId = Deno.env.get("RAG_MODEL_ID") ?? "gpt-5-mini";
+supabase/functions\ai-ask\index.ts:308:  const embeddingApiKey = Deno.env.get("OPENAI_API_KEY");
+supabase/functions\ai-ask\index.ts:346:  const embeddingModel = Deno.env.get("EMBEDDING_MODEL_ID") ?? "text-embedding-3-small";
+supabase/functions\ai-brain-ingest\index.ts:114:  const failHard = Deno.env.get("AI_EMBEDDING_FAIL_HARD") === "true";
+supabase/functions\ai-brain-ingest\index.ts:238:        const embeddingApiKey = Deno.env.get("OPENAI_API_KEY");
+supabase/functions\ai-brain-ingest\index.ts:239:        const embeddingModel = Deno.env.get("EMBEDDING_MODEL_ID") ?? "text-embedding-3-small";
+supabase/functions\ai-brain-ingest\index.ts:351:      const embeddingApiKey = Deno.env.get("OPENAI_API_KEY");
+supabase/functions\ai-brain-ingest\index.ts:352:      const embeddingModel = Deno.env.get("EMBEDDING_MODEL_ID") ?? "text-embedding-3-small";
+supabase/functions\ai-brain-analyze\index.ts:71:    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+supabase/functions\ai-brain-analyze\index.ts:72:    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+supabase/functions\ai-job-worker\index.ts:67:  const batchSize = Number(Deno.env.get("AI_JOB_BATCH_SIZE") ?? DEFAULT_BATCH_SIZE);
+supabase/functions\ai-job-worker\index.ts:76:  const cronSecret = Deno.env.get("CRON_SECRET") ?? "";
+supabase/functions\ai-documents-ingest\index.ts:46:  const lockdownEnabled = Deno.env.get("AI_LOCKDOWN_UNUSED_ENDPOINTS") === "true";
+supabase/functions\ai-documents-ingest\index.ts:108:  const failHard = Deno.env.get("AI_EMBEDDING_FAIL_HARD") === "true";
+supabase/functions\ai-documents-ingest\index.ts:192:  const embeddingApiKey = Deno.env.get("OPENAI_API_KEY");
+supabase/functions\ai-documents-ingest\index.ts:193:  const embeddingModel = Deno.env.get("EMBEDDING_MODEL_ID") ?? "text-embedding-3-small";
+supabase/functions\ai-onboarding-guide\index.ts:680:    const openaiKey = Deno.env.get("OPENAI_API_KEY");
+supabase/functions\ai-onboarding-scan\index.ts:363:    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+supabase/functions\ai-onboarding-scan\index.ts:364:    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+supabase/functions\ai-onboarding-suggest\index.ts:211:    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+supabase/functions\ai-onboarding-suggest\index.ts:212:    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+supabase/functions\ai-retrieve-context\index.ts:29:  const lockdownEnabled = Deno.env.get("AI_LOCKDOWN_UNUSED_ENDPOINTS") === "true";
+supabase/functions\ai-retrieve-context\index.ts:121:  const embeddingApiKey = Deno.env.get("OPENAI_API_KEY");
+supabase/functions\ai-retrieve-context\index.ts:126:  const embeddingModel = Deno.env.get("EMBEDDING_MODEL_ID") ?? "text-embedding-3-small";
+supabase/functions\client-auth-forgot-password\index.ts:60:    const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+supabase/functions\ai-strategy-generate\index.ts:153:  const strictSchema = Deno.env.get("AI_SCHEMA_STRICT") === "true";
+supabase/functions\ai-strategy-generate\index.ts:157:  const cronSecret = Deno.env.get("CRON_SECRET") ?? "";
+supabase/functions\ai-strategy-generate\index.ts:355:  const embeddingApiKey = Deno.env.get("OPENAI_API_KEY");
+supabase/functions\ai-strategy-generate\index.ts:394:  const embeddingModel = Deno.env.get("EMBEDDING_MODEL_ID") ?? "text-embedding-3-small";
+supabase/functions\ai-strategy-generate\index.ts:645:      model: aiResult?.meta?.model ?? (Deno.env.get("STRATEGY_MODEL_ID") ?? "gpt-4o-mini"),
+supabase/functions\ai-strategy-generate\index.ts:659:    const runtimeModel = aiResult?.meta?.model ?? (Deno.env.get("STRATEGY_MODEL_ID") ?? "gpt-4o-mini");
+supabase/functions\ai-strategy-generate\index.ts:761:    p_model: aiResult?.meta?.model ?? (Deno.env.get("STRATEGY_MODEL_ID") ?? "gpt-4o-mini"),
+supabase/functions\ai-strategy-generate\index.ts:773:      model: aiResult?.meta?.model ?? (Deno.env.get("STRATEGY_MODEL_ID") ?? "gpt-4o-mini"),
+supabase/functions\ai-strategy-generate\index.ts:787:  const runtimeModel = aiResult?.meta?.model ?? (Deno.env.get("STRATEGY_MODEL_ID") ?? "gpt-4o-mini");
+supabase/functions\ai-rep-chat\index.ts:23:  const embeddingApiKey = Deno.env.get("OPENAI_API_KEY");
+supabase/functions\ai-rep-chat\index.ts:27:    const embeddingModel = Deno.env.get("EMBEDDING_MODEL_ID") ?? "text-embedding-3-small";
+supabase/functions\ai-rep-chat\index.ts:133:    model: Deno.env.get("CHAT_MODEL_ID") ?? "mapping-only",
+supabase/functions\check-subscription\index.ts:36:    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+supabase/functions\client-auth-login\index.ts:5:const JWT_SECRET = Deno.env.get("CLIENT_PORTAL_JWT_SECRET");
+supabase/functions\client-auth-reset-password\index.ts:5:const JWT_SECRET = Deno.env.get("CLIENT_PORTAL_JWT_SECRET");
+supabase/functions\client-auth-signup\index.ts:5:const JWT_SECRET = Deno.env.get("CLIENT_PORTAL_JWT_SECRET");
+supabase/functions\generate-ai-content\index.ts:186:    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+supabase/functions\create-checkout\index.ts:6:const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
+supabase/functions\generate-monthly-report\index.ts:151:    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+supabase/functions\list-conversations\index.ts:28:const CLIENT_PORTAL_JWT_SECRET = Deno.env.get("CLIENT_PORTAL_JWT_SECRET");
+supabase/functions\customer-portal\index.ts:22:    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+supabase/functions\send-team-invite\index.ts:6:const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+supabase/functions\send-team-invite\index.ts:8:const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";

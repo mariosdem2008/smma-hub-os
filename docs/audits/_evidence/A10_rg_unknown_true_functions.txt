@@ -1,0 +1,127 @@
+﻿supabase/functions\ai-ask\index.ts:66:    unknown: true,
+supabase/functions\ai-ask\index.ts-67-    questions,
+supabase/functions\ai-ask\index.ts-68-    confidence: 0,
+--
+supabase/functions\ai-ask\index.ts:171:      unknown: true,
+supabase/functions\ai-ask\index.ts-172-      questions: ["Daily rate limit reached. Please try again after 00:00 UTC."],
+supabase/functions\ai-ask\index.ts-173-      confidence: 0,
+--
+supabase/functions\ai-ask\index.ts:192:      unknown: true,
+supabase/functions\ai-ask\index.ts-193-      escalate_to_human: false,
+supabase/functions\ai-ask\index.ts-194-      escalation_reason: null,
+--
+supabase/functions\ai-ask\index.ts:220:      unknown: true,
+supabase/functions\ai-ask\index.ts-221-      questions: null,
+supabase/functions\ai-ask\index.ts-222-      confidence: 0,
+--
+supabase/functions\ai-ask\index.ts:251:      unknown: true,
+supabase/functions\ai-ask\index.ts-252-      escalate_to_human: true,
+supabase/functions\ai-ask\index.ts-253-      escalation_reason: responsePayload.escalation_reason,
+--
+supabase/functions\ai-ask\index.ts:265:      unknown: true,
+supabase/functions\ai-ask\index.ts-266-      questions: ["Your request is too long. Please shorten it."],
+supabase/functions\ai-ask\index.ts-267-      confidence: 0,
+--
+supabase/functions\ai-ask\index.ts:286:      unknown: true,
+supabase/functions\ai-ask\index.ts-287-      escalate_to_human: false,
+supabase/functions\ai-ask\index.ts-288-      escalation_reason: null,
+--
+supabase/functions\ai-ask\index.ts:327:      unknown: true,
+supabase/functions\ai-ask\index.ts-328-      escalate_to_human: false,
+supabase/functions\ai-ask\index.ts-329-      escalation_reason: null,
+--
+supabase/functions\ai-ask\index.ts:341:      unknown: true,
+supabase/functions\ai-ask\index.ts-342-    });
+supabase/functions\ai-ask\index.ts-343-    return jsonResponse(responsePayload, 200, corsHeaders(req));
+--
+supabase/functions\ai-ask\index.ts:408:      unknown: true,
+supabase/functions\ai-ask\index.ts-409-      escalate_to_human: false,
+supabase/functions\ai-ask\index.ts-410-      escalation_reason: null,
+--
+supabase/functions\ai-ask\index.ts:422:      unknown: true,
+supabase/functions\ai-ask\index.ts-423-    });
+supabase/functions\ai-ask\index.ts-424-    return jsonResponse(responsePayload, 200, corsHeaders(req));
+--
+supabase/functions\ai-ask\index.ts:454:      unknown: true,
+supabase/functions\ai-ask\index.ts-455-      questions: null,
+supabase/functions\ai-ask\index.ts-456-      confidence: 0,
+--
+supabase/functions\ai-ask\index.ts:485:      unknown: true,
+supabase/functions\ai-ask\index.ts-486-      escalate_to_human: true,
+supabase/functions\ai-ask\index.ts-487-      escalation_reason: responsePayload.escalation_reason,
+--
+supabase/functions\ai-strategy-generate\index.ts:40:    unknown: true,
+supabase/functions\ai-strategy-generate\index.ts-41-    missing_fields: gate.missing_fields,
+supabase/functions\ai-strategy-generate\index.ts-42-    questions: gate.questions,
+--
+supabase/functions\ai-strategy-generate\index.ts:256:      unknown: true,
+supabase/functions\ai-strategy-generate\index.ts-257-    });
+supabase/functions\ai-strategy-generate\index.ts-258-    await safeInsertAiRun(supabase, {
+--
+supabase/functions\ai-strategy-generate\index.ts:268:      unknown: true,
+supabase/functions\ai-strategy-generate\index.ts-269-      citations: emptySources(),
+supabase/functions\ai-strategy-generate\index.ts-270-      metadata: {
+--
+supabase/functions\ai-strategy-generate\index.ts:325:      unknown: true,
+supabase/functions\ai-strategy-generate\index.ts-326-      citations: emptySources(),
+supabase/functions\ai-strategy-generate\index.ts-327-      metadata: { code: "AGENCY_BRAIN_INCOMPLETE" },
+--
+supabase/functions\ai-strategy-generate\index.ts:366:      unknown: true,
+supabase/functions\ai-strategy-generate\index.ts-367-    });
+supabase/functions\ai-strategy-generate\index.ts-368-    await safeInsertAiRun(supabase, {
+--
+supabase/functions\ai-strategy-generate\index.ts:487:      unknown: true,
+supabase/functions\ai-strategy-generate\index.ts-488-    });
+supabase/functions\ai-strategy-generate\index.ts-489-    await safeInsertAiRun(supabase, {
+--
+supabase/functions\ai-strategy-generate\index.ts:499:      unknown: true,
+supabase/functions\ai-strategy-generate\index.ts-500-      citations: emptySources(),
+supabase/functions\ai-strategy-generate\index.ts-501-      metadata: { code: "BRAIN_INCOMPLETE", missing_fields: ["memory_context"] },
+--
+supabase/functions\ai-strategy-generate\index.ts:535:      unknown: true,
+supabase/functions\ai-strategy-generate\index.ts-536-      citations: emptySources(),
+supabase/functions\ai-strategy-generate\index.ts-537-      metadata: { code: "AGENCY_BRAIN_INCOMPLETE" },
+--
+supabase/functions\ai-strategy-generate\index.ts:603:      unknown: true,
+supabase/functions\ai-strategy-generate\index.ts-604-      citations: emptySources(),
+supabase/functions\ai-strategy-generate\index.ts-605-      metadata: { code: "AGENCY_BRAIN_INCOMPLETE" },
+--
+supabase/functions\_shared\agency-admin-general-ai.ts:641:            unknown: true,
+supabase/functions\_shared\agency-admin-general-ai.ts-642-            statePatch: buildFallbackStrategicPatch({
+supabase/functions\_shared\agency-admin-general-ai.ts-643-              playbook: playbook ?? "core_offer",
+--
+supabase/functions\_shared\ai-rep-chat.ts:50:      unknown: true,
+supabase/functions\_shared\ai-rep-chat.ts-51-      used_sections,
+supabase/functions\_shared\ai-rep-chat.ts-52-      assistant_message: `UNKNOWN\n\n${missing.question}`,
+--
+supabase/functions\_shared\ai.ts:244:      unknown: true,
+supabase/functions\_shared\ai.ts-245-      costUsd: 0,
+supabase/functions\_shared\ai.ts-246-      errorCode: rateError.code,
+--
+supabase/functions\_shared\ai.ts:266:      unknown: true,
+supabase/functions\_shared\ai.ts-267-      costUsd: 0,
+supabase/functions\_shared\ai.ts-268-      errorCode: budgetError.code,
+--
+supabase/functions\_shared\ai.ts:339:      unknown: true,
+supabase/functions\_shared\ai.ts-340-      costUsd: 0,
+supabase/functions\_shared\ai.ts-341-      errorCode: "provider_error",
+--
+supabase/functions\_shared\ai.ts:360:      yield { type: "done", result: { text: blocked.assistant_message, unknown: true, error: blocked.error?.code } };
+supabase/functions\_shared\ai.ts-361-    })();
+supabase/functions\_shared\ai.ts-362-  }
+--
+supabase/functions\_shared\ai.ts:382:      unknown: true,
+supabase/functions\_shared\ai.ts-383-      costUsd: 0,
+supabase/functions\_shared\ai.ts-384-      errorCode: rateError.code,
+--
+supabase/functions\_shared\ai.ts:387:      yield { type: "done", result: { text: "UNKNOWN", unknown: true, error: rateError.code } };
+supabase/functions\_shared\ai.ts-388-    })();
+supabase/functions\_shared\ai.ts-389-  }
+--
+supabase/functions\_shared\ai.ts:406:      unknown: true,
+supabase/functions\_shared\ai.ts-407-      costUsd: 0,
+supabase/functions\_shared\ai.ts-408-      errorCode: budgetError.code,
+--
+supabase/functions\_shared\ai.ts:411:      yield { type: "done", result: { text: "UNKNOWN", unknown: true, error: budgetError.code } };
+supabase/functions\_shared\ai.ts-412-    })();
+supabase/functions\_shared\ai.ts-413-  }

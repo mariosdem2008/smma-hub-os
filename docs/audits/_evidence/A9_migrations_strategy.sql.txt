@@ -1,0 +1,1187 @@
+﻿=== 20251224103000_strategy_docs_and_embeddings.sql ===
+-- Strategy draft doc type + embeddings RPC update + tighter brain/embedding RLS
+
+alter table public.ai_documents
+  drop constraint if exists ai_documents_doc_type_check;
+
+alter table public.ai_documents
+  add constraint ai_documents_doc_type_check
+  check (doc_type in (
+    'agency_exemplar_strategy',
+    'agency_sop',
+    'client_guidelines',
+    'client_notes',
+    'approved_posts',
+    'ai_artifact',
+    'strategy_draft'
+  ));
+
+drop function if exists public.match_ai_embeddings(
+  uuid,
+  vector(1536),
+  uuid,
+  int,
+  text[]
+);
+
+create or replace function public.match_ai_embeddings(
+  p_agency_id uuid,
+  p_query_embedding vector(1536),
+  p_client_id uuid default null,
+  p_match_count int default 8,
+  p_doc_types text[] default null
+)
+returns table (
+  document_id uuid,
+  chunk_id uuid,
+  doc_type text,
+  chunk_text text,
+  score float8,
+  title text,
+  source jsonb,
+  source_url text
+)
+language sql
+stable
+as $$
+  select
+    e.document_id,
+    e.chunk_id,
+    e.doc_type,
+    c.chunk_text,
+    1 - (e.embedding <=> p_query_embedding) as score,
+    d.title,
+    d.source,
+    d.source_url
+  from public.ai_embeddings e
+  join public.ai_document_chunks c on c.id = e.chunk_id
+  join public.ai_documents d on d.id = e.document_id
+  where d.agency_id = p_agency_id
+    and (p_client_id is null or d.client_id = p_client_id)
+    and (p_doc_types is null or e.doc_type = any(p_doc_types))
+  order by e.embedding <=> p_query_embedding
+  limit p_match_count;
+$$;
+
+drop policy if exists "agency_brains_select" on public.agency_brains;
+create policy "agency_brains_select_service" on public.agency_brains
+  for select to authenticated
+  using (auth.role() = 'service_role');
+
+drop policy if exists "client_brains_select" on public.client_brains;
+create policy "client_brains_select_service" on public.client_brains
+  for select to authenticated
+  using (auth.role() = 'service_role');
+
+drop policy if exists "ai_embeddings_select" on public.ai_embeddings;
+create policy "ai_embeddings_select_service" on public.ai_embeddings
+  for select to authenticated
+  using (auth.role() = 'service_role');
+
+=== 20251229100000_strategy_os.sql ===
+-- Strategy OS Migration
+-- Creates tables for the Strategy OS feature: strategy_modules, strategy_history, strategy_tasks
+
+-- Strategy module types (6 modules only)
+DO $$ BEGIN
+  CREATE TYPE public.strategy_module AS ENUM (
+    'positioning',
+    'pillars',
+    'campaign_plan',
+    'weekly_plan',
+    'channel_adaptations',
+    'rules_constraints'
+  );
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;
+
+-- Strategy status
+DO $$ BEGIN
+  CREATE TYPE public.strategy_status AS ENUM (
+    'empty',
+    'ai_draft',
+    'draft',
+    'review',
+    'approved',
+    'locked'
+  );
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;
+
+-- Main strategy modules table
+CREATE TABLE IF NOT EXISTS public.strategy_modules (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  client_id UUID NOT NULL REFERENCES public.clients(id) ON DELETE CASCADE,
+  agency_id UUID NOT NULL REFERENCES public.agencies(id) ON DELETE CASCADE,
+  module public.strategy_module NOT NULL,
+  content_json JSONB NOT NULL DEFAULT '{}',
+  status public.strategy_status NOT NULL DEFAULT 'empty',
+  completion_percent INTEGER DEFAULT 0,
+  blocker_count INTEGER DEFAULT 0,
+  locked BOOLEAN NOT NULL DEFAULT false,
+  locked_at TIMESTAMPTZ,
+  locked_by UUID REFERENCES auth.users(id),
+  version INTEGER NOT NULL DEFAULT 1,
+  ai_generated BOOLEAN DEFAULT false,
+  ai_confidence INTEGER,
+  owner_id UUID REFERENCES auth.users(id),
+  created_by UUID REFERENCES auth.users(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(client_id, module)
+);
+
+-- History events for audit trail
+CREATE TABLE IF NOT EXISTS public.strategy_history (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  client_id UUID NOT NULL REFERENCES public.clients(id) ON DELETE CASCADE,
+  module_id UUID REFERENCES public.strategy_modules(id) ON DELETE SET NULL,
+  module public.strategy_module,
+  event_type TEXT NOT NULL, -- 'created', 'updated', 'locked', 'unlocked', 'seeded', 'approved'
+  event_data JSONB DEFAULT '{}',
+  actor_id UUID REFERENCES auth.users(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Strategy tasks per module
+CREATE TABLE IF NOT EXISTS public.strategy_tasks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  client_id UUID NOT NULL REFERENCES public.clients(id) ON DELETE CASCADE,
+  module_id UUID REFERENCES public.strategy_modules(id) ON DELETE SET NULL,
+  module public.strategy_module,
+  title TEXT NOT NULL,
+  description TEXT,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'in_progress', 'completed', 'pushed')),
+  priority TEXT DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'urgent')),
+  pipeline_task_id UUID, -- linked pipeline task after push
+  created_by UUID REFERENCES auth.users(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_strategy_modules_client ON public.strategy_modules(client_id);
+CREATE INDEX IF NOT EXISTS idx_strategy_modules_agency ON public.strategy_modules(agency_id);
+CREATE INDEX IF NOT EXISTS idx_strategy_modules_status ON public.strategy_modules(status);
+CREATE INDEX IF NOT EXISTS idx_strategy_history_client ON public.strategy_history(client_id);
+CREATE INDEX IF NOT EXISTS idx_strategy_history_module ON public.strategy_history(module_id);
+CREATE INDEX IF NOT EXISTS idx_strategy_history_created ON public.strategy_history(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_strategy_tasks_client ON public.strategy_tasks(client_id);
+CREATE INDEX IF NOT EXISTS idx_strategy_tasks_module ON public.strategy_tasks(module_id);
+CREATE INDEX IF NOT EXISTS idx_strategy_tasks_status ON public.strategy_tasks(status);
+
+-- Enable RLS
+ALTER TABLE public.strategy_modules ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.strategy_history ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.strategy_tasks ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies for strategy_modules
+CREATE POLICY strategy_modules_select ON public.strategy_modules
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM public.agency_members am
+      WHERE am.agency_id = strategy_modules.agency_id
+        AND am.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY strategy_modules_insert ON public.strategy_modules
+  FOR INSERT WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.agency_members am
+      WHERE am.agency_id = strategy_modules.agency_id
+        AND am.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY strategy_modules_update ON public.strategy_modules
+  FOR UPDATE USING (
+    EXISTS (
+      SELECT 1 FROM public.agency_members am
+      WHERE am.agency_id = strategy_modules.agency_id
+        AND am.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY strategy_modules_delete ON public.strategy_modules
+  FOR DELETE USING (
+    EXISTS (
+      SELECT 1 FROM public.agency_members am
+      WHERE am.agency_id = strategy_modules.agency_id
+        AND am.user_id = auth.uid()
+        AND am.role IN ('owner', 'admin')
+    )
+  );
+
+-- RLS Policies for strategy_history
+CREATE POLICY strategy_history_select ON public.strategy_history
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM public.agency_members am
+      JOIN public.clients c ON c.agency_id = am.agency_id
+      WHERE c.id = strategy_history.client_id
+        AND am.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY strategy_history_insert ON public.strategy_history
+  FOR INSERT WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.agency_members am
+      JOIN public.clients c ON c.agency_id = am.agency_id
+      WHERE c.id = strategy_history.client_id
+        AND am.user_id = auth.uid()
+    )
+  );
+
+-- RLS Policies for strategy_tasks
+CREATE POLICY strategy_tasks_select ON public.strategy_tasks
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM public.agency_members am
+      JOIN public.clients c ON c.agency_id = am.agency_id
+      WHERE c.id = strategy_tasks.client_id
+        AND am.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY strategy_tasks_insert ON public.strategy_tasks
+  FOR INSERT WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.agency_members am
+      JOIN public.clients c ON c.agency_id = am.agency_id
+      WHERE c.id = strategy_tasks.client_id
+        AND am.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY strategy_tasks_update ON public.strategy_tasks
+  FOR UPDATE USING (
+    EXISTS (
+      SELECT 1 FROM public.agency_members am
+      JOIN public.clients c ON c.agency_id = am.agency_id
+      WHERE c.id = strategy_tasks.client_id
+        AND am.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY strategy_tasks_delete ON public.strategy_tasks
+  FOR DELETE USING (
+    EXISTS (
+      SELECT 1 FROM public.agency_members am
+      JOIN public.clients c ON c.agency_id = am.agency_id
+      WHERE c.id = strategy_tasks.client_id
+        AND am.user_id = auth.uid()
+    )
+  );
+
+-- Trigger function for updated_at
+CREATE OR REPLACE FUNCTION public.update_strategy_modules_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Triggers for updated_at
+DROP TRIGGER IF EXISTS strategy_modules_updated_at ON public.strategy_modules;
+CREATE TRIGGER strategy_modules_updated_at
+  BEFORE UPDATE ON public.strategy_modules
+  FOR EACH ROW
+  EXECUTE FUNCTION public.update_strategy_modules_updated_at();
+
+DROP TRIGGER IF EXISTS strategy_tasks_updated_at ON public.strategy_tasks;
+CREATE TRIGGER strategy_tasks_updated_at
+  BEFORE UPDATE ON public.strategy_tasks
+  FOR EACH ROW
+  EXECUTE FUNCTION public.update_strategy_modules_updated_at();
+
+-- Helper function to get strategy modules for a client
+CREATE OR REPLACE FUNCTION public.get_strategy_modules(p_client_id UUID)
+RETURNS SETOF public.strategy_modules
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT * FROM public.strategy_modules
+  WHERE client_id = p_client_id
+  ORDER BY
+    CASE module
+      WHEN 'positioning' THEN 1
+      WHEN 'pillars' THEN 2
+      WHEN 'campaign_plan' THEN 3
+      WHEN 'weekly_plan' THEN 4
+      WHEN 'channel_adaptations' THEN 5
+      WHEN 'rules_constraints' THEN 6
+    END;
+$$;
+
+-- Helper function to upsert a strategy module
+CREATE OR REPLACE FUNCTION public.upsert_strategy_module(
+  p_client_id UUID,
+  p_agency_id UUID,
+  p_module public.strategy_module,
+  p_content_json JSONB,
+  p_status public.strategy_status DEFAULT 'draft',
+  p_ai_generated BOOLEAN DEFAULT false,
+  p_ai_confidence INTEGER DEFAULT NULL
+)
+RETURNS public.strategy_modules
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_result public.strategy_modules;
+  v_user_id UUID := auth.uid();
+BEGIN
+  INSERT INTO public.strategy_modules (
+    client_id, agency_id, module, content_json, status,
+    ai_generated, ai_confidence, created_by
+  )
+  VALUES (
+    p_client_id, p_agency_id, p_module, p_content_json, p_status,
+    p_ai_generated, p_ai_confidence, v_user_id
+  )
+  ON CONFLICT (client_id, module) DO UPDATE SET
+    content_json = EXCLUDED.content_json,
+    status = EXCLUDED.status,
+    ai_generated = EXCLUDED.ai_generated,
+    ai_confidence = EXCLUDED.ai_confidence,
+    version = strategy_modules.version + 1,
+    updated_at = now()
+  RETURNING * INTO v_result;
+
+  RETURN v_result;
+END;
+$$;
+
+-- Helper function to lock/unlock a strategy module
+CREATE OR REPLACE FUNCTION public.toggle_strategy_module_lock(
+  p_module_id UUID,
+  p_lock BOOLEAN
+)
+RETURNS public.strategy_modules
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_result public.strategy_modules;
+  v_user_id UUID := auth.uid();
+BEGIN
+  UPDATE public.strategy_modules
+  SET
+    locked = p_lock,
+    locked_at = CASE WHEN p_lock THEN now() ELSE NULL END,
+    locked_by = CASE WHEN p_lock THEN v_user_id ELSE NULL END,
+    status = CASE WHEN p_lock THEN 'locked'::public.strategy_status ELSE 'approved'::public.strategy_status END
+  WHERE id = p_module_id
+  RETURNING * INTO v_result;
+
+  RETURN v_result;
+END;
+$$;
+
+-- Helper function to add history event
+CREATE OR REPLACE FUNCTION public.add_strategy_history(
+  p_client_id UUID,
+  p_module_id UUID,
+  p_module public.strategy_module,
+  p_event_type TEXT,
+  p_event_data JSONB DEFAULT '{}'
+)
+RETURNS public.strategy_history
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_result public.strategy_history;
+  v_user_id UUID := auth.uid();
+BEGIN
+  INSERT INTO public.strategy_history (
+    client_id, module_id, module, event_type, event_data, actor_id
+  )
+  VALUES (
+    p_client_id, p_module_id, p_module, p_event_type, p_event_data, v_user_id
+  )
+  RETURNING * INTO v_result;
+
+  RETURN v_result;
+END;
+$$;
+
+=== 20251229120000_strategy_os_grants.sql ===
+-- Strategy OS - Grant permissions to authenticated users
+-- The original migration created tables and RLS policies but forgot GRANT statements
+
+-- Grant permissions on strategy_modules
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.strategy_modules TO authenticated;
+GRANT ALL ON public.strategy_modules TO service_role;
+
+-- Grant permissions on strategy_history
+GRANT SELECT, INSERT ON public.strategy_history TO authenticated;
+GRANT ALL ON public.strategy_history TO service_role;
+
+-- Grant permissions on strategy_tasks
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.strategy_tasks TO authenticated;
+GRANT ALL ON public.strategy_tasks TO service_role;
+
+-- Grant execute on functions
+GRANT EXECUTE ON FUNCTION public.get_strategy_modules(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.upsert_strategy_module(UUID, UUID, public.strategy_module, JSONB, public.strategy_status, BOOLEAN, INTEGER) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.toggle_strategy_module_lock(UUID, BOOLEAN) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.add_strategy_history(UUID, UUID, public.strategy_module, TEXT, JSONB) TO authenticated;
+
+GRANT EXECUTE ON FUNCTION public.get_strategy_modules(UUID) TO service_role;
+GRANT EXECUTE ON FUNCTION public.upsert_strategy_module(UUID, UUID, public.strategy_module, JSONB, public.strategy_status, BOOLEAN, INTEGER) TO service_role;
+GRANT EXECUTE ON FUNCTION public.toggle_strategy_module_lock(UUID, BOOLEAN) TO service_role;
+GRANT EXECUTE ON FUNCTION public.add_strategy_history(UUID, UUID, public.strategy_module, TEXT, JSONB) TO service_role;
+
+-- Grant usage on sequences if any exist (auto-generated)
+GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO authenticated;
+
+=== 20251230090000_strategy_os_ops.sql ===
+-- Strategy OS versioning, decisions, and integration extensions
+
+-- 1) Strategies table
+CREATE TABLE IF NOT EXISTS public.strategies (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  client_id UUID NOT NULL REFERENCES public.clients(id) ON DELETE CASCADE,
+  agency_id UUID NOT NULL REFERENCES public.agencies(id) ON DELETE CASCADE,
+  version_int INTEGER NOT NULL DEFAULT 1,
+  status TEXT NOT NULL DEFAULT 'active',
+  locked_at TIMESTAMPTZ,
+  locked_by UUID REFERENCES auth.users(id),
+  created_by UUID REFERENCES auth.users(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (client_id, version_int)
+);
+
+CREATE INDEX IF NOT EXISTS idx_strategies_client ON public.strategies(client_id);
+CREATE INDEX IF NOT EXISTS idx_strategies_agency ON public.strategies(agency_id);
+
+-- 2) Strategy decisions table
+CREATE TABLE IF NOT EXISTS public.strategy_decisions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  strategy_id UUID NOT NULL REFERENCES public.strategies(id) ON DELETE CASCADE,
+  client_id UUID NOT NULL REFERENCES public.clients(id) ON DELETE CASCADE,
+  module public.strategy_module NOT NULL,
+  decision_key TEXT NOT NULL,
+  value JSONB DEFAULT NULL,
+  locked BOOLEAN NOT NULL DEFAULT false,
+  approved_by UUID REFERENCES auth.users(id),
+  approved_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (strategy_id, module, decision_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_strategy_decisions_strategy ON public.strategy_decisions(strategy_id);
+CREATE INDEX IF NOT EXISTS idx_strategy_decisions_client ON public.strategy_decisions(client_id);
+
+-- 3) Extend strategy_modules with strategy_id, blockers, and review tracking
+ALTER TABLE public.strategy_modules
+  ADD COLUMN IF NOT EXISTS strategy_id UUID REFERENCES public.strategies(id) ON DELETE CASCADE,
+  ADD COLUMN IF NOT EXISTS blockers JSONB NOT NULL DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS next_review_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS last_updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
+
+CREATE INDEX IF NOT EXISTS idx_strategy_modules_strategy ON public.strategy_modules(strategy_id);
+
+-- Drop unique constraint on (client_id, module) if present
+ALTER TABLE public.strategy_modules
+  DROP CONSTRAINT IF EXISTS strategy_modules_client_id_module_key;
+
+ALTER TABLE public.strategy_modules
+  ADD CONSTRAINT strategy_modules_strategy_id_module_key UNIQUE (strategy_id, module);
+
+-- 4) Extend strategy_history with strategy_id
+ALTER TABLE public.strategy_history
+  ADD COLUMN IF NOT EXISTS strategy_id UUID REFERENCES public.strategies(id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS idx_strategy_history_strategy ON public.strategy_history(strategy_id);
+
+-- 5) Extend strategy_tasks for tasks + pipeline links
+ALTER TABLE public.strategy_tasks
+  ADD COLUMN IF NOT EXISTS strategy_id UUID REFERENCES public.strategies(id) ON DELETE CASCADE,
+  ADD COLUMN IF NOT EXISTS task_id UUID REFERENCES public.tasks(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS project_id UUID REFERENCES public.projects(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS period_key TEXT,
+  ADD COLUMN IF NOT EXISTS slug TEXT,
+  ADD COLUMN IF NOT EXISTS dedupe_key TEXT;
+
+-- Update task status default/check to align with tasks table
+ALTER TABLE public.strategy_tasks
+  ALTER COLUMN status SET DEFAULT 'todo';
+
+ALTER TABLE public.strategy_tasks
+  DROP CONSTRAINT IF EXISTS strategy_tasks_status_check;
+
+-- Backfill status values to new enum set
+UPDATE public.strategy_tasks
+SET status = CASE
+  WHEN status IN ('todo', 'in_progress', 'completed', 'pushed') THEN status
+  WHEN status = 'pending' THEN 'todo'
+  ELSE 'todo'
+END;
+
+ALTER TABLE public.strategy_tasks
+  ADD CONSTRAINT strategy_tasks_status_check CHECK (status IN ('todo', 'in_progress', 'completed', 'pushed'));
+
+CREATE INDEX IF NOT EXISTS idx_strategy_tasks_strategy ON public.strategy_tasks(strategy_id);
+CREATE INDEX IF NOT EXISTS idx_strategy_tasks_task ON public.strategy_tasks(task_id);
+CREATE INDEX IF NOT EXISTS idx_strategy_tasks_project ON public.strategy_tasks(project_id);
+
+ALTER TABLE public.strategy_tasks
+  DROP CONSTRAINT IF EXISTS strategy_tasks_strategy_module_period_slug_key;
+
+ALTER TABLE public.strategy_tasks
+  ADD CONSTRAINT strategy_tasks_strategy_module_period_slug_key UNIQUE (strategy_id, module, period_key, slug);
+
+-- 6) Backfill strategies for existing clients
+INSERT INTO public.strategies (client_id, agency_id, version_int, status, created_at, updated_at)
+SELECT DISTINCT sm.client_id, sm.agency_id, 1, 'active', now(), now()
+FROM public.strategy_modules sm
+ON CONFLICT (client_id, version_int) DO NOTHING;
+
+-- 7) Backfill strategy_id on existing modules
+UPDATE public.strategy_modules sm
+SET strategy_id = s.id
+FROM public.strategies s
+WHERE sm.client_id = s.client_id
+  AND s.version_int = 1
+  AND sm.strategy_id IS NULL;
+
+ALTER TABLE public.strategy_modules
+  ALTER COLUMN strategy_id SET NOT NULL;
+
+-- Normalize legacy status values
+UPDATE public.strategy_modules
+SET status = 'draft'
+WHERE status = 'ai_draft';
+
+-- 8) Backfill strategy_id on existing history rows
+UPDATE public.strategy_history sh
+SET strategy_id = sm.strategy_id
+FROM public.strategy_modules sm
+WHERE sh.module_id = sm.id
+  AND sh.strategy_id IS NULL;
+
+UPDATE public.strategy_history sh
+SET strategy_id = s.id
+FROM public.strategies s
+WHERE sh.strategy_id IS NULL
+  AND sh.client_id = s.client_id
+  AND s.version_int = 1;
+
+-- 9) Backfill strategy_id on existing tasks
+UPDATE public.strategy_tasks st
+SET strategy_id = sm.strategy_id
+FROM public.strategy_modules sm
+WHERE st.module_id = sm.id
+  AND st.strategy_id IS NULL;
+
+UPDATE public.strategy_tasks st
+SET strategy_id = s.id
+FROM public.strategies s
+WHERE st.strategy_id IS NULL
+  AND st.client_id = s.client_id
+  AND s.version_int = 1;
+
+-- 10) Update updated_at trigger function to track last_updated_at
+CREATE OR REPLACE FUNCTION public.update_strategy_modules_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = now();
+  IF TG_TABLE_NAME = 'strategy_modules' THEN
+    NEW.last_updated_at = now();
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 11) Strategy table updated_at trigger
+CREATE OR REPLACE FUNCTION public.update_strategies_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS strategies_updated_at ON public.strategies;
+CREATE TRIGGER strategies_updated_at
+  BEFORE UPDATE ON public.strategies
+  FOR EACH ROW
+  EXECUTE FUNCTION public.update_strategies_updated_at();
+
+DROP TRIGGER IF EXISTS strategy_decisions_updated_at ON public.strategy_decisions;
+CREATE TRIGGER strategy_decisions_updated_at
+  BEFORE UPDATE ON public.strategy_decisions
+  FOR EACH ROW
+  EXECUTE FUNCTION public.update_strategies_updated_at();
+
+-- 12) Update RPC functions to include strategy_id
+DROP FUNCTION IF EXISTS public.get_strategy_modules(UUID);
+CREATE OR REPLACE FUNCTION public.get_strategy_modules(p_strategy_id UUID)
+RETURNS SETOF public.strategy_modules
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT * FROM public.strategy_modules
+  WHERE strategy_id = p_strategy_id
+  ORDER BY
+    CASE module
+      WHEN 'positioning' THEN 1
+      WHEN 'pillars' THEN 2
+      WHEN 'campaign_plan' THEN 3
+      WHEN 'weekly_plan' THEN 4
+      WHEN 'channel_adaptations' THEN 5
+      WHEN 'rules_constraints' THEN 6
+    END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.upsert_strategy_module(
+  p_client_id UUID,
+  p_agency_id UUID,
+  p_strategy_id UUID,
+  p_module public.strategy_module,
+  p_content_json JSONB,
+  p_status public.strategy_status DEFAULT 'draft',
+  p_ai_generated BOOLEAN DEFAULT false,
+  p_ai_confidence INTEGER DEFAULT NULL
+)
+RETURNS public.strategy_modules
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_result public.strategy_modules;
+  v_user_id UUID := auth.uid();
+BEGIN
+  INSERT INTO public.strategy_modules (
+    client_id, agency_id, strategy_id, module, content_json, status,
+    ai_generated, ai_confidence, created_by
+  )
+  VALUES (
+    p_client_id, p_agency_id, p_strategy_id, p_module, p_content_json, p_status,
+    p_ai_generated, p_ai_confidence, v_user_id
+  )
+  ON CONFLICT (strategy_id, module) DO UPDATE SET
+    content_json = EXCLUDED.content_json,
+    status = EXCLUDED.status,
+    ai_generated = EXCLUDED.ai_generated,
+    ai_confidence = EXCLUDED.ai_confidence,
+    version = strategy_modules.version + 1,
+    updated_at = now()
+  RETURNING * INTO v_result;
+
+  RETURN v_result;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.toggle_strategy_module_lock(
+  p_module_id UUID,
+  p_lock BOOLEAN
+)
+RETURNS public.strategy_modules
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_result public.strategy_modules;
+  v_user_id UUID := auth.uid();
+BEGIN
+  UPDATE public.strategy_modules
+  SET
+    locked = p_lock,
+    locked_at = CASE WHEN p_lock THEN now() ELSE NULL END,
+    locked_by = CASE WHEN p_lock THEN v_user_id ELSE NULL END,
+    status = CASE WHEN p_lock THEN 'locked'::public.strategy_status ELSE status END
+  WHERE id = p_module_id
+  RETURNING * INTO v_result;
+
+  RETURN v_result;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.add_strategy_history(
+  p_client_id UUID,
+  p_strategy_id UUID,
+  p_module_id UUID,
+  p_module public.strategy_module,
+  p_event_type TEXT,
+  p_event_data JSONB DEFAULT '{}'
+)
+RETURNS public.strategy_history
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_result public.strategy_history;
+  v_user_id UUID := auth.uid();
+BEGIN
+  INSERT INTO public.strategy_history (
+    client_id, strategy_id, module_id, module, event_type, event_data, actor_id
+  )
+  VALUES (
+    p_client_id, p_strategy_id, p_module_id, p_module, p_event_type, p_event_data, v_user_id
+  )
+  RETURNING * INTO v_result;
+
+  RETURN v_result;
+END;
+$$;
+
+-- 13) RLS policies for strategies and decisions
+ALTER TABLE public.strategies ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.strategy_decisions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY strategies_select ON public.strategies
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM public.agency_members am
+      WHERE am.agency_id = strategies.agency_id
+        AND am.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY strategies_insert ON public.strategies
+  FOR INSERT WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.agency_members am
+      WHERE am.agency_id = strategies.agency_id
+        AND am.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY strategies_update ON public.strategies
+  FOR UPDATE USING (
+    EXISTS (
+      SELECT 1 FROM public.agency_members am
+      WHERE am.agency_id = strategies.agency_id
+        AND am.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY strategy_decisions_select ON public.strategy_decisions
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM public.agency_members am
+      JOIN public.clients c ON c.agency_id = am.agency_id
+      WHERE c.id = strategy_decisions.client_id
+        AND am.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY strategy_decisions_insert ON public.strategy_decisions
+  FOR INSERT WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.agency_members am
+      JOIN public.clients c ON c.agency_id = am.agency_id
+      WHERE c.id = strategy_decisions.client_id
+        AND am.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY strategy_decisions_update ON public.strategy_decisions
+  FOR UPDATE USING (
+    EXISTS (
+      SELECT 1 FROM public.agency_members am
+      JOIN public.clients c ON c.agency_id = am.agency_id
+      WHERE c.id = strategy_decisions.client_id
+        AND am.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY strategy_decisions_delete ON public.strategy_decisions
+  FOR DELETE USING (
+    EXISTS (
+      SELECT 1 FROM public.agency_members am
+      JOIN public.clients c ON c.agency_id = am.agency_id
+      WHERE c.id = strategy_decisions.client_id
+        AND am.user_id = auth.uid()
+    )
+  );
+
+=== 20251230100000_strategy_os_ops_grants.sql ===
+-- Strategy OS Ops - Grant permissions for strategies and strategy_decisions tables
+-- The 20251230090000_strategy_os_ops.sql migration created these tables but forgot GRANT statements
+
+-- Grant permissions on strategies table
+GRANT SELECT, INSERT, UPDATE ON public.strategies TO authenticated;
+GRANT ALL ON public.strategies TO service_role;
+
+-- Grant permissions on strategy_decisions table
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.strategy_decisions TO authenticated;
+GRANT ALL ON public.strategy_decisions TO service_role;
+
+-- Grant execute on updated functions (with new signatures)
+GRANT EXECUTE ON FUNCTION public.get_strategy_modules(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.upsert_strategy_module(UUID, UUID, UUID, public.strategy_module, JSONB, public.strategy_status, BOOLEAN, INTEGER) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.add_strategy_history(UUID, UUID, UUID, public.strategy_module, TEXT, JSONB) TO authenticated;
+
+GRANT EXECUTE ON FUNCTION public.get_strategy_modules(UUID) TO service_role;
+GRANT EXECUTE ON FUNCTION public.upsert_strategy_module(UUID, UUID, UUID, public.strategy_module, JSONB, public.strategy_status, BOOLEAN, INTEGER) TO service_role;
+GRANT EXECUTE ON FUNCTION public.add_strategy_history(UUID, UUID, UUID, public.strategy_module, TEXT, JSONB) TO service_role;
+
+=== 20260106120000_strategy_documents.sql ===
+-- Strategy documents table + storage bucket
+
+CREATE TABLE IF NOT EXISTS public.strategy_documents (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  agency_id UUID NOT NULL REFERENCES public.agencies(id) ON DELETE CASCADE,
+  client_id UUID NOT NULL REFERENCES public.clients(id) ON DELETE CASCADE,
+  content_markdown TEXT,
+  content_html TEXT,
+  source TEXT NOT NULL CHECK (source IN ('ai', 'upload', 'manual')),
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  generated_by_user_id UUID REFERENCES auth.users(id),
+  model TEXT,
+  generation_instruction TEXT,
+  derived_from_hash TEXT,
+  file_path TEXT,
+  file_name TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_strategy_documents_client_active
+  ON public.strategy_documents(client_id, is_active, updated_at DESC);
+
+ALTER TABLE public.strategy_documents ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY strategy_documents_select ON public.strategy_documents
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM public.agency_members am
+      WHERE am.agency_id = strategy_documents.agency_id
+        AND am.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY strategy_documents_insert ON public.strategy_documents
+  FOR INSERT WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.agency_members am
+      WHERE am.agency_id = strategy_documents.agency_id
+        AND am.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY strategy_documents_update ON public.strategy_documents
+  FOR UPDATE USING (
+    EXISTS (
+      SELECT 1 FROM public.agency_members am
+      WHERE am.agency_id = strategy_documents.agency_id
+        AND am.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY strategy_documents_delete ON public.strategy_documents
+  FOR DELETE USING (
+    EXISTS (
+      SELECT 1 FROM public.agency_members am
+      WHERE am.agency_id = strategy_documents.agency_id
+        AND am.user_id = auth.uid()
+        AND am.role IN ('owner', 'admin')
+    )
+  );
+
+CREATE OR REPLACE FUNCTION public.update_strategy_documents_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS strategy_documents_updated_at ON public.strategy_documents;
+CREATE TRIGGER strategy_documents_updated_at
+  BEFORE UPDATE ON public.strategy_documents
+  FOR EACH ROW
+  EXECUTE FUNCTION public.update_strategy_documents_updated_at();
+
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'strategy-documents',
+  'strategy-documents',
+  true,
+  10485760,
+  ARRAY[
+    'application/pdf',
+    'text/markdown',
+    'text/plain',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  ]::text[]
+)
+ON CONFLICT (id) DO NOTHING;
+
+CREATE POLICY "Agency members can upload strategy documents"
+ON storage.objects
+FOR INSERT
+TO authenticated
+WITH CHECK (
+  bucket_id = 'strategy-documents' AND
+  (storage.foldername(name))[1] IN (
+    SELECT am.agency_id::text
+    FROM agency_members am
+    WHERE am.user_id = auth.uid()
+  )
+);
+
+CREATE POLICY "Agency members can delete strategy documents"
+ON storage.objects
+FOR DELETE
+TO authenticated
+USING (
+  bucket_id = 'strategy-documents' AND
+  (storage.foldername(name))[1] IN (
+    SELECT am.agency_id::text
+    FROM agency_members am
+    WHERE am.user_id = auth.uid()
+  )
+);
+
+CREATE POLICY "Public can view strategy documents"
+ON storage.objects
+FOR SELECT
+TO public
+USING (bucket_id = 'strategy-documents');
+
+=== 20260108143000_strategy_snapshot_rpc.sql ===
+-- Atomic strategy snapshot write: modules + document + optional decisions/tasks
+
+create or replace function public.create_strategy_snapshot(
+  p_client_id uuid,
+  p_agency_id uuid,
+  p_strategy_id uuid,
+  p_user_id uuid,
+  p_modules jsonb,
+  p_document_markdown text,
+  p_document_html text,
+  p_model text,
+  p_instruction text,
+  p_derived_hash text,
+  p_decisions jsonb default null,
+  p_tasks jsonb default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_strategy_id uuid := p_strategy_id;
+  v_document_id uuid;
+  v_version int;
+  v_module jsonb;
+  v_decision jsonb;
+  v_task jsonb;
+  v_module_id uuid;
+begin
+  if v_strategy_id is null then
+    select coalesce(max(version_int), 0) + 1 into v_version
+    from public.strategies
+    where client_id = p_client_id;
+
+    insert into public.strategies (client_id, agency_id, version_int, status, created_by)
+    values (p_client_id, p_agency_id, v_version, 'active', p_user_id)
+    returning id into v_strategy_id;
+  end if;
+
+  update public.strategy_documents
+  set is_active = false
+  where client_id = p_client_id;
+
+  insert into public.strategy_documents (
+    agency_id,
+    client_id,
+    content_markdown,
+    content_html,
+    source,
+    is_active,
+    generated_by_user_id,
+    model,
+    generation_instruction,
+    derived_from_hash
+  )
+  values (
+    p_agency_id,
+    p_client_id,
+    p_document_markdown,
+    p_document_html,
+    'ai',
+    true,
+    p_user_id,
+    p_model,
+    p_instruction,
+    p_derived_hash
+  )
+  returning id into v_document_id;
+
+  for v_module in select * from jsonb_array_elements(p_modules) loop
+    insert into public.strategy_modules (
+      client_id,
+      agency_id,
+      strategy_id,
+      module,
+      content_json,
+      status,
+      ai_generated,
+      ai_confidence,
+      created_by
+    )
+    values (
+      p_client_id,
+      p_agency_id,
+      v_strategy_id,
+      (v_module->>'module')::public.strategy_module,
+      v_module->'content_json',
+      'draft',
+      true,
+      case when v_module ? 'ai_confidence' then (v_module->>'ai_confidence')::int else null end,
+      p_user_id
+    )
+    on conflict (strategy_id, module) do update set
+      content_json = excluded.content_json,
+      status = excluded.status,
+      ai_generated = excluded.ai_generated,
+      ai_confidence = excluded.ai_confidence,
+      version = public.strategy_modules.version + 1,
+      updated_at = now()
+    returning id into v_module_id;
+  end loop;
+
+  if p_decisions is not null then
+    for v_decision in select * from jsonb_array_elements(p_decisions) loop
+      insert into public.strategy_decisions (
+        strategy_id,
+        client_id,
+        module,
+        decision_key,
+        value,
+        locked
+      )
+      values (
+        v_strategy_id,
+        p_client_id,
+        (v_decision->>'module')::public.strategy_module,
+        v_decision->>'decision_key',
+        v_decision->'value',
+        coalesce((v_decision->>'locked')::boolean, false)
+      )
+      on conflict (strategy_id, module, decision_key) do update set
+        value = excluded.value,
+        locked = excluded.locked,
+        updated_at = now();
+    end loop;
+  end if;
+
+  if p_tasks is not null then
+    for v_task in select * from jsonb_array_elements(p_tasks) loop
+      if v_task->>'module' is not null then
+        select id into v_module_id
+        from public.strategy_modules
+        where strategy_id = v_strategy_id
+          and module = (v_task->>'module')::public.strategy_module;
+      else
+        v_module_id := null;
+      end if;
+
+      insert into public.strategy_tasks (
+        strategy_id,
+        client_id,
+        module_id,
+        module,
+        title,
+        description,
+        priority,
+        status,
+        period_key,
+        slug,
+        dedupe_key,
+        created_by
+      )
+      values (
+        v_strategy_id,
+        p_client_id,
+        v_module_id,
+        case when v_task->>'module' is null then null else (v_task->>'module')::public.strategy_module end,
+        v_task->>'title',
+        v_task->>'description',
+        coalesce(v_task->>'priority', 'medium'),
+        'todo',
+        v_task->>'period_key',
+        v_task->>'slug',
+        v_task->>'dedupe_key',
+        p_user_id
+      );
+    end loop;
+  end if;
+
+  return jsonb_build_object(
+    'strategy_id', v_strategy_id,
+    'document_id', v_document_id
+  );
+end;
+$$;
+
+revoke all on function public.create_strategy_snapshot(
+  uuid, uuid, uuid, uuid, jsonb, text, text, text, text, text, jsonb, jsonb
+) from public;
+
+grant execute on function public.create_strategy_snapshot(
+  uuid, uuid, uuid, uuid, jsonb, text, text, text, text, text, jsonb, jsonb
+) to service_role;
+
+=== 20260109133000_strategy_documents_grants_and_consistency.sql ===
+begin;
+
+-- Fix 403 "permission denied" from PostgREST by granting table privileges.
+-- RLS still applies via policies on the table.
+grant select, insert, update, delete on table public.strategy_documents to authenticated;
+
+-- Ensure data consistency: strategy_documents.agency_id must always match clients.agency_id.
+create or replace function public.set_strategy_documents_agency_id_from_client()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_agency_id uuid;
+begin
+  select c.agency_id into v_agency_id
+  from public.clients c
+  where c.id = new.client_id;
+
+  if v_agency_id is null then
+    raise exception 'client_not_found';
+  end if;
+
+  new.agency_id := v_agency_id;
+  return new;
+end;
+$$;
+
+drop trigger if exists strategy_documents_set_agency_id on public.strategy_documents;
+create trigger strategy_documents_set_agency_id
+before insert or update of client_id on public.strategy_documents
+for each row
+execute function public.set_strategy_documents_agency_id_from_client();
+
+commit;
+
+
