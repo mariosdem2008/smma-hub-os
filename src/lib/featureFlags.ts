@@ -9,7 +9,7 @@ export const FEATURE_FLAGS = {
   CLIENTDETAIL_TAB_BADGES: false,
 
   /** Show the AI/History/Tasks/Decisions right panel */
-  CLIENTDETAIL_RIGHT_PANEL: false,
+  CLIENTDETAIL_RIGHT_PANEL: true,
 
   /** Enable Client Onboarding V5 */
   ONBOARDING_V5: true,

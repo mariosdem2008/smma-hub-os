@@ -51,7 +51,7 @@ const positioningSchema = z
     }),
   })
   .merge(evidenceSchema)
-  .strict();
+  .passthrough();
 
 const pillarsSchema = z
   .object({
@@ -84,7 +84,7 @@ const pillarsSchema = z
     }),
   })
   .merge(evidenceSchema)
-  .strict();
+  .passthrough();
 
 const campaignPlanSchema = z
   .object({
@@ -119,7 +119,7 @@ const campaignPlanSchema = z
     }),
   })
   .merge(evidenceSchema)
-  .strict();
+  .passthrough();
 
 const weeklyPlanSchema = z
   .object({
@@ -153,7 +153,7 @@ const weeklyPlanSchema = z
     }),
   })
   .merge(evidenceSchema)
-  .strict();
+  .passthrough();
 
 const channelAdaptationsSchema = z
   .object({
@@ -197,7 +197,7 @@ const channelAdaptationsSchema = z
     }),
   })
   .merge(evidenceSchema)
-  .strict();
+  .passthrough();
 
 const rulesConstraintsSchema = z
   .object({
@@ -225,7 +225,7 @@ const rulesConstraintsSchema = z
     }),
   })
   .merge(evidenceSchema)
-  .strict();
+  .passthrough();
 
 export const strategyOutputSchema = z
   .object({
@@ -280,20 +280,327 @@ export const strategyOutputSchema = z
       )
       .optional(),
   })
-  .strict();
+  .passthrough();
 
 export type StrategyOutput = z.infer<typeof strategyOutputSchema>;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function asString(value: unknown, fallback = ""): string {
+  return typeof value === "string" ? value : fallback;
+}
+
+function asBoolean(value: unknown, fallback = false): boolean {
+  return typeof value === "boolean" ? value : fallback;
+}
+
+function asNumber(value: unknown, fallback = 0): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function asStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
+}
+
+function clampConfidence(value: unknown): number {
+  const num = asNumber(value, 0);
+  return Math.max(0, Math.min(100, Math.round(num)));
+}
+
+function createEmptyStrategyOutput(): StrategyOutput {
+  const evidence = {
+    facts_used: [] as string[],
+    assumptions: [] as string[],
+    open_questions: [] as string[],
+    confidence_0_100: 0,
+  };
+
+  return {
+    modules: {
+      positioning: {
+        sentence: { target: "", category: "", differentiator: "", benefit: "" },
+        finalSentence: "",
+        proofPoints: [],
+        differentiators: [],
+        boundaries: { allowedPromises: [], riskyPromises: [], forbiddenPromises: [] },
+        decisions: { sentenceLocked: false, differentiatorsLocked: false },
+        ...evidence,
+      } as any,
+      pillars: {
+        pillars: [],
+        proofInventory: [],
+        decisions: { pillarNamesLocked: false, coverageLocked: false, bannedAnglesLocked: false },
+        ...evidence,
+      } as any,
+      campaign_plan: {
+        selectedMonth: "",
+        campaigns: [],
+        stopDoing: [],
+        decisions: { monthlyOffersLocked: false, activeCampaignsLocked: false },
+        ...evidence,
+      } as any,
+      weekly_plan: {
+        selectedWeek: "",
+        weeklyFocus: { objective: "", primaryCampaignId: "", priorityPillarIds: [], kpiFocus: [] },
+        cadenceMatrix: {},
+        productionChecklist: [],
+        weeklyReview: { wins: [], losses: [], changesNextWeek: [] },
+        decisions: { objectiveLocked: false, cadenceLocked: false },
+        ...evidence,
+      } as any,
+      channel_adaptations: {
+        channels: [],
+        translationTable: [],
+        decisions: { ctasLocked: false, rulesLocked: false },
+        ...evidence,
+      } as any,
+      rules_constraints: {
+        claimsPolicy: [],
+        bannedWords: [],
+        requiredDisclaimers: [],
+        approvalTriggers: [],
+        decisions: { forbiddenClaimsLocked: false, bannedTermsLocked: false },
+        ...evidence,
+      } as any,
+    },
+    document: { markdown: "" },
+  };
+}
+
+function normalizeEvidence(target: any, source: any) {
+  target.facts_used = asStringArray(source?.facts_used);
+  target.assumptions = asStringArray(source?.assumptions);
+  target.open_questions = asStringArray(source?.open_questions).slice(0, 5);
+  target.confidence_0_100 = clampConfidence(source?.confidence_0_100);
+}
+
+function normalizeStrategyOutput(value: unknown): StrategyOutput {
+  const output = createEmptyStrategyOutput();
+  if (!isRecord(value)) return output;
+
+  const modules = isRecord(value.modules) ? value.modules : {};
+
+  // Document
+  const document = isRecord(value.document) ? value.document : {};
+  output.document.markdown = asString(document.markdown, "");
+
+  // decisions/tasks (optional)
+  if (Array.isArray(value.decisions)) output.decisions = value.decisions as any;
+  if (Array.isArray(value.tasks)) output.tasks = value.tasks as any;
+
+  // Positioning
+  const positioning = isRecord(modules.positioning) ? modules.positioning : {};
+  output.modules.positioning.meta = isRecord(positioning.meta) ? (positioning.meta as any) : undefined;
+  const sentence = isRecord(positioning.sentence) ? positioning.sentence : {};
+  output.modules.positioning.sentence = {
+    target: asString(sentence.target),
+    category: asString(sentence.category),
+    differentiator: asString(sentence.differentiator),
+    benefit: asString(sentence.benefit),
+  };
+  output.modules.positioning.finalSentence = asString(positioning.finalSentence);
+  output.modules.positioning.proofPoints = Array.isArray(positioning.proofPoints)
+    ? positioning.proofPoints.map((p: any) => ({
+        id: asString(p?.id),
+        claim: asString(p?.claim),
+        evidence: asString(p?.evidence),
+        confidence: Math.max(1, Math.min(5, Math.trunc(asNumber(p?.confidence, 3)))),
+      }))
+    : [];
+  output.modules.positioning.differentiators = Array.isArray(positioning.differentiators)
+    ? positioning.differentiators.map((d: any) => ({
+        id: asString(d?.id),
+        rank: Math.max(1, Math.trunc(asNumber(d?.rank, 1))),
+        approvedPhrasing: asString(d?.approvedPhrasing),
+        bannedPhrasing: asStringArray(d?.bannedPhrasing),
+      }))
+    : [];
+  const boundaries = isRecord(positioning.boundaries) ? positioning.boundaries : {};
+  output.modules.positioning.boundaries = {
+    allowedPromises: asStringArray(boundaries.allowedPromises),
+    riskyPromises: asStringArray(boundaries.riskyPromises),
+    forbiddenPromises: asStringArray(boundaries.forbiddenPromises),
+  };
+  const positioningDecisions = isRecord(positioning.decisions) ? positioning.decisions : {};
+  output.modules.positioning.decisions = {
+    sentenceLocked: asBoolean(positioningDecisions.sentenceLocked),
+    differentiatorsLocked: asBoolean(positioningDecisions.differentiatorsLocked),
+  };
+  normalizeEvidence(output.modules.positioning as any, positioning);
+
+  // Pillars
+  const pillars = isRecord(modules.pillars) ? modules.pillars : {};
+  output.modules.pillars.meta = isRecord(pillars.meta) ? (pillars.meta as any) : undefined;
+  output.modules.pillars.pillars = Array.isArray(pillars.pillars)
+    ? pillars.pillars.map((p: any) => ({
+        id: asString(p?.id),
+        name: asString(p?.name),
+        coveragePercent: Math.max(0, Math.min(100, asNumber(p?.coveragePercent, 0))),
+        purpose: asString(p?.purpose) as any,
+        coreMessage: asString(p?.coreMessage),
+        contentTypes: asStringArray(p?.contentTypes),
+        bannedAngles: asStringArray(p?.bannedAngles),
+        kpis: asStringArray(p?.kpis),
+        examples: asStringArray(p?.examples),
+      }))
+    : [];
+  output.modules.pillars.proofInventory = Array.isArray(pillars.proofInventory)
+    ? pillars.proofInventory.map((pi: any) => ({
+        id: asString(pi?.id),
+        title: asString(pi?.title),
+        pillarIds: asStringArray(pi?.pillarIds),
+        ...(typeof pi?.url === "string" ? { url: pi.url } : {}),
+      }))
+    : [];
+  const pillarsDecisions = isRecord(pillars.decisions) ? pillars.decisions : {};
+  output.modules.pillars.decisions = {
+    pillarNamesLocked: asBoolean(pillarsDecisions.pillarNamesLocked),
+    coverageLocked: asBoolean(pillarsDecisions.coverageLocked),
+    bannedAnglesLocked: asBoolean(pillarsDecisions.bannedAnglesLocked),
+  };
+  normalizeEvidence(output.modules.pillars as any, pillars);
+
+  // Campaign plan
+  const campaign = isRecord(modules.campaign_plan) ? modules.campaign_plan : {};
+  output.modules.campaign_plan.meta = isRecord(campaign.meta) ? (campaign.meta as any) : undefined;
+  output.modules.campaign_plan.selectedMonth = asString(campaign.selectedMonth);
+  output.modules.campaign_plan.campaigns = Array.isArray(campaign.campaigns)
+    ? campaign.campaigns.map((c: any) => ({
+        id: asString(c?.id),
+        name: asString(c?.name),
+        goal: asString(c?.goal),
+        offer: asString(c?.offer),
+        cta: asString(c?.cta),
+        icp: asString(c?.icp),
+        pillarIds: asStringArray(c?.pillarIds),
+        angle: asString(c?.angle),
+        assets: Array.isArray(c?.assets)
+          ? c.assets.map((a: any) => ({ name: asString(a?.name), completed: asBoolean(a?.completed) }))
+          : [],
+        kpiTargets: isRecord(c?.kpiTargets) ? (c.kpiTargets as any) : {},
+        startDate: asString(c?.startDate),
+        endDate: asString(c?.endDate),
+        status: asString(c?.status) as any,
+      }))
+    : [];
+  output.modules.campaign_plan.stopDoing = asStringArray(campaign.stopDoing);
+  const campaignDecisions = isRecord(campaign.decisions) ? campaign.decisions : {};
+  output.modules.campaign_plan.decisions = {
+    monthlyOffersLocked: asBoolean(campaignDecisions.monthlyOffersLocked),
+    activeCampaignsLocked: asBoolean(campaignDecisions.activeCampaignsLocked),
+  };
+  normalizeEvidence(output.modules.campaign_plan as any, campaign);
+
+  // Weekly plan
+  const weekly = isRecord(modules.weekly_plan) ? modules.weekly_plan : {};
+  output.modules.weekly_plan.meta = isRecord(weekly.meta) ? (weekly.meta as any) : undefined;
+  output.modules.weekly_plan.selectedWeek = asString(weekly.selectedWeek);
+  const weeklyFocus = isRecord(weekly.weeklyFocus) ? weekly.weeklyFocus : {};
+  output.modules.weekly_plan.weeklyFocus = {
+    objective: asString(weeklyFocus.objective),
+    primaryCampaignId: asString(weeklyFocus.primaryCampaignId),
+    priorityPillarIds: asStringArray(weeklyFocus.priorityPillarIds),
+    kpiFocus: asStringArray(weeklyFocus.kpiFocus),
+  };
+  output.modules.weekly_plan.cadenceMatrix = isRecord(weekly.cadenceMatrix) ? (weekly.cadenceMatrix as any) : {};
+  output.modules.weekly_plan.productionChecklist = Array.isArray(weekly.productionChecklist)
+    ? weekly.productionChecklist.map((item: any) => ({
+        id: asString(item?.id),
+        type: asString(item?.type) as any,
+        title: asString(item?.title),
+        owner: asString(item?.owner),
+        dueDate: asString(item?.dueDate),
+        completed: asBoolean(item?.completed),
+      }))
+    : [];
+  const weeklyReview = isRecord(weekly.weeklyReview) ? weekly.weeklyReview : {};
+  output.modules.weekly_plan.weeklyReview = {
+    wins: asStringArray(weeklyReview.wins),
+    losses: asStringArray(weeklyReview.losses),
+    changesNextWeek: asStringArray(weeklyReview.changesNextWeek),
+  };
+  const weeklyDecisions = isRecord(weekly.decisions) ? weekly.decisions : {};
+  output.modules.weekly_plan.decisions = {
+    objectiveLocked: asBoolean(weeklyDecisions.objectiveLocked),
+    cadenceLocked: asBoolean(weeklyDecisions.cadenceLocked),
+  };
+  normalizeEvidence(output.modules.weekly_plan as any, weekly);
+
+  // Channel adaptations
+  const channels = isRecord(modules.channel_adaptations) ? modules.channel_adaptations : {};
+  output.modules.channel_adaptations.meta = isRecord(channels.meta) ? (channels.meta as any) : undefined;
+  output.modules.channel_adaptations.channels = Array.isArray(channels.channels)
+    ? channels.channels.map((ch: any) => ({
+        id: asString(ch?.id),
+        platform: asString(ch?.platform) as any,
+        enabled: asBoolean(ch?.enabled, true),
+        role: asString(ch?.role),
+        formats: asStringArray(ch?.formats),
+        hookRules: asStringArray(ch?.hookRules),
+        ctaRules: asStringArray(ch?.ctaRules),
+        visualRules: asStringArray(ch?.visualRules),
+        cadence: asString(ch?.cadence),
+        dos: asStringArray(ch?.dos),
+        donts: asStringArray(ch?.donts),
+        examples: asStringArray(ch?.examples),
+      }))
+    : [];
+  output.modules.channel_adaptations.translationTable = Array.isArray(channels.translationTable)
+    ? channels.translationTable.map((row: any) => ({
+        coreMessage: asString(row?.coreMessage),
+        variants: isRecord(row?.variants) ? (row.variants as any) : {},
+      }))
+    : [];
+  if (typeof channels.defaultGuidance === "string") {
+    output.modules.channel_adaptations.defaultGuidance = channels.defaultGuidance;
+  }
+  const channelDecisions = isRecord(channels.decisions) ? channels.decisions : {};
+  output.modules.channel_adaptations.decisions = {
+    ctasLocked: asBoolean(channelDecisions.ctasLocked),
+    rulesLocked: asBoolean(channelDecisions.rulesLocked),
+  };
+  normalizeEvidence(output.modules.channel_adaptations as any, channels);
+
+  // Rules + constraints
+  const rules = isRecord(modules.rules_constraints) ? modules.rules_constraints : {};
+  output.modules.rules_constraints.meta = isRecord(rules.meta) ? (rules.meta as any) : undefined;
+  output.modules.rules_constraints.claimsPolicy = Array.isArray(rules.claimsPolicy)
+    ? rules.claimsPolicy.map((cp: any) => ({
+        id: asString(cp?.id),
+        claim: asString(cp?.claim),
+        status: asString(cp?.status) as any,
+        ...(typeof cp?.proofLink === "string" ? { proofLink: cp.proofLink } : {}),
+      }))
+    : [];
+  output.modules.rules_constraints.bannedWords = asStringArray(rules.bannedWords);
+  output.modules.rules_constraints.requiredDisclaimers = asStringArray(rules.requiredDisclaimers);
+  output.modules.rules_constraints.approvalTriggers = Array.isArray(rules.approvalTriggers)
+    ? rules.approvalTriggers.map((t: any) => ({
+        id: asString(t?.id),
+        condition: asString(t?.condition),
+        action: asString(t?.action),
+      }))
+    : [];
+  const rulesDecisions = isRecord(rules.decisions) ? rules.decisions : {};
+  output.modules.rules_constraints.decisions = {
+    forbiddenClaimsLocked: asBoolean(rulesDecisions.forbiddenClaimsLocked),
+    bannedTermsLocked: asBoolean(rulesDecisions.bannedTermsLocked),
+  };
+  normalizeEvidence(output.modules.rules_constraints as any, rules);
+
+  return output;
+}
 
 export function buildStrategyOutputSchema(): OutputSchema<StrategyOutput> {
   return {
     name: "strategy_plan_v2",
     validate: (value: unknown) => {
-      const parsed = strategyOutputSchema.safeParse(value);
+      const normalized = normalizeStrategyOutput(value);
+      const parsed = strategyOutputSchema.safeParse(normalized);
       if (!parsed.success) {
-        return {
-          ok: false,
-          errors: parsed.error.errors.map((error) => error.message),
-        };
+        return { ok: false, errors: parsed.error.errors.map((error) => error.message) };
       }
       return { ok: true, data: parsed.data };
     },

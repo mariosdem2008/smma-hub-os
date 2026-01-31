@@ -17,6 +17,10 @@ const ENV_KEYS = [
   "AI_PROVIDER__CHAT_GENERAL__prod",
   "AI_MODEL__CHAT_GENERAL__prod",
   "AI_MODEL__TOOL_EXECUTION__prod",
+  "AI_PROVIDER__STRATEGY_PLAN",
+  "AI_MODEL__STRATEGY_PLAN",
+  "AI_PROVIDER__AI_ASSISTANT",
+  "AI_MODEL__AI_ASSISTANT",
   "AI_TEXT_MODEL_DEFAULT",
 ];
 
@@ -33,16 +37,17 @@ afterEach(() => {
 describe("model policy", () => {
   it("defaults match current models for each task", () => {
     const defaults = {
-      [TaskType.CHAT_GENERAL]: { dev: "gemini-1.5-flash", prod: "gemini-1.5-flash" },
-      [TaskType.CHAT_ADMIN_ONBOARDING]: { dev: "gemini-1.5-flash", prod: "gemini-1.5-flash" },
-      [TaskType.CLIENT_PORTAL_QA]: { dev: "gemini-1.5-flash", prod: "gemini-1.5-flash" },
-      [TaskType.SUMMARIZE]: { dev: "gemini-1.5-flash", prod: "gemini-1.5-flash" },
-      [TaskType.EXTRACT_STRUCTURED]: { dev: "gemini-1.5-flash", prod: "gemini-1.5-flash" },
-      [TaskType.CLASSIFY_INTENT]: { dev: "gemini-1.5-flash", prod: "gemini-1.5-flash" },
-      [TaskType.STRATEGY_PLAN]: { dev: "gemini-1.5-flash", prod: "gemini-1.5-flash" },
-      [TaskType.CONTENT_IDEAS]: { dev: "gemini-1.5-flash", prod: "gemini-1.5-flash" },
-      [TaskType.SCRIPT_WRITING]: { dev: "gemini-1.5-flash", prod: "gemini-1.5-flash" },
-      [TaskType.TOOL_EXECUTION]: { dev: "gemini-1.5-flash", prod: "gemini-1.5-flash" },
+      [TaskType.CHAT_GENERAL]: { dev: "gpt-4o-mini", prod: "gpt-4o-mini" },
+      [TaskType.CHAT_ADMIN_ONBOARDING]: { dev: "gpt-4o-mini", prod: "gpt-4o-mini" },
+      [TaskType.CLIENT_PORTAL_QA]: { dev: "gpt-4o-mini", prod: "gpt-4o-mini" },
+      [TaskType.SUMMARIZE]: { dev: "gpt-4o-mini", prod: "gpt-4o-mini" },
+      [TaskType.EXTRACT_STRUCTURED]: { dev: "gpt-4o-mini", prod: "gpt-4o-mini" },
+      [TaskType.CLASSIFY_INTENT]: { dev: "gpt-4o-mini", prod: "gpt-4o-mini" },
+      [TaskType.STRATEGY_PLAN]: { dev: "gemini-flash-latest", prod: "gemini-flash-latest" },
+      [TaskType.AI_ASSISTANT]: { dev: "gemini-flash-latest", prod: "gemini-flash-latest" },
+      [TaskType.CONTENT_IDEAS]: { dev: "gpt-4o-mini", prod: "gpt-4o-mini" },
+      [TaskType.SCRIPT_WRITING]: { dev: "gpt-4o-mini", prod: "gpt-4o-mini" },
+      [TaskType.TOOL_EXECUTION]: { dev: "gpt-4o-mini", prod: "gpt-4o-mini" },
     } as const;
 
     for (const [taskType, expected] of Object.entries(defaults)) {
@@ -65,21 +70,51 @@ describe("model policy", () => {
   it("selects DEV mapping when AI_MODE=dev", () => {
     process.env.AI_MODE = "dev";
     const result = getModelForTask({ taskType: TaskType.TOOL_EXECUTION, planTier: "pro" });
-    expect(result.model).toBe("gemini-1.5-flash");
+    expect(result.model).toBe("gpt-4o-mini");
   });
 
   it("selects PROD mapping when AI_MODE=prod", () => {
     process.env.AI_MODE = "prod";
     const result = getModelForTask({ taskType: TaskType.TOOL_EXECUTION, planTier: "pro" });
-    expect(result.model).toBe("gemini-1.5-flash");
+    expect(result.model).toBe("gpt-4o-mini");
   });
 
-  it("defaults to gemini for text tasks and openai for embeddings", () => {
+  it("defaults to openai for text + embeddings, except strategy plan", () => {
     const text = getModelForTask({ taskType: TaskType.SUMMARIZE, mode: "prod", planTier: "free" });
-    expect(text.provider).toBe("gemini");
+    expect(text.provider).toBe("openai");
 
     const embed = getModelForTask({ taskType: TaskType.EMBED_TEXT, mode: "prod", planTier: "free" });
     expect(embed.provider).toBe("openai");
+
+    const strategy = getModelForTask({ taskType: TaskType.STRATEGY_PLAN, mode: "prod", planTier: "free" });
+    expect(strategy.provider).toBe("gemini");
+  });
+
+  it("does not allow global provider/model overrides to change strategy tasks", () => {
+    process.env.AI_PROVIDER = "openai";
+    process.env.AI_MODEL = "gpt-4o-mini-2024-07-18";
+    process.env.AI_TEXT_MODEL_DEFAULT = "gpt-4o-mini-2024-07-18";
+
+    const chat = getModelForTask({ taskType: TaskType.CHAT_GENERAL, mode: "prod", planTier: "free" });
+    expect(chat.provider).toBe("openai");
+    expect(chat.model).toBe("gpt-4o-mini-2024-07-18");
+
+    const strategyPlan = getModelForTask({ taskType: TaskType.STRATEGY_PLAN, mode: "prod", planTier: "free" });
+    expect(strategyPlan.provider).toBe("gemini");
+    expect(strategyPlan.model).toBe("gemini-flash-latest");
+
+    const aiAssistant = getModelForTask({ taskType: TaskType.AI_ASSISTANT, mode: "prod", planTier: "free" });
+    expect(aiAssistant.provider).toBe("gemini");
+    expect(aiAssistant.model).toBe("gemini-flash-latest");
+  });
+
+  it("allows per-task overrides for AI assistant", () => {
+    process.env.AI_PROVIDER__AI_ASSISTANT = "openai";
+    process.env.AI_MODEL__AI_ASSISTANT = "override-model";
+
+    const aiAssistant = getModelForTask({ taskType: TaskType.AI_ASSISTANT, mode: "prod", planTier: "free" });
+    expect(aiAssistant.provider).toBe("openai");
+    expect(aiAssistant.model).toBe("override-model");
   });
 
   it("uses per-task per-mode override when set", () => {

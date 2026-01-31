@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { motion, useMotionValue, useTransform, animate, useInView } from 'framer-motion';
-import { Button } from "@/components/ui/button";
 import { Check, Brain, Users, Sparkles, Zap, Play } from "lucide-react";
+import { Button } from '../ui/button.tsx';
 
 const CAL_LINK = "https://cal.com/SMMAHUB/fit";
 const LOOM_LINK = "https://loom.com/share/LOOM_ID";

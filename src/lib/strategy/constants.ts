@@ -149,7 +149,6 @@ export const AI_COPILOT_MODES: AICopilotModeDefinition[] = [
 
 // Right rail tab definitions
 export const RIGHT_RAIL_TABS = [
-  { key: 'ai', label: 'AI Copilot' },
   { key: 'decisions', label: 'Decisions' },
   { key: 'history', label: 'History' },
   { key: 'tasks', label: 'Tasks' },

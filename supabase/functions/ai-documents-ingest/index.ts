@@ -189,7 +189,7 @@ serve(async (req: Request) => {
     return jsonResponse({ error: documentError?.message ?? "Failed to create document" }, 400, corsHeaders(req));
   }
 
-  const embeddingApiKey = Deno.env.get("OPENAI_API_KEY");
+  const embeddingApiKey = Deno.env.get("GEMINI_API_KEY") ?? Deno.env.get("OPENAI_API_KEY");
   const embeddingModel = Deno.env.get("EMBEDDING_MODEL_ID") ?? "text-embedding-3-small";
   const expectedDim = getExpectedEmbeddingDim();
 
@@ -218,11 +218,19 @@ serve(async (req: Request) => {
         text: chunk.text,
         apiKey: embeddingApiKey ?? undefined,
         failHard,
-        embed: (text) => embedText(text, embeddingApiKey ?? "", embeddingModel),
+        embed: (text) => embedText(text, "", embeddingModel),
       });
     } catch (error: any) {
       if (error?.code === "MISSING_API_KEY") {
-        return jsonResponse({ error: "OPENAI_API_KEY is not configured", code: "MISSING_API_KEY" }, 500, corsHeaders(req));
+        return jsonResponse(
+          {
+            error: "AI embeddings API key is not configured",
+            message: "Configure GEMINI_API_KEY (or OPENAI_API_KEY if using OpenAI embeddings) and retry.",
+            code: "MISSING_API_KEY",
+          },
+          500,
+          corsHeaders(req),
+        );
       }
       if (error?.code === "EMBEDDING_FAILED") {
         return jsonResponse({ error: "Embedding failed", code: "EMBEDDING_FAILED" }, 500, corsHeaders(req));

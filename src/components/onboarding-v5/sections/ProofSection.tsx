@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { DragDropContext, Draggable, Droppable, type DropResult } from '@hello-pangea/dnd';
 import { GripVertical, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { AiSuggestionChips, MultiSelectChips } from '@/components/onboarding-v4/components/AiSuggestionChips';
+import { AiSuggestionChips, MultiSelectChips } from '@/components/onboarding-v5/components/AiSuggestionChips';
 import type { OnboardingProfile } from '@/types/onboarding';
 import { PROOF_TYPE_OPTIONS } from '@/types/onboarding';
 import { getFieldLabel } from '../lib/labels';

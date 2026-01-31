@@ -412,7 +412,7 @@ export type ActiveView = 'mission-control' | StrategyModule;
 
 export interface StrategyOSState {
   activeView: ActiveView;
-  rightRailTab: 'ai' | 'decisions' | 'history' | 'tasks';
+  rightRailTab: 'decisions' | 'history' | 'tasks';
   mobileSheetOpen: boolean;
   hasUnsavedChanges: boolean;
   aiCopilotMode: AICopilotMode;

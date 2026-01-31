@@ -486,17 +486,11 @@ async function fetchAgencyRagSnippets(opts: {
 }): Promise<Array<Record<string, unknown>>> {
   try {
     if (!opts.supabase?.rpc) return [];
-    const embeddingApiKey = typeof Deno !== "undefined" ? Deno.env.get("OPENAI_API_KEY") : process.env.OPENAI_API_KEY;
     const embeddingModel = typeof Deno !== "undefined"
       ? Deno.env.get("EMBEDDING_MODEL_ID") ?? "text-embedding-3-small"
       : process.env.EMBEDDING_MODEL_ID ?? "text-embedding-3-small";
 
-    if (!embeddingApiKey) {
-      console.warn("admin_chat_rag_no_api_key");
-      return [];
-    }
-
-    const queryEmbedding = await embedText(opts.query, embeddingApiKey, embeddingModel);
+    const queryEmbedding = await embedText(opts.query, "", embeddingModel);
 
     const { data: matches } = await opts.supabase.rpc("match_ai_embeddings", {
       p_agency_id: opts.agencyId,

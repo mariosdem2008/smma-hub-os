@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { AiSuggestionChips, MultiSelectChips, SingleSelectChips } from '@/components/onboarding-v4/components/AiSuggestionChips';
+import { AiSuggestionChips, MultiSelectChips, SingleSelectChips } from '@/components/onboarding-v5/components/AiSuggestionChips';
 import type { OnboardingOffer, OnboardingProfile } from '@/types/onboarding';
 import { OFFER_PROMISE_OPTIONS, OFFER_SLOT_OPTIONS } from '@/types/onboarding';
 import { getFieldLabel } from '../lib/labels';

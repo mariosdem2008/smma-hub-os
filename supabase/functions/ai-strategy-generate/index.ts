@@ -4,6 +4,7 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
 import { evaluateClientBrainForStrategy } from "../_shared/brain-quality.ts";
 import { embedText } from "../_shared/embeddings.ts";
+import { mapV3AnswersToClientBrain } from "../_shared/client-brain-mapping.ts";
 import { ai } from "../../../src/ai/router.ts";
 import { TaskType } from "../../../src/ai/taskTypes.ts";
 import { applyRagPolicy, getRagConfig, shouldUseRagPolicy } from "../../../src/ai/ragPolicy.ts";
@@ -14,6 +15,7 @@ import { buildBrainDocumentReferences, formatBrainDocumentReferencesMarkdown } f
 import { buildStrategyOutputSchema, type StrategyOutput } from "../_shared/strategy-output.ts";
 import { marked } from "npm:marked@9.1.6";
 import { getEndpointGuardResponse } from "../_shared/endpoint-guard.ts";
+import { evaluateStrategyModule } from "../../../src/lib/strategy/rulesEngine.ts";
 
 function jsonResponse(body: unknown, status = 200, headers: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
@@ -75,6 +77,98 @@ function stableStringify(value: unknown): string {
   return JSON.stringify(value);
 }
 
+function toList(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map((item) => String(item)).filter(Boolean);
+  if (typeof value === "string") {
+    return value
+      .split(/\r?\n|,/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
+function deepMergePreferExisting(existing: any, fallback: any): any {
+  if (existing === null || existing === undefined) return fallback;
+  if (fallback === null || fallback === undefined) return existing;
+
+  if (Array.isArray(existing) || Array.isArray(fallback)) {
+    const existingArr = Array.isArray(existing) ? existing : [];
+    const fallbackArr = Array.isArray(fallback) ? fallback : [];
+    return existingArr.length > 0 ? existingArr : fallbackArr;
+  }
+
+  if (typeof existing === "object" && typeof fallback === "object") {
+    const out: Record<string, unknown> = { ...(fallback as Record<string, unknown>) };
+    for (const [key, value] of Object.entries(existing as Record<string, unknown>)) {
+      out[key] = deepMergePreferExisting(value, (fallback as Record<string, unknown>)[key]);
+    }
+    return out;
+  }
+
+  if (typeof existing === "string") {
+    return existing.trim().length > 0 ? existing : fallback;
+  }
+
+  return existing;
+}
+
+function buildRawResponsesFromOnboarding(profile: Record<string, unknown>) {
+  const businessName = (profile.q1_business_name as string) ?? "";
+  const website = (profile.q2_website as string) ?? "";
+  const platforms = toList(profile.platforms ?? profile.q16_enabled_channels);
+
+  const offerNames = [
+    ...(Array.isArray(profile.offers)
+      ? (profile.offers as Array<any>).map((offer) => (offer?.name ? String(offer.name) : "")).filter(Boolean)
+      : []),
+    ...(typeof profile.q6_offer_name === "string" ? [profile.q6_offer_name] : []),
+  ].filter(Boolean);
+
+  const audience = [
+    ...(Array.isArray(profile.q9_pain_points) ? (profile.q9_pain_points as string[]) : []),
+    ...(typeof profile.primary_customer === "string" ? [profile.primary_customer] : []),
+    ...(typeof profile.q8_ideal_customer === "string" ? [profile.q8_ideal_customer] : []),
+  ]
+    .map((item) => String(item).trim())
+    .filter(Boolean);
+
+  const goal = (profile.primary_goal as string) ?? (profile.q17_primary_goal as string) ?? "";
+  const conversionPath = (profile.conversion_path as string) ?? "";
+  const dmKeyword = (profile.dm_keyword as string) ?? "";
+  const conversionLink = (profile.conversion_link as string) ?? "";
+
+  const goals: string[] = [];
+  if (goal) goals.push(goal);
+  if (conversionPath === "dm_keyword") {
+    goals.push(dmKeyword ? `DM keyword: ${dmKeyword}` : "DM keyword");
+  } else if (conversionPath) {
+    goals.push(conversionLink ? `${conversionPath}: ${conversionLink}` : conversionPath);
+  }
+
+  const ctaStyles: string[] = [];
+  if (conversionPath === "dm_keyword") {
+    ctaStyles.push(dmKeyword ? `DM ${dmKeyword}` : "DM keyword");
+  } else if (conversionPath) {
+    ctaStyles.push(conversionPath);
+  }
+
+  return {
+    brand: businessName,
+    website,
+    goals,
+    offers: offerNames,
+    audience,
+    platforms,
+    cta_styles: ctaStyles,
+    competitors: toList(profile.q12_competitors ?? profile.competitors),
+    differentiators: toList(profile.q13_differentiators ?? profile.differentiators),
+    banned_claims: toList(profile.banned_claims),
+    taboo_topics: toList(profile.taboo_topics),
+    pricing: (profile.q6_price_min || profile.q6_price_max) ? `${profile.q6_price_min ?? ""}-${profile.q6_price_max ?? ""}` : "",
+  } as Record<string, unknown>;
+}
+
 async function sha256Hex(input: string) {
   const buffer = new TextEncoder().encode(input);
   const digest = await crypto.subtle.digest("SHA-256", buffer);
@@ -131,6 +225,22 @@ async function safeInsertAiRun(
   } catch (error) {
     console.error("Failed to write ai_runs", error);
   }
+}
+
+function pad2(num: number) {
+  return String(num).padStart(2, "0");
+}
+
+function isoWeekString(date: Date): string {
+  // ISO week date weeks start on Monday.
+  // Algorithm: shift to Thursday, then week = 1 + floor((thursday - jan4)/7days)
+  const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const day = d.getUTCDay() || 7; // Sunday -> 7
+  d.setUTCDate(d.getUTCDate() + 4 - day);
+  const year = d.getUTCFullYear();
+  const yearStart = new Date(Date.UTC(year, 0, 1));
+  const week = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  return `${year}-W${pad2(week)}`;
 }
 
 serve(async (req: Request) => {
@@ -223,7 +333,35 @@ serve(async (req: Request) => {
     .limit(1)
     .maybeSingle();
 
-  if (brainError || !brainRow) {
+  // Defense-in-depth: bootstrap a baseline brain row if missing.
+  // The database trigger/backfill should make this rare, but this keeps the endpoint resilient.
+  let ensuredBrainRow = brainRow ?? null;
+  if (!brainError && !ensuredBrainRow) {
+    await supabase.from("client_brains").insert({
+      agency_id: agencyId,
+      client_id: clientId,
+      version: 1,
+      status: "draft",
+      locked: false,
+      usable: false,
+      brain_json: {},
+      json_diff: null,
+      confidence: 0,
+    });
+
+    const { data: reloaded } = await supabase
+      .from("client_brains")
+      .select("id, brain_json, usable, status, updated_at")
+      .eq("agency_id", agencyId)
+      .eq("client_id", clientId)
+      .order("version", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    ensuredBrainRow = reloaded ?? null;
+  }
+
+  if (brainError || !ensuredBrainRow) {
     await safeInsertAiRun(supabase, {
       agencyId,
       clientId,
@@ -234,16 +372,67 @@ serve(async (req: Request) => {
       costUsd: 0,
       startTime,
       success: false,
-      unknown: false,
+      unknown: true,
       citations: emptySources(),
       metadata: { code: "CLIENT_BRAIN_MISSING" },
     });
-    return jsonResponse({ error: "Client brain not found", code: "CLIENT_BRAIN_MISSING" }, 400, corsHeaders(req));
+    return jsonResponse(
+      buildUnknownResponse(
+        {
+          missing_fields: ["client_brain"],
+          questions: ["Complete client onboarding before generating a strategy."],
+        },
+        { code: "CLIENT_BRAIN_MISSING", deep_link: `/onboarding/client/${clientId}` },
+      ),
+      200,
+      corsHeaders(req),
+    );
   }
 
-  const gate = evaluateClientBrainForStrategy((brainRow.brain_json as any) ?? {});
+  const { data: onboardingProfile } = await supabase
+    .from("client_onboarding_profiles")
+    .select("*")
+    .eq("client_id", clientId)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
-  if (!gate.usable || !brainRow.usable) {
+  const gate = evaluateClientBrainForStrategy((ensuredBrainRow.brain_json as any) ?? {});
+
+  const onboardingCompleted =
+    Boolean(onboardingProfile?.completed_at) ||
+    (typeof (onboardingProfile as any)?.readiness_score === "number" && (onboardingProfile as any).readiness_score >= 100);
+
+  let effectiveBrain = (ensuredBrainRow.brain_json as any) ?? {};
+  let effectiveBrainUsable = Boolean(ensuredBrainRow.usable) && gate.usable;
+
+  if (!effectiveBrainUsable && onboardingProfile && onboardingCompleted) {
+    try {
+      const rawResponses = buildRawResponsesFromOnboarding(onboardingProfile as any);
+      const fallbackBrain = mapV3AnswersToClientBrain(rawResponses, {}, new Date().toISOString());
+      const mergedBrain = deepMergePreferExisting(effectiveBrain, fallbackBrain);
+      const mergedGate = evaluateClientBrainForStrategy(mergedBrain ?? {});
+
+      if (mergedGate.usable) {
+        effectiveBrain = mergedBrain;
+        effectiveBrainUsable = true;
+
+        await supabase
+          .from("client_brains")
+          .update({
+            brain_json: mergedBrain,
+            usable: true,
+            status: "usable",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", ensuredBrainRow.id);
+      }
+    } catch (error) {
+      console.error("Failed to hydrate client brain from onboarding fallback", error);
+    }
+  }
+
+  if (!effectiveBrainUsable) {
     await supabase.from("ai_usage_logs").insert({
       agency_id: agencyId,
       client_id: clientId,
@@ -329,14 +518,6 @@ serve(async (req: Request) => {
     return jsonResponse(gateResponse, 200, corsHeaders(req));
   }
 
-  const { data: onboardingProfile } = await supabase
-    .from("client_onboarding_profiles")
-    .select("*")
-    .eq("client_id", clientId)
-    .order("updated_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
   const { data: latestStrategy } = await supabase
     .from("strategies")
     .select("id, updated_at")
@@ -352,52 +533,43 @@ serve(async (req: Request) => {
         .eq("strategy_id", latestStrategy.id)
     : { data: [] };
 
-  const embeddingApiKey = Deno.env.get("OPENAI_API_KEY");
-  if (!embeddingApiKey) {
-    await supabase.from("ai_usage_logs").insert({
-      agency_id: agencyId,
-      client_id: clientId,
-      endpoint: "ai-strategy-generate",
-      model: "missing-openai-api-key",
-      tokens_estimate: 0,
-      tokens_in: 0,
-      tokens_out: 0,
-      latency_ms: Date.now() - startTime,
-      unknown: true,
-    });
-    await safeInsertAiRun(supabase, {
-      agencyId,
-      clientId,
-      userId: actingUserId,
-      model: "missing-openai-api-key",
-      tokensIn: 0,
-      tokensOut: 0,
-      costUsd: 0,
-      startTime,
-      success: false,
-      unknown: false,
-      citations: emptySources(),
-      metadata: { code: "MISSING_API_KEY" },
-    });
-    console.error("OPENAI_API_KEY not configured");
-    return jsonResponse(
-      {
-        error: "AI configuration missing",
-        message: "Please configure OPENAI_API_KEY in your Supabase project secrets before generating strategies.",
-        code: "MISSING_API_KEY",
-      },
-      500,
-      corsHeaders(req),
-    );
-  }
-
   const embeddingModel = Deno.env.get("EMBEDDING_MODEL_ID") ?? "text-embedding-3-small";
   const useRagPolicy = shouldUseRagPolicy({ agencyId, clientId });
   const ragConfig = getRagConfig(TaskType.STRATEGY_PLAN);
+  // Strategy generation needs *some* context even when similarity is low.
+  // Using a fixed query embedding can cause false "no matches" when min_similarity is too high.
+  const minSimilarity = 0.0;
   let queryEmbedding: number[];
   try {
-    queryEmbedding = await embedText("strategy_draft", embeddingApiKey, embeddingModel);
+    queryEmbedding = await embedText("strategy_draft", "", embeddingModel);
   } catch (error: any) {
+    const message = error?.message ?? String(error);
+    const missingApiKey = message.includes("API_KEY is not configured");
+    if (missingApiKey) {
+      await safeInsertAiRun(supabase, {
+        agencyId,
+        clientId,
+        userId: actingUserId,
+        model: "missing-ai-api-key",
+        tokensIn: 0,
+        tokensOut: 0,
+        costUsd: 0,
+        startTime,
+        success: false,
+        unknown: false,
+        citations: emptySources(),
+        metadata: { code: "MISSING_API_KEY", error: message },
+      });
+      return jsonResponse(
+        {
+          error: "AI configuration missing",
+          message: "Please configure GEMINI_API_KEY (or OPENAI_API_KEY if using OpenAI) in your Supabase project secrets.",
+          code: "MISSING_API_KEY",
+        },
+        500,
+        corsHeaders(req),
+      );
+    }
     await safeInsertAiRun(supabase, {
       agencyId,
       clientId,
@@ -410,7 +582,7 @@ serve(async (req: Request) => {
       success: false,
       unknown: false,
       citations: emptySources(),
-      metadata: { code: "RAG_FAILURE", error: error?.message ?? String(error) },
+      metadata: { code: "RAG_FAILURE", error: message },
     });
     return jsonResponse({ error: "Embedding failed", code: "RAG_FAILURE" }, 500, corsHeaders(req));
   }
@@ -419,34 +591,34 @@ serve(async (req: Request) => {
   const legacyAgencyDocTypes = ["agency_sop", "brain_document"];
   const legacyExemplarDocTypes = ["agency_exemplar_strategy"];
 
-  const { data: clientMatches, error: clientMatchesError } = await supabase.rpc("match_ai_embeddings", {
+  let { data: clientMatches, error: clientMatchesError } = await supabase.rpc("match_ai_embeddings", {
     p_agency_id: agencyId,
     p_client_id: clientId,
     p_query_embedding: queryEmbedding,
     p_match_count: clampMatchCount(useRagPolicy ? ragConfig.client_memory_top_k : 6),
     p_doc_types: useRagPolicy ? ragConfig.client_doc_types : legacyClientDocTypes,
     p_modules: null,
-    p_min_similarity: useRagPolicy ? ragConfig.min_similarity : 0.2,
+    p_min_similarity: minSimilarity,
   });
 
-  const { data: agencyMatches, error: agencyMatchesError } = await supabase.rpc("match_ai_embeddings", {
+  let { data: agencyMatches, error: agencyMatchesError } = await supabase.rpc("match_ai_embeddings", {
     p_agency_id: agencyId,
     p_client_id: null,
     p_query_embedding: queryEmbedding,
     p_match_count: clampMatchCount(useRagPolicy ? ragConfig.agency_memory_top_k : 4),
     p_doc_types: useRagPolicy ? ragConfig.agency_doc_types : legacyAgencyDocTypes,
     p_modules: null,
-    p_min_similarity: useRagPolicy ? ragConfig.min_similarity : 0.2,
+    p_min_similarity: minSimilarity,
   });
 
-  const { data: exemplarMatches, error: exemplarMatchesError } = await supabase.rpc("match_ai_embeddings", {
+  let { data: exemplarMatches, error: exemplarMatchesError } = await supabase.rpc("match_ai_embeddings", {
     p_agency_id: agencyId,
     p_client_id: null,
     p_query_embedding: queryEmbedding,
     p_match_count: clampMatchCount(useRagPolicy ? ragConfig.exemplar_top_k : 2),
     p_doc_types: useRagPolicy ? ragConfig.exemplar_doc_types : legacyExemplarDocTypes,
     p_modules: null,
-    p_min_similarity: useRagPolicy ? ragConfig.min_similarity : 0.2,
+    p_min_similarity: minSimilarity,
   });
 
   if (clientMatchesError || agencyMatchesError || exemplarMatchesError) {
@@ -468,13 +640,43 @@ serve(async (req: Request) => {
     return jsonResponse({ error: "Failed to retrieve context", code: "RAG_FAILURE" }, 500, corsHeaders(req));
   }
 
-  const matches = [
+  let matches = [
     ...(clientMatches || []),
     ...(agencyMatches || []),
     ...(exemplarMatches || []),
   ];
 
+  // Fallback: if embeddings retrieval returns nothing, still proceed using approved docs directly.
+  // This avoids a confusing "upload memory" hard gate when onboarding/client brain is usable.
   if (matches.length === 0) {
+    const { data: approvedDocs } = await supabase
+      .from("ai_documents")
+      .select("id, extracted_text")
+      .eq("agency_id", agencyId)
+      .eq("doc_type", "brain_document")
+      .eq("metadata->>status", "approved")
+      .order("created_at", { ascending: false })
+      .limit(2);
+
+    if ((approvedDocs ?? []).length > 0) {
+      agencyMatches = (approvedDocs ?? []).map((doc: any) => ({
+        doc_type: "brain_document",
+        document_id: doc.id,
+        chunk_id: null,
+        chunk_text: doc.extracted_text ?? "",
+        score: 1,
+      }));
+      matches = [
+        ...(clientMatches || []),
+        ...(agencyMatches || []),
+        ...(exemplarMatches || []),
+      ];
+    }
+  }
+
+  if (matches.length === 0) {
+    // Onboarding + ClientBrain should be sufficient for a v1 strategy draft.
+    // Missing embeddings or zero retrieved matches should reduce quality, not block generation.
     await supabase.from("ai_usage_logs").insert({
       agency_id: agencyId,
       client_id: clientId,
@@ -484,7 +686,7 @@ serve(async (req: Request) => {
       tokens_in: 0,
       tokens_out: 0,
       latency_ms: Date.now() - startTime,
-      unknown: true,
+      unknown: false,
     });
     await safeInsertAiRun(supabase, {
       agencyId,
@@ -495,51 +697,16 @@ serve(async (req: Request) => {
       tokensOut: 0,
       costUsd: 0,
       startTime,
-      success: false,
-      unknown: true,
+      success: true,
+      unknown: false,
       citations: emptySources(),
-      metadata: { code: "BRAIN_INCOMPLETE", missing_fields: ["memory_context"] },
+      metadata: { code: "RAG_EMPTY_CONTINUING" },
     });
-    return jsonResponse(
-      buildUnknownResponse(
-        {
-          missing_fields: ["memory_context"],
-          questions: ["Upload client guidelines or approvals to ground strategy."],
-        },
-        { code: "BRAIN_INCOMPLETE", deep_link: `/onboarding/client/${clientId}` },
-      ),
-      200,
-      corsHeaders(req),
-    );
   }
 
   const agencyBrainMatchCount = (agencyMatches ?? []).filter((row: any) => row.doc_type === "brain_document").length;
-  if (agencyBrainMatchCount === 0) {
-    const gateResponse = buildUnknownResponse(
-      {
-        missing_fields: ["agency_brain_documents"],
-        questions: ["No agency brain context was retrieved. Approve and ingest brain modules, then retry."],
-      },
-      { code: "AGENCY_BRAIN_INCOMPLETE", deep_link: "/agency/ai-setup" },
-    );
-    await safeInsertAiRun(supabase, {
-      agencyId,
-      clientId,
-      userId: actingUserId,
-      model: "retrieval-only",
-      tokensIn: 0,
-      tokensOut: 0,
-      costUsd: 0,
-      startTime,
-      success: false,
-      unknown: true,
-      citations: emptySources(),
-      metadata: { code: "AGENCY_BRAIN_INCOMPLETE" },
-    });
-    return jsonResponse(gateResponse, 200, corsHeaders(req));
-  }
 
-  const legacyMatches = useRagPolicy ? matches : capMatchesByTokenBudget(matches, 1200).matches;
+  const legacyMatches = matches.length === 0 ? [] : useRagPolicy ? matches : capMatchesByTokenBudget(matches, 1200).matches;
   const fullContext = legacyMatches.map((row: any) => `(${row.doc_type}) ${row.chunk_text}`).join("\n\n");
   const legacyContext = truncate(fullContext, 6000);
   const legacyContextTruncated = fullContext.length > 6000 || legacyMatches.length < matches.length;
@@ -582,30 +749,7 @@ serve(async (req: Request) => {
     maxReferences: 20,
   });
 
-  if (brainDocReferences.length === 0) {
-    const gateResponse = buildUnknownResponse(
-      {
-        missing_fields: ["agency_brain_documents"],
-        questions: ["No agency brain references were used. Complete AI Setup and retry generation."],
-      },
-      { code: "AGENCY_BRAIN_INCOMPLETE", deep_link: "/agency/ai-setup" },
-    );
-    await safeInsertAiRun(supabase, {
-      agencyId,
-      clientId,
-      userId: actingUserId,
-      model: "retrieval-only",
-      tokensIn: 0,
-      tokensOut: 0,
-      costUsd: 0,
-      startTime,
-      success: false,
-      unknown: true,
-      citations: emptySources(),
-      metadata: { code: "AGENCY_BRAIN_INCOMPLETE" },
-    });
-    return jsonResponse(gateResponse, 200, corsHeaders(req));
-  }
+  // If references are missing, continue (quality may be lower) but do not block.
 
   const { count: failedBrainDocChunksCount } = brainDocAiDocumentIds.length
     ? await supabase
@@ -616,6 +760,9 @@ serve(async (req: Request) => {
     : { count: 0 };
 
   const promptContext = [
+    `GeneratedAtUtc: ${new Date().toISOString()}`,
+    `CurrentMonth: ${new Date().getUTCFullYear()}-${pad2(new Date().getUTCMonth() + 1)}`,
+    `CurrentIsoWeek: ${isoWeekString(new Date())}`,
     `Onboarding Profile:\n${JSON.stringify(onboardingProfile ?? {})}`,
     `Structured Strategy:\n${JSON.stringify(moduleRows ?? [])}`,
     `RAG Context:\n${context}`,
@@ -629,8 +776,10 @@ serve(async (req: Request) => {
     aiResult = await ai.run({
       taskType: TaskType.STRATEGY_PLAN,
       input: "",
-      context: { agencyId, clientId, userId: actingUserId, environment: "prod", supabase: null, skipUsageLog: true },
-      metadata: { context: promptContext, instruction, client_brain: brainRow.brain_json },
+      // Provide supabase so the AI router can load AgencyBrain/ClientBrain context.
+      // We still disable usage logging for this internal call because ai-strategy-generate handles ai_runs itself.
+      context: { agencyId, clientId, userId: actingUserId, environment: "prod", supabase, skipUsageLog: true },
+      metadata: { context: promptContext, instruction, client_brain: effectiveBrain },
       outputSchema,
     });
     output = (aiResult.output ?? null) as StrategyOutput | null;
@@ -655,11 +804,29 @@ serve(async (req: Request) => {
     return jsonResponse({ error: "Failed to generate strategy", code }, status, corsHeaders(req));
   }
 
+  if (aiResult?.unknown || (aiResult?.output as any)?.unknown === true) {
+    await safeInsertAiRun(supabase, {
+      agencyId,
+      clientId,
+      userId: actingUserId,
+      model: aiResult?.meta?.model ?? (Deno.env.get("STRATEGY_MODEL_ID") ?? "gpt-4o-mini"),
+      tokensIn: 0,
+      tokensOut: 0,
+      costUsd: 0,
+      startTime,
+      success: false,
+      unknown: true,
+      citations: emptySources(),
+      metadata: { code: "GENERATION_ERROR", reason: "ai_run_unknown" },
+    });
+    return jsonResponse({ error: "Strategy generation failed. Please retry.", code: "GENERATION_ERROR" }, 500, corsHeaders(req));
+  }
+
   if (!aiResult?.schemaOk || !output) {
     const runtimeModel = aiResult?.meta?.model ?? (Deno.env.get("STRATEGY_MODEL_ID") ?? "gpt-4o-mini");
     const tokensIn = estimateTokensForCost(context);
     const tokensOut = 0;
-    const costUsd = calculateCost("openai", runtimeModel, tokensIn, tokensOut);
+    const costUsd = calculateCost(aiResult?.meta?.provider ?? "openai", runtimeModel, tokensIn, tokensOut);
 
     await safeInsertAiRun(supabase, {
       agencyId,
@@ -723,6 +890,15 @@ serve(async (req: Request) => {
     ai_confidence: (content as any).confidence_0_100 ?? null,
   }));
 
+  const moduleEvaluations = Object.entries(output.modules).map(([module, content]) => {
+    const evaluation = evaluateStrategyModule(module as any, content as any, {
+      modules: output.modules as any,
+      currentStatus: "draft",
+      isLocked: false,
+    });
+    return { module, ...evaluation };
+  });
+
   const autoValidationTasks = Object.entries(output.modules)
     .filter(([, content]) => (content as any).confidence_0_100 < 70)
     .map(([module, content]) => {
@@ -783,11 +959,48 @@ serve(async (req: Request) => {
     return jsonResponse({ error: "Failed to save strategy snapshot", code: "PERSISTENCE_ERROR" }, 500, corsHeaders(req));
   }
 
+  const createdStrategyId = (rpcResult as any)?.data?.strategy_id;
+  if (createdStrategyId) {
+    const updateOps = moduleEvaluations.map((result) =>
+      supabase
+        .from("strategy_modules")
+        .update({
+          status: result.status,
+          completion_percent: result.completion_percent,
+          blocker_count: result.blockers.length,
+          blockers: result.blockers,
+        })
+        .eq("strategy_id", createdStrategyId)
+        .eq("module", result.module),
+    );
+
+    const updateResults = await Promise.allSettled(updateOps);
+    const failed = updateResults
+      .map((result) => {
+        if (result.status === "rejected") return { ok: false, message: result.reason?.message ?? String(result.reason) };
+        const err = (result.value as any)?.error;
+        if (err) return { ok: false, message: err.message ?? String(err) };
+        return { ok: true, message: "" };
+      })
+      .filter((item) => !item.ok);
+
+    if (failed.length) {
+      console.error("strategy_module_evaluation_persist_failed", {
+        agencyId,
+        clientId,
+        strategyId: createdStrategyId,
+        failures: failed.map((item) => item.message ?? "unknown_error"),
+      });
+    }
+  } else {
+    console.error("strategy_snapshot_missing_strategy_id", { agencyId, clientId });
+  }
+
   const usage = extractUsageFromRaw(aiResult?.raw);
   const runtimeModel = aiResult?.meta?.model ?? (Deno.env.get("STRATEGY_MODEL_ID") ?? "gpt-4o-mini");
   const tokensIn = usage?.inputTokens ?? estimateTokensForCost(context);
   const tokensOut = usage?.outputTokens ?? estimateTokensForCost(markdown);
-  const costUsd = calculateCost("openai", runtimeModel, tokensIn, tokensOut);
+  const costUsd = calculateCost(aiResult?.meta?.provider ?? "openai", runtimeModel, tokensIn, tokensOut);
   const costEstimationMethod = usage ? "token_based" : "estimate_chars_div3";
 
   const citationsForRun = {

@@ -203,8 +203,7 @@ function canLock(stepId: string, answers: Answers): boolean {
 
 async function generateOptionsWithAI(
   stepId: string,
-  answers: Answers,
-  openaiKey: string
+  answers: Answers
 ): Promise<Option[]> {
   // For deterministic results, use cached/static options for most steps
   // Only use AI for context-specific suggestions (offers, audience, differentiators)
@@ -304,21 +303,21 @@ async function generateOptionsWithAI(
 
   // AI-generated options for context-specific steps
   if (stepId === "offers" && answers.website) {
-    return await generateOffersWithAI(answers.website, answers.niche || "", openaiKey);
+    return await generateOffersWithAI(answers.website, answers.niche || "");
   }
 
   if (stepId === "audience" && answers.niche) {
-    return await generateAudienceWithAI(answers.niche, answers.offers || [], openaiKey);
+    return await generateAudienceWithAI(answers.niche, answers.offers || []);
   }
 
   if (stepId === "differentiators" && answers.brand) {
-    return await generateDifferentiatorsWithAI(answers.brand, answers.niche || "", openaiKey);
+    return await generateDifferentiatorsWithAI(answers.brand, answers.niche || "");
   }
 
   return [];
 }
 
-async function generateOffersWithAI(website: string, niche: string, openaiKey: string): Promise<Option[]> {
+async function generateOffersWithAI(website: string, niche: string): Promise<Option[]> {
   try {
     const aiResult = await ai.run({
       taskType: TaskType.EXTRACT_STRUCTURED,
@@ -350,7 +349,7 @@ function getDefaultOffers(niche: string): Option[] {
   ];
 }
 
-async function generateAudienceWithAI(niche: string, offers: string[], openaiKey: string): Promise<Option[]> {
+async function generateAudienceWithAI(niche: string, offers: string[]): Promise<Option[]> {
   try {
     const aiResult = await ai.run({
       taskType: TaskType.EXTRACT_STRUCTURED,
@@ -379,7 +378,7 @@ function getDefaultAudience(): Option[] {
   ];
 }
 
-async function generateDifferentiatorsWithAI(brand: string, niche: string, openaiKey: string): Promise<Option[]> {
+async function generateDifferentiatorsWithAI(brand: string, niche: string): Promise<Option[]> {
   try {
     const aiResult = await ai.run({
       taskType: TaskType.EXTRACT_STRUCTURED,
@@ -497,7 +496,6 @@ function validateStep(stepId: string, answers: Answers, userInput: unknown): str
 function buildStepSpec(
   stepId: string,
   answers: Answers,
-  openaiKey: string,
   options?: Option[]
 ): StepSpec {
   const progress = calculateProgress(stepId);
@@ -677,16 +675,6 @@ serve(async (req: Request) => {
       return jsonResponse({ error: "Missing Authorization header", v: FN_VERSION }, 401, corsHeaders(req));
     }
 
-    const openaiKey = Deno.env.get("OPENAI_API_KEY");
-    if (!openaiKey) {
-      console.error("CRITICAL: OPENAI_API_KEY not set");
-      return jsonResponse(
-        { error: "AI service unavailable (missing API key). Contact support.", v: FN_VERSION },
-        503,
-        corsHeaders(req)
-      );
-    }
-
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
       auth: { persistSession: false },
     });
@@ -729,8 +717,8 @@ serve(async (req: Request) => {
       validationErrors = validateStep(currentStepId, answers, userInput);
       if (validationErrors.length > 0) {
         // Return current step with errors, don't advance
-        const options = await generateOptionsWithAI(currentStepId, answers, openaiKey);
-        const spec = buildStepSpec(currentStepId, answers, openaiKey, options);
+        const options = await generateOptionsWithAI(currentStepId, answers);
+        const spec = buildStepSpec(currentStepId, answers, options);
         spec.validation_errors = validationErrors;
         return jsonResponse(spec, 200, corsHeaders(req));
       }
@@ -742,8 +730,8 @@ serve(async (req: Request) => {
       : (currentStepId || "brand_basics");
 
     // Generate options for next step
-    const options = await generateOptionsWithAI(nextStepId, answers, openaiKey);
-    const stepSpec = buildStepSpec(nextStepId, answers, openaiKey, options);
+    const options = await generateOptionsWithAI(nextStepId, answers);
+    const stepSpec = buildStepSpec(nextStepId, answers, options);
 
     return jsonResponse(stepSpec, 200, corsHeaders(req));
   } catch (error) {

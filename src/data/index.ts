@@ -145,6 +145,10 @@ const missingFieldAliases: Record<string, string> = {
   sales_cycle: "sales_cycle",
   brand_basics_name: "business_name",
   brand_basics: "business_name",
+  offer_details_products_services: "offer_details",
+  audience_problems: "pain_points",
+  constraints_banned_claims_or_taboo_topics: "proof_level",
+  pillars: "offer_details",
   goals: "primary_goal",
   onboarding_not_started: "onboarding_not_started",
 };

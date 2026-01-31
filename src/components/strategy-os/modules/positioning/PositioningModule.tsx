@@ -188,23 +188,17 @@ export function PositioningModule() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Positioning Strategy</h1>
           <p className="text-muted-foreground mt-1">
-            Define how SMMAHUB stands out in the market
+            Define how the brand stands out in the market
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <div className={`px-3 py-1 rounded-full text-xs font-medium ${isLocked ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
-            {isLocked ? (
-              <div className="flex items-center gap-1">
-                <Lock className="h-3 w-3" />
-                Locked
-              </div>
-            ) : (
-              <div className="flex items-center gap-1">
-                <Unlock className="h-3 w-3" />
-                Editable
-              </div>
-            )}
-          </div>
+          <Badge
+            variant="secondary"
+            className={`gap-1 border ${isLocked ? 'border-destructive/30 bg-destructive/10 text-destructive' : 'border-emerald-500/25 bg-emerald-500/10 text-emerald-300'}`}
+          >
+            {isLocked ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
+            {isLocked ? 'Locked' : 'Editable'}
+          </Badge>
         </div>
       </div>
 

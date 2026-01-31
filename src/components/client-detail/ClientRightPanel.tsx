@@ -1,7 +1,7 @@
 // Global Client Right Panel - AI Chat, Decisions, History, Tasks
 // Accessible from all ClientDetail tabs as a slide-in panel
 
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -9,12 +9,16 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 import { useStrategies } from '@/hooks/useStrategies';
 import { useStrategyHistory, groupHistoryByDate } from '@/hooks/useStrategyHistory';
 import { useStrategyTasks, getTaskCounts, useUpdateTaskStatus } from '@/hooks/useStrategyTasks';
+import { useStrategyModules, useUpdateModuleContent } from '@/hooks/useStrategyModules';
+import { useAddHistoryEvent } from '@/hooks/useStrategyHistory';
+import { useAiAssistant, AiAssistantError } from '@/hooks/useAiAssistant';
 import { HISTORY_EVENT_LABELS, getModuleDefinition, TASK_PRIORITY_CONFIG } from '@/lib/strategy/constants';
-import type { HistoryEventType, TaskStatus, TaskPriority } from '@/lib/strategy/types';
+import type { HistoryEventType, TaskStatus, TaskPriority, StrategyModule } from '@/lib/strategy/types';
 import { toast } from 'sonner';
 import {
   Bot,
@@ -34,6 +38,8 @@ import {
   ArrowRight,
   Clock,
   Loader2,
+  Wand2,
+  Undo2,
 } from 'lucide-react';
 
 export type RightPanelTab = 'ai' | 'decisions' | 'history' | 'tasks';
@@ -49,6 +55,36 @@ interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+}
+
+type AppliedChange = {
+  id: string;
+  appliedAt: number;
+  changes: Array<{
+    module: StrategyModule;
+    moduleId: string;
+    before: Record<string, unknown>;
+    after: Record<string, unknown>;
+  }>;
+};
+
+function safeUuid() {
+  try {
+    return crypto.randomUUID();
+  } catch {
+    return String(Date.now());
+  }
+}
+
+function isStrategyModule(value: unknown): value is StrategyModule {
+  return (
+    value === 'positioning' ||
+    value === 'pillars' ||
+    value === 'campaign_plan' ||
+    value === 'weekly_plan' ||
+    value === 'channel_adaptations' ||
+    value === 'rules_constraints'
+  );
 }
 
 const eventIcons: Record<HistoryEventType, typeof FileEdit> = {
@@ -71,7 +107,7 @@ export function ClientRightPanel({
   const [panelTab, setPanelTab] = useState<RightPanelTab>('ai');
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
-      id: '1',
+      id: 'welcome',
       role: 'assistant',
       content: `I'm your Client AI Assistant. I can help you with:
 • Strategy planning and content
@@ -84,6 +120,14 @@ What would you like help with?`,
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [threadId, setThreadId] = useState<string | null>(null);
+  const [lastProposals, setLastProposals] = useState<any[]>([]);
+  const [setupRequired, setSetupRequired] = useState<{ missing?: string[] } | null>(null);
+  const [pendingApply, setPendingApply] = useState<null | { proposalId: string }>(null);
+  const [pendingUndo, setPendingUndo] = useState<null | { changeId: string }>(null);
+  const [appliedChange, setAppliedChange] = useState<AppliedChange | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const ai = useAiAssistant();
 
   // Fetch active strategy for this client
   const { data: strategies = [] } = useStrategies(clientId);
@@ -94,15 +138,109 @@ What would you like help with?`,
   const { data: history = [], isLoading: historyLoading } = useStrategyHistory(clientId, strategyId, 100);
   const { data: tasks = [], isLoading: tasksLoading } = useStrategyTasks(clientId, strategyId);
   const updateStatus = useUpdateTaskStatus();
+  const { data: strategyModules = [] } = useStrategyModules(clientId, strategyId);
+  const updateContent = useUpdateModuleContent();
+  const addHistoryEvent = useAddHistoryEvent();
 
   const groupedHistory = groupHistoryByDate(history);
   const taskCounts = getTaskCounts(tasks);
 
+  const modulesByKey = useMemo(() => {
+    const map = new Map<string, any>();
+    for (const m of strategyModules ?? []) map.set(m.module, m);
+    return map;
+  }, [strategyModules]);
+
+  const proposals = useMemo(() => {
+    const raw = Array.isArray(lastProposals) ? lastProposals : [];
+    return raw
+      .filter((p) => p && typeof p === 'object')
+      .map((p: any) => {
+        const module = String(p.module ?? '');
+        if (!isStrategyModule(module)) return null;
+        return {
+          id: String(p.id ?? ''),
+          module,
+          title: String(p.title ?? ''),
+          summary: String(p.summary ?? ''),
+          proposed_content_json: (p.proposed_content_json ?? {}) as Record<string, unknown>,
+          risks: Array.isArray(p.risks) ? (p.risks as string[]) : undefined,
+        };
+      })
+      .filter((p): p is NonNullable<typeof p> => !!p && !!p.id);
+  }, [lastProposals]);
+
+  const lastAssistantChange = useMemo(() => {
+    for (const event of history) {
+      const data = event.event_data ?? {};
+      const source = data.source as string | undefined;
+      if (source !== 'ai_assistant') continue;
+      if (data.agent_revert_of) continue;
+      if (!data.before_content_json || !data.after_content_json) continue;
+      if (!event.module || !event.module_id) continue;
+      return {
+        module: event.module as StrategyModule,
+        moduleId: event.module_id,
+        before: data.before_content_json as Record<string, unknown>,
+        after: data.after_content_json as Record<string, unknown>,
+        changeId: (data.agent_change_id as string | undefined) ?? null,
+      };
+    }
+    return null;
+  }, [history]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (panelTab !== 'ai') return;
+    if (!clientId) return;
+    if (ai.isPending) return;
+
+    // Load persisted chat when opening AI tab (once per open).
+    if (messages.length > 1) return;
+
+    (async () => {
+      try {
+        setIsLoading(true);
+        setSetupRequired(null);
+        const data = (await ai.mutateAsync({
+          action: 'load',
+          clientId,
+          strategyId: strategyId || null,
+          activeTab: null,
+          threadId,
+        })) as any;
+
+        if (data?.thread_id) setThreadId(String(data.thread_id));
+        const loaded = Array.isArray(data?.messages) ? (data.messages as Array<{ role: string; content: string }>) : [];
+        if (loaded.length === 0) return;
+
+        setMessages(
+          loaded.map((m, idx) => ({
+            id: `m-${idx}`,
+            role: m.role === 'user' ? 'user' : 'assistant',
+            content: String(m.content ?? ''),
+            timestamp: new Date(),
+          }))
+        );
+      } catch (error) {
+        if (error instanceof AiAssistantError && error.code === 'AI_SETUP_REQUIRED') {
+          setSetupRequired({ missing: error.missing });
+        } else {
+          const message = error instanceof Error ? error.message : 'Failed to load chat';
+          toast.error(message);
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    })();
+  }, [open, panelTab, clientId, strategyId, threadId, ai, messages.length]);
+
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
+    if (setupRequired) return;
 
     const userMessage: ChatMessage = {
-      id: Date.now().toString(),
+      id: safeUuid(),
       role: 'user',
       content: input.trim(),
       timestamp: new Date(),
@@ -111,6 +249,52 @@ What would you like help with?`,
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
+
+    try {
+      const chatHistory = [...messages, userMessage]
+        .filter((m) => m.id !== 'welcome')
+        .slice(-20)
+        .map((m) => ({ role: m.role, content: m.content }));
+
+      const data = (await ai.mutateAsync({
+        action: 'send',
+        clientId,
+        strategyId: strategyId || null,
+        activeTab: null,
+        threadId,
+        message: userMessage.content,
+        chatHistory,
+      })) as any;
+
+      if (data?.thread_id) setThreadId(String(data.thread_id));
+      const assistantText = String(data?.assistant_message ?? '').trim();
+      setLastProposals(Array.isArray(data?.json?.proposals) ? data.json.proposals : []);
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: safeUuid(),
+          role: 'assistant',
+          content: assistantText || "I didn't get a response. Please try again.",
+          timestamp: new Date(),
+        },
+      ]);
+    } catch (error) {
+      if (error instanceof AiAssistantError && error.code === 'AI_SETUP_REQUIRED') {
+        setSetupRequired({ missing: error.missing });
+      } else {
+        const message = error instanceof Error ? error.message : 'AI request failed';
+        setMessages((prev) => [
+          ...prev,
+          { id: safeUuid(), role: 'assistant', content: `Error: ${message}`, timestamp: new Date() },
+        ]);
+      }
+    } finally {
+      setIsLoading(false);
+      queueMicrotask(() => inputRef.current?.focus());
+    }
+
+    return;
 
     // Simulate AI response (in production, this would call an edge function)
     setTimeout(() => {
@@ -132,6 +316,160 @@ AI isn’t configured yet. Complete AI Setup to enable this assistant.`,
       e.preventDefault();
       handleSend();
     }
+  };
+
+  const applyProposal = async (proposalId: string) => {
+    const proposal = proposals.find((p) => p.id === proposalId);
+    if (!proposal) return;
+
+    if (!strategyId) {
+      toast.error('No active strategy found');
+      return;
+    }
+
+    const moduleRecord = modulesByKey.get(proposal.module);
+    if (!moduleRecord?.id) {
+      toast.error('Missing module record');
+      return;
+    }
+
+    if (moduleRecord.locked) {
+      toast.error('Module is locked');
+      return;
+    }
+
+    const before = (moduleRecord.content_json ?? {}) as Record<string, unknown>;
+    const after = proposal.proposed_content_json ?? {};
+
+    const moduleMap = Object.fromEntries((strategyModules ?? []).map((m: any) => [m.module, m.content_json]));
+    moduleMap[proposal.module] = after;
+
+    const changeId = safeUuid();
+
+    await updateContent.mutateAsync({
+      moduleId: moduleRecord.id,
+      clientId,
+      module: proposal.module,
+      contentJson: after,
+      modules: moduleMap,
+      currentStatus: moduleRecord.status,
+      isLocked: false,
+    });
+
+    await addHistoryEvent.mutateAsync({
+      clientId,
+      strategyId,
+      moduleId: moduleRecord.id,
+      module: proposal.module,
+      eventType: 'updated',
+      eventData: {
+        source: 'ai_assistant',
+        agent_change_id: changeId,
+        proposal: {
+          id: proposal.id,
+          title: proposal.title,
+          summary: proposal.summary,
+          risks: proposal.risks ?? [],
+        },
+        before_content_json: before,
+        after_content_json: after,
+      },
+    });
+
+    setAppliedChange({
+      id: changeId,
+      appliedAt: Date.now(),
+      changes: [{ module: proposal.module, moduleId: moduleRecord.id, before, after }],
+    });
+
+    toast.success('Change applied', { description: proposal.title });
+  };
+
+  const undoLastChange = async () => {
+    if (!appliedChange) return;
+    if (!strategyId) return;
+
+    const changeId = appliedChange.id;
+    for (const change of appliedChange.changes) {
+      const moduleRecord = modulesByKey.get(change.module);
+      if (!moduleRecord?.id) continue;
+      if (moduleRecord.locked) continue;
+
+      const moduleMap = Object.fromEntries((strategyModules ?? []).map((m: any) => [m.module, m.content_json]));
+      moduleMap[change.module] = change.before;
+
+      await updateContent.mutateAsync({
+        moduleId: moduleRecord.id,
+        clientId,
+        module: change.module,
+        contentJson: change.before,
+        modules: moduleMap,
+        currentStatus: moduleRecord.status,
+        isLocked: false,
+      });
+
+      await addHistoryEvent.mutateAsync({
+        clientId,
+        strategyId,
+        moduleId: moduleRecord.id,
+        module: change.module,
+        eventType: 'updated',
+        eventData: {
+          source: 'ai_assistant',
+          agent_revert_of: changeId,
+          before_content_json: change.after,
+          after_content_json: change.before,
+        },
+      });
+    }
+
+    setAppliedChange(null);
+    toast.success('Reverted last change');
+  };
+
+  const undoHistoricalChange = async () => {
+    if (!lastAssistantChange) return;
+    if (!strategyId) return;
+
+    const moduleRecord = modulesByKey.get(lastAssistantChange.module);
+    if (!moduleRecord?.id) {
+      toast.error('Missing module record');
+      return;
+    }
+
+    if (moduleRecord.locked) {
+      toast.error('Module is locked');
+      return;
+    }
+
+    const moduleMap = Object.fromEntries((strategyModules ?? []).map((m: any) => [m.module, m.content_json]));
+    moduleMap[lastAssistantChange.module] = lastAssistantChange.before;
+
+    await updateContent.mutateAsync({
+      moduleId: moduleRecord.id,
+      clientId,
+      module: lastAssistantChange.module,
+      contentJson: lastAssistantChange.before,
+      modules: moduleMap,
+      currentStatus: moduleRecord.status,
+      isLocked: false,
+    });
+
+    await addHistoryEvent.mutateAsync({
+      clientId,
+      strategyId,
+      moduleId: moduleRecord.id,
+      module: lastAssistantChange.module,
+      eventType: 'updated',
+      eventData: {
+        source: 'ai_assistant',
+        agent_revert_of: lastAssistantChange.changeId ?? 'unknown',
+        before_content_json: lastAssistantChange.after,
+        after_content_json: lastAssistantChange.before,
+      },
+    });
+
+    toast.success('Reverted previous assistant change');
   };
 
   const handleStatusChange = async (taskId: string, status: TaskStatus) => {
@@ -196,15 +534,20 @@ AI isn’t configured yet. Complete AI Setup to enable this assistant.`,
               <TabsContent value="ai" className="h-full m-0 p-0 flex flex-col">
                 <ScrollArea className="flex-1 p-3">
                   <div className="space-y-4">
-                    <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
-                      <div className="text-sm font-semibold">AI is not configured yet</div>
-                      <p className="text-xs text-muted-foreground">
-                        Finish AI Setup to unlock AI assistance, insights, and client guidance.
-                      </p>
-                      <Button size="sm" asChild>
-                        <Link to="/agency/ai-setup">Complete AI Setup</Link>
-                      </Button>
-                    </div>
+                    {setupRequired && (
+                      <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
+                        <div className="text-sm font-semibold">AI Assistant setup required</div>
+                        <p className="text-xs text-muted-foreground">
+                          Complete AI Setup to enable this assistant.
+                          {Array.isArray(setupRequired.missing) && setupRequired.missing.length > 0
+                            ? ` Missing: ${setupRequired.missing.join(', ')}.`
+                            : ''}
+                        </p>
+                        <Button size="sm" asChild>
+                          <Link to="/agency/ai-setup">Complete AI Setup</Link>
+                        </Button>
+                      </div>
+                    )}
                     {messages.map((message) => (
                       <div
                         key={message.id}
@@ -253,26 +596,103 @@ AI isn’t configured yet. Complete AI Setup to enable this assistant.`,
                         </div>
                       </div>
                     )}
+
+                    {proposals.length > 0 && (
+                      <div className="rounded-lg border bg-muted/20 p-3 space-y-3">
+                        <div className="text-sm font-semibold flex items-center gap-2">
+                          <Wand2 className="h-4 w-4" />
+                          Proposed changes
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Nothing changes until you approve. Locked modules are protected.
+                        </div>
+                        <div className="space-y-2">
+                          {proposals.map((p) => {
+                            const moduleRecord = modulesByKey.get(p.module);
+                            const locked = !!moduleRecord?.locked;
+                            return (
+                              <div key={p.id} className="rounded-md border bg-background/40 p-3">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <div className="text-sm font-medium">{p.title}</div>
+                                      <Badge variant="outline" className="text-xs">
+                                        {p.module}
+                                      </Badge>
+                                      {locked && (
+                                        <Badge variant="secondary" className="gap-1 text-xs">
+                                          <Lock className="h-3 w-3" />
+                                          Locked
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    <div className="mt-1 text-xs text-muted-foreground">{p.summary}</div>
+                                    {Array.isArray(p.risks) && p.risks.length > 0 && (
+                                      <div className="mt-2 text-xs text-muted-foreground">
+                                        <span className="font-medium">Risks:</span> {p.risks.join(' • ')}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      size="sm"
+                                      disabled={locked || updateContent.isPending}
+                                      onClick={() => setPendingApply({ proposalId: p.id })}
+                                    >
+                                      Apply
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {(appliedChange || lastAssistantChange) && (
+                      <div className="rounded-lg border bg-muted/20 p-3 space-y-2">
+                        <div className="text-sm font-semibold flex items-center gap-2">
+                          <Undo2 className="h-4 w-4" />
+                          Undo available
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          You can revert the most recent assistant-applied Strategy change.
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full"
+                          onClick={() =>
+                            setPendingUndo({ changeId: appliedChange?.id ?? lastAssistantChange?.changeId ?? 'history' })
+                          }
+                          disabled={updateContent.isPending || !strategyId}
+                        >
+                          Undo most recent assistant change
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </ScrollArea>
 
                 <div className="p-3 border-t space-y-2">
                   <div className="flex gap-2">
                     <Textarea
+                      ref={inputRef}
                       value={input}
                       onChange={(e) => setInput(e.target.value)}
                       onKeyDown={handleKeyDown}
-                      placeholder="Ask about this client..."
+                      placeholder={setupRequired ? 'Complete AI Setup to enable chat…' : 'Ask about this client, brainstorm, or request Strategy edits…'}
                       className="min-h-[60px] resize-none text-sm"
-                      disabled={isLoading}
+                      disabled={isLoading || !!setupRequired}
                     />
                     <Button
                       onClick={handleSend}
-                      disabled={!input.trim() || isLoading}
+                      disabled={!input.trim() || isLoading || !!setupRequired}
                       size="icon"
                       className="h-auto"
                     >
-                      <Send className="h-4 w-4" />
+                      {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                     </Button>
                   </div>
                 </div>
@@ -459,6 +879,68 @@ AI isn’t configured yet. Complete AI Setup to enable this assistant.`,
           </Tabs>
         </div>
       </SheetContent>
+
+      <AlertDialog open={!!pendingApply} onOpenChange={(v) => !v && setPendingApply(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Apply this change?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will update the selected Strategy module. You can undo after applying.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                const id = pendingApply?.proposalId;
+                setPendingApply(null);
+                if (!id) return;
+                try {
+                  await applyProposal(id);
+                } catch (error) {
+                  const message = error instanceof Error ? error.message : 'Apply failed';
+                  toast.error(message);
+                }
+              }}
+            >
+              Apply
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!pendingUndo} onOpenChange={(v) => !v && setPendingUndo(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Undo last assistant change?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will revert the previous module edits applied by the assistant.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                setPendingUndo(null);
+                try {
+                  if (appliedChange) {
+                    await undoLastChange();
+                  } else if (lastAssistantChange) {
+                    await undoHistoricalChange();
+                  } else {
+                    toast.error('No change found to undo');
+                  }
+                } catch (error) {
+                  const message = error instanceof Error ? error.message : 'Undo failed';
+                  toast.error(message);
+                }
+              }}
+            >
+              Undo
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Sheet>
   );
 }

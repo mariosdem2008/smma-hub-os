@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { MultiSelectChips } from '@/components/onboarding-v4/components/AiSuggestionChips';
+import { MultiSelectChips } from '@/components/onboarding-v5/components/AiSuggestionChips';
 import type { OnboardingProfile, V5ScanResult } from '@/types/onboarding';
 import { INDUSTRY_NICHE_OPTIONS, MARKET_SCOPE_OPTIONS } from '@/types/onboarding';
 import { getFieldLabel } from '../lib/labels';

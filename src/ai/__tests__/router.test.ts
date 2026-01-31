@@ -31,7 +31,7 @@ describe("ai router", () => {
       context: { environment: "dev" },
     });
     const devCall = baseProvider.generate.mock.calls.at(-1)?.[0];
-    expect(devCall.model).toBe("gemini-1.5-flash");
+    expect(devCall.model).toBe("gpt-4o-mini");
 
     await router.run({
       taskType: TaskType.TOOL_EXECUTION,
@@ -39,7 +39,7 @@ describe("ai router", () => {
       context: { environment: "prod" },
     });
     const prodCall = baseProvider.generate.mock.calls.at(-1)?.[0];
-    expect(prodCall.model).toBe("gemini-1.5-flash");
+    expect(prodCall.model).toBe("gpt-4o-mini");
   });
 
   it("uses env override when set", async () => {
@@ -60,7 +60,7 @@ describe("ai router", () => {
       .mockResolvedValueOnce({ text: "not-json" })
       .mockResolvedValueOnce({ text: "[{\"id\":\"one\"}]" });
     const router = createAiRouter({
-      providers: { ...providers, gemini: { ...baseProvider, generate } },
+      providers: { ...providers, openai: { ...baseProvider, generate } },
     });
     const result = await router.run({
       taskType: TaskType.EXTRACT_STRUCTURED,
@@ -108,7 +108,7 @@ describe("ai router", () => {
       })),
     };
     const router = createAiRouter({
-      providers: { ...providers, gemini: { ...baseProvider, generateJson } as any },
+      providers: { ...providers, openai: { ...baseProvider, generateJson } as any },
     });
     await expect(
       router.run({

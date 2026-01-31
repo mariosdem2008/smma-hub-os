@@ -2,15 +2,13 @@
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useStrategyOS } from '../StrategyOSContext';
-import { AIAssistantTab } from './AIAssistantTab';
 import { DecisionsTab } from './DecisionsTab';
 import { HistoryTab } from './HistoryTab';
 import { TasksTab } from './TasksTab';
 import { RIGHT_RAIL_TABS } from '@/lib/strategy/constants';
-import { Bot, Scale, History, ListTodo } from 'lucide-react';
+import { Scale, History, ListTodo } from 'lucide-react';
 
 const tabIcons = {
-  ai: Bot,
   decisions: Scale,
   history: History,
   tasks: ListTodo,
@@ -28,7 +26,7 @@ export function RightRailPanel() {
       >
         {/* Tab List */}
         <div className="border-b border-border/50 px-2 py-2">
-          <TabsList className="w-full grid grid-cols-4 h-9">
+          <TabsList className="w-full grid grid-cols-3 h-9">
             {RIGHT_RAIL_TABS.map((tab) => {
               const Icon = tabIcons[tab.key];
               return (
@@ -47,9 +45,6 @@ export function RightRailPanel() {
 
         {/* Tab Content */}
         <div className="flex-1 overflow-hidden">
-          <TabsContent value="ai" className="h-full m-0 p-0">
-            <AIAssistantTab />
-          </TabsContent>
           <TabsContent value="decisions" className="h-full m-0 p-0 overflow-y-auto">
             <DecisionsTab />
           </TabsContent>

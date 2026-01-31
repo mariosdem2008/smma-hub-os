@@ -34,7 +34,7 @@ const SECTION_REQUIRED_FIELDS: Record<V5SectionId, string[]> = {
     'q2_website_or_socials',
     'q4_languages',
   ],
-  goal: ['primary_goal', 'conversion_path', 'conversion_link_required'],
+  goal: ['primary_goal', 'conversion_path', 'conversion_link_required', 'dm_keyword_required'],
   offers: ['offers'],
   audience: ['audience_type', 'primary_customer', 'main_objection', 'q9_pain_points'],
   brand: ['brand_voice', 'content_style', 'on_camera_availability', 'available_assets'],
@@ -49,6 +49,7 @@ const READINESS_FIELDS = [
   'primary_goal',
   'conversion_path',
   'conversion_link_required',
+  'dm_keyword_required',
   'offers',
   'primary_customer',
   'q9_pain_points',
@@ -75,18 +76,21 @@ function hasCadence(profile: Partial<OnboardingProfile>): boolean {
 }
 
 function isFieldFilled(profile: Partial<OnboardingProfile>, field: string): boolean {
+  const hasAnyText = (value: string | null | undefined) => Boolean(value?.trim());
+
   switch (field) {
     case 'q2_website_or_socials':
       return hasWebsiteOrSocials(profile);
     case 'q1_business_name':
-      return Boolean(sanitizeText(profile.q1_business_name ?? undefined));
+      // Business names can be short and/or single-word. Avoid over-sanitizing required user input.
+      return hasAnyText(profile.q1_business_name);
     case 'industry_niche':
       return Boolean(profile.industry_niche);
     case 'q3_market_scope':
       return Boolean(profile.q3_market_scope);
     case 'q3_geo':
       if (profile.q3_market_scope !== 'local') return true;
-      return Boolean(sanitizeText(profile.q3_country ?? undefined)) && Boolean(sanitizeText(profile.q3_city ?? undefined));
+      return hasAnyText(profile.q3_country) && hasAnyText(profile.q3_city);
     case 'q4_languages':
       return (profile.q4_languages ?? []).length > 0;
     case 'primary_goal':
@@ -100,18 +104,24 @@ function isFieldFilled(profile: Partial<OnboardingProfile>, field: string): bool
       if (!requiresLink) return true;
       return Boolean(profile.conversion_link?.trim());
     }
+    case 'dm_keyword_required': {
+      const path = profile.conversion_path;
+      if (!path) return false;
+      if (path !== 'dm_keyword') return true;
+      return hasAnyText(profile.dm_keyword);
+    }
     case 'offers': {
       const offers = profile.offers ?? [];
-      return offers.some((offer) => Boolean(sanitizeText(offer?.name ?? undefined)));
+      return offers.some((offer) => hasAnyText(offer?.name ?? null));
     }
     case 'audience_type':
       return Boolean(profile.audience_type);
     case 'primary_customer':
-      return Boolean(sanitizeText(profile.primary_customer ?? profile.q8_ideal_customer ?? undefined));
+      return hasAnyText(profile.primary_customer) || hasAnyText(profile.q8_ideal_customer);
     case 'main_objection':
       return Boolean(profile.main_objection);
     case 'q9_pain_points':
-      return (profile.q9_pain_points ?? []).filter((point) => sanitizeText(point)).length >= 3;
+      return (profile.q9_pain_points ?? []).filter((point) => hasAnyText(point)).length >= 3;
     case 'brand_voice':
       return (profile.brand_voice ?? []).length >= 2;
     case 'content_style':
@@ -123,7 +133,7 @@ function isFieldFilled(profile: Partial<OnboardingProfile>, field: string): bool
     case 'proof_types':
       return (profile.proof_types ?? []).length > 0;
     case 'competitor_link':
-      return Boolean(sanitizeText(profile.competitor_link ?? undefined));
+      return hasAnyText(profile.competitor_link);
     case 'platforms':
       return (profile.platforms ?? profile.q16_enabled_channels ?? []).length > 0;
     case 'formats':

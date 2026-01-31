@@ -13,6 +13,7 @@ const UI_ENDPOINT_ALLOWLIST = new Set([
   "ai-onboarding-suggest",
   "ai-rep-chat",
   "ai-strategy-generate",
+  "ai-assistant",
   "generate-ai-content",
 ]);
 

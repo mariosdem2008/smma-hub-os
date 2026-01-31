@@ -1,0 +1,741 @@
+{
+  "agency_id": "115dc619-1867-4275-83ec-4d5a0d47f94b",
+  "client_id": "89eecacc-1805-4b09-8cf0-6fd8ae089276",
+  "generated_at": "2026-01-30T13:49:49.752Z",
+  "strategy_document": {
+    "id": "747c277d-6d1d-4cdc-8b26-8b0951ad203c",
+    "is_active": true,
+    "model": "gemini-flash-latest",
+    "created_at": "2026-01-30T13:22:15.391923+00:00",
+    "updated_at": "2026-01-30T13:22:15.391923+00:00",
+    "derived_from_hash": "2f62355ae03883c8e5569cd303f79965db281958427622cbef17c62670845c89"
+  },
+  "latest_client_brain": {
+    "id": "72d514e8-c496-4c69-8643-d9c65e3b880e",
+    "version": 1,
+    "status": "usable",
+    "usable": true,
+    "locked": false,
+    "confidence": 0,
+    "updated_at": "2026-01-30T13:21:40.616376+00:00",
+    "brain_json": {
+      "faq": [],
+      "goals": [
+        "more_foot_traffic",
+        "visit_store"
+      ],
+      "metrics": [],
+      "pillars": [
+        {
+          "name": "Starter Package",
+          "examples": []
+        },
+        {
+          "name": "Premium Transformation",
+          "examples": []
+        },
+        {
+          "name": "Education",
+          "examples": []
+        }
+      ],
+      "audience": {
+        "intent": [],
+        "location": [],
+        "problems": [
+          "Don't stand out locally",
+          "Not enough customers/leads",
+          "Bad reviews / not enough reviews",
+          "Locals wanting fitness accountability"
+        ],
+        "objections": [],
+        "demographics": [
+          "Don't stand out locally",
+          "Not enough customers/leads",
+          "Bad reviews / not enough reviews",
+          "Locals wanting fitness accountability"
+        ]
+      },
+      "contacts": [],
+      "timeline": "",
+      "approvals": "",
+      "competitors": [],
+      "constraints": {
+        "dos": [],
+        "donts": [],
+        "taboo_topics": [],
+        "banned_claims": [
+          "No specific content restrictions"
+        ],
+        "legal_constraints": [],
+        "banned_claims_or_taboo_topics": [
+          "No specific content restrictions"
+        ]
+      },
+      "assets_links": {
+        "key_urls": [],
+        "guidelines_link": "",
+        "lead_magnet_optional": ""
+      },
+      "brand_basics": {
+        "name": "Horizon Creative Studio",
+        "tone": "",
+        "socials": [
+          "instagram",
+          "tiktok"
+        ],
+        "website": "example.com",
+        "differentiators": []
+      },
+      "offer_details": {
+        "usps": [
+          "visit_store"
+        ],
+        "pricing_optional": "25-100",
+        "products_services": [
+          "Starter Package",
+          "Premium Transformation",
+          "Starter Package"
+        ]
+      },
+      "raw_responses": {
+        "brand": "Horizon Creative Studio",
+        "goals": [
+          "more_foot_traffic",
+          "visit_store"
+        ],
+        "offers": [
+          "Starter Package",
+          "Premium Transformation",
+          "Starter Package"
+        ],
+        "pricing": "25-100",
+        "website": "example.com",
+        "audience": [
+          "Don't stand out locally",
+          "Not enough customers/leads",
+          "Bad reviews / not enough reviews",
+          "Locals wanting fitness accountability"
+        ],
+        "platforms": [
+          "instagram",
+          "tiktok"
+        ],
+        "cta_styles": [
+          "visit_store"
+        ],
+        "competitors": [],
+        "taboo_topics": [],
+        "banned_claims": [],
+        "differentiators": []
+      },
+      "client_brief_v1": {
+        "offers": {
+          "core": "Starter Package",
+          "supporting": [
+            "Premium Transformation",
+            "Starter Package"
+          ]
+        },
+        "pillars": [
+          "Starter Package",
+          "Premium Transformation",
+          "Education"
+        ],
+        "audience": {
+          "pains": [
+            "Don't stand out locally",
+            "Not enough customers/leads",
+            "Bad reviews / not enough reviews",
+            "Locals wanting fitness accountability"
+          ],
+          "desires": [
+            "more_foot_traffic",
+            "visit_store"
+          ],
+          "primary": "Don't stand out locally"
+        },
+        "cta_styles": [
+          "visit_store"
+        ],
+        "tone_rules": {
+          "do": [
+            "Keep messaging clear and consistent"
+          ],
+          "dont": [
+            "Don't invent facts or results",
+            "Don't use absolute guarantees"
+          ]
+        },
+        "positioning": "Horizon Creative Studio offers Starter Package for Don't stand out locally",
+        "taboo_topics": [
+          "No specific content restrictions"
+        ]
+      },
+      "followup_responses": {},
+      "inference_metadata": {
+        "source": "onboarding_v3",
+        "generated_at": "2026-01-30T13:21:40.590Z"
+      }
+    }
+  },
+  "latest_modules": {
+    "campaign_plan": {
+      "id": "844914fe-d6ce-4502-b891-4ce22b13642c",
+      "module": "campaign_plan",
+      "status": "draft",
+      "completion_percent": 0,
+      "blocker_count": 1,
+      "blockers": [
+        {
+          "code": "campaigns.none",
+          "message": "Add a campaign for the selected month.",
+          "severity": "high",
+          "field_path": "campaigns"
+        }
+      ],
+      "ai_confidence": 90,
+      "version": 1,
+      "updated_at": "2026-01-30T13:35:34.369329+00:00",
+      "strategy_id": "cc90decd-23a1-4963-b1ca-6d8a840b28c3",
+      "content_json": {
+        "meta": {
+          "source": "client_brief_v1",
+          "generated_at": "2026-01-30T13:21:40.590Z"
+        },
+        "campaigns": [
+          {
+            "id": "c1",
+            "cta": "visit_store",
+            "icp": "Locals wanting fitness accountability",
+            "goal": "Drive initial foot traffic and sign-ups for the entry-level offer.",
+            "name": "Local Accountability Kickstart",
+            "angle": "Stop procrastinating. Start your fitness journey with our low-commitment, high-accountability Starter Package.",
+            "offer": "Starter Package ($25-$100)",
+            "assets": [
+              {
+                "name": "Starter Package explainer video",
+                "completed": false
+              },
+              {
+                "name": "3 local client testimonials",
+                "completed": false
+              }
+            ],
+            "status": "planned",
+            "endDate": "2024-03-31",
+            "pillarIds": [
+              "p1",
+              "p2",
+              "p3"
+            ],
+            "startDate": "2024-03-01",
+            "kpiTargets": {
+              "Foot Traffic": 50,
+              "Starter Package Sign-ups": 15
+            }
+          }
+        ],
+        "decisions": {
+          "monthlyOffersLocked": true,
+          "activeCampaignsLocked": true
+        },
+        "stopDoing": [
+          "Posting generic, non-local fitness content.",
+          "Using CTAs that don't emphasize visiting the physical location."
+        ],
+        "facts_used": [
+          "Core offer: Starter Package.",
+          "Primary goal: visit_store, more_foot_traffic.",
+          "Pricing: $25-100 (low barrier to entry)."
+        ],
+        "assumptions": [
+          "The campaign will run for one month (Month 1).",
+          "The Starter Package is the best initial offer to drive foot traffic."
+        ],
+        "selectedMonth": "2026-01",
+        "open_questions": [
+          "What is the current baseline foot traffic metric?",
+          "What is the specific conversion link for 'visit_store'?"
+        ],
+        "confidence_0_100": 90
+      }
+    },
+    "pillars": {
+      "id": "241bb7e2-908f-4739-b76f-9488d9ed767f",
+      "module": "pillars",
+      "status": "draft",
+      "completion_percent": 50,
+      "blocker_count": 1,
+      "blockers": [
+        {
+          "code": "pillars.examples_min",
+          "message": "Add at least 3 examples per pillar.",
+          "severity": "med",
+          "field_path": "pillars.examples"
+        }
+      ],
+      "ai_confidence": 90,
+      "version": 1,
+      "updated_at": "2026-01-30T13:34:16.96872+00:00",
+      "strategy_id": "cc90decd-23a1-4963-b1ca-6d8a840b28c3",
+      "content_json": {
+        "meta": {
+          "source": "client_brief_v1",
+          "generated_at": "2026-01-30T13:21:40.590Z"
+        },
+        "pillars": [
+          {
+            "id": "p1",
+            "kpis": [
+              "Saves",
+              "Shares"
+            ],
+            "name": "Education & Value",
+            "purpose": "authority",
+            "examples": [],
+            "coreMessage": "Provide actionable fitness tips and demystify health concepts to establish Horizon Creative Studio as a trusted local expert.",
+            "bannedAngles": [
+              "Promising quick fixes without effort"
+            ],
+            "contentTypes": [
+              "Educational tips",
+              "How-tos",
+              "Myth-busting videos"
+            ],
+            "coveragePercent": 40
+          },
+          {
+            "id": "p2",
+            "kpis": [
+              "Comments",
+              "Follower growth"
+            ],
+            "name": "Community & Results",
+            "purpose": "proof",
+            "examples": [],
+            "coreMessage": "Showcase local success stories, reviews, and the supportive atmosphere to build trust and address the need for accountability.",
+            "bannedAngles": [
+              "Using unverified results"
+            ],
+            "contentTypes": [
+              "Before/Afters",
+              "Testimonials",
+              "Behind-the-scenes",
+              "Client spotlights"
+            ],
+            "coveragePercent": 35
+          },
+          {
+            "id": "p3",
+            "kpis": [
+              "Link clicks (if applicable)",
+              "Foot traffic (tracked offline)"
+            ],
+            "name": "Offers & Foot Traffic",
+            "purpose": "leads",
+            "examples": [],
+            "coreMessage": "Highlight the Starter Package and Premium Transformation to drive immediate action and physical visits to the studio.",
+            "bannedAngles": [
+              "Focusing solely on price without value"
+            ],
+            "contentTypes": [
+              "Offer announcements",
+              "Package breakdowns",
+              "Direct CTAs to visit store"
+            ],
+            "coveragePercent": 25
+          }
+        ],
+        "decisions": {
+          "coverageLocked": true,
+          "pillarNamesLocked": true,
+          "bannedAnglesLocked": true
+        },
+        "facts_used": [
+          "Client pillars: Starter Package, Premium Transformation, Education.",
+          "Content styles: educational_tips, before_after.",
+          "Goal: visit_store, more_foot_traffic.",
+          "Offers: Starter Package, Premium Transformation."
+        ],
+        "assumptions": [
+          "The client's original pillars were mapped to standard strategic pillars (Education -> Authority, Packages -> Leads, Results -> Proof)."
+        ],
+        "open_questions": [],
+        "proofInventory": [
+          {
+            "id": "pi1",
+            "url": "",
+            "title": "Client Reviews",
+            "pillarIds": [
+              "p2"
+            ]
+          },
+          {
+            "id": "pi2",
+            "url": "",
+            "title": "Before/After Transformations",
+            "pillarIds": [
+              "p2"
+            ]
+          }
+        ],
+        "confidence_0_100": 90
+      }
+    },
+    "positioning": {
+      "id": "b8b664b0-6ab0-4290-a09c-db931b46341e",
+      "module": "positioning",
+      "status": "draft",
+      "completion_percent": 0,
+      "blocker_count": 0,
+      "blockers": [],
+      "ai_confidence": 95,
+      "version": 1,
+      "updated_at": "2026-01-30T13:22:15.391923+00:00",
+      "strategy_id": "cc90decd-23a1-4963-b1ca-6d8a840b28c3",
+      "content_json": {
+        "meta": {
+          "source": "onboarding_v3",
+          "generated_at": "2026-01-30T13:21:40.590Z"
+        },
+        "sentence": {
+          "target": "Locals wanting fitness accountability",
+          "benefit": "achieve their fitness goals and increase local foot traffic",
+          "category": "local fitness studio",
+          "differentiator": "personalized accountability programs and supportive community"
+        },
+        "decisions": {
+          "sentenceLocked": true,
+          "differentiatorsLocked": true
+        },
+        "boundaries": {
+          "riskyPromises": [
+            "Rapid weight loss",
+            "Immediate transformation"
+          ],
+          "allowedPromises": [
+            "Improved fitness",
+            "Increased accountability",
+            "Supportive environment"
+          ],
+          "forbiddenPromises": [
+            "Absolute guarantees of results",
+            "Curing medical conditions"
+          ]
+        },
+        "facts_used": [
+          "Client name: Horizon Creative Studio.",
+          "Primary customer: Locals wanting fitness accountability.",
+          "Primary goal: more_foot_traffic, visit_store.",
+          "Available proof types: reviews, before_after.",
+          "Constraint: Don't use absolute guarantees."
+        ],
+        "assumptions": [
+          "Horizon Creative Studio operates as a local gym or fitness studio (inferred from industry_niche and audience).",
+          "The core value proposition must address the audience's need for accountability."
+        ],
+        "proofPoints": [
+          {
+            "id": "pp1",
+            "claim": "We help locals achieve measurable fitness results.",
+            "evidence": "Before/After photos and client testimonials.",
+            "confidence": 4
+          },
+          {
+            "id": "pp2",
+            "claim": "We are the most supportive fitness community in Lakatays.",
+            "evidence": "Customer reviews and high engagement rates on community content.",
+            "confidence": 3
+          }
+        ],
+        "finalSentence": "Horizon Creative Studio is the local fitness studio that provides personalized accountability programs and a supportive community, helping locals achieve their fitness goals and driving foot traffic to the store.",
+        "open_questions": [],
+        "differentiators": [
+          {
+            "id": "d1",
+            "rank": 1,
+            "bannedPhrasing": [
+              "Guaranteed results",
+              "The only solution"
+            ],
+            "approvedPhrasing": "Personalized Accountability Programs"
+          },
+          {
+            "id": "d2",
+            "rank": 2,
+            "bannedPhrasing": [],
+            "approvedPhrasing": "Local, Supportive Community Focus"
+          }
+        ],
+        "confidence_0_100": 95
+      }
+    },
+    "weekly_plan": {
+      "id": "6310f88f-efe9-4062-8633-726137b243c0",
+      "module": "weekly_plan",
+      "status": "draft",
+      "completion_percent": 0,
+      "blocker_count": 0,
+      "blockers": [],
+      "ai_confidence": 90,
+      "version": 1,
+      "updated_at": "2026-01-30T13:22:15.391923+00:00",
+      "strategy_id": "cc90decd-23a1-4963-b1ca-6d8a840b28c3",
+      "content_json": {
+        "meta": {
+          "source": "onboarding_profile",
+          "generated_at": "2026-01-30T13:21:40.590Z"
+        },
+        "decisions": {
+          "cadenceLocked": true,
+          "objectiveLocked": true
+        },
+        "facts_used": [
+          "Cadence: 5 posts/week on Instagram, 5 posts/week on TikTok.",
+          "Primary goal: visit_store.",
+          "Pillar coverage percentages (40/35/25) dictate content mix."
+        ],
+        "assumptions": [
+          "The 10 posts per week will be distributed roughly 4 Education, 3 Community/Proof, 3 Offers/Leads."
+        ],
+        "weeklyFocus": {
+          "kpiFocus": [
+            "Impressions",
+            "Link Clicks (Visit Store)"
+          ],
+          "objective": "Establish brand presence on Instagram and TikTok while heavily promoting the Starter Package to local audiences.",
+          "primaryCampaignId": "c1",
+          "priorityPillarIds": [
+            "p3",
+            "p1"
+          ]
+        },
+        "selectedWeek": "Week 1",
+        "weeklyReview": {
+          "wins": [],
+          "losses": [],
+          "changesNextWeek": []
+        },
+        "cadenceMatrix": {
+          "tiktok": 5,
+          "instagram": 5
+        },
+        "open_questions": [
+          "Who is the designated owner for content shooting (on-camera availability is 'team')?"
+        ],
+        "confidence_0_100": 90,
+        "productionChecklist": [
+          {
+            "id": "t1",
+            "type": "script",
+            "owner": "Content Creator",
+            "title": "Script: 3 Tips for Local Accountability (P1)",
+            "dueDate": "2024-02-28",
+            "completed": false
+          },
+          {
+            "id": "t2",
+            "type": "shoot",
+            "owner": "Client Team",
+            "title": "Shoot: Starter Package Offer Breakdown (P3)",
+            "dueDate": "2024-02-29",
+            "completed": false
+          },
+          {
+            "id": "t3",
+            "type": "approval",
+            "owner": "Client Contact",
+            "title": "Approve: Week 1 Content Batch (10 posts)",
+            "dueDate": "2024-03-01",
+            "completed": false
+          }
+        ]
+      }
+    },
+    "channel_adaptations": {
+      "id": "498fb314-9715-4691-a986-005a5fd8cfce",
+      "module": "channel_adaptations",
+      "status": "draft",
+      "completion_percent": 0,
+      "blocker_count": 0,
+      "blockers": [],
+      "ai_confidence": 95,
+      "version": 1,
+      "updated_at": "2026-01-30T13:22:15.391923+00:00",
+      "strategy_id": "cc90decd-23a1-4963-b1ca-6d8a840b28c3",
+      "content_json": {
+        "meta": {
+          "source": "onboarding_profile",
+          "generated_at": "2026-01-30T13:21:40.590Z"
+        },
+        "channels": [
+          {
+            "id": "ch1",
+            "dos": [
+              "Post high-quality Before/Afters (P2).",
+              "Use Carousels for educational tips (P1)."
+            ],
+            "role": "Visual storytelling, community building, and showcasing long-form results.",
+            "donts": [
+              "Post low-resolution images.",
+              "Share content without a clear local context."
+            ],
+            "cadence": "5x/week",
+            "enabled": true,
+            "formats": [
+              "short_video",
+              "carousels"
+            ],
+            "ctaRules": [
+              "Use 'Link in Bio' for detailed offers.",
+              "Directly prompt users to 'Visit our studio today' in captions and stories."
+            ],
+            "examples": [],
+            "platform": "instagram",
+            "hookRules": [
+              "Focus on local pain points (e.g., 'Are you struggling to find fitness accountability in Lakatays?').",
+              "Use strong visuals (before/after, studio shots)."
+            ],
+            "visualRules": [
+              "Maintain a high-quality, professional aesthetic.",
+              "Utilize client-provided photos and brand kit."
+            ]
+          },
+          {
+            "id": "ch2",
+            "dos": [
+              "Participate in relevant fitness/local trends.",
+              "Post quick, digestible educational tips (P1)."
+            ],
+            "role": "High-frequency reach, trend-driven content, and quick educational tips.",
+            "donts": [
+              "Repurpose Instagram Carousels.",
+              "Post overly polished, static content."
+            ],
+            "cadence": "5x/week",
+            "enabled": true,
+            "formats": [
+              "short_video"
+            ],
+            "ctaRules": [
+              "Use urgent, direct language ('Come see why everyone in Lakatays is joining').",
+              "Utilize in-video text overlays for the 'visit_store' CTA."
+            ],
+            "examples": [],
+            "platform": "tiktok",
+            "hookRules": [
+              "Use trending sounds and formats.",
+              "Hooks must grab attention within the first 1-2 seconds."
+            ],
+            "visualRules": [
+              "Authentic, slightly raw feel is acceptable.",
+              "Ensure on-camera team members are friendly and energetic."
+            ]
+          }
+        ],
+        "decisions": {
+          "ctasLocked": true,
+          "rulesLocked": true
+        },
+        "facts_used": [
+          "Platforms: instagram, tiktok.",
+          "Formats: short_video, carousels.",
+          "CTA style: visit_store.",
+          "Voice: friendly, educational.",
+          "Cadence: 5 posts/week on each platform."
+        ],
+        "assumptions": [
+          "Instagram is better suited for carousels and polished visuals, while TikTok requires trend-based short video."
+        ],
+        "open_questions": [],
+        "defaultGuidance": "All content must be localized to Lakatays and use the 'visit_store' CTA style.",
+        "confidence_0_100": 95,
+        "translationTable": [
+          {
+            "variants": {
+              "tiktok": "Ready to start? Find us on the map and visit the studio today!",
+              "instagram": "Tap the link in bio to find our location and claim your Starter Package!"
+            },
+            "coreMessage": "Visit our store for the Starter Package."
+          }
+        ]
+      }
+    },
+    "rules_constraints": {
+      "id": "7c961e7f-403f-45c7-84b1-ea058e835a63",
+      "module": "rules_constraints",
+      "status": "draft",
+      "completion_percent": 0,
+      "blocker_count": 0,
+      "blockers": [],
+      "ai_confidence": 95,
+      "version": 1,
+      "updated_at": "2026-01-30T13:22:15.391923+00:00",
+      "strategy_id": "cc90decd-23a1-4963-b1ca-6d8a840b28c3",
+      "content_json": {
+        "meta": {
+          "source": "client_brief_v1",
+          "generated_at": "2026-01-30T13:21:40.590Z"
+        },
+        "decisions": {
+          "bannedTermsLocked": true,
+          "forbiddenClaimsLocked": true
+        },
+        "facts_used": [
+          "Constraint: Don't invent facts or results.",
+          "Constraint: Don't use absolute guarantees.",
+          "Constraint: No specific content restrictions (used as baseline)."
+        ],
+        "assumptions": [
+          "Standard fitness industry legal constraints regarding guarantees and medical claims apply, even if not explicitly listed by the client."
+        ],
+        "bannedWords": [
+          "Guaranteed",
+          "Miracle",
+          "Cure"
+        ],
+        "claimsPolicy": [
+          {
+            "id": "cl1",
+            "claim": "Guaranteed fitness results.",
+            "status": "forbidden",
+            "proofLink": ""
+          },
+          {
+            "id": "cl2",
+            "claim": "Claims about specific weight loss or muscle gain.",
+            "status": "proof_required",
+            "proofLink": "Must be backed by verified client data and before/after photos."
+          },
+          {
+            "id": "cl3",
+            "claim": "Horizon Creative Studio is the best studio in Lakatays.",
+            "status": "proof_required",
+            "proofLink": "Requires verifiable third-party awards or high review scores."
+          }
+        ],
+        "open_questions": [
+          "Does the client have specific legal counsel review requirements for fitness claims?"
+        ],
+        "approvalTriggers": [
+          {
+            "id": "at1",
+            "action": "Mandatory client approval.",
+            "condition": "Any post featuring a client testimonial or before/after photo."
+          },
+          {
+            "id": "at2",
+            "action": "Mandatory client approval.",
+            "condition": "Any post announcing a new price or offer structure."
+          }
+        ],
+        "confidence_0_100": 95,
+        "requiredDisclaimers": [
+          "Individual results may vary.",
+          "Consult a physician before starting any new fitness program."
+        ]
+      }
+    }
+  }
+}

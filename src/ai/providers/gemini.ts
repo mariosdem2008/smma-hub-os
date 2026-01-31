@@ -1,5 +1,5 @@
 import { getEnvVar } from "../utils.ts";
-import type { GenerateParams, GenerateResult } from "./types.ts";
+import type { EmbedParams, EmbedResult, GenerateParams, GenerateResult } from "./types.ts";
 import { CircuitBreaker, fetchWithRetry, fetchWithTimeout } from "./utils.ts";
 
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
@@ -103,6 +103,19 @@ function extractUsage(json: any): GenerateResult["usage"] {
   };
 }
 
+function extractEmbedding(json: any): number[] {
+  const values = json?.embedding?.values;
+  if (!Array.isArray(values)) return [];
+  return values.filter((v: unknown): v is number => typeof v === "number");
+}
+
+function padOrTrim(embedding: number[], targetDim?: number): number[] {
+  if (!targetDim || targetDim <= 0) return embedding;
+  if (embedding.length === targetDim) return embedding;
+  if (embedding.length > targetDim) return embedding.slice(0, targetDim);
+  return [...embedding, ...Array(targetDim - embedding.length).fill(0)];
+}
+
 async function callGemini(params: GenerateParams, opts: { responseMimeType?: string }) {
   const apiKey = getApiKey();
   if (!apiKey) {
@@ -144,6 +157,40 @@ async function callGemini(params: GenerateParams, opts: { responseMimeType?: str
   return json;
 }
 
+async function callGeminiEmbedding(params: EmbedParams) {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY is not configured");
+  }
+
+  const body: Record<string, unknown> = {
+    content: {
+      parts: [{ text: params.input }],
+    },
+  };
+  if (typeof params.outputDimensionality === "number") {
+    body.outputDimensionality = params.outputDimensionality;
+  }
+
+  const response = await fetchWithPolicy(
+    `${GEMINI_BASE_URL}/${normalizeModelName(params.model)}:embedContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+    params.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+  );
+
+  const json = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message = json?.error?.message ?? response.statusText;
+    throw new Error(`Gemini embedding error: ${message}`);
+  }
+
+  return json;
+}
+
 export async function generateText(params: GenerateParams): Promise<GenerateResult> {
   const json = await callGemini(params, {});
   return {
@@ -174,4 +221,17 @@ export async function generateJson(params: GenerateParams): Promise<GenerateResu
 
 export async function generate(params: GenerateParams): Promise<GenerateResult> {
   return generateText(params);
+}
+
+export async function embed(params: EmbedParams): Promise<EmbedResult> {
+  const json = await callGeminiEmbedding(params);
+  const embedding = extractEmbedding(json);
+  if (embedding.length === 0) {
+    throw new Error("Gemini embedding API response missing embedding");
+  }
+
+  return {
+    embedding: padOrTrim(embedding, params.outputDimensionality),
+    raw: json,
+  };
 }

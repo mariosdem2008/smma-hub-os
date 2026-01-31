@@ -3,6 +3,27 @@ import { getV5ProgressSummary } from '../progress';
 import type { OnboardingProfile } from '@/types/onboarding';
 
 describe('getV5ProgressSummary', () => {
+  it('accepts short/single-word business names', () => {
+    const profile: Partial<OnboardingProfile> = {
+      q1_business_name: 'Nike',
+      industry_niche: 'restaurant_cafe',
+      primary_goal: 'more_bookings',
+      conversion_path: 'dm_keyword',
+      offers: [{ type: 'best_seller', name: 'Coaching' }],
+      primary_customer: 'Dentists',
+      q9_pain_points: ['Leads', 'Trust', 'Sales'],
+      brand_voice: ['friendly', 'educational'],
+      content_style: ['educational_tips'],
+      platforms: ['instagram'],
+      cadence_preset: 'standard',
+      q3_market_scope: 'international',
+      q4_languages: ['english'],
+    };
+
+    const summary = getV5ProgressSummary(profile);
+    expect(summary.missingFields).not.toContain('q1_business_name');
+  });
+
   it('reaches 100 when required fields are complete', () => {
     const profile: Partial<OnboardingProfile> = {
       q1_business_name: 'Nimbus Creative Studio',

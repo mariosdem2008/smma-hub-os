@@ -22,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
   Sheet,
   SheetContent,
@@ -30,7 +31,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { toast } from 'sonner';
-import { Plus, Trash2, Layers } from 'lucide-react';
+import { Plus, Trash2, Layers, Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getAutosaveLabel } from "@/components/strategy-os/shared/autosave";
 
@@ -163,7 +164,7 @@ export function PillarsModule() {
   };
 
   return (
-    <div className="p-4 space-y-6">
+    <div className="p-6 space-y-8">
       {/* Coverage Distribution */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
@@ -201,52 +202,98 @@ export function PillarsModule() {
               No pillars added yet. Add 3-6 pillars to define your content strategy.
             </p>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {(localContent.pillars ?? []).map((pillar) => (
-                <Card
-                  key={pillar.id}
-                  className="cursor-pointer hover:border-primary/50 transition-colors"
-                  onClick={() => !isLocked && setEditingPillar(pillar)}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <Layers className="h-4 w-4 text-muted-foreground" />
-                        <h4 className="font-medium text-sm">{pillar.name}</h4>
-                      </div>
-                      {!isLocked && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            removePillar(pillar.id);
-                          }}
-                          disabled={pillarNamesLocked}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      )}
-                    </div>
-
-                    <Badge className={cn('mb-2', purposeColors[pillar.purpose])}>
-                      {PILLAR_PURPOSE_LABELS[pillar.purpose]}
-                    </Badge>
-
-                    <div className="flex items-center gap-2 mt-3">
-                      <Progress value={pillar.coveragePercent} className="flex-1 h-2" />
-                      <span className="text-xs text-muted-foreground">{pillar.coveragePercent}%</span>
-                    </div>
-
-                    {pillar.coreMessage && (
-                      <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
-                        {pillar.coreMessage}
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
+            <div className="overflow-x-auto rounded-lg border border-border/60 bg-background/40">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Pillar</TableHead>
+                    <TableHead className="w-36">Purpose</TableHead>
+                    <TableHead className="w-44">Coverage</TableHead>
+                    <TableHead>Core message</TableHead>
+                    <TableHead className="w-32">Types</TableHead>
+                    <TableHead className="w-32">Examples</TableHead>
+                    <TableHead className="w-28"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(localContent.pillars ?? []).map((pillar) => (
+                    <TableRow
+                      key={pillar.id}
+                      className={cn(!isLocked && "cursor-pointer hover:bg-muted/20")}
+                      onClick={() => !isLocked && setEditingPillar(pillar)}
+                    >
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Layers className="h-4 w-4 text-muted-foreground" />
+                          <div className="font-medium">{pillar.name}</div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={cn(purposeColors[pillar.purpose])}>
+                          {PILLAR_PURPOSE_LABELS[pillar.purpose]}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Progress value={pillar.coveragePercent} className="h-2 flex-1" />
+                          <span className="text-xs tabular-nums text-muted-foreground">
+                            {pillar.coveragePercent}%
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm text-muted-foreground line-clamp-2">
+                          {pillar.coreMessage || "—"}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm tabular-nums text-muted-foreground">
+                          {(pillar.contentTypes ?? []).length}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className={cn(
+                          "text-sm tabular-nums",
+                          (pillar.examples ?? []).length >= 3 ? "text-muted-foreground" : "text-orange-400"
+                        )}>
+                          {(pillar.examples ?? []).length}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-end gap-1">
+                          {!isLocked && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingPillar(pillar);
+                              }}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {!isLocked && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removePillar(pillar.id);
+                              }}
+                              disabled={pillarNamesLocked}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           )}
         </CardContent>
@@ -256,14 +303,21 @@ export function PillarsModule() {
       <Sheet open={!!editingPillar} onOpenChange={() => setEditingPillar(null)}>
         <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader>
-            <SheetTitle>Edit Pillar</SheetTitle>
+            <SheetTitle className="flex items-center justify-between gap-2">
+              <span>Edit Pillar</span>
+              {editingPillar && (
+                <Badge variant="outline" className={cn(purposeColors[editingPillar.purpose])}>
+                  {PILLAR_PURPOSE_LABELS[editingPillar.purpose]}
+                </Badge>
+              )}
+            </SheetTitle>
             <SheetDescription>
               Configure this content pillar's details and guidelines
             </SheetDescription>
           </SheetHeader>
 
           {editingPillar && (
-            <div className="mt-6 space-y-6">
+            <div className="mt-6 space-y-8">
               <div className="space-y-2">
                 <Label>Pillar Name</Label>
                 <Input
@@ -302,6 +356,9 @@ export function PillarsModule() {
                   step={5}
                   disabled={coverageLocked}
                 />
+                <div className="text-xs text-muted-foreground">
+                  Tip: keep total pillar coverage at 100%.
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -329,6 +386,22 @@ export function PillarsModule() {
               </div>
 
               <div className="space-y-2">
+                <Label>
+                  Examples (one per line) <span className="text-muted-foreground">(min 3)</span>
+                </Label>
+                <Textarea
+                  value={editingPillar.examples.join('\n')}
+                  onChange={(e) =>
+                    updatePillar(editingPillar.id, {
+                      examples: e.target.value.split('\n').filter(Boolean),
+                    })
+                  }
+                  placeholder="Example post idea 1&#10;Example post idea 2&#10;Example post idea 3"
+                  disabled={isLocked}
+                />
+              </div>
+
+              <div className="space-y-2">
                 <Label>Banned Angles (one per line)</Label>
                 <Textarea
                   value={editingPillar.bannedAngles.join('\n')}
@@ -339,8 +412,11 @@ export function PillarsModule() {
                   }
                   placeholder="Clickbait&#10;Controversy for sake of controversy"
                   disabled={isLocked}
-                  className="border-red-500/30"
+                  className="border-border/60"
                 />
+                <div className="text-xs text-muted-foreground">
+                  These are explicit “don’t do this” angles to keep content on-brand and compliant.
+                </div>
               </div>
 
               <div className="space-y-2">

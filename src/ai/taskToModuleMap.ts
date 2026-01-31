@@ -134,6 +134,20 @@ export const TASK_MODULE_MAP: Record<TaskType, ModuleRequirement[]> = {
     },
   ],
 
+  // AI assistant (client detail) - starts with style + quality, requests more on demand
+  [TaskType.AI_ASSISTANT]: [
+    {
+      module: "rep_policy",
+      required: true,
+      fieldPaths: [],
+    },
+    {
+      module: "quality_bar",
+      required: true,
+      fieldPaths: [],
+    },
+  ],
+
   // Content ideas - needs voice and strategy
   [TaskType.CONTENT_IDEAS]: [
     {

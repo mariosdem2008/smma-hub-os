@@ -118,13 +118,25 @@ serve(async (req: Request) => {
     return jsonResponse({ error: "Forbidden" }, 403, corsHeaders(req));
   }
 
-  const embeddingApiKey = Deno.env.get("OPENAI_API_KEY");
-  if (!embeddingApiKey) {
-    return jsonResponse({ error: "Embedding API not configured" }, 500, corsHeaders(req));
-  }
-
   const embeddingModel = Deno.env.get("EMBEDDING_MODEL_ID") ?? "text-embedding-3-small";
-  const queryEmbedding = await embedText(query, embeddingApiKey, embeddingModel);
+  let queryEmbedding: number[];
+  try {
+    queryEmbedding = await embedText(query, "", embeddingModel);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes("API_KEY is not configured")) {
+      return jsonResponse(
+        {
+          error: "AI embeddings are not configured",
+          message: "Configure GEMINI_API_KEY (or OPENAI_API_KEY if using OpenAI embeddings) and retry.",
+          code: "MISSING_API_KEY",
+        },
+        500,
+        corsHeaders(req),
+      );
+    }
+    throw error;
+  }
 
   const { data: matches, error: matchError } = await supabase.rpc("match_ai_embeddings", {
     p_agency_id: agencyId,

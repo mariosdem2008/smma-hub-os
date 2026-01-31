@@ -1,0 +1,691 @@
+{
+  "agency_id": "115dc619-1867-4275-83ec-4d5a0d47f94b",
+  "client_id": "af1a1b5a-cf77-4303-a56b-4edf6b2a0c6e",
+  "generated_at": "2026-01-30T14:18:13.744Z",
+  "strategy_document": {
+    "id": "02bcfb88-00d7-484a-948c-41df73742072",
+    "is_active": true,
+    "model": "repair-script-v1",
+    "created_at": "2026-01-30T14:18:07.818746+00:00",
+    "updated_at": "2026-01-30T14:18:07.818746+00:00",
+    "derived_from_hash": "0584a665540dcba2c65b6d24cf2103a1bc6ef5f36d8dea463d16aed3a28f0c6c"
+  },
+  "latest_client_brain": {
+    "id": "0b4ae09a-bba7-4d67-b0d7-c96c2234603e",
+    "version": 1,
+    "status": "usable",
+    "usable": true,
+    "locked": false,
+    "confidence": 0,
+    "updated_at": "2026-01-19T14:12:55.96487+00:00",
+    "brain_json": {
+      "faq": [],
+      "goals": [
+        "More bookings/appointments",
+        "DM keyword"
+      ],
+      "metrics": [],
+      "pillars": [
+        {
+          "name": "Signature Service",
+          "examples": []
+        },
+        {
+          "name": "Education",
+          "examples": []
+        },
+        {
+          "name": "Proof",
+          "examples": []
+        }
+      ],
+      "audience": {
+        "intent": [],
+        "location": [],
+        "problems": [
+          "Parents looking for convenience",
+          "Not enough customers/leads",
+          "Seasonal demand drops",
+          "Bad reviews / not enough reviews"
+        ],
+        "objections": [],
+        "demographics": [
+          "Parents looking for convenience",
+          "Not enough customers/leads",
+          "Seasonal demand drops",
+          "Bad reviews / not enough reviews"
+        ]
+      },
+      "contacts": [],
+      "timeline": "",
+      "approvals": "",
+      "competitors": [],
+      "constraints": {
+        "dos": [],
+        "donts": [],
+        "taboo_topics": [],
+        "banned_claims": [
+          "No specific content restrictions"
+        ],
+        "legal_constraints": [],
+        "banned_claims_or_taboo_topics": [
+          "No specific content restrictions"
+        ]
+      },
+      "assets_links": {
+        "key_urls": [],
+        "guidelines_link": "",
+        "lead_magnet_optional": ""
+      },
+      "brand_basics": {
+        "name": "My Businessss",
+        "tone": "",
+        "socials": [],
+        "website": "",
+        "differentiators": []
+      },
+      "offer_details": {
+        "usps": [
+          "DM keyword"
+        ],
+        "pricing_optional": "",
+        "products_services": [
+          "Signature Service"
+        ]
+      },
+      "raw_responses": {
+        "brand": "My Businessss",
+        "goals": [
+          "More bookings/appointments",
+          "DM keyword"
+        ],
+        "offers": [
+          "Signature Service"
+        ],
+        "pillars": [],
+        "pricing": "",
+        "website": "",
+        "audience": [
+          "Parents looking for convenience",
+          "Not enough customers/leads",
+          "Seasonal demand drops",
+          "Bad reviews / not enough reviews"
+        ],
+        "platforms": [],
+        "cta_styles": [
+          "DM keyword"
+        ],
+        "competitors": [],
+        "differentiators": []
+      },
+      "client_brief_v1": {
+        "offers": {
+          "core": "Signature Service",
+          "supporting": []
+        },
+        "pillars": [
+          "Signature Service",
+          "Education",
+          "Proof"
+        ],
+        "audience": {
+          "pains": [
+            "Parents looking for convenience",
+            "Not enough customers/leads",
+            "Seasonal demand drops",
+            "Bad reviews / not enough reviews"
+          ],
+          "desires": [
+            "More bookings/appointments",
+            "DM keyword"
+          ],
+          "primary": "Parents looking for convenience"
+        },
+        "cta_styles": [
+          "DM keyword"
+        ],
+        "tone_rules": {
+          "do": [
+            "Keep messaging clear and consistent"
+          ],
+          "dont": [
+            "Don't invent facts or results",
+            "Don't use absolute guarantees"
+          ]
+        },
+        "positioning": "My Businessss offers Signature Service for Parents looking for convenience",
+        "taboo_topics": [
+          "No specific content restrictions"
+        ]
+      },
+      "followup_responses": {},
+      "inference_metadata": {
+        "source": "onboarding_v3",
+        "generated_at": "2026-01-19T14:12:55.939Z"
+      }
+    }
+  },
+  "latest_modules": {
+    "rules_constraints": {
+      "id": "5e906550-b5b9-484b-9beb-d724d1379af6",
+      "module": "rules_constraints",
+      "status": "review",
+      "completion_percent": 100,
+      "blocker_count": 0,
+      "blockers": [],
+      "ai_confidence": 100,
+      "version": 2,
+      "updated_at": "2026-01-30T14:18:17.282601+00:00",
+      "strategy_id": "9bdfc493-9d53-4f2b-8412-7470147c68c7",
+      "content_json": {
+        "meta": {
+          "source": "REPAIR_SCRIPT_V1",
+          "generated_at": "2026-01-30T14:17:57.451Z"
+        },
+        "decisions": {
+          "bannedTermsLocked": true,
+          "forbiddenClaimsLocked": true
+        },
+        "facts_used": [
+          "Banned claims/taboo topics: 'No specific content restrictions.'",
+          "Tone rules: 'Don't invent facts or results,' 'Don't use absolute guarantees.'",
+          "Messaging must be clear and consistent."
+        ],
+        "assumptions": [
+          "The primary constraint is maintaining factual accuracy and avoiding overly aggressive guarantees, as per the client's explicit 'donts'."
+        ],
+        "bannedWords": [
+          "Guaranteed",
+          "Miracle",
+          "Cure",
+          "Always",
+          "Never"
+        ],
+        "claimsPolicy": [
+          {
+            "id": "rc1",
+            "claim": "We guarantee results.",
+            "status": "forbidden"
+          },
+          {
+            "id": "rc2",
+            "claim": "The Signature Service is the most convenient option.",
+            "status": "proof_required",
+            "proofLink": "TBD - add verified proof link (case study / data / approved testimonial)."
+          },
+          {
+            "id": "rc3",
+            "claim": "Our service is designed for busy parents.",
+            "status": "allowed"
+          }
+        ],
+        "open_questions": [],
+        "approvalTriggers": [
+          {
+            "id": "at1",
+            "action": "Requires internal review to ensure factual accuracy (Do not invent facts or results).",
+            "condition": "Any post making a quantifiable claim about time or money saved."
+          },
+          {
+            "id": "at2",
+            "action": "Requires client approval.",
+            "condition": "Any content deviating from the 'professional' and 'playful' tone."
+          }
+        ],
+        "confidence_0_100": 100,
+        "requiredDisclaimers": [
+          "Avoid using absolute guarantees (e.g., 'always,' 'never,' 'guaranteed')."
+        ]
+      }
+    },
+    "channel_adaptations": {
+      "id": "b25a39a0-8d57-4553-a3ce-b78f56f6f17c",
+      "module": "channel_adaptations",
+      "status": "review",
+      "completion_percent": 100,
+      "blocker_count": 0,
+      "blockers": [],
+      "ai_confidence": 95,
+      "version": 2,
+      "updated_at": "2026-01-30T14:18:17.168515+00:00",
+      "strategy_id": "9bdfc493-9d53-4f2b-8412-7470147c68c7",
+      "content_json": {
+        "meta": {
+          "source": "REPAIR_SCRIPT_V1",
+          "generated_at": "2026-01-30T14:17:57.451Z"
+        },
+        "channels": [
+          {
+            "id": "ch1",
+            "dos": [
+              "Utilize Instagram Stories daily for engagement and quick polls related to parental convenience.",
+              "Feature owner/founder on camera for authenticity (founder_led style)."
+            ],
+            "role": "Primary conversion driver and brand builder, focusing on visual storytelling.",
+            "donts": [
+              "Post long-form static image content.",
+              "Use complex or multi-step CTAs."
+            ],
+            "cadence": "3 posts per week",
+            "enabled": true,
+            "formats": [
+              "short_video",
+              "carousels"
+            ],
+            "ctaRules": [
+              "Every post must include a clear, singular CTA to 'DM keyword'.",
+              "CTAs should be placed both in the caption and verbally/visually in short videos."
+            ],
+            "examples": [
+              "Reel: 3 ways the Signature Service saves your afternoon (ending with DM keyword)",
+              "Carousel: 5-star review highlighting booking ease (Proof pillar)"
+            ],
+            "platform": "instagram",
+            "hookRules": [
+              "Hooks must immediately address the parent's need for convenience or time-saving.",
+              "Use trend-based audio/visuals where appropriate (playful tone)."
+            ],
+            "visualRules": [
+              "Maintain a professional yet playful aesthetic.",
+              "Use high-quality visuals that convey ease and simplicity."
+            ]
+          }
+        ],
+        "decisions": {
+          "ctasLocked": true,
+          "rulesLocked": false
+        },
+        "facts_used": [
+          "Platform is Instagram.",
+          "Cadence is 3 posts/week.",
+          "CTA style is DM keyword.",
+          "Formats include short video and carousels.",
+          "Tone is professional and playful."
+        ],
+        "assumptions": [
+          "Instagram is the sole focus for content production based on the provided cadence data.",
+          "The DM keyword is the highest priority conversion mechanism."
+        ],
+        "open_questions": [
+          "What is the specific DM keyword?",
+          "Are there any other secondary platforms that should be considered for repurposing?"
+        ],
+        "defaultGuidance": "Focus on short, engaging content that quickly demonstrates value and funnels users directly to the DM keyword conversion path.",
+        "confidence_0_100": 95,
+        "translationTable": [
+          {
+            "variants": {
+              "instagram": "Tap the DM button and send us keyword to start saving time today!"
+            },
+            "coreMessage": "Book the Signature Service easily via DM keyword."
+          }
+        ]
+      }
+    },
+    "weekly_plan": {
+      "id": "b71df525-0536-4c6b-8fb1-82aed430eea8",
+      "module": "weekly_plan",
+      "status": "review",
+      "completion_percent": 100,
+      "blocker_count": 0,
+      "blockers": [],
+      "ai_confidence": 90,
+      "version": 2,
+      "updated_at": "2026-01-30T14:18:17.035195+00:00",
+      "strategy_id": "9bdfc493-9d53-4f2b-8412-7470147c68c7",
+      "content_json": {
+        "meta": {
+          "source": "REPAIR_SCRIPT_V1",
+          "generated_at": "2026-01-30T14:17:57.451Z"
+        },
+        "decisions": {
+          "cadenceLocked": true,
+          "objectiveLocked": false
+        },
+        "facts_used": [
+          "Cadence is 3 posts/week on Instagram.",
+          "Primary goal is DM keyword/bookings."
+        ],
+        "assumptions": [
+          "The weekly plan supports the monthly campaign (Convenience Booking Blitz).",
+          "Content types will be rotated to cover all three pillars within the 3-post cadence (e.g., P3, P2, P1)."
+        ],
+        "weeklyFocus": {
+          "kpiFocus": [
+            "DM Keyword Uses",
+            "Profile Visits"
+          ],
+          "objective": "Maximize DM keyword usage and drive traffic to the Signature Service offer.",
+          "primaryCampaignId": "c1",
+          "priorityPillarIds": [
+            "p3",
+            "p2"
+          ]
+        },
+        "selectedWeek": "2026-W05",
+        "weeklyReview": {
+          "wins": [],
+          "losses": [],
+          "changesNextWeek": []
+        },
+        "cadenceMatrix": {
+          "instagram": 3
+        },
+        "open_questions": [
+          "What are the specific content topics planned for this week's posts?"
+        ],
+        "confidence_0_100": 90,
+        "productionChecklist": [
+          {
+            "id": "w1_t1",
+            "type": "script",
+            "owner": "Content Creator",
+            "title": "Script: Signature Service Demo (P3)",
+            "dueDate": "2024-01-02",
+            "completed": false
+          },
+          {
+            "id": "w1_t2",
+            "type": "edit",
+            "owner": "Editor",
+            "title": "Edit: Parent Testimonial Reel (P2)",
+            "dueDate": "2024-01-03",
+            "completed": false
+          },
+          {
+            "id": "w1_t3",
+            "type": "approval",
+            "owner": "Account Lead",
+            "title": "Approval: Educational Carousel (P1)",
+            "dueDate": "2024-01-04",
+            "completed": false
+          }
+        ]
+      }
+    },
+    "campaign_plan": {
+      "id": "4e371eda-0605-4dab-ac72-bbaebf10a500",
+      "module": "campaign_plan",
+      "status": "review",
+      "completion_percent": 100,
+      "blocker_count": 0,
+      "blockers": [],
+      "ai_confidence": 90,
+      "version": 2,
+      "updated_at": "2026-01-30T14:18:16.913457+00:00",
+      "strategy_id": "9bdfc493-9d53-4f2b-8412-7470147c68c7",
+      "content_json": {
+        "meta": {
+          "source": "REPAIR_SCRIPT_V1",
+          "generated_at": "2026-01-30T14:17:57.451Z"
+        },
+        "campaigns": [
+          {
+            "id": "c1",
+            "cta": "DM keyword",
+            "icp": "Parents looking for convenience",
+            "goal": "Increase bookings/appointments by 15%",
+            "name": "Convenience Booking Blitz",
+            "angle": "Highlighting how easy and fast it is to solve parental pain points using the Signature Service and the DM keyword.",
+            "offer": "Signature Service",
+            "assets": [
+              {
+                "name": "DM Keyword Explainer Video",
+                "completed": false
+              },
+              {
+                "name": "3 Testimonial Carousels",
+                "completed": false
+              }
+            ],
+            "status": "planned",
+            "endDate": "2026-01-28",
+            "pillarIds": [
+              "p1",
+              "p2",
+              "p3"
+            ],
+            "startDate": "2026-01-01",
+            "kpiTargets": {
+              "Bookings": 15,
+              "DM Keyword Uses": 50
+            }
+          }
+        ],
+        "decisions": {
+          "monthlyOffersLocked": false,
+          "activeCampaignsLocked": false
+        },
+        "stopDoing": [
+          "Creating content without a clear DM keyword CTA."
+        ],
+        "facts_used": [
+          "Core offer is Signature Service.",
+          "Primary goal is More bookings/appointments using the DM keyword CTA."
+        ],
+        "assumptions": [
+          "The campaign will run for the entire month.",
+          "KPI targets are conservative estimates based on the primary goal (bookings)."
+        ],
+        "selectedMonth": "2026-01",
+        "open_questions": [
+          "What is the baseline booking rate to set realistic KPI targets?",
+          "Are there any seasonal events this month that could affect demand?"
+        ],
+        "confidence_0_100": 90
+      }
+    },
+    "pillars": {
+      "id": "b517c89b-28fe-4fd2-97c4-0021be11e4c9",
+      "module": "pillars",
+      "status": "review",
+      "completion_percent": 100,
+      "blocker_count": 0,
+      "blockers": [],
+      "ai_confidence": 95,
+      "version": 2,
+      "updated_at": "2026-01-30T14:18:16.775203+00:00",
+      "strategy_id": "9bdfc493-9d53-4f2b-8412-7470147c68c7",
+      "content_json": {
+        "meta": {
+          "source": "REPAIR_SCRIPT_V1",
+          "generated_at": "2026-01-30T14:17:57.451Z"
+        },
+        "pillars": [
+          {
+            "id": "p1",
+            "kpis": [
+              "Saves",
+              "Shares"
+            ],
+            "name": "Education",
+            "purpose": "authority",
+            "examples": [
+              "3 Quick Hacks to Simplify Your Weekday Routine",
+              "Why Convenience is Key for Modern Parenting",
+              "Example idea 1 for Education",
+              "Example idea 2 for Education",
+              "Example idea 3 for Education"
+            ],
+            "coreMessage": "Provide valuable tips and insights related to the convenience parents seek, establishing My Businessss as a helpful, authoritative resource.",
+            "bannedAngles": [
+              "Content that complicates the booking process"
+            ],
+            "contentTypes": [
+              "How-tos",
+              "Tips & Tricks",
+              "Myth vs. Fact"
+            ],
+            "coveragePercent": 40
+          },
+          {
+            "id": "p2",
+            "kpis": [
+              "Comments (Trust signals)",
+              "DM keyword usage"
+            ],
+            "name": "Proof",
+            "purpose": "proof",
+            "examples": [
+              "Parent Testimonial: 'I booked in 30 seconds!'",
+              "Before & After: The Convenience Difference",
+              "Example idea 1 for Proof",
+              "Example idea 2 for Proof",
+              "Example idea 3 for Proof"
+            ],
+            "coreMessage": "Showcase results, testimonials, and reviews to overcome trust barriers (like bad reviews) and mitigate seasonal demand drops by building consistent credibility.",
+            "bannedAngles": [
+              "Highlighting negative reviews without a resolution"
+            ],
+            "contentTypes": [
+              "Testimonials (Video/Text)",
+              "Case Studies",
+              "Review Highlights"
+            ],
+            "coveragePercent": 35
+          },
+          {
+            "id": "p3",
+            "kpis": [
+              "DM keyword usage",
+              "Link clicks (if applicable)"
+            ],
+            "name": "Signature Service",
+            "purpose": "leads",
+            "examples": [
+              "How Our Signature Service Solves Your Biggest Time Crunch",
+              "DM keyword to Book Your Appointment Now",
+              "Example idea 1 for Signature Service",
+              "Example idea 2 for Signature Service",
+              "Example idea 3 for Signature Service"
+            ],
+            "coreMessage": "Clearly explain the Signature Service, its unique benefits for busy parents, and provide a direct, simple call-to-action using the DM keyword.",
+            "bannedAngles": [
+              "Focusing on features without linking back to parental convenience"
+            ],
+            "contentTypes": [
+              "Offer Explainers",
+              "Service Demos",
+              "Direct CTAs"
+            ],
+            "coveragePercent": 25
+          }
+        ],
+        "decisions": {
+          "coverageLocked": false,
+          "pillarNamesLocked": true,
+          "bannedAnglesLocked": false
+        },
+        "facts_used": [
+          "Pillars are: Signature Service, Education, Proof.",
+          "Goals are More bookings/appointments and DM keyword.",
+          "Audience pain points include Bad reviews / not enough reviews and Seasonal demand drops."
+        ],
+        "assumptions": [
+          "The allocation balances authority building (Education) with direct conversion (Signature Service) and trust building (Proof).",
+          "The 'Proof' pillar is crucial for addressing the client's concern about bad/not enough reviews."
+        ],
+        "open_questions": [],
+        "proofInventory": [],
+        "confidence_0_100": 95
+      }
+    },
+    "positioning": {
+      "id": "931bb931-194f-402c-bcf3-a4ff469f5368",
+      "module": "positioning",
+      "status": "review",
+      "completion_percent": 100,
+      "blocker_count": 0,
+      "blockers": [],
+      "ai_confidence": 90,
+      "version": 2,
+      "updated_at": "2026-01-30T14:18:16.665838+00:00",
+      "strategy_id": "9bdfc493-9d53-4f2b-8412-7470147c68c7",
+      "content_json": {
+        "meta": {
+          "source": "REPAIR_SCRIPT_V1",
+          "generated_at": "2026-01-30T14:17:57.451Z"
+        },
+        "sentence": {
+          "target": "Parents looking for convenience",
+          "benefit": "securing appointments effortlessly and solving their need for convenience",
+          "category": "a convenient solution",
+          "differentiator": "Signature Service and easy DM keyword booking"
+        },
+        "decisions": {
+          "sentenceLocked": false,
+          "differentiatorsLocked": false
+        },
+        "boundaries": {
+          "riskyPromises": [
+            "Eliminating all parental stress",
+            "Fastest service ever"
+          ],
+          "allowedPromises": [
+            "Convenience and ease of booking",
+            "Reliable service delivery",
+            "Clear steps to secure an appointment"
+          ],
+          "forbiddenPromises": [
+            "Absolute guarantees of results or outcomes",
+            "Guaranteed results",
+            "Instant transformation"
+          ]
+        },
+        "facts_used": [
+          "My Businessss offers Signature Service.",
+          "Primary audience is Parents looking for convenience.",
+          "Goal is More bookings/appointments and DM keyword."
+        ],
+        "assumptions": [
+          "The Signature Service is inherently convenient for parents.",
+          "The DM keyword is a key differentiator in the conversion process, emphasizing ease of access."
+        ],
+        "proofPoints": [
+          {
+            "id": "pp1",
+            "claim": "Our service saves parents significant time each week.",
+            "evidence": "Testimonials/Case Studies showing time saved",
+            "confidence": 3
+          },
+          {
+            "id": "pp2",
+            "claim": "We offer the easiest booking process in the market.",
+            "evidence": "Data on DM keyword conversion rate",
+            "confidence": 3
+          },
+          {
+            "id": "pp3",
+            "claim": "Members see meaningful progress through consistent accountability and support.",
+            "evidence": "Client-provided proof (reviews/testimonials/before-after). Link TBD.",
+            "confidence": 3
+          }
+        ],
+        "finalSentence": "My Businessss provides the Signature Service, a convenient solution designed specifically for Parents looking for convenience, helping them secure appointments effortlessly and solving their need for convenience via a simple DM keyword.",
+        "open_questions": [
+          "What is the specific benefit of the 'Signature Service' beyond convenience?",
+          "What is the exact DM keyword used for booking?"
+        ],
+        "differentiators": [
+          {
+            "id": "d1",
+            "rank": 1,
+            "bannedPhrasing": [
+              "The only way to book"
+            ],
+            "approvedPhrasing": "Book instantly using our unique DM keyword."
+          },
+          {
+            "id": "d2",
+            "rank": 2,
+            "bannedPhrasing": [
+              "Guaranteed results"
+            ],
+            "approvedPhrasing": "The trusted Signature Service designed for busy parents."
+          }
+        ],
+        "confidence_0_100": 90
+      }
+    }
+  }
+}

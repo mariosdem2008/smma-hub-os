@@ -12,6 +12,8 @@ export const FIELD_LABELS: Record<string, string> = {
   primary_goal: 'Primary goal',
   conversion_path: 'Conversion path',
   conversion_link_required: 'Conversion link',
+  dm_keyword_required: 'DM keyword',
+  dm_keyword: 'DM keyword',
   offers: 'Top offers',
   audience_type: 'Audience type',
   primary_customer: 'Primary customer',

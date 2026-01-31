@@ -281,6 +281,19 @@ export function OnboardingV5Wizard({
         readiness_score: 0,
         blockers: [],
       }) as Partial<OnboardingProfile>;
+
+      // Reduce friction: if business name is already present on the client profile, prefill it.
+      if (!profile.q1_business_name?.trim()) {
+        const { data: clientRow } = await supabase
+          .from('clients')
+          .select('company,name')
+          .eq('id', clientId)
+          .maybeSingle();
+        const inferredName = (clientRow?.company ?? clientRow?.name ?? '').trim();
+        if (inferredName) {
+          profile.q1_business_name = inferredName;
+        }
+      }
       const meta = (profile.v5_meta ?? {}) as OnboardingV5Meta;
       const candidate = meta.progress?.active_section as string | undefined;
       const validSections = new Set(SECTIONS.map((section) => section.id));
@@ -566,107 +579,11 @@ export function OnboardingV5Wizard({
 
       if (error) throw error;
 
-      const offers = state.profile.offers ?? [];
-      const primaryOffer = offers[0];
-      const pricing =
-        typeof primaryOffer?.price_min === 'number' || typeof primaryOffer?.price_max === 'number'
-          ? `${primaryOffer?.price_min ?? ''}${primaryOffer?.price_min != null && primaryOffer?.price_max != null ? '-' : ''}${primaryOffer?.price_max ?? ''}`.trim()
-          : '';
-
-      const goalLabel =
-        ONBOARDING_PRIMARY_GOAL_OPTIONS.find((option) => option.id === state.profile.primary_goal)?.label ?? '';
-      const conversionLabel =
-        CONVERSION_PATH_OPTIONS.find((option) => option.id === state.profile.conversion_path)?.label ?? '';
-      const ctaLabel =
-        CTA_OPTIONS.find((option) => option.id === state.profile.q6_main_cta)?.label ?? state.profile.q6_main_cta ?? '';
-
-      const rawResponses: Record<string, unknown> = {
-        brand: sanitizeText(state.profile.q1_business_name ?? undefined) ?? '',
-        website: sanitizeText(state.profile.q2_website ?? undefined) ?? '',
-        platforms: sanitizeList(state.profile.platforms ?? state.profile.q16_enabled_channels ?? []),
-        offers: sanitizeList(offers.map((offer) => offer.name)),
-        differentiators: sanitizeList(state.profile.q13_differentiators ?? []),
-        audience: sanitizeList([state.profile.primary_customer, ...(state.profile.q9_pain_points ?? [])]),
-        goals: sanitizeList([goalLabel, conversionLabel]),
-        competitors: sanitizeList([state.profile.competitor_link]),
-        cta_styles: sanitizeList([ctaLabel || conversionLabel]),
-        pricing: sanitizeText(pricing) ?? '',
-        pillars: sanitizeList(state.profile.q13_differentiators ?? []).slice(0, 6),
-      };
-
-      const { data: createResp, error: createErr } = await supabase.functions.invoke('ai-brains-client', {
-        body: {
-          action: 'create',
-          agency_id: agencyId,
-          client_id: clientId,
-          brain_json: { raw_responses: rawResponses, followup_responses: {} },
-        },
-      });
-      if (createErr) throw createErr;
-
-      const brainId = createResp?.brain?.id as string | undefined;
-      if (!brainId) throw new Error('Client brain id missing');
-
-      const { error: updateErr } = await supabase.functions.invoke('ai-brains-client', {
-        body: {
-          action: 'update',
-          agency_id: agencyId,
-          client_id: clientId,
-          brain_id: brainId,
-          brain_json: { raw_responses: rawResponses, followup_responses: {} },
-        },
-      });
-      if (updateErr) throw updateErr;
-
-      const { error: ingestErr } = await supabase.functions.invoke('ai-brain-ingest', {
-        body: {
-          scope: 'client',
-          agency_id: agencyId,
-          client_id: clientId,
-          brain_id: brainId,
-          source: 'onboarding',
-          raw_responses: rawResponses,
-          followup_responses: {},
-        },
-      });
-      if (ingestErr) throw ingestErr;
-
-      const { data: brainCheck, error: brainCheckErr } = await supabase
-        .from('client_brains')
-        .select('usable')
-        .eq('agency_id', agencyId)
-        .eq('client_id', clientId)
-        .order('version', { ascending: false })
-        .limit(1)
-        .single();
-
-      if (brainCheckErr || !brainCheck?.usable) {
-        toast({
-          variant: 'destructive',
-          title: 'Profile Incomplete',
-          description: 'Some required information is missing. Please review all sections.',
-        });
-        setIsGenerating(false);
-        return;
-      }
-
-      const { data: strategyResp, error: strategyErr } = await supabase.functions.invoke('ai-strategy-generate', {
-        body: { client_id: clientId },
-      });
-      if (strategyErr) throw strategyErr;
-      if (strategyResp?.unknown) {
-        throw new Error(
-          Array.isArray(strategyResp?.questions) && strategyResp.questions.length > 0
-            ? String(strategyResp.questions[0])
-            : 'Strategy generation is not ready yet.',
-        );
-      }
-
       trackOnboardingEvent('onboarding_strategy_created', { client_id: clientId });
 
       toast({
         title: 'Onboarding complete',
-        description: 'Your strategy is ready. Redirecting to client detail.',
+        description: 'We are generating your Client Brain and strategy in the background. Redirecting to client detail.',
       });
 
       navigate(`/clients/${clientId}`, { replace: true });

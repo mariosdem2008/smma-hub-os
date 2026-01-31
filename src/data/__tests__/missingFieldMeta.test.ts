@@ -10,4 +10,10 @@ describe("missing field meta", () => {
     const meta = getMissingFieldMeta("q16_enabled_channels");
     expect(meta?.label).toBe("Connect channels");
   });
+
+  it("normalizes brand_basics.name to business_name", () => {
+    expect(normalizeMissingFieldKey("brand_basics.name")).toBe("business_name");
+    const meta = getMissingFieldMeta("brand_basics.name");
+    expect(meta?.label).toBe("Add business name");
+  });
 });

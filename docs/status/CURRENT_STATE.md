@@ -251,7 +251,7 @@ REVIEW_STEPS = [
 
 **OpenAI:**
 - Used in: `ai-ask`, `ai-strategy-generate`, `ai-onboarding-guide`
-- API key: `Deno.env.get("OPENAI_API_KEY")`
+- API key: `Deno.env.get("GEMINI_API_KEY")` (OpenAI optional if configured/overridden)
 - Models: UNKNOWN (not explicitly specified in code reviewed)
 
 **Claude:**

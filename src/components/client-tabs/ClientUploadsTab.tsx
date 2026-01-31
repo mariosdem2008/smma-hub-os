@@ -3,6 +3,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   AlertDialog,
@@ -50,6 +58,11 @@ export default function ClientUploadsTab({ clientId, agencyId }: ClientUploadsTa
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
   const [processing, setProcessing] = useState(false);
+
+  const [aiDocType, setAiDocType] = useState<"client_guidelines" | "approved_posts" | "client_notes">("client_guidelines");
+  const [aiDocTitle, setAiDocTitle] = useState("");
+  const [aiDocContent, setAiDocContent] = useState("");
+  const [aiDocIngesting, setAiDocIngesting] = useState(false);
 
   useEffect(() => {
     fetchUploads();
@@ -236,8 +249,115 @@ export default function ClientUploadsTab({ clientId, agencyId }: ClientUploadsTa
   const pendingUploads = uploads.filter((u) => u.status === "pending");
   const reviewedUploads = uploads.filter((u) => u.status !== "pending");
 
+  const handleIngestAiDoc = async () => {
+    if (!user) return;
+    if (!agencyId || !clientId) return;
+
+    const title = aiDocTitle.trim();
+    const content = aiDocContent.trim();
+    if (!title || !content) {
+      toast({
+        title: "Missing information",
+        description: "Please add a title and paste the content to ingest.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setAiDocIngesting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-documents-ingest", {
+        body: {
+          agency_id: agencyId,
+          client_id: clientId,
+          doc_type: aiDocType,
+          title,
+          content,
+          source_type: "ui_manual",
+          source_ref: `client:${clientId}:user:${user.id}`,
+        },
+      });
+
+      if (error) throw error;
+      if (!data?.ok && data?.error) {
+        const message = data?.message ?? data?.error ?? "Failed to ingest document";
+        const err: any = new Error(message);
+        err.code = data?.code;
+        throw err;
+      }
+
+      toast({
+        title: "Saved to AI memory",
+        description: "Retry strategy generation. It should now have grounding context.",
+      });
+
+      setAiDocTitle("");
+      setAiDocContent("");
+    } catch (err: any) {
+      toast({
+        title: "Ingest failed",
+        description: err?.message ?? "Failed to ingest document",
+        variant: "destructive",
+      });
+    } finally {
+      setAiDocIngesting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>AI Knowledge (for strategy grounding)</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="text-sm text-muted-foreground">
+            Strategy generation can be blocked if it has no grounded client context. Add client guidelines or approved examples here.
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="md:col-span-1">
+              <div className="text-xs font-medium text-muted-foreground mb-1">Type</div>
+              <Select value={aiDocType} onValueChange={(v) => setAiDocType(v as any)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="client_guidelines">Client guidelines</SelectItem>
+                  <SelectItem value="approved_posts">Approved posts</SelectItem>
+                  <SelectItem value="client_notes">Client notes</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="md:col-span-2">
+              <div className="text-xs font-medium text-muted-foreground mb-1">Title</div>
+              <Input
+                value={aiDocTitle}
+                onChange={(e) => setAiDocTitle(e.target.value)}
+                placeholder="e.g., Brand voice & do/don'ts (Jan 2026)"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="text-xs font-medium text-muted-foreground">Content</div>
+            <Textarea
+              value={aiDocContent}
+              onChange={(e) => setAiDocContent(e.target.value)}
+              placeholder="Paste the client's guidelines, approved examples, constraints, etc."
+              className="min-h-[160px]"
+            />
+          </div>
+
+          <div className="flex justify-end">
+            <Button onClick={handleIngestAiDoc} disabled={aiDocIngesting}>
+              {aiDocIngesting ? "Ingesting..." : "Save to AI memory"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

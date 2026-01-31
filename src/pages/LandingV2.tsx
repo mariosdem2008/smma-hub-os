@@ -1,19 +1,21 @@
+// deno-lint-ignore-file
 import React, { useEffect, useState } from "react";
 import { motion, useScroll, useTransform, useSpring, AnimatePresence } from "framer-motion";
-import { Button } from "@/components/ui/button";
 import { Play, ArrowRight, Zap } from "lucide-react";
 
-import Hero from "@/components/landing/Hero";
-import SocialProof from "@/components/landing/SocialProof";
-import ProblemSection from "@/components/landing/ProblemSection";
-import SolutionTable from "@/components/landing/SolutionTable";
-import HowItWorks from "@/components/landing/HowItWorks";
-import DualBrain from "@/components/landing/DualBrain";
-import Features from "@/components/landing/Features";
-import ROI from "@/components/landing/ROI";
-import Pricing from "@/components/landing/Pricing";
-import FAQ from "@/components/landing/FAQ";
-import FinalCTA from "@/components/landing/FinalCTA";
+
+import Hero from "../components/landing/Hero.tsx";
+import DualBrain from "../components/landing/DualBrain.tsx";
+import FAQ from "../components/landing/FAQ.tsx";
+import Features from "../components/landing/Features.tsx";
+import FinalCTA from "../components/landing/FinalCTA.tsx";
+import HowItWorks from "../components/landing/HowItWorks.tsx";
+import ProblemSection from "../components/landing/ProblemSection.tsx";
+import ROI from "../components/landing/ROI.tsx";
+import SocialProof from "../components/landing/SocialProof.tsx";
+import SolutionTable from "../components/landing/SolutionTable.tsx";
+import Pricing from "./Pricing.tsx";
+import { Button } from "../components/ui/button.tsx";
 
 const CAL_LINK = "https://cal.com/SMMAHUB/fit";
 const LOOM_LINK = "https://loom.com/share/LOOM_ID";
@@ -43,7 +45,7 @@ function StickyCTABar() {
   useEffect(() => {
     const unsubscribe = scrollY.on("change", (latest) => {
       // Show after scrolling past ~50vh (approximately hero section)
-      const threshold = typeof window !== "undefined" ? window.innerHeight * 0.5 : 500;
+      const threshold = typeof window !== "undefined" ? globalThis.innerHeight * 0.5 : 500;
       setIsVisible(latest > threshold);
     });
     return () => unsubscribe();

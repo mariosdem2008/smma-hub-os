@@ -24,86 +24,93 @@ type TaskModelPolicy = {
 }
 
 /**
- * COST / QUALITY NOTES (Standard pricing reference)
- * - gemini-1.5-flash: fastest + lower cost for most text tasks
- * - gemini-1.5-pro: higher quality when needed
- *
- * If you need a different model, set env overrides per task.
+ * COST / QUALITY NOTES
+ * - Text models change frequently across providers; prefer per-task overrides for production.
+ * - Gemini 1.5 models were shut down in 2025; use `gemini-flash-latest` or a specific 2.x/3.x model.
+ * - Embeddings should use a stable, widely available model with known dimensionality.
  */
 
-const DEFAULT_TEXT_MODEL = "gemini-1.5-flash";
+// Default text model/provider should be broadly available.
+const DEFAULT_TEXT_MODEL = "gpt-4o-mini";
+const DEFAULT_STRATEGY_MODEL = "gemini-flash-latest";
+const DEFAULT_EMBED_MODEL = "text-embedding-3-small";
 
 const DEFAULT_POLICIES: Record<TaskType, TaskModelPolicy> = {
   [TaskType.CHAT_GENERAL]: {
-    dev: { provider: "gemini", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.4 } },
-    prod: { provider: "gemini", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.4 } },
+    dev: { provider: "openai", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.4 } },
+    prod: { provider: "openai", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.4 } },
   },
 
   [TaskType.CHAT_ADMIN_ONBOARDING]: {
-    dev: { provider: "gemini", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.2 } },
-    prod: { provider: "gemini", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.2 } },
+    dev: { provider: "openai", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.2 } },
+    prod: { provider: "openai", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.2 } },
   },
 
   [TaskType.AGENCY_ADMIN_SETUP_GUIDED_V2]: {
-    dev: { provider: "gemini", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.3 } },
-    prod: { provider: "gemini", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.3 } },
+    dev: { provider: "openai", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.3 } },
+    prod: { provider: "openai", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.3 } },
   },
 
   [TaskType.AGENCY_ADMIN_GENERAL_CHAT]: {
-    dev: { provider: "gemini", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.4 } },
-    prod: { provider: "gemini", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.4 } },
+    dev: { provider: "openai", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.4 } },
+    prod: { provider: "openai", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.4 } },
   },
 
   [TaskType.AGENCY_ADMIN_SETUP_EXTRACT]: {
-    dev: { provider: "gemini", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.1 } },
-    prod: { provider: "gemini", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.1 } },
+    dev: { provider: "openai", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.1 } },
+    prod: { provider: "openai", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.1 } },
   },
 
   [TaskType.CLIENT_PORTAL_QA]: {
-    dev: { provider: "gemini", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.2 } },
-    prod: { provider: "gemini", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.2 } },
+    dev: { provider: "openai", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.2 } },
+    prod: { provider: "openai", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.2 } },
     legacyModelEnv: "RAG_MODEL_ID",
   },
 
   [TaskType.SUMMARIZE]: {
-    dev: { provider: "gemini", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.2 } },
-    prod: { provider: "gemini", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.2 } },
+    dev: { provider: "openai", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.2 } },
+    prod: { provider: "openai", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.2 } },
   },
 
   [TaskType.EXTRACT_STRUCTURED]: {
-    dev: { provider: "gemini", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.1 } },
-    prod: { provider: "gemini", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.1 } },
+    dev: { provider: "openai", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.1 } },
+    prod: { provider: "openai", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.1 } },
   },
 
   [TaskType.CLASSIFY_INTENT]: {
-    dev: { provider: "gemini", model: DEFAULT_TEXT_MODEL, params: { temperature: 0 } },
-    prod: { provider: "gemini", model: DEFAULT_TEXT_MODEL, params: { temperature: 0 } },
+    dev: { provider: "openai", model: DEFAULT_TEXT_MODEL, params: { temperature: 0 } },
+    prod: { provider: "openai", model: DEFAULT_TEXT_MODEL, params: { temperature: 0 } },
   },
 
   [TaskType.STRATEGY_PLAN]: {
-    dev: { provider: "gemini", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.2 } },
-    prod: { provider: "gemini", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.2 } },
+    dev: { provider: "gemini", model: DEFAULT_STRATEGY_MODEL, params: { temperature: 0.2 } },
+    prod: { provider: "gemini", model: DEFAULT_STRATEGY_MODEL, params: { temperature: 0.2 } },
     legacyModelEnv: "STRATEGY_MODEL_ID",
   },
 
+  [TaskType.AI_ASSISTANT]: {
+    dev: { provider: "gemini", model: DEFAULT_STRATEGY_MODEL, params: { temperature: 0.3 } },
+    prod: { provider: "gemini", model: DEFAULT_STRATEGY_MODEL, params: { temperature: 0.3 } },
+  },
+
   [TaskType.CONTENT_IDEAS]: {
-    dev: { provider: "gemini", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.8 } },
-    prod: { provider: "gemini", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.8 } },
+    dev: { provider: "openai", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.8 } },
+    prod: { provider: "openai", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.8 } },
   },
 
   [TaskType.SCRIPT_WRITING]: {
-    dev: { provider: "gemini", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.8 } },
-    prod: { provider: "gemini", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.8 } },
+    dev: { provider: "openai", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.8 } },
+    prod: { provider: "openai", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.8 } },
   },
 
   [TaskType.TOOL_EXECUTION]: {
-    dev: { provider: "gemini", model: DEFAULT_TEXT_MODEL, params: { temperature: 0 } },
-    prod: { provider: "gemini", model: DEFAULT_TEXT_MODEL, params: { temperature: 0 } },
+    dev: { provider: "openai", model: DEFAULT_TEXT_MODEL, params: { temperature: 0 } },
+    prod: { provider: "openai", model: DEFAULT_TEXT_MODEL, params: { temperature: 0 } },
   },
 
   [TaskType.EMBED_TEXT]: {
-    dev: { provider: "openai", model: "text-embedding-3-small" },
-    prod: { provider: "openai", model: "text-embedding-3-small" },
+    dev: { provider: "openai", model: DEFAULT_EMBED_MODEL },
+    prod: { provider: "openai", model: DEFAULT_EMBED_MODEL },
     legacyModelEnv: "EMBEDDING_MODEL_ID",
   },
 }
@@ -133,18 +140,36 @@ function resolveProviderOverride(taskType: TaskType, mode: EnvMode): Provider | 
     return perTask as Provider | undefined;
   }
 
+  // Strategy tasks are intentionally pinned to their defaults (Gemini) and should not be
+  // accidentally overridden by global provider env vars in production.
+  // If you need to override these, use per-task env vars (AI_PROVIDER__TASKTYPE...).
+  if (
+    taskType === TaskType.STRATEGY_PLAN ||
+    taskType === TaskType.AI_ASSISTANT
+  ) {
+    return perTask as Provider | undefined;
+  }
+
   return (perTask ?? perMode ?? global) as Provider | undefined;
 }
 
 function resolveModelOverride(taskType: TaskType, mode: EnvMode, legacyModelEnv?: string): string | undefined {
-  return (
-    readEnv(`AI_MODEL__${taskType}__${mode}`) ??
-    readEnv(`AI_MODEL__${taskType}`) ??
-    (legacyModelEnv ? readEnv(legacyModelEnv) : undefined) ??
+  const perTask = readEnv(`AI_MODEL__${taskType}__${mode}`) ?? readEnv(`AI_MODEL__${taskType}`);
+  const legacy = legacyModelEnv ? readEnv(legacyModelEnv) : undefined;
+
+  // Same pinning rule as provider: avoid global text model overrides impacting strategy tasks.
+  if (
+    taskType === TaskType.STRATEGY_PLAN ||
+    taskType === TaskType.AI_ASSISTANT
+  ) {
+    return perTask ?? legacy;
+  }
+
+  return perTask ??
+    legacy ??
     (taskType === TaskType.EMBED_TEXT ? undefined : readEnv("AI_TEXT_MODEL_DEFAULT")) ??
     readEnv(`AI_MODEL__${mode}`) ??
     readEnv("AI_MODEL")
-  )
 }
 
 export function getQualityTierForPlan(planTier: PlanTier = DEFAULT_PLAN, mode?: EnvMode): QualityTier {

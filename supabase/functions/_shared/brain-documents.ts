@@ -628,9 +628,9 @@ export async function ingestBrainDocumentForRag(
   const embeddingApiKey =
     options?.embeddingApiKey ??
     (typeof Deno !== "undefined"
-      ? Deno.env.get("OPENAI_API_KEY")
+      ? (Deno.env.get("GEMINI_API_KEY") ?? Deno.env.get("OPENAI_API_KEY"))
       : typeof process !== "undefined"
-      ? process.env.OPENAI_API_KEY
+      ? (process.env.GEMINI_API_KEY ?? process.env.OPENAI_API_KEY)
       : undefined);
   const embeddingModel =
     options?.embeddingModel ??

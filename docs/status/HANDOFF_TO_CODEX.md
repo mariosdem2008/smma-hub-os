@@ -397,7 +397,7 @@ npx supabase db push     # Push migrations to remote
 2. **Brain gate** - ClientDetail blocks if usable=false, ensure ingest sets this correctly
 3. **CORS origins** - Hardcoded in `_shared/cors.ts`, add new domains there
 4. **Supabase types** - Regenerate after migrations: `npx supabase gen types typescript`
-5. **Edge function OPENAI_API_KEY** - Set in Supabase dashboard secrets, not .env
+5. **Edge function GEMINI_API_KEY** - Set in Supabase dashboard secrets, not .env (OpenAI keys are optional if you override providers/models)
 6. **Client portal auth** - Separate from Supabase Auth, uses custom JWT in `client_portal_users`
 
 ---

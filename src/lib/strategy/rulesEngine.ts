@@ -105,12 +105,15 @@ export function evaluateStrategyModule(
       const data = content as PillarsContent;
       const pillars = data.pillars ?? [];
       const examplesComplete = pillars.every((pillar) => (pillar.examples ?? []).length >= 3);
+      const coverageSum = pillars.reduce((sum, pillar) => sum + (pillar.coveragePercent ?? 0), 0);
+      const coverageComplete = pillars.length > 0 ? coverageSum === 100 : false;
 
       hasContent = pillars.length > 0;
 
       const criteria = [
         pillars.length >= 3 && pillars.length <= 6,
         examplesComplete && pillars.length > 0,
+        coverageComplete,
       ];
 
       completion = (criteria.filter(Boolean).length / criteria.length) * 100;
@@ -121,14 +124,19 @@ export function evaluateStrategyModule(
       if (pillars.some((pillar) => (pillar.examples ?? []).length < 3)) {
         pushBlocker(blockers, 'pillars.examples_min', 'Add at least 3 examples per pillar.', 'med', 'pillars.examples');
       }
+      if (pillars.length > 0 && coverageSum !== 100) {
+        pushBlocker(blockers, 'pillars.coverage_sum', 'CoveragePercent must sum to 100.', 'high', 'pillars.coveragePercent');
+      }
       break;
     }
     case 'campaign_plan': {
       const data = content as CampaignPlanContent;
       const campaigns = data.campaigns ?? [];
-      const monthCampaigns = campaigns.filter((campaign) =>
-        campaign.startDate?.startsWith(data.selectedMonth)
-      );
+      const selectedMonth = data.selectedMonth ?? '';
+      const selectedMonthValid = /^\d{4}-\d{2}$/.test(selectedMonth);
+      const monthCampaigns = selectedMonthValid
+        ? campaigns.filter((campaign) => campaign.startDate?.startsWith(selectedMonth))
+        : [];
       const hasCampaignForMonth = monthCampaigns.length > 0;
       const assetsComplete = monthCampaigns.every((campaign) => (campaign.assets ?? []).length > 0);
       const offersComplete = monthCampaigns.every(
@@ -142,14 +150,25 @@ export function evaluateStrategyModule(
       hasContent = campaigns.length > 0;
 
       const criteria = [
-        hasCampaignForMonth,
+        selectedMonthValid && hasCampaignForMonth,
         assetsComplete && monthCampaigns.length > 0,
         offersComplete && monthCampaigns.length > 0,
       ];
       completion = (criteria.filter(Boolean).length / criteria.length) * 100;
 
-      if (!hasCampaignForMonth) {
-        pushBlocker(blockers, 'campaigns.none', 'Add a campaign for the selected month.', 'high', 'campaigns');
+      if (!selectedMonthValid) {
+        pushBlocker(blockers, 'campaigns.selected_month_invalid', 'selectedMonth must be in YYYY-MM format.', 'high', 'selectedMonth');
+      }
+      if (campaigns.length === 0) {
+        pushBlocker(blockers, 'campaigns.none', 'Add at least one campaign.', 'high', 'campaigns');
+      } else if (selectedMonthValid && !hasCampaignForMonth) {
+        pushBlocker(
+          blockers,
+          'campaigns.month_mismatch',
+          'At least one campaign must have startDate within selectedMonth. Update selectedMonth or campaign dates.',
+          'high',
+          'campaigns.startDate'
+        );
       }
       if (monthCampaigns.some((campaign) => (campaign.assets ?? []).length === 0)) {
         pushBlocker(blockers, 'campaigns.assets_missing', 'Add assets checklist entries for each campaign.', 'high', 'campaigns.assets');
@@ -214,11 +233,11 @@ export function evaluateStrategyModule(
 
       hasContent = enabledChannels.length > 0 || translationRows.length > 0;
 
-      const criteria = [enabledChannels.length >= 2, ctaRulesComplete, translationComplete];
+      const criteria = [enabledChannels.length >= 1, ctaRulesComplete, translationComplete];
       completion = (criteria.filter(Boolean).length / criteria.length) * 100;
 
-      if (enabledChannels.length < 2) {
-        pushBlocker(blockers, 'channels.count_min', 'Enable at least 2 channels.', 'high', 'channels');
+      if (enabledChannels.length < 1) {
+        pushBlocker(blockers, 'channels.count_min', 'Enable at least 1 channel.', 'high', 'channels');
       }
       if (!ctaRulesComplete && enabledChannels.length > 0) {
         pushBlocker(blockers, 'channels.cta_rules', 'Add CTA rules for each enabled channel.', 'med', 'channels.ctaRules');

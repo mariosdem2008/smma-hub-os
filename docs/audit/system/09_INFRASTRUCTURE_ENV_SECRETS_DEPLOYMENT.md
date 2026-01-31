@@ -82,7 +82,7 @@ Step 7 -> Configure secrets in Supabase dashboard for production (repo docs expl
 
 ## AI behavior (RAG? chunking? embeddings? prompts? retrieval?)
 Infra-relevant AI behaviors are mostly “what secrets/config are required”:
-- `OPENAI_API_KEY` is read by strategy generation for embeddings (evidence: `supabase/functions/ai-strategy-generate/index.ts:231`).
+- `GEMINI_API_KEY` is required for the default AI provider (text + embeddings). OpenAI keys are optional if you override providers/models.
 - `EMBEDDING_MODEL_ID` default used is `text-embedding-3-small` (evidence: `supabase/functions/ai-strategy-generate/index.ts:257`).
 - `STRATEGY_MODEL_ID` default used is `gpt-4o-mini` (evidence: `supabase/functions/ai-strategy-generate/index.ts:414`).
 - Retrieval boundary depends on `match_ai_embeddings` privileges and filters (evidence: `supabase/migrations/20260108134500_match_ai_embeddings_filters.sql:11`).
@@ -127,8 +127,7 @@ This section lists env vars that are demonstrably read by the repo today.
 - Supabase credentials (shared loader):
   - `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_ANON_KEY` (evidence: `supabase/functions/_shared/env.ts:7`).
 - AI keys/models:
-  - `OPENAI_API_KEY` used for embeddings in strategy generation (evidence: `supabase/functions/ai-strategy-generate/index.ts:231`).
-  - `OPENAI_API_KEY` used for embeddings in brain ingest flows (evidence: `supabase/functions/ai-brain-ingest/index.ts:238`).
+  - `GEMINI_API_KEY` used for embeddings + text generation (strategy + ingest flows).
 - Cron:
   - `CRON_SECRET` for cron-gated endpoints (evidence: `supabase/functions/_shared/cron.ts:5`).
 - Client portal auth:

@@ -148,18 +148,16 @@ serve(async (req) => {
     });
 
     // Generate AI insights and recommendations
-    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
     let aiInsights = '';
     let aiRecommendations = '';
 
-    if (OPENAI_API_KEY) {
-      console.log('[MONTHLY-REPORT] Generating AI insights...');
-      
-      const aiPrompt = `You are a social media analytics expert. Based on the following monthly performance data, provide:
-1. Key insights (2-3 bullet points)
-2. Strategic recommendations (3-4 actionable items)
+    console.log('[MONTHLY-REPORT] Generating AI insights...');
 
-Data:
+    const aiPrompt = `You are a social media analytics expert. Based on the following monthly performance data, provide:
+ 1. Key insights (2-3 bullet points)
+ 2. Strategic recommendations (3-4 actionable items)
+
+ Data:
 - Followers: ${followersStart} → ${followersEnd} (${followersGrowth.toFixed(1)}% growth)
 - Posts: ${postsCount}
 - Impressions: ${totalImpressions.toLocaleString()}
@@ -168,23 +166,22 @@ Data:
 
 Keep insights concise and recommendations specific and actionable.`;
 
-      try {
-        const aiResult = await ai.run({
-          taskType: TaskType.SUMMARIZE,
-          input: aiPrompt,
-          context: { agencyId: agency_id, clientId: client_id, userId: user.id, environment: "prod", supabase: supabaseClient },
-          metadata: { systemPrompt: 'You are a social media analytics expert providing actionable insights.' },
-        });
-        const content = aiResult.text;
+    try {
+      const aiResult = await ai.run({
+        taskType: TaskType.SUMMARIZE,
+        input: aiPrompt,
+        context: { agencyId: agency_id, clientId: client_id, userId: user.id, environment: "prod", supabase: supabaseClient },
+        metadata: { systemPrompt: 'You are a social media analytics expert providing actionable insights.' },
+      });
+      const content = aiResult.text;
 
-        const parts = content.split(/recommendations?:/i);
-        aiInsights = parts[0].replace(/insights?:/i, '').trim();
-        aiRecommendations = parts[1]?.trim() || '';
+      const parts = content.split(/recommendations?:/i);
+      aiInsights = parts[0].replace(/insights?:/i, '').trim();
+      aiRecommendations = parts[1]?.trim() || '';
 
-        console.log('[MONTHLY-REPORT] AI insights generated');
-      } catch (error) {
-        console.error('[MONTHLY-REPORT] AI generation failed:', error);
-      }
+      console.log('[MONTHLY-REPORT] AI insights generated');
+    } catch (error) {
+      console.error('[MONTHLY-REPORT] AI generation failed:', error);
     }
 
     // Build report data

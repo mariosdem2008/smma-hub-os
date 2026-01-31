@@ -305,46 +305,50 @@ serve(async (req: Request) => {
     .eq("user_id", user.id)
     .eq("day_yyyy_mm_dd", dayKey);
 
-  const embeddingApiKey = Deno.env.get("OPENAI_API_KEY");
-  if (!embeddingApiKey) {
-    const responsePayload = buildUnknown([
-      "AI embeddings are not configured. Please contact support.",
-    ]);
-    const latency = Date.now() - startTime;
-    await supabase.from("ai_runs").insert({
-      agency_id: agencyId,
-      client_id: clientId ?? null,
-      user_id: user.id,
-      prompt_id: promptRow.id,
-      prompt_version: promptRow.version,
-      model: promptRow.model,
-      tokens_in: tokenEstimate,
-      tokens_out: 0,
-      cost_usd: 0,
-      latency_ms: latency,
-      success: true,
-      citations: responsePayload.sources,
-      unknown: true,
-      escalate_to_human: false,
-      escalation_reason: null,
-      metadata: { cost_estimation_method: DEFAULT_COST_ESTIMATION_METHOD },
-    });
-    await supabase.from("ai_usage_logs").insert({
-      agency_id: agencyId,
-      client_id: clientId ?? null,
-      endpoint: "ai-ask",
-      model: "embeddings-not-configured",
-      tokens_estimate: tokenEstimate,
-      tokens_in: tokenEstimate,
-      tokens_out: 0,
-      latency_ms: Date.now() - startTime,
-      unknown: true,
-    });
-    return jsonResponse(responsePayload, 200, corsHeaders(req));
-  }
-
   const embeddingModel = Deno.env.get("EMBEDDING_MODEL_ID") ?? "text-embedding-3-small";
-  const queryEmbedding = await embedText(question, embeddingApiKey, embeddingModel);
+  let queryEmbedding: number[];
+  try {
+    queryEmbedding = await embedText(question, "", embeddingModel);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes("API_KEY is not configured")) {
+      const responsePayload = buildUnknown([
+        "AI embeddings are not configured. Please contact support.",
+      ]);
+      const latency = Date.now() - startTime;
+      await supabase.from("ai_runs").insert({
+        agency_id: agencyId,
+        client_id: clientId ?? null,
+        user_id: user.id,
+        prompt_id: promptRow.id,
+        prompt_version: promptRow.version,
+        model: promptRow.model,
+        tokens_in: tokenEstimate,
+        tokens_out: 0,
+        cost_usd: 0,
+        latency_ms: latency,
+        success: true,
+        citations: responsePayload.sources,
+        unknown: true,
+        escalate_to_human: false,
+        escalation_reason: null,
+        metadata: { cost_estimation_method: DEFAULT_COST_ESTIMATION_METHOD },
+      });
+      await supabase.from("ai_usage_logs").insert({
+        agency_id: agencyId,
+        client_id: clientId ?? null,
+        endpoint: "ai-ask",
+        model: "embeddings-not-configured",
+        tokens_estimate: tokenEstimate,
+        tokens_in: tokenEstimate,
+        tokens_out: 0,
+        latency_ms: Date.now() - startTime,
+        unknown: true,
+      });
+      return jsonResponse(responsePayload, 200, corsHeaders(req));
+    }
+    throw error;
+  }
 
   const legacyClientDocTypes = ["client_guidelines", "client_notes", "approved_posts", "ai_artifact", "strategy_draft"];
   const legacyAgencyDocTypes = ["agency_sop"];

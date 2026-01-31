@@ -125,6 +125,7 @@ export function useGenerateStrategyDocument() {
         thrown.code = err.code;
         thrown.deepLink = err.deepLink;
         thrown.missingFields = err.missingFields;
+        thrown.questions = err.questions;
         throw thrown;
       }
 

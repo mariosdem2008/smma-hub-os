@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { MultiSelectChips, SingleSelectChips } from '@/components/onboarding-v4/components/AiSuggestionChips';
+import { MultiSelectChips, SingleSelectChips } from '@/components/onboarding-v5/components/AiSuggestionChips';
 import type { OnboardingProfile } from '@/types/onboarding';
 import {
   BRAND_VOICE_OPTIONS,

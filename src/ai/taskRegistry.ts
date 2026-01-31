@@ -11,7 +11,7 @@ import { buildStrategyPlanPrompt } from "./prompts/strategyPlan.ts"
 import { buildSummarizePrompt } from "./prompts/summarize.ts"
 import { buildToolExecutionPrompt } from "./prompts/toolExecution.ts"
 import { resolveModelPolicy } from "./modelPolicy.ts"
-import { adminChatSchema, adminChatStrategicSchema, arraySchema, objectSchema, OutputSchema } from "./schema.ts"
+import { adminChatSchema, adminChatStrategicSchema, aiAssistantSchema, arraySchema, objectSchema, OutputSchema } from "./schema.ts"
 import { TaskType } from "./taskTypes.ts"
 import type { ChatMessage } from "./providers/types.ts"
 
@@ -291,7 +291,29 @@ export const TASK_REGISTRY: Record<TaskType, TaskConfig> = {
     requires: { agency: false, client: false },
     usageEndpoint: "ai-strategy-generate",
     schema: objectSchema("strategy_plan", ["summary", "sections"]),
-    buildUnknown: () => ({ unknown: true, missing_fields: [], questions: ["What additional context is required?"], escalation: false }),
+    buildUnknown: ({ reason }) => ({
+      unknown: true,
+      reason,
+      missing_fields: [],
+      questions: ["What additional context is required?"],
+      escalation: false,
+    }),
+  },
+  [TaskType.AI_ASSISTANT]: {
+    taskType: TaskType.AI_ASSISTANT,
+    outputMode: "json_schema",
+    safetyMode: "strict_unknown",
+    // Messages are usually provided by the edge function (chat + on-demand context).
+    promptBuilder: () => [],
+    requires: { agency: true, client: true },
+    usageEndpoint: "ai-assistant",
+    schema: aiAssistantSchema(),
+    buildUnknown: ({ reason }) => ({
+      assistant_message: reason ? `UNKNOWN (${reason}). What should I help with?` : "UNKNOWN. What should I help with?",
+      proposals: [],
+      unknown: true,
+      confidence: 0,
+    }),
   },
   [TaskType.CONTENT_IDEAS]: {
     taskType: TaskType.CONTENT_IDEAS,

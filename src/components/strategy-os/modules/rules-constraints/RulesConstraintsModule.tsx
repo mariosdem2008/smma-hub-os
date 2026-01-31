@@ -17,7 +17,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from '@/components/ui/select';
 import {
   Table,
@@ -28,7 +27,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { Plus, Trash2, Shield, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, Trash2, Shield, AlertTriangle, CheckCircle, XCircle, Link2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getAutosaveLabel } from "@/components/strategy-os/shared/autosave";
 
@@ -36,6 +35,12 @@ const STATUS_STYLES: Record<ClaimStatus, { icon: typeof CheckCircle; color: stri
   allowed: { icon: CheckCircle, color: 'text-green-400' },
   proof_required: { icon: AlertTriangle, color: 'text-yellow-400' },
   forbidden: { icon: XCircle, color: 'text-red-400' },
+};
+
+const STATUS_LABELS: Record<ClaimStatus, string> = {
+  allowed: 'Allowed',
+  proof_required: 'Proof required',
+  forbidden: 'Forbidden',
 };
 
 export function RulesConstraintsModule() {
@@ -169,7 +174,7 @@ export function RulesConstraintsModule() {
   });
 
   return (
-    <div className="p-4 space-y-6">
+    <div className="p-6 space-y-8">
       {/* Claims Policy */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
@@ -192,97 +197,111 @@ export function RulesConstraintsModule() {
             <p className="text-sm text-muted-foreground text-center py-4">
               No claims defined yet
             </p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-16">Status</TableHead>
-                  <TableHead>Claim</TableHead>
-                  <TableHead className="w-48">Proof Link</TableHead>
-                  <TableHead className="w-12"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(localContent.claimsPolicy ?? []).map((claim) => {
-                  const StatusIcon = STATUS_STYLES[claim.status].icon;
-                  return (
-                    <TableRow key={claim.id}>
-                      <TableCell>
-                        <Select
-                          value={claim.status}
-                          onValueChange={(v) => updateClaim(claim.id, { status: v as ClaimStatus })}
-                          disabled={forbiddenClaimsLocked}
-                        >
-                          <SelectTrigger className="w-full">
-                            <StatusIcon
-                              className={cn('h-4 w-4', STATUS_STYLES[claim.status].color)}
-                            />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="allowed">
-                              <div className="flex items-center gap-2">
-                                <CheckCircle className="h-4 w-4 text-green-400" />
-                                Allowed
-                              </div>
-                            </SelectItem>
-                            <SelectItem value="proof_required">
-                              <div className="flex items-center gap-2">
-                                <AlertTriangle className="h-4 w-4 text-yellow-400" />
-                                Proof Required
-                              </div>
-                            </SelectItem>
-                            <SelectItem value="forbidden">
-                              <div className="flex items-center gap-2">
-                                <XCircle className="h-4 w-4 text-red-400" />
-                                Forbidden
-                              </div>
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          value={claim.claim}
-                          onChange={(e) => updateClaim(claim.id, { claim: e.target.value })}
-                          placeholder="Claim text..."
-                          disabled={forbiddenClaimsLocked}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        {claim.status === 'proof_required' && (
-                          <Input
-                            value={claim.proofLink ?? ''}
-                            onChange={(e) => updateClaim(claim.id, { proofLink: e.target.value })}
-                            placeholder="Link to proof..."
+           ) : (
+            <div className="overflow-x-auto rounded-lg border border-border/60 bg-background/40">
+              <Table className="min-w-[880px]">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-44">Status</TableHead>
+                    <TableHead>Claim</TableHead>
+                    <TableHead className="w-[360px]">Proof link</TableHead>
+                    <TableHead className="w-14"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(localContent.claimsPolicy ?? []).map((claim) => {
+                    const StatusIcon = STATUS_STYLES[claim.status].icon;
+                    const statusLabel = STATUS_LABELS[claim.status];
+                    return (
+                      <TableRow key={claim.id}>
+                        <TableCell>
+                          <Select
+                            value={claim.status}
+                            onValueChange={(v) => updateClaim(claim.id, { status: v as ClaimStatus })}
                             disabled={forbiddenClaimsLocked}
-                            className="text-xs"
+                          >
+                            <SelectTrigger className="h-9 w-[170px]">
+                              <span className="flex items-center gap-2">
+                                <StatusIcon
+                                  className={cn('h-4 w-4', STATUS_STYLES[claim.status].color)}
+                                />
+                                <span className="text-sm">{statusLabel}</span>
+                              </span>
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="allowed">
+                                <div className="flex items-center gap-2">
+                                  <CheckCircle className="h-4 w-4 text-green-400" />
+                                  Allowed
+                                </div>
+                              </SelectItem>
+                              <SelectItem value="proof_required">
+                                <div className="flex items-center gap-2">
+                                  <AlertTriangle className="h-4 w-4 text-yellow-400" />
+                                  Proof required
+                                </div>
+                              </SelectItem>
+                              <SelectItem value="forbidden">
+                                <div className="flex items-center gap-2">
+                                  <XCircle className="h-4 w-4 text-red-400" />
+                                  Forbidden
+                                </div>
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            value={claim.claim}
+                            onChange={(e) => updateClaim(claim.id, { claim: e.target.value })}
+                            placeholder='e.g., "We guarantee results."'
+                            disabled={forbiddenClaimsLocked}
                           />
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removeClaim(claim.id)}
-                          disabled={forbiddenClaimsLocked}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+                        </TableCell>
+                        <TableCell>
+                          {claim.status === 'proof_required' ? (
+                            <div className="flex items-center gap-2">
+                              <Link2 className="h-4 w-4 text-muted-foreground" />
+                              <Input
+                                value={claim.proofLink ?? ''}
+                                onChange={(e) => updateClaim(claim.id, { proofLink: e.target.value })}
+                                placeholder="Add a link to proof / source"
+                                disabled={forbiddenClaimsLocked}
+                                className="text-xs"
+                              />
+                            </div>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeClaim(claim.id)}
+                            disabled={forbiddenClaimsLocked}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+           )}
+         </CardContent>
+       </Card>
 
       {/* Banned Words */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base text-red-400">Banned Words / Phrases</CardTitle>
-          <CardDescription>Words and phrases that should never appear in content</CardDescription>
+          <CardTitle className="text-base flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-destructive" />
+            Banned words / phrases
+          </CardTitle>
+          <CardDescription>Words and phrases that must never appear in content</CardDescription>
         </CardHeader>
         <CardContent>
           <Textarea
@@ -290,13 +309,20 @@ export function RulesConstraintsModule() {
             onChange={(e) =>
               updateLocal({ bannedWords: e.target.value.split('\n').filter(Boolean) })
             }
-            placeholder="One per line...&#10;Guaranteed&#10;Promise&#10;Best in the world"
+            placeholder="One per line...&#10;Guaranteed&#10;Miracle&#10;Cure"
             disabled={bannedTermsLocked}
-            className="min-h-[120px] border-red-500/30"
+            className="min-h-[120px]"
           />
+          <p className="mt-2 text-xs text-muted-foreground">
+            Tip: keep this list short and specific. Use it as a hard "no" filter for copywriting.
+          </p>
           <div className="flex gap-2 mt-3 flex-wrap">
             {(localContent.bannedWords ?? []).slice(0, 5).map((word, i) => (
-              <Badge key={i} variant="secondary" className="bg-red-500/10 text-red-400">
+              <Badge
+                key={i}
+                variant="secondary"
+                className="border border-destructive/20 bg-destructive/10 text-destructive"
+              >
                 {word}
               </Badge>
             ))}

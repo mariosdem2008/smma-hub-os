@@ -7,6 +7,7 @@ export interface EdgeFunctionError {
   message: string;
   deepLink?: string;
   missingFields?: string[];
+  questions?: string[];
 }
 
 export interface ParsedResponse<T = unknown> {
@@ -40,13 +41,37 @@ export function parseEdgeFunctionResponse<T = unknown>(data: unknown): ParsedRes
 
   if (response.unknown === true) {
     const code = (response.code as string) || "GATED";
+    const missingFields = Array.isArray(response.missing_fields) ? (response.missing_fields as string[]) : undefined;
+    const questions = Array.isArray(response.questions)
+      ? (response.questions as unknown[]).filter((q): q is string => typeof q === "string")
+      : undefined;
+
+    if (missingFields?.includes("strategy_generation")) {
+      const code = "GENERATION_ERROR";
+      return {
+        success: false,
+        error: {
+          code,
+          message: ERROR_MESSAGES[code] || "Strategy generation failed. Please retry.",
+        },
+      };
+    }
+
+    const message =
+      (response.message as string) ||
+      (questions && questions.length ? questions[0] : undefined) ||
+      (missingFields && missingFields.length ? `Action required. Missing: ${missingFields.join(", ")}` : undefined) ||
+      ERROR_MESSAGES[code] ||
+      "Additional information required.";
+
     return {
       success: false,
       error: {
         code,
-        message: (response.message as string) || ERROR_MESSAGES[code] || "Additional information required.",
+        message,
         deepLink: response.deep_link as string | undefined,
-        missingFields: response.missing_fields as string[] | undefined,
+        missingFields,
+        questions,
       },
     };
   }
@@ -59,8 +84,8 @@ export function parseEdgeFunctionResponse<T = unknown>(data: unknown): ParsedRes
         code,
         message:
           (response.message as string) ||
-          (response.error as string) ||
           ERROR_MESSAGES[code] ||
+          (response.error as string) ||
           "An error occurred.",
       },
     };

@@ -15,7 +15,13 @@ import { useClientFonts } from "@/hooks/useClientFonts";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { hapticSelection } from "@/lib/haptics";
-import { getClientBrainStatus, getClientById, getClientBrandingPrimaryColor, getMissingFieldMeta } from "@/data";
+import {
+  getClientBrainStatus,
+  getClientById,
+  getClientBrandingPrimaryColor,
+  getMissingFieldMeta,
+  normalizeMissingFieldKey,
+} from "@/data";
 import { isPermissionError } from "@/data/supabase";
 import ClientHeader from "@/components/ClientHeader";
 import OverviewTab from "@/components/client-tabs/OverviewTab";
@@ -308,22 +314,34 @@ export default function ClientDetail() {
 
   if (!gateStatus?.usable) {
     const returnTo = `${location.pathname}${location.search}`;
-    const missingCount =
-      typeof gateStatus?.missingFieldsCount === "number"
-        ? gateStatus.missingFieldsCount
-        : gateStatus?.missingFields?.length;
-    // V4 Onboarding URL
+    // Client onboarding URL
     const onboardingUrl = `/onboarding/client/${clientId}`;
     const missingFields = gateStatus?.missingFields ?? [];
-    const missingFieldItems = missingFields.map((field) => {
-      const meta = getMissingFieldMeta(field) ?? {
-        label: "Required information",
-        reason: "Complete this step to unlock strategy and content tools.",
-        ctaLabel: "Fix now",
-        href: "onboarding:start",
-      };
-      return { field, meta };
-    });
+    const missingFieldItems = (() => {
+      const seen = new Set<string>();
+      return missingFields
+        .map((field) => {
+          const canonicalKey = normalizeMissingFieldKey(field);
+          if (!canonicalKey || seen.has(canonicalKey)) return null;
+          seen.add(canonicalKey);
+
+          const meta =
+            getMissingFieldMeta(field) ??
+            (canonicalKey
+              ? getMissingFieldMeta(canonicalKey)
+              : undefined) ?? {
+              label: canonicalKey
+                ? canonicalKey.replace(/[_\.]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+                : "Required information",
+              reason: "Complete this step to unlock strategy and content tools.",
+              ctaLabel: "Fix now",
+              href: "onboarding:start",
+            };
+          return { field, meta, canonicalKey };
+        })
+        .filter(Boolean) as Array<{ field: string; canonicalKey: string; meta: { label: string; reason: string; ctaLabel: string; href: string } }>;
+    })();
+    const missingCount = missingFieldItems.length;
 
     const buildOnboardingHref = (href: string) => {
       const stepId = getStepIdFromHref(href);
@@ -668,7 +686,7 @@ export default function ClientDetail() {
       )}
 
       {/* Global Right Panel (AI Chat, Decisions, History, Tasks) - Hidden when feature flag is OFF */}
-      {showRightPanel && (
+      {showRightPanel && rightPanelOpen && (
         <ClientRightPanel
           open={rightPanelOpen}
           onOpenChange={setRightPanelOpen}

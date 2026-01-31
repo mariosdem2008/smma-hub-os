@@ -20,12 +20,9 @@ async function safeRetrieveContext(opts: {
   clientId: string;
   query: string;
 }) {
-  const embeddingApiKey = Deno.env.get("OPENAI_API_KEY");
-  if (!embeddingApiKey) return [];
-
   try {
     const embeddingModel = Deno.env.get("EMBEDDING_MODEL_ID") ?? "text-embedding-3-small";
-    const queryEmbedding = await embedText(opts.query, embeddingApiKey, embeddingModel);
+    const queryEmbedding = await embedText(opts.query, "", embeddingModel);
     const { data: matches, error } = await opts.supabase.rpc("match_ai_embeddings", {
       p_agency_id: opts.agencyId,
       p_client_id: opts.clientId,

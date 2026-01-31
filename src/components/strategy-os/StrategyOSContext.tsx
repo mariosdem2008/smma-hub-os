@@ -15,7 +15,7 @@ interface StrategyOSContextValue extends StrategyOSState {
 
   // State setters
   setActiveView: (view: ActiveView) => void;
-  setRightRailTab: (tab: 'ai' | 'decisions' | 'history' | 'tasks') => void;
+  setRightRailTab: (tab: 'decisions' | 'history' | 'tasks') => void;
   setMobileSheetOpen: (open: boolean) => void;
   setHasUnsavedChanges: (has: boolean) => void;
   setAICopilotMode: (mode: AICopilotMode) => void;
@@ -62,7 +62,7 @@ export function StrategyOSProvider({
       setInternalActiveView(view);
     }
   };
-  const [rightRailTab, setRightRailTab] = useState<'ai' | 'decisions' | 'history' | 'tasks'>('ai');
+  const [rightRailTab, setRightRailTab] = useState<'decisions' | 'history' | 'tasks'>('decisions');
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [aiCopilotMode, setAICopilotMode] = useState<AICopilotMode>('assist');

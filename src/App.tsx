@@ -21,7 +21,6 @@ import Landing from "./pages/LandingV2";
 import Auth from "./pages/Auth";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
-import Onboarding from "./pages/Onboarding";
 import Dashboard from "./pages/Dashboard";
 import Clients from "./pages/Clients";
 import ClientDetail from "./pages/ClientDetail";
@@ -34,7 +33,7 @@ import InviteAccept from "./pages/InviteAccept";
 import Messages from "./pages/Messages";
 import NotFound from "./pages/NotFound";
 import AiOnboardingAgency from "./pages/ai/AiOnboardingAgency";
-import AiOnboardingClient from "./pages/ai/AiOnboardingClientV4";
+import AiOnboardingClient from "./pages/ai/AiOnboardingClient";
 import AgencyAiAdmin from "./pages/ai/AgencyAiAdmin";
 import AISetup from "./pages/agency/AISetup";
 import ModuleDetail from "./pages/agency/ModuleDetail";
@@ -208,7 +207,7 @@ const App = () => {
                 path="/onboarding"
                 element={
                   <ProtectedRoute>
-                    <Onboarding />
+                    <Navigate to="/welcome" replace />
                   </ProtectedRoute>
                 }
               />

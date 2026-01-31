@@ -149,7 +149,9 @@ async function generateWithRetry(opts: {
     },
   ];
 
-  const retry = await opts.provider.generate({ ...opts.params, messages: repairMessages });
+  // Prefer strict JSON generation when provider supports it (e.g., Gemini responseMimeType=application/json).
+  // This dramatically reduces "UNKNOWN" fallbacks caused by invalid JSON even after repair instructions.
+  const retry = await generateFn({ ...opts.params, messages: repairMessages });
   try {
     const parsed = extractJson(retry.text);
     const validated = opts.schema.validate(parsed);

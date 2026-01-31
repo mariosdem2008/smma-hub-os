@@ -356,6 +356,7 @@ export interface OnboardingProfile {
   primary_goal: PrimaryGoal | null;
   conversion_path: ConversionPath | null;
   conversion_link: string | null;
+  dm_keyword: string | null;
   offers: OnboardingOffer[] | null;
   audience_type: AudienceType | null;
   primary_customer: string | null;

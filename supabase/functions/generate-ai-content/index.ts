@@ -182,22 +182,6 @@ serve(async (req: { method: string; headers: { get: (arg0: string) => any; }; js
       );
     }
 
-    // Get OpenAI API Key
-    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
-    if (!OPENAI_API_KEY) {
-      console.error('[AI-CONTENT] OpenAI API key not configured');
-      return new Response(
-        JSON.stringify({ 
-          success: false,
-          error: 'AI service not configured. Please contact support.' 
-        }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
-    }
-
     console.log('[AI-CONTENT] Calling AI router...');
     const startTime = Date.now();
     let suggestions;
@@ -228,12 +212,13 @@ serve(async (req: { method: string; headers: { get: (arg0: string) => any; }; js
 
     const latencyMs = Date.now() - startTime;
     const usage = extractUsageFromRaw(aiResult?.raw);
-    const runtimeModel = aiResult?.meta?.model ?? "gpt-5-mini";
+    const runtimeModel =
+      aiResult?.meta?.model ?? (aiResult?.meta?.provider === "gemini" ? "gemini-flash-latest" : "gpt-4o-mini");
     const inputText = `${input_text ?? ""}\n\n${brand_context ?? ""}`;
     const outputText = JSON.stringify(suggestions ?? []);
     const tokensIn = usage?.inputTokens ?? estimateTokensForCost(inputText);
     const tokensOut = usage?.outputTokens ?? estimateTokensForCost(outputText);
-    const costUsd = calculateCost("openai", runtimeModel, tokensIn, tokensOut);
+    const costUsd = calculateCost(aiResult?.meta?.provider ?? "openai", runtimeModel, tokensIn, tokensOut);
     const costEstimationMethod = usage ? "token_based" : "estimate_chars_div3";
     const inputHash = await sha256Hex(inputText);
     const outputHash = await sha256Hex(outputText);
@@ -241,7 +226,7 @@ serve(async (req: { method: string; headers: { get: (arg0: string) => any; }; js
     await logUsage(supabaseClient, {
       taskType: TaskType.CONTENT_IDEAS,
       endpoint: "generate-ai-content",
-      provider: "openai",
+      provider: aiResult?.meta?.provider ?? "openai",
       model: runtimeModel,
       agencyId: agency_id,
       clientId: client_id,

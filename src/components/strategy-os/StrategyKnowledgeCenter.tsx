@@ -5,7 +5,8 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { format } from "date-fns";
 import { renderToStaticMarkup } from "react-dom/server";
-import { FileText, Download, UploadCloud, History, ArrowLeft, RotateCcw, Search, Loader2 } from "lucide-react";
+import { FileText, Download, UploadCloud, History, ArrowLeft, RotateCcw, Search, Loader2, ChevronDown } from "lucide-react";
+import * as AccordionPrimitive from "@radix-ui/react-accordion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -13,13 +14,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Accordion, AccordionContent, AccordionItem } from "@/components/ui/accordion";
 import { useStrategyDocuments, useGenerateStrategyDocument, useUploadStrategyDocument, useActivateStrategyDocument } from "@/hooks/useStrategyDocuments";
 import { useStrategies } from "@/hooks/useStrategies";
 import { useStrategyModules } from "@/hooks/useStrategyModules";
 import StrategyOSV3 from "@/components/strategy-os/StrategyOSV3";
 import type { StrategyDocumentRecord, StrategyModule } from "@/lib/strategy/types";
 import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 
 type ViewMode = "document" | "details";
 
@@ -126,6 +128,20 @@ function getHeadingText(children: ReactNode): string {
     return getHeadingText(element.props.children);
   }
   return "";
+}
+
+function nodeHasLineBreaks(children: ReactNode): boolean {
+  if (typeof children === "string") {
+    return children.includes("\n");
+  }
+  if (Array.isArray(children)) {
+    return children.some(nodeHasLineBreaks);
+  }
+  if (children && typeof children === "object" && "props" in children) {
+    const element = children as ReactElement;
+    return nodeHasLineBreaks(element.props.children);
+  }
+  return false;
 }
 
 function DocumentHeaderActions({
@@ -263,11 +279,11 @@ function StrategyDocumentView({
                 className="pl-8"
               />
             </div>
-            <div className="rounded-lg border border-border/60 bg-background/60 p-3">
+            <div className="rounded-lg border border-border/60 bg-background/60 p-4">
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
                 Table of contents
               </div>
-              <div className="space-y-2 text-sm">
+              <div className="space-y-1 text-sm">
                 {tocItems.map((item) => (
                   <button
                     key={item.id}
@@ -276,7 +292,7 @@ function StrategyDocumentView({
                       const target = globalThis.document?.getElementById(item.id);
                       target?.scrollIntoView({ behavior: "smooth", block: "start" });
                     }}
-                    className="text-left text-muted-foreground hover:text-foreground transition-colors"
+                    className="w-full rounded-md px-2 py-1.5 text-left text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors"
                   >
                     {item.title}
                   </button>
@@ -310,7 +326,7 @@ function StrategyDocumentView({
 
           <Card className="border-border/60 bg-background/60">
             <CardContent className="p-0">
-              <ScrollArea className="h-[70vh] px-4 py-6">
+              <ScrollArea className="h-[70vh] px-6 py-8">
                 {parsed.title && (
                   <div className="prose prose-sm dark:prose-invert max-w-none">
                     <h1>{parsed.title}</h1>
@@ -325,23 +341,27 @@ function StrategyDocumentView({
                     const anchorId = slugifyHeading(section.title);
 
                     return (
-                      <AccordionItem key={anchorId} value={anchorId} className="border-border/40">
+                      <AccordionItem key={anchorId} value={anchorId} className="border-border/40 px-2">
                         <div id={anchorId} className="scroll-mt-24" />
-                        <AccordionTrigger className="text-base">
-                          <span className="flex items-center gap-3">
-                            {section.title}
-                            {moduleTarget && (
-                              <Badge variant="outline" className="text-xs">
-                                Editable
-                              </Badge>
-                            )}
-                          </span>
+                        <AccordionPrimitive.Header className="flex items-center">
+                          <AccordionPrimitive.Trigger className="flex flex-1 items-center justify-between py-5 text-base font-medium transition-all hover:underline [&[data-state=open]>svg]:rotate-180">
+                            <span className="flex items-center gap-3">
+                              {section.title}
+                              {moduleTarget && (
+                                <Badge variant="outline" className="text-xs">
+                                  Editable
+                                </Badge>
+                              )}
+                            </span>
+                            <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200" />
+                          </AccordionPrimitive.Trigger>
                           {moduleTarget && (
                             <Button
                               size="sm"
                               variant="ghost"
                               className="ml-3"
                               onClick={(event) => {
+                                event.preventDefault();
                                 event.stopPropagation();
                                 onEditSection(moduleTarget);
                               }}
@@ -349,36 +369,59 @@ function StrategyDocumentView({
                               Edit this section
                             </Button>
                           )}
-                        </AccordionTrigger>
-                        <AccordionContent>
-                          <div className="prose prose-sm dark:prose-invert max-w-none">
-                            <ReactMarkdown
-                              remarkPlugins={[remarkGfm]}
-                              components={{
-                                h3: ({ children }) => {
-                                  const text = getHeadingText(children);
-                                  const id = slugifyHeading(text);
-                                  return <h3 id={id}>{children}</h3>;
-                                },
-                                h4: ({ children }) => {
-                                  const text = getHeadingText(children);
-                                  const id = slugifyHeading(text);
-                                  return <h4 id={id}>{children}</h4>;
-                                },
-                                p: ({ children }) => (
-                                  <p className="text-sm leading-relaxed">
-                                    {highlightNodes(children, searchQuery)}
-                                  </p>
-                                ),
-                                li: ({ children }) => (
-                                  <li className="text-sm">
-                                    {highlightNodes(children, searchQuery)}
-                                  </li>
-                                ),
-                              }}
-                            >
-                              {section.content}
-                            </ReactMarkdown>
+                        </AccordionPrimitive.Header>
+                        <AccordionContent className="pb-6">
+                          <div className="rounded-lg bg-background/30 px-4 py-3">
+                            <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:scroll-mt-24 prose-p:leading-relaxed prose-p:my-3 prose-li:my-1.5 prose-hr:my-6">
+                              <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                components={{
+                                  h3: ({ children }) => {
+                                    const text = getHeadingText(children);
+                                    const id = slugifyHeading(text);
+                                    return <h3 id={id} className="mt-6 mb-2">{children}</h3>;
+                                  },
+                                  h4: ({ children }) => {
+                                    const text = getHeadingText(children);
+                                    const id = slugifyHeading(text);
+                                    return <h4 id={id} className="mt-5 mb-2">{children}</h4>;
+                                  },
+                                  p: ({ children }) => {
+                                    const preserveLines = nodeHasLineBreaks(children);
+                                    return (
+                                      <p className={`text-sm leading-relaxed ${preserveLines ? "whitespace-pre-line" : ""}`}>
+                                        {highlightNodes(children, searchQuery)}
+                                      </p>
+                                    );
+                                  },
+                                  li: ({ children }) => (
+                                    <li className="text-sm leading-relaxed">
+                                      {highlightNodes(children, searchQuery)}
+                                    </li>
+                                  ),
+                                  hr: () => <hr className="my-6 border-border/60" />,
+                                  table: ({ children }) => (
+                                    <div className="my-4 overflow-x-auto rounded-lg border border-border/60 bg-background/40">
+                                      <table className="w-full border-collapse text-sm">{children}</table>
+                                    </div>
+                                  ),
+                                  thead: ({ children }) => <thead className="bg-muted/40">{children}</thead>,
+                                  th: ({ children }) => (
+                                    <th className="px-3 py-2 text-left font-semibold text-foreground border-b border-border/60">
+                                      {children}
+                                    </th>
+                                  ),
+                                  td: ({ children }) => (
+                                    <td className="px-3 py-2 align-top border-b border-border/40 text-muted-foreground">
+                                      {children}
+                                    </td>
+                                  ),
+                                  tr: ({ children }) => <tr className="hover:bg-muted/20">{children}</tr>,
+                                }}
+                              >
+                                {section.content}
+                              </ReactMarkdown>
+                            </div>
                           </div>
                         </AccordionContent>
                       </AccordionItem>
@@ -403,6 +446,14 @@ export function StrategyKnowledgeCenter({ clientId, agencyId }: StrategyKnowledg
   const [generationPhase, setGenerationPhase] = useState<string | null>(null);
   const uploadInputId = `strategy-upload-${clientId}`;
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [requirementsOpen, setRequirementsOpen] = useState(false);
+  const [requirements, setRequirements] = useState<{
+    code?: string;
+    message: string;
+    deepLink?: string;
+    missingFields?: string[];
+    questions?: string[];
+  } | null>(null);
   const { toast } = useToast();
 
   const { data: documents = [] } = useStrategyDocuments(clientId);
@@ -428,6 +479,44 @@ export function StrategyKnowledgeCenter({ clientId, agencyId }: StrategyKnowledg
   const generateDocument = useGenerateStrategyDocument();
   const uploadDocument = useUploadStrategyDocument();
   const activateDocument = useActivateStrategyDocument();
+
+  const getCtaLabel = (code?: string, missingFields?: string[]) => {
+    if (Array.isArray(missingFields) && missingFields.includes("memory_context")) {
+      return "Upload client files";
+    }
+    if (code === "AGENCY_BRAIN_INCOMPLETE") {
+      return "Complete AI Setup";
+    }
+    return "Fix Now";
+  };
+
+  const showGenerateErrorToast = (error: unknown, title: string) => {
+    console.error(title, error);
+
+    const err = error as any;
+    const message = err instanceof Error ? err.message : "Unknown error";
+    const deepLink = typeof err?.deepLink === "string" ? (err.deepLink as string) : undefined;
+    const code = typeof err?.code === "string" ? (err.code as string) : undefined;
+    const missingFields = Array.isArray(err?.missingFields) ? (err.missingFields as string[]) : undefined;
+    const questions = Array.isArray(err?.questions) ? (err.questions as string[]) : undefined;
+    const ctaLabel = getCtaLabel(code, missingFields);
+
+    if (code || deepLink || missingFields?.length || questions?.length) {
+      setRequirements({ code, message, deepLink, missingFields, questions });
+      setRequirementsOpen(true);
+    }
+
+    toast({
+      title,
+      description: code ? `${message} (code: ${code})` : message,
+      variant: "destructive",
+      action: deepLink ? (
+        <ToastAction altText={ctaLabel} onClick={() => navigate(deepLink)}>
+          {ctaLabel}
+        </ToastAction>
+      ) : undefined,
+    });
+  };
 
   const setView = (next: ViewMode) => {
     const nextParams = new URLSearchParams(searchParams);
@@ -463,8 +552,8 @@ export function StrategyKnowledgeCenter({ clientId, agencyId }: StrategyKnowledg
         title: "Strategy generated",
         description: "Your strategy document is ready.",
       });
-    } catch {
-      // Error toast is handled inside the hook for consistent edge-function responses.
+    } catch (error) {
+      showGenerateErrorToast(error, "Failed to generate strategy");
     } finally {
       timers.forEach(clearTimeout);
       setGenerationPhase(null);
@@ -489,8 +578,8 @@ export function StrategyKnowledgeCenter({ clientId, agencyId }: StrategyKnowledg
         title: "Strategy updated",
         description: "Your strategy document was regenerated.",
       });
-    } catch {
-      // Error toast is handled inside the hook for consistent edge-function responses.
+    } catch (error) {
+      showGenerateErrorToast(error, "Failed to regenerate strategy");
     } finally {
       timers.forEach(clearTimeout);
       setGenerationPhase(null);
@@ -597,6 +686,83 @@ export function StrategyKnowledgeCenter({ clientId, agencyId }: StrategyKnowledg
           isUploading={uploadDocument.isPending}
         />
       </div>
+
+      {requirementsOpen && requirements && (
+        <Dialog open={requirementsOpen} onOpenChange={setRequirementsOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>
+                {requirements.code === "AGENCY_BRAIN_INCOMPLETE"
+                  ? "AI Setup Required"
+                  : requirements.code === "BRAIN_INCOMPLETE"
+                    ? Array.isArray(requirements.missingFields) && requirements.missingFields.includes("memory_context")
+                      ? "Client Knowledge Required"
+                      : "Client Profile Required"
+                    : "Action Required"}
+              </DialogTitle>
+              <DialogDescription>{requirements.message}</DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-3">
+              {requirements.code ? (
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-muted-foreground">Error code</span>
+                  <Badge variant="outline">{requirements.code}</Badge>
+                </div>
+              ) : null}
+
+              {requirements.questions?.length ? (
+                <div className="space-y-1">
+                  <div className="text-sm font-medium">What to do</div>
+                  <ul className="list-disc pl-5 text-sm text-muted-foreground">
+                    {requirements.questions.map((q) => (
+                      <li key={q}>{q}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+
+              {requirements.missingFields?.length ? (
+                <div className="space-y-1">
+                  <div className="text-sm font-medium">Missing requirements</div>
+                  <div className="flex flex-wrap gap-2">
+                    {requirements.missingFields.map((field) => (
+                      <Badge key={field} variant="secondary">
+                        {field}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="flex flex-wrap justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => setRequirementsOpen(false)}>
+                  Close
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setRequirementsOpen(false);
+                    handleGenerate();
+                  }}
+                >
+                  Retry
+                </Button>
+                {requirements.deepLink ? (
+                  <Button
+                    onClick={() => {
+                      setRequirementsOpen(false);
+                      navigate(requirements.deepLink!);
+                    }}
+                  >
+                    {getCtaLabel(requirements.code, requirements.missingFields)}
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       <input
         id={uploadInputId}

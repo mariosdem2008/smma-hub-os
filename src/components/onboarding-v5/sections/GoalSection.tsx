@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { SingleSelectChips } from '@/components/onboarding-v4/components/AiSuggestionChips';
+import { SingleSelectChips } from '@/components/onboarding-v5/components/AiSuggestionChips';
 import { Button } from '@/components/ui/button';
 import type { OnboardingProfile } from '@/types/onboarding';
 import { CONVERSION_PATH_OPTIONS, ONBOARDING_PRIMARY_GOAL_OPTIONS } from '@/types/onboarding';
@@ -23,9 +23,11 @@ export function GoalSection({ profile, onFieldChange, missingFields, onFocusFiel
     primary_goal: 'primary_goal',
     conversion_path: 'conversion_path',
     conversion_link_required: 'conversion_link',
+    dm_keyword_required: 'dm_keyword',
   };
   const conversionPath = profile.conversion_path ?? '';
   const requiresLink = ['book_call', 'book_appointment', 'website_checkout'].includes(conversionPath);
+  const requiresDmKeyword = conversionPath === 'dm_keyword';
 
   return (
     <div className="space-y-6">
@@ -87,6 +89,24 @@ export function GoalSection({ profile, onFieldChange, missingFields, onFocusFiel
               {missing.has('conversion_link_required') && (
                 <div className="text-xs text-muted-foreground">
                   Example: https://calendly.com/brand. Required for this conversion path.
+                </div>
+              )}
+            </div>
+          )}
+
+          {requiresDmKeyword && (
+            <div className="space-y-2 pt-2">
+              <Label htmlFor="dm-keyword">DM keyword</Label>
+              <Input
+                id="dm-keyword"
+                value={profile.dm_keyword ?? ''}
+                onChange={(event) => onFieldChange({ dm_keyword: event.target.value })}
+                placeholder="e.g. BOOK"
+                data-field-key="dm_keyword"
+              />
+              {missing.has('dm_keyword_required') && (
+                <div className="text-xs text-muted-foreground">
+                  Example: BOOK. Required so CTAs can be exact.
                 </div>
               )}
             </div>
