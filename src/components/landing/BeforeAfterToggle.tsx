@@ -1,107 +1,64 @@
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Check, X } from "lucide-react";
+import React from "react";
+import { Check, Minus } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface ComparisonItem {
   before: string;
   after: string;
 }
 
-interface BeforeAfterToggleProps {
-  items: ComparisonItem[];
-}
-
-export function BeforeAfterToggle({ items }: BeforeAfterToggleProps) {
-  const [showAfter, setShowAfter] = useState(false);
-
+export function BeforeAfterToggle(props: { items: ComparisonItem[] }) {
   return (
-    <div className="w-full">
-      {/* Toggle Switch */}
-      <div className="flex justify-center mb-[8px]">
-        <div className="relative inline-flex items-center p-1 rounded-full bg-card border border-border">
-          <button
-            onClick={() => setShowAfter(false)}
-            className={`relative z-10 px-6 py-2.5 text-sm font-medium rounded-full transition-colors duration-200 ${
-              !showAfter ? "text-white" : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Without SMMAHUB
-          </button>
-          <button
-            onClick={() => setShowAfter(true)}
-            className={`relative z-10 px-6 py-2.5 text-sm font-medium rounded-full transition-colors duration-200 ${
-              showAfter ? "text-white" : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            With SMMAHUB
-          </button>
-          <motion.div
-            className="absolute top-1 bottom-1 rounded-full bg-primary"
-            initial={false}
-            animate={{
-              x: showAfter ? "100%" : "0%",
-              width: showAfter ? "calc(50% - 4px)" : "calc(50% - 4px)",
-            }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            style={{ left: 4 }}
-          />
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="relative min-h-[280px]">
-        <AnimatePresence mode="wait">
-          {!showAfter ? (
-            <motion.div
-              key="before"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              transition={{ duration: 0.3 }}
-              className="grid gap-[4px] sm:grid-cols-2"
-            >
-              {items.map((item, idx) => (
-                <motion.div
-                  key={idx}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.05 }}
-                  className="flex items-start gap-3 p-[4px] rounded-xl bg-destructive/5 border border-destructive/20"
-                >
-                  <div className="flex-shrink-0 w-6 h-6 rounded-full bg-destructive/20 flex items-center justify-center">
-                    <X className="w-3.5 h-3.5 text-destructive" />
-                  </div>
-                  <p className="text-sm text-muted-foreground">{item.before}</p>
-                </motion.div>
-              ))}
-            </motion.div>
-          ) : (
-            <motion.div
-              key="after"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.3 }}
-              className="grid gap-[4px] sm:grid-cols-2"
-            >
-              {items.map((item, idx) => (
-                <motion.div
-                  key={idx}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.05 }}
-                  className="flex items-start gap-3 p-[4px] rounded-xl bg-success/5 border border-success/20"
-                >
-                  <div className="flex-shrink-0 w-6 h-6 rounded-full bg-success/20 flex items-center justify-center">
-                    <Check className="w-3.5 h-3.5 text-success" />
-                  </div>
-                  <p className="text-sm text-foreground">{item.after}</p>
-                </motion.div>
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+    <div className="grid gap-[18px] lg:grid-cols-2">
+      <ComparisonColumn
+        title="Without a system"
+        tone="muted"
+        icon={Minus}
+        items={props.items.map((i) => i.before)}
+      />
+      <ComparisonColumn
+        title="With SMMAHUB"
+        tone="primary"
+        icon={Check}
+        items={props.items.map((i) => i.after)}
+      />
     </div>
   );
 }
+
+function ComparisonColumn(props: {
+  title: string;
+  tone: "muted" | "primary";
+  icon: typeof Check;
+  items: string[];
+}) {
+  const Icon = props.icon;
+  const toneClasses =
+    props.tone === "primary"
+      ? "border-brand-primary/25 bg-brand-primary/[0.06]"
+      : "border-white/10 bg-white/[0.03]";
+
+  const iconWrapClasses =
+    props.tone === "primary" ? "bg-brand-primary/20 text-brand-primary" : "bg-white/10 text-text-muted";
+
+  return (
+    <div className={cn("rounded-md border p-[18px] md:p-[22px]", toneClasses)}>
+      <div className="flex items-center gap-[10px]">
+        <span className={cn("h-8 w-8 rounded-lg grid place-items-center", iconWrapClasses)}>
+          <Icon className="h-4 w-4" />
+        </span>
+        <div className="text-sm font-semibold text-foreground tracking-tight">{props.title}</div>
+      </div>
+
+      <ul className="mt-[14px] space-y-[10px]">
+        {props.items.map((text) => (
+          <li key={text} className="flex gap-[12px]">
+            <span className="mt-[10px] h-1.5 w-1.5 rounded-full bg-white/25 shrink-0" />
+            <p className="text-body-mobile md:text-body-desktop text-text-secondary leading-body">{text}</p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+

@@ -5,6 +5,7 @@ import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
 import { ai } from "../../../src/ai/router.ts";
 import { TaskType } from "../../../src/ai/taskTypes.ts";
 import { getEndpointGuardResponse } from "../_shared/endpoint-guard.ts";
+import { generateSpanId, generateTraceId, logOtelSpan } from "../../../src/ai/otel.ts";
 import {
   buildOnboardingAudiencePrompt,
   buildOnboardingDifferentiatorsPrompt,
@@ -658,46 +659,57 @@ function buildRecap(answers: Answers): string {
 }
 
 serve(async (req: Request) => {
-  try {
-    if (req.method === "OPTIONS") {
-      return new Response(null, { headers: corsHeaders(req) });
-    }
+  const traceId = generateTraceId();
+  const spanId = generateSpanId();
+  const spanStart = Date.now();
+  let response: Response | undefined;
+  let supabase: ReturnType<typeof createClient> | null = null;
+  let agencyId: string | undefined;
+  let clientId: string | undefined;
+  let userId: string | undefined;
 
-    if (req.method !== "POST") {
-      return jsonResponse({ error: "Method not allowed", v: FN_VERSION }, 405, corsHeaders(req));
-    }
+  response = await (async () => {
+    try {
+      if (req.method === "OPTIONS") {
+        return new Response(null, { headers: corsHeaders(req) });
+      }
 
-    const guardResponse = getEndpointGuardResponse("ai-onboarding-guide", corsHeaders(req));
-    if (guardResponse) return guardResponse;
+      if (req.method !== "POST") {
+        return jsonResponse({ error: "Method not allowed", v: FN_VERSION }, 405, corsHeaders(req));
+      }
 
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return jsonResponse({ error: "Missing Authorization header", v: FN_VERSION }, 401, corsHeaders(req));
-    }
+      const guardResponse = getEndpointGuardResponse("ai-onboarding-guide", corsHeaders(req));
+      if (guardResponse) return guardResponse;
 
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-      auth: { persistSession: false },
-    });
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader) {
+        return jsonResponse({ error: "Missing Authorization header", v: FN_VERSION }, 401, corsHeaders(req));
+      }
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data: userData, error: userError } = await supabase.auth.getUser(token);
-    const user = userData?.user;
-    if (userError || !user) {
-      return jsonResponse({ error: "Unauthorized", v: FN_VERSION }, 401, corsHeaders(req));
-    }
+      supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+        auth: { persistSession: false },
+      });
 
-    const body = await req.json().catch(() => ({}));
-    const agencyId = body.agency_id as string | undefined;
-    const clientId = body.client_id as string | undefined;
-    const brainId = body.brain_id as string | undefined;
-    const currentStepId = body.step_id as string | null;
-    const answers = (body.answers || {}) as Answers;
-    const userInput = body.user_input;
-    const skippedSteps = (body.skipped_steps || []) as string[];
+      const token = authHeader.replace("Bearer ", "");
+      const { data: userData, error: userError } = await supabase.auth.getUser(token);
+      const user = userData?.user;
+      if (userError || !user) {
+        return jsonResponse({ error: "Unauthorized", v: FN_VERSION }, 401, corsHeaders(req));
+      }
 
-    if (!agencyId || !clientId) {
-      return jsonResponse({ error: "agency_id and client_id required", v: FN_VERSION }, 400, corsHeaders(req));
-    }
+      userId = user.id;
+      const body = await req.json().catch(() => ({}));
+      agencyId = body.agency_id as string | undefined;
+      clientId = body.client_id as string | undefined;
+      const brainId = body.brain_id as string | undefined;
+      const currentStepId = body.step_id as string | null;
+      const answers = (body.answers || {}) as Answers;
+      const userInput = body.user_input;
+      const skippedSteps = (body.skipped_steps || []) as string[];
+
+      if (!agencyId || !clientId) {
+        return jsonResponse({ error: "agency_id and client_id required", v: FN_VERSION }, 400, corsHeaders(req));
+      }
 
     // Verify membership
     const { data: membership } = await supabase
@@ -733,18 +745,33 @@ serve(async (req: Request) => {
     const options = await generateOptionsWithAI(nextStepId, answers);
     const stepSpec = buildStepSpec(nextStepId, answers, options);
 
-    return jsonResponse(stepSpec, 200, corsHeaders(req));
-  } catch (error) {
-    // Catch any uncaught errors and return with CORS headers
-    console.error("Uncaught error in ai-onboarding-guide:", error);
-    return jsonResponse(
-      {
-        error: "Internal server error",
-        message: error instanceof Error ? error.message : String(error),
-        v: FN_VERSION
-      },
-      500,
-      corsHeaders(req)
-    );
-  }
+      return jsonResponse(stepSpec, 200, corsHeaders(req));
+    } catch (error) {
+      // Catch any uncaught errors and return with CORS headers
+      console.error("Uncaught error in ai-onboarding-guide:", error);
+      return jsonResponse(
+        {
+          error: "Internal server error",
+          message: error instanceof Error ? error.message : String(error),
+          v: FN_VERSION
+        },
+        500,
+        corsHeaders(req)
+      );
+    }
+  })();
+
+  await logOtelSpan(supabase, {
+    traceId,
+    spanId,
+    stage: "edge.ai-onboarding-guide",
+    taskType: TaskType.EXTRACT_STRUCTURED,
+    agencyId,
+    clientId,
+    userId,
+    latencyMs: Date.now() - spanStart,
+    attributes: { http_status: response?.status ?? 0 },
+  });
+
+  return response!;
 });

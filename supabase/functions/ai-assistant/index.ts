@@ -6,7 +6,9 @@ import { getEndpointGuardResponse } from "../_shared/endpoint-guard.ts";
 import { runAiTask } from "../_shared/ai-router.ts";
 import { TaskType } from "../../../src/ai/taskTypes.ts";
 import { fetchBrainDocument } from "../_shared/brain-documents.ts";
-import { embedWithPolicy } from "../_shared/embedding-policy.ts";
+import { embedQueryForRag, getMatchRpcName } from "../_shared/rag-index.ts";
+import { generateSpanId, generateTraceId, logOtelSpan } from "../../../src/ai/otel.ts";
+import { resolvePersonaPromptContext, type PersonaPromptContext } from "../_shared/persona-prompt-context.ts";
 
 type MinimalSupabase = ReturnType<typeof createClient>;
 
@@ -217,21 +219,11 @@ async function runEmbeddingsSearch(supabase: MinimalSupabase, args: {
   matchCount?: number | null;
   minSimilarity?: number | null;
 }) {
-  const embedded = await embedWithPolicy({
-    supabase,
-    agencyId: args.agencyId,
-    clientId: args.clientId ?? null,
-    input: args.query,
-    timeoutMs: 15_000,
-  });
-
-  if (embedded.status !== "ok") {
-    return { status: "disabled", results: [] as any[] };
-  }
-
-  const { data, error } = await supabase.rpc("match_ai_embeddings", {
+  const embedded = await embedQueryForRag({ query: args.query });
+  const rpcName = getMatchRpcName({ scoped: true });
+  const { data, error } = await supabase.rpc(rpcName, {
     p_agency_id: args.agencyId,
-    p_query_embedding: embedded.embedding,
+    p_query_embedding: embedded.embedding as any,
     p_client_id: args.clientId ?? null,
     p_match_count: Math.min(Math.max(Number(args.matchCount ?? 8), 1), 12),
     p_doc_types: args.docTypes ?? null,
@@ -246,6 +238,7 @@ function buildSystemPrompt(args: {
   userName: string;
   userRole: string;
   clientName: string;
+  persona: PersonaPromptContext;
   startup: {
     rep_policy: Record<string, unknown>;
     quality_bar: Record<string, unknown>;
@@ -254,11 +247,18 @@ function buildSystemPrompt(args: {
   allowStrategyProposals: boolean;
 }) {
   return [
-    "You are the AI Assistant inside SMMAHUB.",
+    `You are ${args.persona.assistant_name}, the AI Assistant inside SMMAHUB.`,
     "",
     "You are chatting with an agency team member about a specific client.",
     `User: ${args.userName} (${args.userRole})`,
     `Client: ${args.clientName}`,
+    `Persona source: ${args.persona.source} (cache version: ${args.persona.cache_version})`,
+    args.persona.tone_traits.length > 0
+      ? `Tone traits: ${args.persona.tone_traits.join(", ")}.`
+      : "Tone traits: clear, practical, professional.",
+    args.persona.expertise_traits.length > 0
+      ? `Expertise traits: ${args.persona.expertise_traits.join(", ")}.`
+      : "Expertise traits: agency operations, strategy, and execution.",
     "",
     "FOLLOW THESE RULES:",
     "- Be conversational and helpful (like a normal chat assistant).",
@@ -337,55 +337,71 @@ function extractContextRequests(json: AiAssistantResponseJson): Array<Record<str
 }
 
 serve(async (req: Request) => {
-  try {
-    if (req.method === "OPTIONS") {
-      return new Response(null, { status: 204, headers: corsHeaders(req) });
-    }
+  const traceId = generateTraceId();
+  const spanId = generateSpanId();
+  const spanStart = Date.now();
+  let response: Response | undefined;
+  let supabase: MinimalSupabase | null = null;
+  let agencyId: string | undefined;
+  let clientId: string | undefined;
+  let userId: string | undefined;
+  let observedPersonaReloaded = false;
+  let observedPersonaSource = "default";
+  let observedPersonaCacheVersion: string | null = null;
+  let observedContextRequests = 0;
 
-    if (req.method !== "POST") {
-      return jsonResponse({ error: "Method not allowed" }, 405, corsHeaders(req));
-    }
+  response = await (async () => {
+    try {
+      if (req.method === "OPTIONS") {
+        return new Response(null, { status: 204, headers: corsHeaders(req) });
+      }
 
-    const guardResponse = getEndpointGuardResponse("ai-assistant", corsHeaders(req));
-    if (guardResponse) return guardResponse;
+      if (req.method !== "POST") {
+        return jsonResponse({ error: "Method not allowed" }, 405, corsHeaders(req));
+      }
 
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return jsonResponse({ error: "Missing Authorization header" }, 401, corsHeaders(req));
-    }
+      const guardResponse = getEndpointGuardResponse("ai-assistant", corsHeaders(req));
+      if (guardResponse) return guardResponse;
 
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-      auth: { persistSession: false },
-    });
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader) {
+        return jsonResponse({ error: "Missing Authorization header" }, 401, corsHeaders(req));
+      }
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data: userData, error: userError } = await supabase.auth.getUser(token);
-    const user = userData?.user;
-    if (userError || !user) {
-      return jsonResponse({ error: "Unauthorized" }, 401, corsHeaders(req));
-    }
+      supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+        auth: { persistSession: false },
+      });
 
-    const body = await req.json().catch(() => ({}));
-    const action = (body.action as string | undefined) ?? "send";
-    const clientId = (body.client_id as string | undefined) ?? "";
-    const strategyIdInput = (body.strategy_id as string | undefined) ?? null;
-    const activeTab = body.active_tab;
-    const message = normalizeText(body.message, 4000);
-    const clientChatHistory = normalizeChatHistory(body.chat_history);
+      const token = authHeader.replace("Bearer ", "");
+      const { data: userData, error: userError } = await supabase.auth.getUser(token);
+      const user = userData?.user;
+      if (userError || !user) {
+        return jsonResponse({ error: "Unauthorized" }, 401, corsHeaders(req));
+      }
 
-    if (!clientId) {
-      return jsonResponse({ error: "client_id is required" }, 400, corsHeaders(req));
-    }
+      userId = user.id;
+      const body = await req.json().catch(() => ({}));
+      const action = (body.action as string | undefined) ?? "send";
+      clientId = (body.client_id as string | undefined) ?? "";
+      const strategyIdInput = (body.strategy_id as string | undefined) ?? null;
+      const activeTab = body.active_tab;
+      const message = normalizeText(body.message, 4000);
+      const clientChatHistory = normalizeChatHistory(body.chat_history);
 
-    const client = await getClientAndAgency(supabase, clientId);
-    if (!client) {
-      return jsonResponse({ error: "Client not found" }, 404, corsHeaders(req));
-    }
+      if (!clientId) {
+        return jsonResponse({ error: "client_id is required" }, 400, corsHeaders(req));
+      }
 
-    const membership = await requireMembership(supabase, user.id, client.agency_id);
-    if (!membership) {
-      return jsonResponse({ error: "Forbidden" }, 403, corsHeaders(req));
-    }
+      const client = await getClientAndAgency(supabase, clientId);
+      if (!client) {
+        return jsonResponse({ error: "Client not found" }, 404, corsHeaders(req));
+      }
+
+      agencyId = client.agency_id;
+      const membership = await requireMembership(supabase, user.id, client.agency_id);
+      if (!membership) {
+        return jsonResponse({ error: "Forbidden" }, 403, corsHeaders(req));
+      }
 
     const profile = await loadProfile(supabase, user.id);
     const userName = profile?.full_name?.trim() || profile?.email || "Team member";
@@ -408,6 +424,34 @@ serve(async (req: Request) => {
         corsHeaders(req),
       );
     }
+
+    const persona = await resolvePersonaPromptContext({
+      supabase,
+      agencyId: client.agency_id,
+      clientId,
+      scope: "client",
+      fallbackToAgencyScope: true,
+    });
+    observedPersonaReloaded = persona.reloaded;
+    observedPersonaSource = persona.source;
+    observedPersonaCacheVersion = persona.cache_version;
+
+    await logOtelSpan(supabase, {
+      traceId,
+      spanId: generateSpanId(),
+      parentSpanId: spanId,
+      stage: "edge.ai-assistant.persona_context",
+      taskType: TaskType.AI_ASSISTANT,
+      agencyId: client.agency_id,
+      clientId,
+      userId,
+      latencyMs: 0,
+      attributes: {
+        persona_reloaded: persona.reloaded,
+        persona_source: persona.source,
+        persona_cache_version: persona.cache_version,
+      },
+    });
 
     const thread = await getOrCreateThread(supabase, client.agency_id, clientId, user.id);
 
@@ -438,6 +482,7 @@ serve(async (req: Request) => {
       userName,
       userRole,
       clientName: client.name,
+      persona,
       startup: { rep_policy: repPolicy.content_json ?? {}, quality_bar: qualityBar.content_json ?? {} },
       summary: thread.summary,
       allowStrategyProposals,
@@ -475,6 +520,8 @@ serve(async (req: Request) => {
           strategy_id: strategyId,
           active_tab: typeof activeTab === "string" ? activeTab : null,
           allow_strategy_proposals: allowStrategyProposals,
+          persona_cache_version: persona.cache_version,
+          persona_reloaded: persona.reloaded,
         },
         supabase,
       });
@@ -489,6 +536,7 @@ serve(async (req: Request) => {
     for (let hop = 0; hop < 2; hop++) {
       if (!json || typeof json !== "object") break;
       const requests = extractContextRequests(json);
+      observedContextRequests += requests.length;
       if (requests.length === 0) break;
 
       const contextPayload: Record<string, unknown> = { fetched: [] as any[] };
@@ -569,7 +617,7 @@ serve(async (req: Request) => {
       // ignore
     }
 
-    return jsonResponse(
+      return jsonResponse(
       {
         thread_id: thread.id,
         assistant_message: assistantText,
@@ -582,9 +630,29 @@ serve(async (req: Request) => {
       200,
       corsHeaders(req),
     );
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unhandled error";
-    return jsonResponse({ error: message }, 500, corsHeaders(req));
-  }
-});
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unhandled error";
+      return jsonResponse({ error: message }, 500, corsHeaders(req));
+    }
+  })();
 
+  await logOtelSpan(supabase, {
+    traceId,
+    spanId,
+    stage: "edge.ai-assistant",
+    taskType: TaskType.AI_ASSISTANT,
+    agencyId,
+    clientId,
+    userId,
+    latencyMs: Date.now() - spanStart,
+    attributes: {
+      http_status: response?.status ?? 0,
+      persona_reloaded: observedPersonaReloaded,
+      persona_source: observedPersonaSource,
+      persona_cache_version: observedPersonaCacheVersion,
+      context_request_count: observedContextRequests,
+    },
+  });
+
+  return response!;
+});

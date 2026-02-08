@@ -11,6 +11,26 @@ function getApiKey() {
   return getEnvVar("GEMINI_API_KEY");
 }
 
+function vertexEnabled() {
+  const mode = (getEnvVar("GEMINI_PROVIDER_MODE") ?? "").toLowerCase();
+  if (mode === "vertex") return true;
+  return (getEnvVar("VERTEX_AI_ENABLED") ?? "").toLowerCase() === "true";
+}
+
+function getVertexConfig() {
+  const project = getEnvVar("VERTEX_AI_PROJECT");
+  const location = getEnvVar("VERTEX_AI_LOCATION") ?? "us-central1";
+  const accessToken = getEnvVar("VERTEX_AI_ACCESS_TOKEN") ?? getEnvVar("GOOGLE_OAUTH_ACCESS_TOKEN");
+  if (!project || !accessToken) {
+    throw new Error("VERTEX_AI_PROJECT or VERTEX_AI_ACCESS_TOKEN is not configured");
+  }
+  return { project, location, accessToken };
+}
+
+function vertexBaseUrl(location: string) {
+  return `https://${location}-aiplatform.googleapis.com/v1`;
+}
+
 function readFlag(name: string, defaultValue = false) {
   const value = getEnvVar(name);
   if (value === undefined) return defaultValue;
@@ -105,8 +125,10 @@ function extractUsage(json: any): GenerateResult["usage"] {
 
 function extractEmbedding(json: any): number[] {
   const values = json?.embedding?.values;
-  if (!Array.isArray(values)) return [];
-  return values.filter((v: unknown): v is number => typeof v === "number");
+  if (Array.isArray(values)) return values.filter((v: unknown): v is number => typeof v === "number");
+  const vertexValues = json?.predictions?.[0]?.embeddings?.values;
+  if (Array.isArray(vertexValues)) return vertexValues.filter((v: unknown): v is number => typeof v === "number");
+  return [];
 }
 
 function padOrTrim(embedding: number[], targetDim?: number): number[] {
@@ -117,6 +139,46 @@ function padOrTrim(embedding: number[], targetDim?: number): number[] {
 }
 
 async function callGemini(params: GenerateParams, opts: { responseMimeType?: string }) {
+  if (vertexEnabled()) {
+    const { project, location, accessToken } = getVertexConfig();
+    const systemPrompt = extractSystemPrompt(params.messages);
+    const contents = toGeminiContents(params.messages);
+    const generationConfig: Record<string, unknown> = {};
+    if (typeof params.temperature === "number") generationConfig.temperature = params.temperature;
+    if (typeof params.top_p === "number") generationConfig.topP = params.top_p;
+    if (typeof params.max_tokens === "number") generationConfig.maxOutputTokens = params.max_tokens;
+    if (opts.responseMimeType) generationConfig.response_mime_type = opts.responseMimeType;
+
+    const body: Record<string, unknown> = {
+      contents,
+      generationConfig,
+    };
+    if (systemPrompt) {
+      body.systemInstruction = { role: "system", parts: [{ text: systemPrompt }] };
+    }
+
+    const response = await fetchWithPolicy(
+      `${vertexBaseUrl(location)}/projects/${project}/locations/${location}/publishers/google/models/${params.model}:generateContent`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(body),
+      },
+      params.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+    );
+
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const message = json?.error?.message ?? response.statusText;
+      throw new Error(`Vertex Gemini error: ${message}`);
+    }
+
+    return json;
+  }
+
   const apiKey = getApiKey();
   if (!apiKey) {
     throw new Error("GEMINI_API_KEY is not configured");
@@ -158,6 +220,36 @@ async function callGemini(params: GenerateParams, opts: { responseMimeType?: str
 }
 
 async function callGeminiEmbedding(params: EmbedParams) {
+  if (vertexEnabled()) {
+    const { project, location, accessToken } = getVertexConfig();
+    const body: Record<string, unknown> = {
+      instances: [{ content: params.input }],
+    };
+    if (typeof params.outputDimensionality === "number") {
+      body.parameters = { outputDimensionality: params.outputDimensionality };
+    }
+
+    const response = await fetchWithPolicy(
+      `${vertexBaseUrl(location)}/projects/${project}/locations/${location}/publishers/google/models/${params.model}:predict`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(body),
+      },
+      params.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+    );
+
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const message = json?.error?.message ?? response.statusText;
+      throw new Error(`Vertex embedding error: ${message}`);
+    }
+    return json;
+  }
+
   const apiKey = getApiKey();
   if (!apiKey) {
     throw new Error("GEMINI_API_KEY is not configured");

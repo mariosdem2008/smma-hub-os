@@ -1,0 +1,19 @@
+{
+  "date_utc": "2026-02-01",
+  "project_ref": "dbclmdeowohzmwtkktsa",
+  "phase": "2",
+  "result": "pass",
+  "notes": "E2E smoke validates: (1) contextual ingestion allowlist enforcement, (2) manifest_sha256 mismatch rejection, (3) per-chunk summaries written when contextual ingestion is enabled, (4) memory approval -> synchronous ingestion -> chunks created. Tenant scoped to a single agency_id/client_id to preserve 0 cross-tenant leaks.",
+  "tenant_scope": {
+    "agency_id": "115dc619-1867-4275-83ec-4d5a0d47f94b",
+    "client_id": "af1a1b5a-cf77-4303-a56b-4edf6b2a0c6e"
+  },
+  "artifacts": {
+    "documents_ingest_positive_document_id": "f5eac731-e9f7-482b-b1b6-158045826774",
+    "documents_ingest_chunk_summary_ok_count": 1,
+    "memory_item_id": "db886972-4800-482d-b981-465c770d1709",
+    "memory_ingested_document_id": "394be331-9ac7-4a78-b9e9-56c75000ca07",
+    "memory_doc_chunk_count": 1
+  }
+}
+

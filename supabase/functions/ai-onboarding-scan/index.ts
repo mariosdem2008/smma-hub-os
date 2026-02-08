@@ -10,6 +10,7 @@ import { runAiTask } from "../_shared/ai.ts";
 import { TaskType } from "../../../src/ai/taskTypes.ts";
 import { objectSchema } from "../../../src/ai/schema.ts";
 import { getEndpointGuardResponse } from "../_shared/endpoint-guard.ts";
+import { generateSpanId, generateTraceId, logOtelSpan } from "../../../src/ai/otel.ts";
 
 interface ScanRequest {
   agency_id: string;
@@ -331,18 +332,29 @@ function calculateConfidence(extracted: ScanResult['extracted']): number {
 
 serve(async (req) => {
   const headers = corsHeaders(req);
+  const traceId = generateTraceId();
+  const spanId = generateSpanId();
+  const spanStart = Date.now();
+  let response: Response | undefined;
+  let supabase: ReturnType<typeof createClient> | null = null;
+  let agencyId: string | undefined;
+  let clientId: string | undefined;
+  let userId: string | undefined;
 
   // Handle CORS
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers });
   }
 
-  try {
-    const guardResponse = getEndpointGuardResponse("ai-onboarding-scan", headers);
-    if (guardResponse) return guardResponse;
+  response = await (async () => {
+    try {
+      const guardResponse = getEndpointGuardResponse("ai-onboarding-scan", headers);
+      if (guardResponse) return guardResponse;
 
-    const body: ScanRequest = await req.json();
-    const { agency_id, client_id, website, social_links = [] } = body;
+      const body: ScanRequest = await req.json();
+      const { agency_id, client_id, website, social_links = [] } = body;
+      agencyId = agency_id;
+      clientId = client_id;
 
     if (!agency_id || !client_id || !website) {
       return new Response(
@@ -363,7 +375,7 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    supabase = createClient(supabaseUrl, supabaseKey);
 
     const authHeader = req.headers.get('authorization');
     if (!authHeader) {
@@ -381,6 +393,7 @@ serve(async (req) => {
         { status: 401, headers: { ...headers, 'Content-Type': 'application/json' } }
       );
     }
+    userId = user.id;
 
     const { data: membership } = await supabase
       .from('agency_members')
@@ -476,15 +489,30 @@ serve(async (req) => {
       })
       .eq('client_id', client_id);
 
-    return new Response(
+      return new Response(
       JSON.stringify(result),
       { headers: { ...headers, 'Content-Type': 'application/json' } }
-    );
-  } catch (error) {
-    console.error('Scan error:', error);
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
-      { status: 500, headers: { ...headers, 'Content-Type': 'application/json' } }
-    );
-  }
+      );
+    } catch (error) {
+      console.error('Scan error:', error);
+      return new Response(
+        JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
+        { status: 500, headers: { ...headers, 'Content-Type': 'application/json' } }
+      );
+    }
+  })();
+
+  await logOtelSpan(supabase, {
+    traceId,
+    spanId,
+    stage: "edge.ai-onboarding-scan",
+    taskType: TaskType.EXTRACT_STRUCTURED,
+    agencyId,
+    clientId,
+    userId,
+    latencyMs: Date.now() - spanStart,
+    attributes: { http_status: response?.status ?? 0 },
+  });
+
+  return response!;
 });

@@ -1,310 +1,284 @@
-# AI System Audit (SMMAHUB) — 2026-01-31
+# AI System Audit (SMMAHUB) - 2026-01-31 (Updated 2026-02-01)
 
-This document is a single-source audit of the AI stack in this repo: routing, models, brains, embeddings, RAG, strategy generation, and AI assistants. It is descriptive only (no code changes).
+This document is a single-source audit of the AI stack in this repo: routing, models, brains, embeddings, RAG, strategy generation, assistants, memory, ingestion, and observability.
+
+This is descriptive only. It summarizes the current implementation and how it is wired.
+
+Security invariant: "0 cross-tenant leaks" (every read/write is tenant scoped by agency_id; client_id scoping is enforced where applicable).
 
 ---
 
 ## 1) High-Level Architecture
 
-**Core layers**
-- **Frontend AI hooks**: client UI calls Supabase Edge Functions (e.g., `useAiAssistant`).
-- **Edge Functions** (Supabase): `supabase/functions/*` handle auth, context building, RAG, budgets, and invoke the shared AI router.
-- **AI Router (shared)**: `src/ai/router.ts` selects task config, loads/validates brain context, runs providers, validates schemas, logs usage.
-- **Providers**: `src/ai/providers/*` implement OpenAI, Gemini, Anthropic with retries/timeouts/circuit breaker.
-- **Brain + RAG storage**: Postgres tables + RPC for embeddings + brain documents.
+Core layers
+- Frontend: calls Supabase Edge Functions.
+- Edge Functions (Supabase): `supabase/functions/*` handle auth, tenant checks, context building, RAG, budgets, job dispatch, and call shared modules.
+- AI Router (shared): `src/ai/router.ts` selects TaskType config, validates schemas, enforces UNKNOWN rules, and logs usage.
+- Provider facade: `src/ai/providers/*` (OpenAI/Gemini/Anthropic) plus a mock provider for deterministic tests.
+- Tool executor: `supabase/functions/_shared/tool-executor.ts` runs a bounded allowlisted tool set with tenant checks and (when enabled) governance policies.
+- Storage: Postgres tables for brains, documents/chunks/embeddings, memory items, ingestion allowlist, runs/usage logs, and OpenTelemetry spans.
+
+Key safety mechanics
+- Membership checks in Edge Functions (agency_members) and RLS in DB tables.
+- Embeddings match RPCs are restricted to service_role only (prevents direct client invocation).
+- Phase 2 includes cohort gating (PHASE2_COHORT_*) to prevent accidental global enablement.
 
 ---
 
 ## 2) AI Entry Points (Supabase Edge Functions)
 
-**Key endpoints**
-- `ai-assistant` — client-level assistant (chat + optional strategy proposals).
-  - File: `supabase/functions/ai-assistant/index.ts`
-- `ai-strategy-generate` — full strategy generation.
-  - File: `supabase/functions/ai-strategy-generate/index.ts`
-- `ai-ask` — client portal Q&A (RAG, budgets, rate limits).
-  - File: `supabase/functions/ai-ask/index.ts`
-- `ai-retrieve-context` — direct embeddings retrieval for a query.
-  - File: `supabase/functions/ai-retrieve-context/index.ts`
-- `ai-documents-ingest` — ingest documents to embeddings.
-  - File: `supabase/functions/ai-documents-ingest/index.ts`
-- `ai-brain-ingest` — ingest brain documents to embeddings.
-  - File: `supabase/functions/ai-brain-ingest/index.ts`
-- `ai-job-worker` — background jobs (summaries + embeddings).
-  - File: `supabase/functions/ai-job-worker/index.ts`
-- `ai-rep-chat`, `ai-onboarding-guide`, `generate-ai-content`, `generate-monthly-report`, etc.
+Primary end-user endpoints
+- `ai-assistant`: client-level assistant with context_request and optional proposals.
+  - `supabase/functions/ai-assistant/index.ts`
+- `ai-strategy-generate`: strategy generation with RAG + citations + module persistence.
+  - `supabase/functions/ai-strategy-generate/index.ts`
+- `ai-ask`: client portal Q&A with RAG + budgets + rate limits.
+  - `supabase/functions/ai-ask/index.ts`
+- `ai-retrieve-context`: RAG retrieval-only helper (returns matched snippets).
+  - `supabase/functions/ai-retrieve-context/index.ts`
+- `ai-rep-chat`: lightweight rep chat with safe retrieval and optional episodic capture.
+  - `supabase/functions/ai-rep-chat/index.ts`
 
-**Guarding**
-- All public AI endpoints are gated by `endpoint-guard` allowlist.
-  - File: `supabase/functions/_shared/endpoint-guard.ts`
+Ingestion + admin-only endpoints (Phase 2)
+- `ai-documents-ingest`: document ingestion, chunking, embeddings, optional contextual summaries.
+  - `supabase/functions/ai-documents-ingest/index.ts`
+- `ai-ingestion-source-register`: admin-only allowlist registration for ingestion sources (poisoning defense).
+  - `supabase/functions/ai-ingestion-source-register/index.ts`
+- `ai-memory-approve`: admin-only approval for memory items (long-term memory gate).
+  - `supabase/functions/ai-memory-approve/index.ts`
 
----
+Brain endpoints (v2 modular docs)
+- `ai-brain-ingest`, `ai-brain-analyze`, `ai-brain-document-approve`, `ai-brains-agency`, `ai-brains-client`, seeding endpoints, etc.
 
-## 3) Task Routing & Schema Enforcement
+Background processing
+- `ai-job-worker`: processes queued jobs (including memory ingestion).
+  - `supabase/functions/ai-job-worker/index.ts`
 
-**Router**
-- Source: `src/ai/router.ts`
-- Responsibilities:
-  - Maps `TaskType` → prompt builder + schema (via `taskRegistry.ts`)
-  - Loads brain context (v2 resolver)
-  - Enforces strict-unknown behavior
-  - Validates JSON schema with auto-repair attempt
-  - Logs usage + metadata
-
-**Task registry**
-- Source: `src/ai/taskRegistry.ts`
-- Defines:
-  - `TaskType` config, output mode (freeform / json_schema / embedding)
-  - Required brain modules
-  - `buildUnknown` fallbacks
-
-**Schema validation**
-- Source: `src/ai/schema.ts`
-- Includes `AiAssistantSchema`, `AdminChatSchema`, etc.
-- Repair flow: a second attempt with “return only valid JSON” instructions.
+Guarding
+- Endpoint allowlist guard: `supabase/functions/_shared/endpoint-guard.ts`
+  - Default: endpoints not allowlisted return 403 (ENDPOINT_DISABLED).
+  - Override: `ENABLE_UNUSED_AI_ENDPOINTS=true` disables the guard.
 
 ---
 
-## 4) Model Selection & Provider Policy
+## 3) Task Routing, Planner, and Schema Enforcement
 
-**Model policy**
-- Source: `src/ai/modelPolicy.ts`
-- Defaults:
-  - General text: `gpt-4o-mini` (OpenAI)
-  - Strategy & AI Assistant: `gemini-flash-latest` (Gemini)
-  - Embeddings: `text-embedding-3-small` (OpenAI)
-- Overrides:
-  - `AI_PROVIDER__{TASK}` / `AI_MODEL__{TASK}` (per-task)
-  - Strategy tasks are pinned to Gemini unless per-task override is used.
-
-**Providers**
-- OpenAI: `src/ai/providers/openai.ts`
-- Gemini: `src/ai/providers/gemini.ts`
-- Features:
-  - Retries + timeouts + circuit breaker (controlled by env flags)
-  - Gemini JSON generation uses `response_mime_type=application/json`
-
----
-
-## 5) Brain Documents & Context Resolution
-
-**Brain documents**
-- Schema & helpers: `supabase/functions/_shared/brain-documents.ts`
-- Tables:
-  - `brain_documents`
-  - `brain_document_versions`
-  - `brain_calibration_state` (calibration tracking)
-- Statuses: `draft`, `pending_approval`, `approved`, `archived`
-- Approved-only rule: runtime uses approved docs only
-
-**Brain resolver**
-- Source: `src/ai/brainResolver.ts`
-- Pulls approved brain docs, validates required fields per task, and returns:
-  - `ready` (complete context)
-  - `calibration_needed` (missing fields + questions)
-
-**Task → Brain module requirements**
-- Source: `src/ai/taskToModuleMap.ts`
-- Example:
-  - `AI_ASSISTANT` requires `rep_policy` + `quality_bar` (style + quality)
-  - `STRATEGY_PLAN` requires `bootstrap`, `tone_voice`, `sop_strategy` etc.
-
----
-
-## 6) Embeddings & Vector Search
-
-**Storage**
-- Tables:
-  - `ai_document_chunks` (chunk metadata)
-  - `ai_embeddings` (vector table)
-- RPC:
-  - `match_ai_embeddings` (service role only)
-    - Hardened in migrations (see `20260118000001_harden_match_ai_embeddings_final.sql`)
-
-**Chunking**
-- `ai-documents-ingest`: 900 tokens / 140 overlap / max 120 chunks
-  - File: `supabase/functions/ai-documents-ingest/index.ts`
-- `ai-brain-ingest`: 900 tokens / 140 overlap / max 12 chunks
-  - File: `supabase/functions/ai-brain-ingest/index.ts`
-- `ai-job-worker` summary chunks: 900 / 140 / max 12
-  - File: `supabase/functions/ai-job-worker/index.ts`
-
-**Embeddings model**
-- Default: `text-embedding-3-small` (OpenAI)
-- Env override: `EMBEDDING_MODEL_ID`
-- Expected dimensionality: `AI_EMBED_DIM_EXPECTED` (default 1536)
-  - File: `supabase/functions/_shared/embeddings.ts`
-
-**Embedding policy**
-- File: `supabase/functions/_shared/embedding-policy.ts`
-- Handles missing API keys and embedding failures gracefully (or hard-fail if configured)
-
----
-
-## 7) RAG (Retrieval-Augmented Generation)
-
-**RAG policy**
-- Source: `src/ai/ragPolicy.ts`
-- Per-task configuration (doc types, top-k, similarity, token cap)
-- Controlled via `AI_RAG_CENTRALIZED` flag (boolean or % rollout)
-
-**RAG selection & truncation**
-- Uses `capMatchesByTokenBudget` and token limits
-  - File: `supabase/functions/_shared/retrieval.ts`
-
-**RAG usage**
-- `ai-ask`: always retrieves embeddings (unless disabled), plus budgets/rate limits
-- `ai-strategy-generate`: retrieves client + agency + exemplar embeddings, with fallback to approved docs if empty
-- `ai-assistant`: can request embeddings via `context_request` tool
-
----
-
-## 8) Strategy Generation Flow
-
-**Endpoint**
-- `supabase/functions/ai-strategy-generate/index.ts`
-
-**Core steps**
-1. Validate membership + request
-2. Load client data, onboarding answers, and brain readiness
-3. RAG retrieval (client/agency/exemplar embeddings)
-4. Call router task `STRATEGY_PLAN`
-5. Validate output against `strategyOutputSchema` (Zod)
-6. Evaluate quality per module (rules engine)
-7. Persist strategy modules + strategy document + citations
-
-**Output schema**
-- File: `supabase/functions/_shared/strategy-output.ts`
-
-**Quality checks**
-- `src/lib/strategy/rulesEngine.ts`
-
----
-
-## 9) AI Assistant (Client Detail) Flow
-
-**Endpoint**
-- `supabase/functions/ai-assistant/index.ts`
-
-**Startup context**
-- Requires approved `rep_policy` and `quality_bar`
-- Includes:
-  - user name + role
-  - client basics
-  - conversation summary (auto-summarized after enough messages)
-
-**On-demand context**
-The assistant can request more info via `context_request.requests`:
-- `brain_module`
-- `strategy_modules`
-- `strategy_document`
-- `client_basics`
-- `embeddings_search`
-
-**Chat persistence**
-- Tables:
-  - `client_ai_chat_threads`
-  - `client_ai_chat_messages`
-- RLS: users only see their own chat threads/messages
-  - Migration: `supabase/migrations/20260131120000_client_ai_assistant_chat.sql`
-
-**Strategy changes**
-- Assistant can propose module updates but never applies directly
-- UI enforces confirm + undo (history-based)
-
----
-
-## 10) Client Portal Q&A (ai-ask)
-
-**Endpoint**
-- `supabase/functions/ai-ask/index.ts`
-
-**Controls**
-- Daily rate limit (`ai_rate_limits`)
-- Monthly budget guard (`ai_budgets`)
-- Logging via `ai_runs`
-
-**RAG**
-- Embeddings-based context; prompts use prompt registry (`ai_prompt_registry`)
-
----
-
-## 11) AI Usage & Observability
-
-**Usage logging**
-- `ai_runs` table written by `runAiTask` or endpoint-specific handlers
-  - File: `supabase/functions/_shared/ai.ts`
-
-**Budgets**
-- `ai_budgets` + `ai_rate_limits` enforced by `runAiTask` and `ai-ask`
-
----
-
-## 12) Key Data Structures (DB)
-
-**Core AI tables**
-- `brain_documents`, `brain_document_versions`, `brain_calibration_state`
-- `ai_document_chunks`, `ai_embeddings`
-- `ai_runs`, `ai_rate_limits`, `ai_budgets`, `ai_escalations`
-- `client_ai_chat_threads`, `client_ai_chat_messages`
-
-**Key RPC**
-- `match_ai_embeddings` (service role only)
-- `get_approved_brain_documents` (by agency)
-
----
-
-## 13) Environment Flags & Config
-
-**Model & provider**
-- `AI_MODE` (dev/prod)
-- `AI_PROVIDER`, `AI_MODEL` (global)
-- `AI_PROVIDER__{TASK}`, `AI_MODEL__{TASK}` (per-task)
-
-**Provider resilience**
-- `AI_PROVIDER_TIMEOUTS`
-- `AI_PROVIDER_RETRIES`
-- `AI_CIRCUIT_BREAKER`
-
-**Embeddings**
-- `EMBEDDING_MODEL_ID`
-- `AI_EMBED_DIM_EXPECTED`
-
-**RAG**
-- `AI_RAG_CENTRALIZED` (true/false or percent rollout)
-
----
-
-## 14) Notable Constraints & Safety
-
-- Strategy/assistant tasks are pinned to Gemini by default.
-- Schema enforcement uses “strict_unknown” for high-safety tasks.
-- Embedding search RPC is locked to service role.
-- AI Assistant won’t run without Communication Style + Quality Standard approved.
-
----
-
-## 15) Quick File Index (for future audits)
-
-**Core routing**
+Router
 - `src/ai/router.ts`
-- `src/ai/taskRegistry.ts`
-- `src/ai/modelPolicy.ts`
-- `src/ai/schema.ts`
+- Responsibilities:
+  - TaskType -> prompt builder + schema via `src/ai/taskRegistry.ts`
+  - JSON schema validation with a repair pass
+  - UNKNOWN fallbacks for strict tasks when required context is missing
+  - Usage logging and OpenTelemetry span logging
 
-**RAG + brains**
-- `src/ai/brainResolver.ts`
-- `src/ai/taskToModuleMap.ts`
-- `src/ai/ragPolicy.ts`
+Task types (selected)
+- `src/ai/taskTypes.ts` includes:
+  - CLASSIFY_INTENT (intent mode + confidence)
+  - PLANNER (plan schema output)
+  - TOOL_EXECUTION
+  - STRATEGY_PLAN / AI_ASSISTANT
+  - EMBED_TEXT
+
+Planner and intent artifacts
+- Planner wiring + prompts: `src/ai/planner.ts`, `src/ai/prompts/planner.ts`
+- Intent classifier prompt: `src/ai/prompts/classifyIntent.ts`
+- Expanded schemas for plans/tool calls/retrieval/memory/strategy: `src/ai/schema.ts`
+- Schema registry artifact: `docs/ai/schema_registry.json`
+
+---
+
+## 4) Models, Provider Policy, and RAG Index Switching
+
+Provider policy
+- Centralized model policy: `src/ai/modelPolicy.ts`
+- Provider implementations: `src/ai/providers/openai.ts`, `src/ai/providers/gemini.ts`, `src/ai/providers/anthropic.ts`
+- Mock provider: `src/ai/providers/mock.ts` (tests/compat)
+
+Embeddings + RAG index provider switch (Phase 2)
+- `RAG_INDEX_PROVIDER=openai|gemini`
+  - openai: uses `ai_embeddings` (vector(1536)) and RPC `match_ai_embeddings*`
+  - gemini: uses `ai_embeddings_shadow_gemini_vector` (vector(768)) and RPC `match_ai_embeddings_shadow_gemini*`
+- RAG selection helper: `supabase/functions/_shared/rag-index.ts`
+
+---
+
+## 5) Brains and Context Resolution
+
+Brain documents (v2)
 - `supabase/functions/_shared/brain-documents.ts`
-- `supabase/functions/_shared/embeddings.ts`
+- Status-based access: brain_document retrieval is approved-only at query time.
 
-**Edge functions**
-- `supabase/functions/ai-assistant/index.ts`
-- `supabase/functions/ai-strategy-generate/index.ts`
-- `supabase/functions/ai-ask/index.ts`
-- `supabase/functions/ai-retrieve-context/index.ts`
-- `supabase/functions/ai-documents-ingest/index.ts`
-- `supabase/functions/ai-brain-ingest/index.ts`
-- `supabase/functions/ai-job-worker/index.ts`
+Brain resolver (v2)
+- `src/ai/brainResolver.ts`
+- Returns:
+  - ready: context is complete
+  - calibration_needed: missing fields + questions to ask
+
+Task -> module mapping
+- `src/ai/taskToModuleMap.ts`
+
+---
+
+## 6) Embeddings, Chunking, and Retrieval Safety
+
+Tables (core)
+- `ai_documents`, `ai_document_chunks`
+- Primary embeddings: `ai_embeddings` (pgvector)
+- Shadow Gemini embeddings:
+  - `ai_embeddings_shadow_gemini` (jsonb vector payload; shadow write)
+  - `ai_embeddings_shadow_gemini_vector` (pgvector(768); Phase 2 cutover readiness)
+
+Chunking behavior (current)
+- Documents ingest: 900 tokens, overlap 140, max 120 chunks
+  - `supabase/functions/ai-documents-ingest/index.ts`
+- Memory ingest: 900 tokens, overlap 140, max 24 chunks
+  - `supabase/functions/_shared/memory-ingest.ts`
+
+Retrieval RPCs
+- OpenAI index:
+  - `match_ai_embeddings` (service_role only)
+  - `match_ai_embeddings_scoped` (service_role only; safe inclusion of agency-scoped docs without cross-client leaks)
+- Gemini index:
+  - `match_ai_embeddings_shadow_gemini` (service_role only)
+  - `match_ai_embeddings_shadow_gemini_scoped` (service_role only)
+
+0 cross-tenant leaks notes
+- All match functions filter by `d.agency_id = p_agency_id`.
+- Scoped variants prevent returning other clients' docs when a specific client_id is provided, while still allowing safe agency-level docs (client_id is null) for a whitelisted set of doc_types.
+
+---
+
+## 7) Contextual Ingestion and Poisoning Defense (Phase 2)
+
+Allowlist table
+- `ai_ingestion_sources` (RLS; admin-only writes)
+  - Migration: `supabase/migrations/20260202032000_phase2_ingestion_sources.sql`
+
+Enforcement in ingestion
+- When `ENABLE_CONTEXTUAL_INGESTION=true` (and Phase 2 is enabled for the tenant), `ai-documents-ingest` enforces:
+  - source must be allowlisted for {agency_id, source_type, source_ref}
+  - if allowlisted row includes manifest_sha256, request must supply a matching manifest_sha256
+  - optional source_url match check
+
+Per-chunk contextual summaries (Phase 2)
+- Stored in `ai_document_chunks`:
+  - `chunk_summary`, `chunk_summary_tokens`, `chunk_summary_model`, `chunk_summary_status`
+- Generated during `ai-documents-ingest` when contextual ingestion is enabled.
+  - Migration: `supabase/migrations/20260202035000_phase2_contextual_summaries_and_manifest.sql`
+
+---
+
+## 8) Memory Tiers (Phase 2)
+
+Memory table
+- `ai_memory_items` now supports:
+  - scope: working|episodic|long_term
+  - status: proposed|active|rejected
+  - created_by / approved_by / rejected_by timestamps
+  - thread_id, checkpoint_id, summary (episodic)
+
+Long-term approval workflow
+- Writes may be proposed, then approved via admin-only endpoint:
+  - `ai-memory-approve` -> updates status and ingests into `ai_documents` so it is retrievable via embeddings.
+  - Doc types: client_memory, agency_memory
+
+Episodic capture
+- Buffer: `ai_episodic_buffers` accumulates turns per {agency_id, client_id, thread_id}.
+- Capture point: `ai-rep-chat` writes an episodic summary every 5 turns (basic PII heuristics; skips obvious PII).
+  - Doc types when ingested: client_episodic, agency_episodic
+
+Note: memory ingestion runs via `ai-job-worker` (cron-triggered) or synchronous ingest on approval (used for staging smoke).
+
+---
+
+## 9) Observability and Metrics (OTel + Usage Logs)
+
+OTel spans
+- Table: `ai_otel_spans`
+- Written by Edge endpoints using `src/ai/otel.ts`.
+- Attributes include http_status and other stage metadata.
+
+Usage logs
+- `ai_runs` (task-level structured logging for model calls and outcomes)
+- `ai_usage_logs` (endpoint-level counters)
+
+Tenant safety
+- ai_otel_spans has RLS and explicit grants (authenticated can read spans for their agency_id only).
+- Evidence generation should never store JWTs in repo.
+
+---
+
+## 10) Feature Flags (Operational Switches)
+
+Core (Phase 0/1)
+- `AI_OTEL_LOGGING=true|false` (OTel span writes)
+- `ENABLE_NEW_RAG_INDEXING=true|false` (shadow Gemini embedding writes)
+- `USE_NEW_PLANNER=true|false`
+- `USE_DURABLE_EXECUTOR=true|false`
+- `ENABLE_RAG_RERANKING=true|false`
+- `ENFORCE_TOOL_GOVERNANCE=true|false`
+- `ENABLE_UNUSED_AI_ENDPOINTS=true|false` (endpoint guard override)
+
+Phase 2 behavior flags
+- `ENABLE_EPISODIC_MEMORY=true|false`
+- `ENABLE_LONG_TERM_MEMORY=true|false`
+- `ENABLE_CONTEXTUAL_INGESTION=true|false`
+- `PHASE2_COHORT_MODE=require_list|allow_all`
+- `PHASE2_COHORT_AGENCY_IDS=<csv>`
+
+Phase 2 RAG cutover flags
+- `RAG_INDEX_PROVIDER=openai|gemini`
+- `GEMINI_EMBED_DIM_EXPECTED=768` (required for gemini pgvector table)
+
+---
+
+## 11) Key Migrations (Selected)
+
+Phase 0/1 foundations (selected)
+- `20260118000001_harden_match_ai_embeddings_final.sql`
+- `20260201000000_add_ai_shadow_gemini_embeddings.sql`
+- `20260201001000_add_ai_otel_spans.sql`
+- `20260202020000_grant_ai_otel_spans_authenticated.sql`
+
+Phase 2 (selected)
+- `20260202031000_phase2_memory_items.sql`
+- `20260202032000_phase2_ingestion_sources.sql`
+- `20260202033000_phase2_allow_memory_doc_types.sql`
+- `20260202034000_phase2_episodic_memory.sql`
+- `20260202035000_phase2_contextual_summaries_and_manifest.sql`
+- `20260202036000_phase2_gemini_shadow_vector_rag.sql`
+- `20260202037000_harden_phase2_rag_functions.sql`
+
+---
+
+## 12) Evidence and Operational Runners (No JWTs in Repo)
+
+Staging smoke
+- Phase 2 smoke (ingestion allowlist + manifest + summaries + memory approval ingest + retrieval):
+  - `scripts/smoke/phase2_staging_smoke.mjs`
+  - Evidence examples:
+    - `tests/integration/cutover/results/2026-02-01_phase2_staging_smoke_v2.json`
+    - `tests/integration/cutover/results/2026-02-01_phase2_rag_index_cutover_smoke.json`
+
+Daily checklist runner (produces today's artifacts)
+- `scripts/phase2/day_check.mjs`
+  - Perf: `tests/perf/results/YYYY-MM-DD_ai-retrieve-context_p95.json`
+  - Evals: `tests/evals/results/YYYY-MM-DD_eval_harness.json`
+  - Tenant spot check: `tests/security/results/YYYY-MM-DD_tenant_spotcheck.json`
+  - OTel spot check: `tests/perf/results/YYYY-MM-DD_otel_spotcheck.json`
+
+Full tenant audit runner (requires 2 real tenants + 2 JWTs; does not store tokens)
+- `scripts/security/full_tenant_audit_runner.mjs`
+  - Output: `tests/security/results/YYYY-MM-DD_full_tenant_audit.json`
+
+---
+
+## 13) Known Unknowns / Follow-ups
+
+UNKNOWN / time-gated (cannot be manufactured)
+- 7 consecutive days of production validation evidence (Phase 2 DoD).
+- Human evaluation protocol execution and scored results.
+
+TODO
+- Keep this audit updated when adding new agent endpoints/tools so tenant scoping ("0 cross-tenant leaks") remains explicit.
 

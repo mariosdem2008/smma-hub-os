@@ -1,21 +1,24 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { serve } from "std/http/server";
+import { createClient } from "@supabase/supabase-js";
 import { corsHeaders } from "../_shared/cors.ts";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
 import { evaluateClientBrainForStrategy } from "../_shared/brain-quality.ts";
-import { embedText } from "../_shared/embeddings.ts";
+import { embedQueryForRag, getMatchRpcName } from "../_shared/rag-index.ts";
 import { mapV3AnswersToClientBrain } from "../_shared/client-brain-mapping.ts";
 import { ai } from "../../../src/ai/router.ts";
 import { TaskType } from "../../../src/ai/taskTypes.ts";
 import { applyRagPolicy, getRagConfig, shouldUseRagPolicy } from "../../../src/ai/ragPolicy.ts";
 import { validateCitations } from "../../../src/ai/citations.ts";
 import { calculateCost } from "../_shared/budgets.ts";
-import { capMatchesByTokenBudget, clampMatchCount } from "../_shared/retrieval.ts";
+import { capMatchesByTokenBudget, clampMatchCount, getInitialMatchCount, applyScoreRerank } from "../_shared/retrieval.ts";
 import { buildBrainDocumentReferences, formatBrainDocumentReferencesMarkdown } from "../_shared/strategy-references.ts";
 import { buildStrategyOutputSchema, type StrategyOutput } from "../_shared/strategy-output.ts";
-import { marked } from "npm:marked@9.1.6";
+import { marked } from "marked";
 import { getEndpointGuardResponse } from "../_shared/endpoint-guard.ts";
 import { evaluateStrategyModule } from "../../../src/lib/strategy/rulesEngine.ts";
+import { generateSpanId, generateTraceId, logOtelSpan } from "../../../src/ai/otel.ts";
+import { isDurableExecutorEnabled } from "../../../src/ai/flags.ts";
+import { writeCheckpoint } from "../_shared/executor-checkpoints.ts";
 
 function jsonResponse(body: unknown, status = 200, headers: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
@@ -32,7 +35,7 @@ function emptySources() {
   };
 }
 
-type GatedCode = "BRAIN_INCOMPLETE" | "AGENCY_BRAIN_INCOMPLETE";
+type GatedCode = "BRAIN_INCOMPLETE" | "AGENCY_BRAIN_INCOMPLETE" | "CLIENT_BRAIN_MISSING";
 
 function buildUnknownResponse(
   gate: { missing_fields: string[]; questions: string[] },
@@ -86,6 +89,29 @@ function toList(value: unknown): string[] {
       .filter(Boolean);
   }
   return [];
+}
+
+function isLikelyPlaceholderWebsite(value: unknown): boolean {
+  if (typeof value !== "string") return false;
+  const site = value.trim().toLowerCase();
+  if (!site) return false;
+  return site === "example.com" || site === "http://example.com" || site === "https://example.com";
+}
+
+function normalizeCountry(value: unknown): { value: string | null; warning?: string } {
+  if (typeof value !== "string") return { value: null };
+  const trimmed = value.trim();
+  if (!trimmed) return { value: null };
+  // Common onboarding typos we have observed (keep conservative; do not guess broadly).
+  const lower = trimmed.toLowerCase();
+  if (lower === "greecee") return { value: "Greece", warning: `Normalized country from "${trimmed}" to "Greece".` };
+  return { value: trimmed };
+}
+
+function normalizeCity(value: unknown): { value: string | null } {
+  if (typeof value !== "string") return { value: null };
+  const trimmed = value.trim();
+  return { value: trimmed.length ? trimmed : null };
 }
 
 function deepMergePreferExisting(existing: any, fallback: any): any {
@@ -186,6 +212,31 @@ const MODULE_LABELS: Record<string, string> = {
   rules_constraints: "Rules + constraints",
 };
 
+function buildBlockerTasks(args: {
+  moduleEvaluations: Array<{ module: string; blockers: Array<{ code: string; message: string; severity?: string; field_path?: string }> }>;
+}) {
+  const tasks: Array<Record<string, unknown>> = [];
+  for (const evaluation of args.moduleEvaluations ?? []) {
+    const module = evaluation.module;
+    for (const blocker of evaluation.blockers ?? []) {
+      const title = `Fix ${MODULE_LABELS[module] ?? module}: ${blocker.message}`;
+      const descriptionParts = [
+        blocker.field_path ? `Field: ${blocker.field_path}` : null,
+        blocker.code ? `Code: ${blocker.code}` : null,
+        blocker.severity ? `Severity: ${blocker.severity}` : null,
+      ].filter(Boolean);
+      tasks.push({
+        module,
+        title,
+        description: descriptionParts.join(" • "),
+        priority: blocker.severity === "high" ? "urgent" : blocker.severity === "med" ? "high" : "medium",
+        dedupe_key: `blocker:${module}:${blocker.code ?? blocker.message}`,
+      });
+    }
+  }
+  return tasks;
+}
+
 async function safeInsertAiRun(
   supabase: ReturnType<typeof createClient>,
   payload: {
@@ -244,85 +295,113 @@ function isoWeekString(date: Date): string {
 }
 
 serve(async (req: Request) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders(req) });
-  }
+  const traceId = generateTraceId();
+  const spanId = generateSpanId();
+  const spanStart = Date.now();
+  let response: Response | undefined;
+  let supabase: ReturnType<typeof createClient> | null = null;
+  let agencyId: string | undefined;
+  let clientId: string | undefined;
+  let userId: string | undefined;
+  let planId: string | undefined;
+  let durableEnabled = false;
 
-  if (req.method !== "POST") {
-    return jsonResponse({ error: "Method not allowed" }, 405, corsHeaders(req));
-  }
-
-  const guardResponse = getEndpointGuardResponse("ai-strategy-generate", corsHeaders(req));
-  if (guardResponse) return guardResponse;
-
-  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-    auth: { persistSession: false },
-  });
-
-  const startTime = Date.now();
-  const strictSchema = Deno.env.get("AI_SCHEMA_STRICT") === "true";
-  const body = await req.json().catch(() => ({}));
-  const clientId = body.client_id as string | undefined;
-  const instruction = body.instruction as string | undefined;
-  const cronSecret = Deno.env.get("CRON_SECRET") ?? "";
-  const cronHeader = req.headers.get("x-cron-secret") ?? "";
-  const isCron = cronSecret.length > 0 && cronHeader === cronSecret;
-
-  if (!clientId) {
-    return jsonResponse({ error: "client_id is required", code: "MISSING_CLIENT_ID" }, 400, corsHeaders(req));
-  }
-
-  const { data: clientRow, error: clientError } = await supabase
-    .from("clients")
-    .select("agency_id")
-    .eq("id", clientId)
-    .maybeSingle();
-
-  if (clientError || !clientRow?.agency_id) {
-    return jsonResponse({ error: "Client not found", code: "CLIENT_NOT_FOUND" }, 404, corsHeaders(req));
-  }
-
-  const agencyId = clientRow.agency_id as string;
-
-  let actingUserId: string | null = null;
-  if (isCron) {
-    const { data: adminUser } = await supabase
-      .from("agency_members")
-      .select("user_id")
-      .eq("agency_id", agencyId)
-      .in("role", ["owner", "admin"])
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .maybeSingle();
-    actingUserId = adminUser?.user_id ?? null;
-    if (!actingUserId) {
-      return jsonResponse({ error: "No admin user available for job execution" }, 403, corsHeaders(req));
-    }
-  } else {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return jsonResponse({ error: "Missing Authorization header" }, 401, corsHeaders(req));
+  response = await (async () => {
+    if (req.method === "OPTIONS") {
+      return new Response(null, { headers: corsHeaders(req) });
     }
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data: userData, error: userError } = await supabase.auth.getUser(token);
-    const user = userData?.user;
-    if (userError || !user) {
-      return jsonResponse({ error: "Unauthorized" }, 401, corsHeaders(req));
+    if (req.method !== "POST") {
+      return jsonResponse({ error: "Method not allowed" }, 405, corsHeaders(req));
     }
 
-    const { data: membership } = await supabase
-      .from("agency_members")
+    const guardResponse = getEndpointGuardResponse("ai-strategy-generate", corsHeaders(req));
+    if (guardResponse) return guardResponse;
+
+    supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+      auth: { persistSession: false },
+    });
+
+    const startTime = Date.now();
+    const strictSchema = Deno.env.get("AI_SCHEMA_STRICT") === "true";
+    const body = await req.json().catch(() => ({}));
+    clientId = body.client_id as string | undefined;
+    const instruction = body.instruction as string | undefined;
+    const cronSecret = Deno.env.get("CRON_SECRET") ?? "";
+    const cronHeader = req.headers.get("x-cron-secret") ?? "";
+    const isCron = cronSecret.length > 0 && cronHeader === cronSecret;
+
+    if (!clientId) {
+      return jsonResponse({ error: "client_id is required", code: "MISSING_CLIENT_ID" }, 400, corsHeaders(req));
+    }
+
+    const { data: clientRow, error: clientError } = await supabase
+      .from("clients")
       .select("agency_id")
-      .eq("user_id", user.id)
-      .eq("agency_id", agencyId)
+      .eq("id", clientId)
       .maybeSingle();
 
-    if (!membership) {
-      return jsonResponse({ error: "Forbidden", code: "FORBIDDEN" }, 403, corsHeaders(req));
+    if (clientError || !clientRow?.agency_id) {
+      return jsonResponse({ error: "Client not found", code: "CLIENT_NOT_FOUND" }, 404, corsHeaders(req));
     }
-    actingUserId = user.id;
-  }
+
+    agencyId = clientRow.agency_id as string;
+
+    let actingUserId: string | null = null;
+    if (isCron) {
+      const { data: adminUser } = await supabase
+        .from("agency_members")
+        .select("user_id")
+        .eq("agency_id", agencyId)
+        .in("role", ["owner", "admin"])
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      actingUserId = adminUser?.user_id ?? null;
+      if (!actingUserId) {
+        return jsonResponse({ error: "No admin user available for job execution" }, 403, corsHeaders(req));
+      }
+    } else {
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader) {
+        return jsonResponse({ error: "Missing Authorization header" }, 401, corsHeaders(req));
+      }
+
+      const token = authHeader.replace("Bearer ", "");
+      const { data: userData, error: userError } = await supabase.auth.getUser(token);
+      const user = userData?.user;
+      if (userError || !user) {
+        return jsonResponse({ error: "Unauthorized" }, 401, corsHeaders(req));
+      }
+
+      const { data: membership } = await supabase
+        .from("agency_members")
+        .select("agency_id")
+        .eq("user_id", user.id)
+        .eq("agency_id", agencyId)
+        .maybeSingle();
+
+      if (!membership) {
+        return jsonResponse({ error: "Forbidden", code: "FORBIDDEN" }, 403, corsHeaders(req));
+      }
+      actingUserId = user.id;
+    }
+
+    userId = actingUserId ?? undefined;
+
+    durableEnabled = isDurableExecutorEnabled();
+    if (durableEnabled && agencyId && clientId) {
+      planId = `strategy:${clientId}:${Date.now()}`;
+      await writeCheckpoint(supabase, {
+        planId,
+        stepId: "strategy_generate",
+        status: "running",
+        agencyId,
+        clientId,
+        userId: userId ?? null,
+        payload: { task_type: "ai-strategy-generate" },
+      });
+    }
 
   const { data: brainRow, error: brainError } = await supabase
     .from("client_brains")
@@ -533,7 +612,6 @@ serve(async (req: Request) => {
         .eq("strategy_id", latestStrategy.id)
     : { data: [] };
 
-  const embeddingModel = Deno.env.get("EMBEDDING_MODEL_ID") ?? "text-embedding-3-small";
   const useRagPolicy = shouldUseRagPolicy({ agencyId, clientId });
   const ragConfig = getRagConfig(TaskType.STRATEGY_PLAN);
   // Strategy generation needs *some* context even when similarity is low.
@@ -541,7 +619,8 @@ serve(async (req: Request) => {
   const minSimilarity = 0.0;
   let queryEmbedding: number[];
   try {
-    queryEmbedding = await embedText("strategy_draft", "", embeddingModel);
+    const embedded = await embedQueryForRag({ query: "strategy_draft" });
+    queryEmbedding = embedded.embedding as any;
   } catch (error: any) {
     const message = error?.message ?? String(error);
     const missingApiKey = message.includes("API_KEY is not configured");
@@ -565,6 +644,7 @@ serve(async (req: Request) => {
           error: "AI configuration missing",
           message: "Please configure GEMINI_API_KEY (or OPENAI_API_KEY if using OpenAI) in your Supabase project secrets.",
           code: "MISSING_API_KEY",
+          trace_id: traceId,
         },
         500,
         corsHeaders(req),
@@ -574,7 +654,7 @@ serve(async (req: Request) => {
       agencyId,
       clientId,
       userId: actingUserId,
-      model: embeddingModel,
+      model: "rag-query-embedding",
       tokensIn: 0,
       tokensOut: 0,
       costUsd: 0,
@@ -591,31 +671,32 @@ serve(async (req: Request) => {
   const legacyAgencyDocTypes = ["agency_sop", "brain_document"];
   const legacyExemplarDocTypes = ["agency_exemplar_strategy"];
 
-  let { data: clientMatches, error: clientMatchesError } = await supabase.rpc("match_ai_embeddings", {
+  const rpcName = getMatchRpcName({ scoped: false });
+  let { data: clientMatches, error: clientMatchesError } = await supabase.rpc(rpcName, {
     p_agency_id: agencyId,
     p_client_id: clientId,
     p_query_embedding: queryEmbedding,
-    p_match_count: clampMatchCount(useRagPolicy ? ragConfig.client_memory_top_k : 6),
+    p_match_count: clampMatchCount(getInitialMatchCount(useRagPolicy ? ragConfig.client_memory_top_k : 6, 50)),
     p_doc_types: useRagPolicy ? ragConfig.client_doc_types : legacyClientDocTypes,
     p_modules: null,
     p_min_similarity: minSimilarity,
   });
 
-  let { data: agencyMatches, error: agencyMatchesError } = await supabase.rpc("match_ai_embeddings", {
+  let { data: agencyMatches, error: agencyMatchesError } = await supabase.rpc(rpcName, {
     p_agency_id: agencyId,
     p_client_id: null,
     p_query_embedding: queryEmbedding,
-    p_match_count: clampMatchCount(useRagPolicy ? ragConfig.agency_memory_top_k : 4),
+    p_match_count: clampMatchCount(getInitialMatchCount(useRagPolicy ? ragConfig.agency_memory_top_k : 4, 50)),
     p_doc_types: useRagPolicy ? ragConfig.agency_doc_types : legacyAgencyDocTypes,
     p_modules: null,
     p_min_similarity: minSimilarity,
   });
 
-  let { data: exemplarMatches, error: exemplarMatchesError } = await supabase.rpc("match_ai_embeddings", {
+  let { data: exemplarMatches, error: exemplarMatchesError } = await supabase.rpc(rpcName, {
     p_agency_id: agencyId,
     p_client_id: null,
     p_query_embedding: queryEmbedding,
-    p_match_count: clampMatchCount(useRagPolicy ? ragConfig.exemplar_top_k : 2),
+    p_match_count: clampMatchCount(getInitialMatchCount(useRagPolicy ? ragConfig.exemplar_top_k : 2, 50)),
     p_doc_types: useRagPolicy ? ragConfig.exemplar_doc_types : legacyExemplarDocTypes,
     p_modules: null,
     p_min_similarity: minSimilarity,
@@ -673,6 +754,8 @@ serve(async (req: Request) => {
       ];
     }
   }
+
+  matches = applyScoreRerank(matches, 12);
 
   if (matches.length === 0) {
     // Onboarding + ClientBrain should be sufficient for a v1 strategy draft.
@@ -763,7 +846,30 @@ serve(async (req: Request) => {
     `GeneratedAtUtc: ${new Date().toISOString()}`,
     `CurrentMonth: ${new Date().getUTCFullYear()}-${pad2(new Date().getUTCMonth() + 1)}`,
     `CurrentIsoWeek: ${isoWeekString(new Date())}`,
-    `Onboarding Profile:\n${JSON.stringify(onboardingProfile ?? {})}`,
+    (() => {
+      const profile = (onboardingProfile ?? {}) as Record<string, unknown>;
+      const warnings: string[] = [];
+
+      const country = normalizeCountry(profile.q3_country ?? (profile as any).country);
+      if (country.warning) warnings.push(country.warning);
+      const city = normalizeCity(profile.q3_city ?? (profile as any).city);
+
+      const website = (profile.q2_website ?? (profile as any).website) as unknown;
+      if (isLikelyPlaceholderWebsite(website)) {
+        warnings.push(`Website looks like a placeholder (${String(website)}). Treat as unverified.`);
+      }
+
+      const sanitized = {
+        ...profile,
+        ...(country.value ? { q3_country: country.value } : {}),
+        ...(city.value ? { q3_city: city.value } : {}),
+      };
+
+      return [
+        `Onboarding Profile (sanitized):\n${JSON.stringify(sanitized)}`,
+        warnings.length ? `DataQualityWarnings:\n- ${warnings.join("\n- ")}` : "DataQualityWarnings:\n(none)",
+      ].join("\n\n");
+    })(),
     `Structured Strategy:\n${JSON.stringify(moduleRows ?? [])}`,
     `RAG Context:\n${context}`,
     referencesSection,
@@ -785,6 +891,38 @@ serve(async (req: Request) => {
     output = (aiResult.output ?? null) as StrategyOutput | null;
   } catch (error: any) {
     const isTimeout = error instanceof DOMException && error.name === "AbortError";
+    const message = error?.message ?? String(error);
+    const missingApiKey = typeof message === "string" && message.includes("API_KEY is not configured");
+
+    if (missingApiKey) {
+      const keyMatch = message.match(/\b(OPENAI_API_KEY|GEMINI_API_KEY|ANTHROPIC_API_KEY)\b/);
+      const keyName = keyMatch?.[1] ?? "GEMINI_API_KEY";
+      await safeInsertAiRun(supabase, {
+        agencyId,
+        clientId,
+        userId: actingUserId,
+        model: "missing-ai-api-key",
+        tokensIn: 0,
+        tokensOut: 0,
+        costUsd: 0,
+        startTime,
+        success: false,
+        unknown: false,
+        citations: emptySources(),
+        metadata: { code: "MISSING_API_KEY", error: message, trace_id: traceId, required_key: keyName },
+      });
+      return jsonResponse(
+        {
+          error: "AI configuration missing",
+          message: `Please configure ${keyName} in your Supabase project secrets.`,
+          code: "MISSING_API_KEY",
+          trace_id: traceId,
+        },
+        500,
+        corsHeaders(req),
+      );
+    }
+
     const code = isTimeout ? "GENERATION_TIMEOUT" : "GENERATION_ERROR";
     const status = isTimeout ? 504 : 500;
     await safeInsertAiRun(supabase, {
@@ -799,9 +937,9 @@ serve(async (req: Request) => {
       success: false,
       unknown: false,
       citations: emptySources(),
-      metadata: { code, error: error?.message ?? String(error) },
+      metadata: { code, error: message, trace_id: traceId },
     });
-    return jsonResponse({ error: "Failed to generate strategy", code }, status, corsHeaders(req));
+    return jsonResponse({ error: "Failed to generate strategy", code, trace_id: traceId }, status, corsHeaders(req));
   }
 
   if (aiResult?.unknown || (aiResult?.output as any)?.unknown === true) {
@@ -847,7 +985,67 @@ serve(async (req: Request) => {
   }
 
   const referencesMarkdown = referencesSection.replace(/^References:/, "## References");
-  const baseMarkdown = output.document.markdown?.trim() ?? "";
+
+  // Post-generation quality repair loop: if the rules engine finds blockers, attempt limited repair passes.
+  // This improves completeness while staying compatible with the existing StrategyPlan schema.
+  const MAX_REPAIR_PASSES = 2;
+  let repairedOutput = output;
+  let repairedAiResult = aiResult;
+
+  for (let pass = 0; pass < MAX_REPAIR_PASSES; pass += 1) {
+    const evaluations = Object.entries(repairedOutput.modules).map(([module, content]) => {
+      const evaluation = evaluateStrategyModule(module as any, content as any, {
+        modules: repairedOutput.modules as any,
+        currentStatus: "draft",
+        isLocked: false,
+      });
+      return { module, ...evaluation };
+    });
+
+    const blockersByModule = evaluations
+      .filter((e: any) => (e.blockers ?? []).length > 0)
+      .map((e: any) => ({ module: e.module, blockers: e.blockers }));
+
+    if (blockersByModule.length === 0) break;
+
+    const repairContext = [
+      promptContext,
+      `RepairPass: ${pass + 1}/${MAX_REPAIR_PASSES}`,
+      `ExistingModulesJson:\n${JSON.stringify(repairedOutput.modules)}`,
+      `BlockersToFix:\n${JSON.stringify(blockersByModule)}`,
+      "RepairInstructions:\n- Fix ONLY the listed blockers.\n- Preserve correct fields (especially selectedMonth, selectedWeek, dates, cadenceMatrix).\n- Do NOT introduce new unsourced numeric KPI targets; if targets exist without baseline, label them as assumptions and ask for baseline.\n- Avoid the word \"store\" for service businesses; use \"studio\" / \"location\" wording.\n- Avoid \"guaranteed\" language in fitness/health contexts.\n- Return full StrategyPlan JSON matching schema.",
+    ].join("\n\n");
+
+    let passResult: any = null;
+    try {
+      passResult = await ai.run({
+        taskType: TaskType.STRATEGY_PLAN,
+        input: "",
+        context: { agencyId, clientId, userId: actingUserId, environment: "prod", supabase, skipUsageLog: true },
+        metadata: { context: repairContext, instruction, client_brain: effectiveBrain },
+        outputSchema,
+      });
+    } catch (error: any) {
+      console.error("strategy_repair_pass_failed", { pass: pass + 1, error: error?.message ?? String(error) });
+      break;
+    }
+
+    const candidate = (passResult?.output ?? null) as StrategyOutput | null;
+    if (!passResult?.schemaOk || !candidate) break;
+
+    const nextModules: any = { ...(repairedOutput.modules as any) };
+    for (const row of blockersByModule as any[]) {
+      const module = row.module;
+      if (candidate.modules && (candidate.modules as any)[module]) {
+        nextModules[module] = (candidate.modules as any)[module];
+      }
+    }
+
+    repairedOutput = { ...repairedOutput, modules: nextModules, document: candidate.document ?? repairedOutput.document };
+    repairedAiResult = passResult;
+  }
+
+  const baseMarkdown = repairedOutput.document.markdown?.trim() ?? "";
   const markdown = /\n##\s+References\b/i.test(baseMarkdown)
     ? baseMarkdown
     : `${baseMarkdown}\n\n${referencesMarkdown}`;
@@ -884,22 +1082,22 @@ serve(async (req: Request) => {
     }),
   );
 
-  const modulePayload = Object.entries(output.modules).map(([module, content]) => ({
+  const modulePayload = Object.entries(repairedOutput.modules).map(([module, content]) => ({
     module,
     content_json: content,
     ai_confidence: (content as any).confidence_0_100 ?? null,
   }));
 
-  const moduleEvaluations = Object.entries(output.modules).map(([module, content]) => {
+  const moduleEvaluations = Object.entries(repairedOutput.modules).map(([module, content]) => {
     const evaluation = evaluateStrategyModule(module as any, content as any, {
-      modules: output.modules as any,
+      modules: repairedOutput.modules as any,
       currentStatus: "draft",
       isLocked: false,
     });
     return { module, ...evaluation };
   });
 
-  const autoValidationTasks = Object.entries(output.modules)
+  const autoValidationTasks = Object.entries(repairedOutput.modules)
     .filter(([, content]) => (content as any).confidence_0_100 < 70)
     .map(([module, content]) => {
       const questions = (content as any).open_questions ?? [];
@@ -915,16 +1113,16 @@ serve(async (req: Request) => {
       };
     });
 
-  const taskRows = [...(output.tasks ?? []), ...autoValidationTasks];
-  const tasksPayload = Array.from(
-    taskRows.reduce((map, task) => {
-      const key = task.dedupe_key ?? `${task.module ?? "general"}:${task.title}`;
-      if (!map.has(key)) {
-        map.set(key, task);
-      }
-      return map;
-    }, new Map<string, any>())
-  ).map(([, task]) => task);
+  const blockerTasks = buildBlockerTasks({ moduleEvaluations: moduleEvaluations as any });
+  const taskRows = [...(repairedOutput.tasks ?? []), ...autoValidationTasks, ...blockerTasks];
+  const dedupedTasks = taskRows.reduce((map: Map<string, any>, task: any) => {
+    const key = task.dedupe_key ?? `${task.module ?? "general"}:${task.title}`;
+    if (!map.has(key)) {
+      map.set(key, task);
+    }
+    return map;
+  }, new Map<string, any>());
+  const tasksPayload = Array.from(dedupedTasks.values());
 
   const rpcResult = await supabase.rpc("create_strategy_snapshot", {
     p_client_id: clientId,
@@ -934,10 +1132,10 @@ serve(async (req: Request) => {
     p_modules: modulePayload,
     p_document_markdown: markdown,
     p_document_html: html,
-    p_model: aiResult?.meta?.model ?? (Deno.env.get("STRATEGY_MODEL_ID") ?? "gpt-4o-mini"),
+    p_model: repairedAiResult?.meta?.model ?? (Deno.env.get("STRATEGY_MODEL_ID") ?? "gpt-4o-mini"),
     p_instruction: instruction ?? null,
     p_derived_hash: derivedFromHash,
-    p_decisions: output.decisions ?? null,
+    p_decisions: repairedOutput.decisions ?? null,
     p_tasks: tasksPayload.length ? tasksPayload : null,
   });
 
@@ -1080,10 +1278,10 @@ serve(async (req: Request) => {
     unknown: false,
   });
 
-  return jsonResponse(
+    return jsonResponse(
     {
       unknown: false,
-      modules: output.modules,
+      modules: repairedOutput.modules,
       tasks_created: tasksPayload.length,
       citations,
       rag_debug: {
@@ -1096,13 +1294,41 @@ serve(async (req: Request) => {
         rag_policy_version: ragPolicyVersion,
       },
       confidence: Math.round(
-        Object.values(output.modules)
+        Object.values(repairedOutput.modules)
           .map((mod: any) => Number(mod.confidence_0_100 ?? 0))
-          .reduce((acc, val) => acc + val, 0) / Object.keys(output.modules).length,
+          .reduce((acc, val) => acc + val, 0) / Object.keys(repairedOutput.modules).length,
       ),
       document: rpcResult?.data ?? null,
     },
     200,
     corsHeaders(req),
-  );
+    );
+  })();
+
+  await logOtelSpan(supabase, {
+    traceId,
+    spanId,
+    stage: "edge.ai-strategy-generate",
+    taskType: TaskType.STRATEGY_PLAN,
+    agencyId,
+    clientId,
+    userId,
+    latencyMs: Date.now() - spanStart,
+    attributes: { http_status: response?.status ?? 0 },
+  });
+
+  if (durableEnabled && supabase && agencyId && planId) {
+    const status = response?.status && response.status < 300 ? "completed" : "failed";
+    await writeCheckpoint(supabase, {
+      planId,
+      stepId: "strategy_generate",
+      status,
+      agencyId,
+      clientId,
+      userId: userId ?? null,
+      payload: { http_status: response?.status ?? 0 },
+    });
+  }
+
+  return response!;
 });

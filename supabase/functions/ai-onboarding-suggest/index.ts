@@ -9,6 +9,7 @@ import { corsHeaders } from '../_shared/cors.ts';
 import { runAiTask } from "../_shared/ai.ts";
 import { TaskType } from "../../../src/ai/taskTypes.ts";
 import { getEndpointGuardResponse } from "../_shared/endpoint-guard.ts";
+import { generateSpanId, generateTraceId, logOtelSpan } from "../../../src/ai/otel.ts";
 
 interface OnboardingProfile {
   q1_business_name?: string;
@@ -177,17 +178,29 @@ function getFallbackSuggestions(stepId: string): Suggestion[] {
 }
 
 serve(async (req) => {
+  const traceId = generateTraceId();
+  const spanId = generateSpanId();
+  const spanStart = Date.now();
+  let response: Response | undefined;
+  let supabase: ReturnType<typeof createClient> | null = null;
+  let agencyId: string | undefined;
+  let clientId: string | undefined;
+  let userId: string | undefined;
+
   // Handle CORS
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
-  try {
-    const guardResponse = getEndpointGuardResponse("ai-onboarding-suggest", corsHeaders);
-    if (guardResponse) return guardResponse;
+  response = await (async () => {
+    try {
+      const guardResponse = getEndpointGuardResponse("ai-onboarding-suggest", corsHeaders);
+      if (guardResponse) return guardResponse;
 
-    const body: SuggestRequest = await req.json();
-    const { agency_id, client_id, step_id, profile } = body;
+      const body: SuggestRequest = await req.json();
+      const { agency_id, client_id, step_id, profile } = body;
+      agencyId = agency_id;
+      clientId = client_id;
 
     if (!agency_id || !client_id || !step_id) {
       return new Response(
@@ -210,7 +223,7 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    supabase = createClient(supabaseUrl, supabaseKey);
 
     const token = authHeader.replace('Bearer ', '');
     const { data: { user } } = await supabase.auth.getUser(token);
@@ -220,6 +233,7 @@ serve(async (req) => {
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+    userId = user.id;
 
     const { data: membership } = await supabase
       .from('agency_members')
@@ -256,15 +270,30 @@ serve(async (req) => {
       fallback_enabled,
     };
 
-    return new Response(
+      return new Response(
       JSON.stringify(response),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  } catch (error) {
-    console.error('Suggest error:', error);
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
+      );
+    } catch (error) {
+      console.error('Suggest error:', error);
+      return new Response(
+        JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+  })();
+
+  await logOtelSpan(supabase, {
+    traceId,
+    spanId,
+    stage: "edge.ai-onboarding-suggest",
+    taskType: TaskType.EXTRACT_STRUCTURED,
+    agencyId,
+    clientId,
+    userId,
+    latencyMs: Date.now() - spanStart,
+    attributes: { http_status: response?.status ?? 0 },
+  });
+
+  return response!;
 });

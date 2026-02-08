@@ -4,30 +4,30 @@ import { Badge } from "@/components/ui/badge";
 
 const CASE_STUDIES = [
   {
-    agencyName: "Growth Gurus",
+    agencyName: "Example Agency",
     logo: "/placeholder.svg", // Using public/placeholder.svg
     challenge: "Struggled to scale past 5 clients without quality dropping and hiring expensive staff.",
     solution: "Implemented SMMAHUB to automate their core SOPs and client onboarding processes.",
     results: [
-      { value: "+150%", label: "Client Capacity" },
-      { value: "$60,000/yr", label: "Avoided Hiring Costs" },
-      { value: "95%", label: "Time Saved on Reporting" },
+      { value: "Example", label: "Client Capacity" },
+      { value: "Example", label: "Avoided Hiring Costs" },
+      { value: "Example", label: "Time Saved" },
     ],
-    testimonial: "SMMAHUB didn't just save us time, it fundamentally changed how we scale. We're more profitable and our clients are happier.",
-    testimonialAuthor: "John Doe, CEO of Growth Gurus",
+    testimonial: "Illustrative example only. Replace with a real customer quote before publishing.",
+    testimonialAuthor: "Placeholder",
   },
   {
-    agencyName: "Social Wave",
+    agencyName: "Example Agency",
     logo: "/placeholder.svg",
     challenge: "Inconsistent output quality across different account managers and high churn of client knowledge.",
     solution: "Used the 'Client Brain' to create a permanent, reusable knowledge base for each client.",
     results: [
-      { value: "100%", label: "SOP Consistency" },
-      { value: "+30%", label: "Client Retention" },
-      { value: "2x", label: "Faster Jr. Staff Onboarding" },
+      { value: "Example", label: "Consistency" },
+      { value: "Example", label: "Retention" },
+      { value: "Example", label: "Onboarding Speed" },
     ],
-    testimonial: "The 'Client Brain' is our competitive advantage. Nothing gets lost, and quality is guaranteed, no matter who is doing the work.",
-    testimonialAuthor: "Jane Smith, Founder of Social Wave",
+    testimonial: "Illustrative example only. Replace with a real customer quote before publishing.",
+    testimonialAuthor: "Placeholder",
   },
 ];
 

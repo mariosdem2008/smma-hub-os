@@ -1,0 +1,13 @@
+{
+  "date_utc": "2026-02-01",
+  "run_evals": {
+    "exit_code": 0,
+    "stdout": "Dataset: C:\\Users\\mario\\Desktop\\SMMAHUB\\smmahub\\2\\smma-hub-os\\tests\\evals\\agentic_golden.template.jsonl\nTotal: 100\nModes: {\"CHAT\":50,\"EXECUTE\":50}\nDataset: C:\\Users\\mario\\Desktop\\SMMAHUB\\smmahub\\2\\smma-hub-os\\tests\\evals\\workflows\\multistep_100.jsonl\nTotal: 100\nModes: {\"EXECUTE\":100}\nDataset: C:\\Users\\mario\\Desktop\\SMMAHUB\\smmahub\\2\\smma-hub-os\\tests\\evals\\intent_classification_50.template.jsonl\nTotal: 50\nModes: {\"CHAT\":25,\"EXECUTE\":25}\nEval harness stub complete.",
+    "stderr": ""
+  },
+  "replay_executor": {
+    "exit_code": 0,
+    "stdout": "Workflows: 100\nSuccess: 100\nSuccess rate: 100.00%",
+    "stderr": ""
+  }
+}

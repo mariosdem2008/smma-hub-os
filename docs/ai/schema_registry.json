@@ -1,0 +1,12 @@
+{
+  "registry_version": "1.0.0",
+  "schemas": [
+    { "name": "intent_result_v1", "version": "1.0.0", "owner": "ai" },
+    { "name": "plan_schema_v1", "version": "1.0.0", "owner": "ai" },
+    { "name": "tool_call_v1", "version": "1.0.0", "owner": "ai" },
+    { "name": "tool_result_v1", "version": "1.0.0", "owner": "ai" },
+    { "name": "retrieval_result_v1", "version": "1.0.0", "owner": "ai" },
+    { "name": "memory_write_proposal_v1", "version": "1.0.0", "owner": "ai" },
+    { "name": "strategy_plan_v1", "version": "1.0.0", "owner": "ai" }
+  ]
+}

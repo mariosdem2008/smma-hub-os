@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getEndpointGuardResponse } from "../_shared/endpoint-guard.ts";
+import { generateSpanId, generateTraceId, logOtelSpan } from "../../../src/ai/otel.ts";
+import { TaskType } from "../../../src/ai/taskTypes.ts";
 
 /**
  * AI Brain Analyze Edge Function
@@ -50,31 +52,40 @@ interface AnalyzeResponse {
 }
 
 serve(async (req) => {
+  const traceId = generateTraceId();
+  const spanId = generateSpanId();
+  const spanStart = Date.now();
+  let response: Response | undefined;
+  let supabase: ReturnType<typeof createClient> | null = null;
+  let agencyId: string | undefined;
+
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
-  try {
-    const guardResponse = getEndpointGuardResponse("ai-brain-analyze", corsHeaders);
-    if (guardResponse) return guardResponse;
+  response = await (async () => {
+    try {
+      const guardResponse = getEndpointGuardResponse("ai-brain-analyze", corsHeaders);
+      if (guardResponse) return guardResponse;
 
-    // Verify authorization
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Missing authorization header" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+      // Verify authorization
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader) {
+        return new Response(JSON.stringify({ error: "Missing authorization header" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Parse request
-    const body: AnalyzeRequest = await req.json();
-    const { agency_id, layer, mode, file_path, file_name, file_type, raw_input_text } = body;
+      // Parse request
+      const body: AnalyzeRequest = await req.json();
+      const { agency_id, layer, mode, file_path, file_name, file_type, raw_input_text } = body;
+      agencyId = agency_id;
 
     // Validate required fields
     if (!agency_id || !layer) {
@@ -140,20 +151,33 @@ serve(async (req) => {
       warnings,
     };
 
-    return new Response(JSON.stringify(response), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  } catch (error) {
-    console.error("Error in ai-brain-analyze:", error);
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Internal server error" }),
-      {
-        status: 500,
+      return new Response(JSON.stringify(response), {
+        status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
-  }
+      });
+    } catch (error) {
+      console.error("Error in ai-brain-analyze:", error);
+      return new Response(
+        JSON.stringify({ error: error instanceof Error ? error.message : "Internal server error" }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+  })();
+
+  await logOtelSpan(supabase, {
+    traceId,
+    spanId,
+    stage: "edge.ai-brain-analyze",
+    taskType: TaskType.TOOL_EXECUTION,
+    agencyId,
+    latencyMs: Date.now() - spanStart,
+    attributes: { http_status: response?.status ?? 0 },
+  });
+
+  return response!;
 });
 
 /**

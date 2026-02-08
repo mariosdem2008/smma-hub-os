@@ -12,6 +12,7 @@ describe("brain document ingest", () => {
       ai_documents: [],
       ai_document_chunks: [],
       ai_embeddings: [],
+      ai_embeddings_shadow_gemini: [],
     };
     const updates: Record<string, any[]> = {
       ai_document_chunks: [],
@@ -74,6 +75,14 @@ describe("brain document ingest", () => {
             },
           };
         }
+        if (table === "ai_embeddings_shadow_gemini") {
+          return {
+            insert: (payload: any) => {
+              inserts.ai_embeddings_shadow_gemini.push(payload);
+              return { error: null };
+            },
+          };
+        }
         return {};
       },
     };
@@ -110,6 +119,8 @@ describe("brain document ingest", () => {
     expect(inserts.ai_documents.length).toBe(1);
     expect(inserts.ai_document_chunks.length).toBeGreaterThan(0);
     expect(inserts.ai_embeddings.length).toBe(inserts.ai_document_chunks.length);
+    // Shadow writes are best-effort; ensure the mock supports them when enabled.
+    expect(inserts.ai_embeddings_shadow_gemini.length).toBe(inserts.ai_document_chunks.length);
     expect(updates.ai_document_chunks).toContainEqual({ embedding_status: "ok" });
     expect(deletes.ai_documents).toContainEqual({ column: "agency_id", value: "agency-1" });
     expect(deletes.ai_documents).toContainEqual({ column: "doc_type", value: "brain_document" });

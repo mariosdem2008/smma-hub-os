@@ -2,12 +2,14 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
-import { buildChunks, embedText, getExpectedEmbeddingDim, tokenize } from "../_shared/embeddings.ts";
+import { buildChunks, embedText, embedTextShadowGemini, getExpectedEmbeddingDim, getShadowEmbeddingDim, getShadowGeminiModelId, isShadowGeminiEnabled, tokenize } from "../_shared/embeddings.ts";
 import { embedWithPolicy } from "../_shared/embedding-policy.ts";
-import { persistEmbeddingResult } from "../_shared/embedding-store.ts";
+import { persistEmbeddingResult, persistShadowEmbeddingResult } from "../_shared/embedding-store.ts";
 import { evaluateClientBrainForStrategy } from "../_shared/brain-quality.ts";
 import { mapV3AnswersToClientBrain } from "../_shared/client-brain-mapping.ts";
 import { getEndpointGuardResponse } from "../_shared/endpoint-guard.ts";
+import { generateSpanId, generateTraceId, logOtelSpan } from "../../../src/ai/otel.ts";
+import { TaskType } from "../../../src/ai/taskTypes.ts";
 
 const CHUNK_SIZE_TOKENS = 900;
 const OVERLAP_TOKENS = 140;
@@ -35,6 +37,68 @@ function extractFirstUrl(value: unknown) {
   if (typeof value !== "string") return "";
   const match = value.match(/https?:\/\/\S+/i);
   return match ? match[0] : "";
+}
+
+async function getOrCreateBrainRow(opts: {
+  supabase: ReturnType<typeof createClient>;
+  scope: BrainScope;
+  agencyId: string;
+  clientId: string | undefined;
+  brainId?: string;
+}) {
+  const table = opts.scope === "agency" ? "agency_brains" : "client_brains";
+  let query = opts.supabase.from(table).select("id, brain_json, status, version").eq("agency_id", opts.agencyId);
+  if (opts.scope === "client" && opts.clientId) {
+    query = query.eq("client_id", opts.clientId);
+  }
+  if (opts.brainId) {
+    query = query.eq("id", opts.brainId);
+  }
+
+  const { data: existing, error: queryError } = await query
+    .order("version", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (existing) return existing;
+  if (queryError) throw new Error(queryError.message);
+  if (opts.brainId) return null;
+
+  if (opts.scope === "agency") {
+    const { data: created, error: createError } = await opts.supabase
+      .from("agency_brains")
+      .insert({
+        agency_id: opts.agencyId,
+        version: 1,
+        status: "draft",
+        locked: false,
+        brain_json: {},
+        json_diff: null,
+        confidence: 0,
+      })
+      .select("id, brain_json, status, version")
+      .single();
+    if (createError) throw new Error(createError.message);
+    return created;
+  }
+
+  const { data: created, error: createError } = await opts.supabase
+    .from("client_brains")
+    .insert({
+      agency_id: opts.agencyId,
+      client_id: opts.clientId,
+      version: 1,
+      status: "draft",
+      locked: false,
+      usable: false,
+      brain_json: {},
+      json_diff: null,
+      confidence: 0,
+    })
+    .select("id, brain_json, status, version")
+    .single();
+  if (createError) throw new Error(createError.message);
+  return created;
 }
 
 function buildClientSummary(brain: Record<string, any>) {
@@ -83,42 +147,53 @@ function buildAgencySummary(brain: Record<string, any>) {
 }
 
 serve(async (req: Request) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders(req) });
-  }
+  const traceId = generateTraceId();
+  const spanId = generateSpanId();
+  const spanStart = Date.now();
+  let response: Response | undefined;
+  let supabase: ReturnType<typeof createClient> | null = null;
+  let agencyId: string | undefined;
+  let clientId: string | undefined;
+  let userId: string | undefined;
 
-  if (req.method !== "POST") {
-    return jsonResponse({ error: "Method not allowed" }, 405, corsHeaders(req));
-  }
+  response = await (async () => {
+    if (req.method === "OPTIONS") {
+      return new Response(null, { headers: corsHeaders(req) });
+    }
 
-  const guardResponse = getEndpointGuardResponse("ai-brain-ingest", corsHeaders(req));
-  if (guardResponse) return guardResponse;
+    if (req.method !== "POST") {
+      return jsonResponse({ error: "Method not allowed" }, 405, corsHeaders(req));
+    }
 
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) {
-    return jsonResponse({ error: "Missing Authorization header" }, 401, corsHeaders(req));
-  }
+    const guardResponse = getEndpointGuardResponse("ai-brain-ingest", corsHeaders(req));
+    if (guardResponse) return guardResponse;
 
-  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-    auth: { persistSession: false },
-  });
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return jsonResponse({ error: "Missing Authorization header" }, 401, corsHeaders(req));
+    }
 
-  const token = authHeader.replace("Bearer ", "");
-  const { data: userData, error: userError } = await supabase.auth.getUser(token);
-  const user = userData?.user;
-  if (userError || !user) {
-    return jsonResponse({ error: "Unauthorized" }, 401, corsHeaders(req));
-  }
+    supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+      auth: { persistSession: false },
+    });
 
-  const startTime = Date.now();
-  const failHard = Deno.env.get("AI_EMBEDDING_FAIL_HARD") === "true";
-  const body = await req.json().catch(() => ({}));
-  const agencyId = body.agency_id as string | undefined;
-  const clientId = body.client_id as string | undefined;
-  const brainId = body.brain_id as string | undefined;
-  const rawResponsesOverride = body.raw_responses as Record<string, unknown> | undefined;
-  const followupOverride = body.followup_responses as Record<string, unknown> | undefined;
-  const scope = (body.scope as BrainScope | undefined) ?? (clientId ? "client" : "agency");
+    const token = authHeader.replace("Bearer ", "");
+    const { data: userData, error: userError } = await supabase.auth.getUser(token);
+    const user = userData?.user;
+    if (userError || !user) {
+      return jsonResponse({ error: "Unauthorized" }, 401, corsHeaders(req));
+    }
+
+    userId = user.id;
+    const startTime = Date.now();
+    const failHard = Deno.env.get("AI_EMBEDDING_FAIL_HARD") === "true";
+    const body = await req.json().catch(() => ({}));
+    agencyId = body.agency_id as string | undefined;
+    clientId = body.client_id as string | undefined;
+    const brainId = body.brain_id as string | undefined;
+    const rawResponsesOverride = body.raw_responses as Record<string, unknown> | undefined;
+    const followupOverride = body.followup_responses as Record<string, unknown> | undefined;
+    const scope = (body.scope as BrainScope | undefined) ?? (clientId ? "client" : "agency");
 
   if (!agencyId) {
     return jsonResponse({ error: "agency_id is required" }, 400, corsHeaders(req));
@@ -138,22 +213,15 @@ serve(async (req: Request) => {
     return jsonResponse({ error: "Forbidden" }, 403, corsHeaders(req));
   }
 
-  const table = scope === "agency" ? "agency_brains" : "client_brains";
-  let query = supabase.from(table).select("id, brain_json, status, version").eq("agency_id", agencyId);
-  if (scope === "client" && clientId) {
-    query = query.eq("client_id", clientId);
-  }
-  if (brainId) {
-    query = query.eq("id", brainId);
-  }
-
-  const { data: brainRow, error: brainError } = await query
-    .order("version", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (brainError || !brainRow) {
-    return jsonResponse({ error: brainError?.message ?? "Brain not found" }, 404, corsHeaders(req));
+  const brainRow = await getOrCreateBrainRow({
+    supabase,
+    scope,
+    agencyId,
+    clientId: clientId ?? undefined,
+    brainId,
+  });
+  if (!brainRow) {
+    return jsonResponse({ error: "Brain not found" }, 404, corsHeaders(req));
   }
 
   const rawResponses = rawResponsesOverride ?? (brainRow.brain_json as any)?.raw_responses ?? {};
@@ -217,6 +285,14 @@ serve(async (req: Request) => {
 
     const agencySummary = buildAgencySummary(agencyBrain);
     if (agencySummary.trim().length > 0) {
+      await supabase
+        .from("ai_documents")
+        .delete()
+        .eq("agency_id", agencyId)
+        .is("client_id", null)
+        .eq("doc_type", "ai_artifact")
+        .eq("metadata->>summary_type", "agency_brain_summary");
+
       const { data: docRow } = await supabase
         .from("ai_documents")
         .insert({
@@ -238,6 +314,10 @@ serve(async (req: Request) => {
         const embeddingApiKey = Deno.env.get("GEMINI_API_KEY") ?? Deno.env.get("OPENAI_API_KEY");
         const embeddingModel = Deno.env.get("EMBEDDING_MODEL_ID") ?? "text-embedding-3-small";
         const expectedDim = getExpectedEmbeddingDim();
+        const shadowEnabled = isShadowGeminiEnabled();
+        const shadowModel = getShadowGeminiModelId();
+        const shadowDim = getShadowEmbeddingDim();
+        const shadowApiKey = Deno.env.get("GEMINI_API_KEY") ?? null;
 
         for (let index = 0; index < chunks.length; index += 1) {
           const chunk = chunks[index];
@@ -304,6 +384,34 @@ serve(async (req: Request) => {
           if (!persistResult.stored && persistResult.errorCode === "EMBEDDING_DIM_MISMATCH") {
             return jsonResponse({ error: "Embedding dimension mismatch", code: "EMBEDDING_DIM_MISMATCH" }, 500, corsHeaders(req));
           }
+
+          if (shadowEnabled) {
+            const shadowResult = await embedWithPolicy({
+              text: chunk.text,
+              apiKey: shadowApiKey ?? undefined,
+              failHard: false,
+              embed: (text) => embedTextShadowGemini(text),
+            });
+
+            await persistShadowEmbeddingResult({
+              supabase,
+              embeddingResult: shadowResult,
+              embeddingPayload: {
+                agency_id: agencyId,
+                client_id: null,
+                doc_type: "ai_artifact",
+                document_id: docRow.id,
+                chunk_id: chunkRow.id,
+                embedding_json: [],
+                model: shadowModel,
+                metadata: {
+                  similarity: "cosine",
+                  embedding_dim: shadowDim ?? null,
+                  shadow: true,
+                },
+              },
+            });
+          }
         }
       }
     }
@@ -327,6 +435,14 @@ serve(async (req: Request) => {
 
   const summary = buildClientSummary(clientBrain);
   if (summary.trim().length > 0) {
+    await supabase
+      .from("ai_documents")
+      .delete()
+      .eq("agency_id", agencyId)
+      .eq("client_id", clientId ?? null)
+      .eq("doc_type", "ai_artifact")
+      .eq("metadata->>summary_type", "client_brain_summary");
+
     await supabase.from("ai_memory_items").insert({
       agency_id: agencyId,
       client_id: clientId ?? null,
@@ -359,6 +475,10 @@ serve(async (req: Request) => {
       const embeddingApiKey = Deno.env.get("GEMINI_API_KEY") ?? Deno.env.get("OPENAI_API_KEY");
       const embeddingModel = Deno.env.get("EMBEDDING_MODEL_ID") ?? "text-embedding-3-small";
       const expectedDim = getExpectedEmbeddingDim();
+      const shadowEnabled = isShadowGeminiEnabled();
+      const shadowModel = getShadowGeminiModelId();
+      const shadowDim = getShadowEmbeddingDim();
+      const shadowApiKey = Deno.env.get("GEMINI_API_KEY") ?? null;
 
       for (let index = 0; index < chunks.length; index += 1) {
         const chunk = chunks[index];
@@ -425,6 +545,34 @@ serve(async (req: Request) => {
         if (!persistResult.stored && persistResult.errorCode === "EMBEDDING_DIM_MISMATCH") {
           return jsonResponse({ error: "Embedding dimension mismatch", code: "EMBEDDING_DIM_MISMATCH" }, 500, corsHeaders(req));
         }
+
+        if (shadowEnabled) {
+          const shadowResult = await embedWithPolicy({
+            text: chunk.text,
+            apiKey: shadowApiKey ?? undefined,
+            failHard: false,
+            embed: (text) => embedTextShadowGemini(text),
+          });
+
+          await persistShadowEmbeddingResult({
+            supabase,
+            embeddingResult: shadowResult,
+            embeddingPayload: {
+              agency_id: agencyId,
+              client_id: clientId ?? null,
+              doc_type: "ai_artifact",
+              document_id: docRow.id,
+              chunk_id: chunkRow.id,
+              embedding_json: [],
+              model: shadowModel,
+              metadata: {
+                similarity: "cosine",
+                embedding_dim: shadowDim ?? null,
+                shadow: true,
+              },
+            },
+          });
+        }
       }
     }
   }
@@ -441,7 +589,7 @@ serve(async (req: Request) => {
     unknown: false,
   });
 
-  return jsonResponse(
+    return jsonResponse(
     {
       ok: true,
       scope,
@@ -451,5 +599,20 @@ serve(async (req: Request) => {
     },
     200,
     corsHeaders(req),
-  );
+    );
+  })();
+
+  await logOtelSpan(supabase, {
+    traceId,
+    spanId,
+    stage: "edge.ai-brain-ingest",
+    taskType: TaskType.TOOL_EXECUTION,
+    agencyId,
+    clientId,
+    userId,
+    latencyMs: Date.now() - spanStart,
+    attributes: { http_status: response?.status ?? 0 },
+  });
+
+  return response!;
 });

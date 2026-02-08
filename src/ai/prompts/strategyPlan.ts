@@ -149,6 +149,9 @@ Rules:
 - If the Context includes "CurrentMonth: YYYY-MM", set modules.campaign_plan.selectedMonth to that EXACT value and ensure at least one campaign has startDate within that month (YYYY-MM-DD starting with selectedMonth). Do not use placeholders like "Current Month-01".
 - If the Context includes "CurrentIsoWeek: YYYY-Www", set modules.weekly_plan.selectedWeek to that EXACT value. Use real ISO dates (YYYY-MM-DD) for all dueDate values.
 - Avoid placeholder tokens like "[KEYWORD]". If a DM keyword is unknown, write "DM keyword" and add an open question asking for the exact keyword.
+- Treat conversion_path codes as internal (e.g., \"visit_store\" means \"visit the studio/location\" for service businesses). Avoid the word \"store\" unless the business is explicitly retail.
+- Do not use \"guaranteed\" / \"guarantee\" language in fitness/health contexts unless explicitly allowed in constraints.
+- If you include numeric KPI targets without a provided baseline, you MUST list them under assumptions and include an open question requesting the baseline.
 - Ensure ` + "`document.markdown`" + ` is a full readable strategy in markdown.`;
 
   const userPrompt = `Agency Brain:\n${JSON.stringify(args.agencyBrain)}\n\nClient Brain:\n${JSON.stringify(

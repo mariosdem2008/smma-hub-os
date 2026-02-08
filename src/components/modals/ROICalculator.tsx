@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence, useMotionValue, useTransform, animate } from 'framer-motion';
-import { Button } from '@/components/ui/button';
-import { X, Calculator, Clock, UserMinus, TrendingUp, DollarSign, ArrowRight, Sparkles } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion, animate, useMotionValue, useTransform } from "framer-motion";
+import { ArrowRight, Calculator, Clock, Sparkles, TrendingUp, UserMinus, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { marketing } from "@/lib/marketing";
+import { track } from "@/lib/analytics";
 
-const CAL_LINK = "https://cal.com/SMMAHUB/fit";
+const CAL_LINK = marketing.calUrl;
 
-// Animated number component
 interface OdometerProps {
   value: number;
   prefix?: string;
@@ -14,7 +15,7 @@ interface OdometerProps {
   className?: string;
 }
 
-const Odometer = ({ value, prefix = '', suffix = '', duration = 1, className = '' }: OdometerProps) => {
+function Odometer({ value, prefix = "", suffix = "", duration = 1, className = "" }: OdometerProps) {
   const count = useMotionValue(0);
   const rounded = useTransform(count, (latest) => Math.round(latest).toLocaleString());
 
@@ -30,9 +31,8 @@ const Odometer = ({ value, prefix = '', suffix = '', duration = 1, className = '
       {suffix}
     </span>
   );
-};
+}
 
-// Custom slider component
 interface SliderProps {
   label: string;
   value: number;
@@ -44,17 +44,17 @@ interface SliderProps {
   onChange: (value: number) => void;
 }
 
-const Slider = ({ label, value, min, max, step = 1, unit = '', prefix = '', onChange }: SliderProps) => {
+function Slider({ label, value, min, max, step = 1, unit = "", prefix = "", onChange }: SliderProps) {
   const percentage = ((value - min) / (max - min)) * 100;
 
   return (
     <div className="space-y-16">
       <div className="flex justify-between items-center">
-        <label className="text-body-mobile md:text-body-desktop font-medium text-foreground">
-          {label}
-        </label>
+        <label className="text-body-mobile md:text-body-desktop font-medium text-foreground">{label}</label>
         <span className="text-2xl md:text-3xl font-bold text-gradient-premium">
-          {prefix}{value.toLocaleString()}{unit}
+          {prefix}
+          {value.toLocaleString()}
+          {unit}
         </span>
       </div>
       <div className="relative">
@@ -75,7 +75,6 @@ const Slider = ({ label, value, min, max, step = 1, unit = '', prefix = '', onCh
           onChange={(e) => onChange(Number(e.target.value))}
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
         />
-        {/* Custom thumb */}
         <motion.div
           className="absolute top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-foreground shadow-lg pointer-events-none"
           style={{ left: `calc(${percentage}% - 10px)` }}
@@ -85,14 +84,21 @@ const Slider = ({ label, value, min, max, step = 1, unit = '', prefix = '', onCh
         </motion.div>
       </div>
       <div className="flex justify-between text-small-text text-text-muted">
-        <span>{prefix}{min.toLocaleString()}{unit}</span>
-        <span>{prefix}{max.toLocaleString()}{unit}</span>
+        <span>
+          {prefix}
+          {min.toLocaleString()}
+          {unit}
+        </span>
+        <span>
+          {prefix}
+          {max.toLocaleString()}
+          {unit}
+        </span>
       </div>
     </div>
   );
-};
+}
 
-// Result card component
 interface ResultCardProps {
   icon: React.ElementType;
   label: string;
@@ -100,31 +106,40 @@ interface ResultCardProps {
   prefix?: string;
   suffix?: string;
   description: string;
-  color: 'primary' | 'accent' | 'success';
+  color: "primary" | "accent" | "success";
   delay?: number;
 }
 
-const ResultCard = ({ icon: Icon, label, value, prefix = '$', suffix = '', description, color, delay = 0 }: ResultCardProps) => {
+function ResultCard({
+  icon: Icon,
+  label,
+  value,
+  prefix = "$",
+  suffix = "",
+  description,
+  color,
+  delay = 0,
+}: ResultCardProps) {
   const colorClasses = {
     primary: {
-      bg: 'bg-brand-primary/10',
-      border: 'border-brand-primary/20',
-      icon: 'text-brand-primary bg-brand-primary/20',
-      value: 'text-brand-primary',
+      bg: "bg-brand-primary/10",
+      border: "border-brand-primary/20",
+      icon: "text-brand-primary bg-brand-primary/20",
+      value: "text-brand-primary",
     },
     accent: {
-      bg: 'bg-accent/10',
-      border: 'border-accent/20',
-      icon: 'text-accent bg-accent/20',
-      value: 'text-accent',
+      bg: "bg-accent/10",
+      border: "border-accent/20",
+      icon: "text-accent bg-accent/20",
+      value: "text-accent",
     },
     success: {
-      bg: 'bg-success/10',
-      border: 'border-success/20',
-      icon: 'text-success bg-success/20',
-      value: 'text-success',
+      bg: "bg-success/10",
+      border: "border-success/20",
+      icon: "text-success bg-success/20",
+      value: "text-success",
     },
-  };
+  } as const;
 
   const classes = colorClasses[color];
 
@@ -139,73 +154,54 @@ const ResultCard = ({ icon: Icon, label, value, prefix = '$', suffix = '', descr
         <div className={`w-10 h-10 rounded-lg ${classes.icon} flex items-center justify-center`}>
           <Icon className="w-5 h-5" />
         </div>
-        <span className="text-small-text font-medium text-text-secondary uppercase tracking-small-text">
-          {label}
-        </span>
+        <span className="text-small-text font-medium text-text-secondary uppercase tracking-small-text">{label}</span>
       </div>
-      <Odometer
-        value={value}
-        prefix={prefix}
-        suffix={suffix}
-        duration={1.2}
-        className={`text-3xl md:text-4xl font-bold ${classes.value}`}
-      />
-      <p className="mt-8 text-small-text text-text-muted leading-small-text">
-        {description}
-      </p>
+      <Odometer value={value} prefix={prefix} suffix={suffix} duration={1.2} className={`text-3xl md:text-4xl font-bold ${classes.value}`} />
+      <p className="mt-8 text-small-text text-text-muted leading-small-text">{description}</p>
     </motion.div>
   );
-};
+}
 
 interface ROICalculatorModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-const ROICalculatorModal = ({ isOpen, onClose }: ROICalculatorModalProps) => {
+export default function ROICalculatorModal({ isOpen, onClose }: ROICalculatorModalProps) {
   const [numClients, setNumClients] = useState(10);
-  const [hoursPerClient, setHoursPerClient] = useState(18);
-  const [hourlyRate, setHourlyRate] = useState(75);
+  const [hoursSavedPerClient, setHoursSavedPerClient] = useState(6);
+  const [loadedHourlyCost, setLoadedHourlyCost] = useState(90);
+  const [hiringAvoidedMonthly, setHiringAvoidedMonthly] = useState(0);
+  const [additionalClients, setAdditionalClients] = useState(0);
+  const [mrrPerClient, setMrrPerClient] = useState(2000);
 
-  // Calculate ROI metrics
   const calculations = useMemo(() => {
-    const timeReclaimed = numClients * hoursPerClient * hourlyRate;
-    const hiringAvoided = 4000; // Fixed savings from not hiring
-    const additionalClients = Math.floor(numClients * 0.4); // 40% more clients
-    const revenueUnlocked = additionalClients * 2000; // $2000 MRR per client
-    const totalMonthlyROI = timeReclaimed + hiringAvoided + revenueUnlocked;
+    const timeReclaimed = numClients * hoursSavedPerClient * loadedHourlyCost;
+    const revenueUnlocked = additionalClients * mrrPerClient;
+    const totalMonthlyROI = timeReclaimed + hiringAvoidedMonthly + revenueUnlocked;
     const annualROI = totalMonthlyROI * 12;
 
-    return {
-      timeReclaimed,
-      hiringAvoided,
-      revenueUnlocked,
-      totalMonthlyROI,
-      annualROI,
-      additionalClients,
-    };
-  }, [numClients, hoursPerClient, hourlyRate]);
+    return { timeReclaimed, revenueUnlocked, totalMonthlyROI, annualROI };
+  }, [additionalClients, hiringAvoidedMonthly, hoursSavedPerClient, loadedHourlyCost, mrrPerClient, numClients]);
 
-  // Close on escape key
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === "Escape") onClose();
     };
     if (isOpen) {
-      document.addEventListener('keydown', handleEscape);
-      document.body.style.overflow = 'hidden';
+      document.addEventListener("keydown", handleEscape);
+      document.body.style.overflow = "hidden";
     }
     return () => {
-      document.removeEventListener('keydown', handleEscape);
-      document.body.style.overflow = 'unset';
+      document.removeEventListener("keydown", handleEscape);
+      document.body.style.overflow = "unset";
     };
   }, [isOpen, onClose]);
 
   return (
     <AnimatePresence>
-      {isOpen && (
+      {isOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -215,7 +211,6 @@ const ROICalculatorModal = ({ isOpen, onClose }: ROICalculatorModalProps) => {
             onClick={onClose}
           />
 
-          {/* Modal */}
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -224,14 +219,12 @@ const ROICalculatorModal = ({ isOpen, onClose }: ROICalculatorModalProps) => {
             className="relative z-10 w-full max-w-4xl max-h-[90vh] overflow-y-auto"
           >
             <div className="glass-card gradient-border-animated rounded-md relative">
-              {/* Background effects */}
               <div className="absolute inset-0 overflow-hidden pointer-events-none rounded-md">
                 <div className="absolute top-0 left-1/4 w-64 h-64 bg-brand-primary/20 rounded-full blur-3xl" />
                 <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-accent/20 rounded-full blur-3xl" />
               </div>
 
               <div className="relative z-10 p-24 md:p-48">
-                {/* Close button */}
                 <button
                   onClick={onClose}
                   className="absolute top-16 right-16 md:top-24 md:right-24 w-10 h-10 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors focus-ring"
@@ -240,7 +233,6 @@ const ROICalculatorModal = ({ isOpen, onClose }: ROICalculatorModalProps) => {
                   <X className="w-5 h-5 text-text-muted" />
                 </button>
 
-                {/* Header */}
                 <div className="text-center mb-48">
                   <motion.div
                     initial={{ opacity: 0, y: -10 }}
@@ -249,7 +241,7 @@ const ROICalculatorModal = ({ isOpen, onClose }: ROICalculatorModalProps) => {
                     className="inline-flex items-center gap-2 badge-gradient-border mb-16"
                   >
                     <Calculator className="w-4 h-4 text-brand-primary icon-glow" />
-                    <span className="text-small-text font-medium tracking-small-text text-brand-primary">ROI Calculator</span>
+                    <span className="text-small-text font-medium tracking-small-text text-brand-primary">ROI calculator</span>
                   </motion.div>
 
                   <motion.h2
@@ -258,8 +250,9 @@ const ROICalculatorModal = ({ isOpen, onClose }: ROICalculatorModalProps) => {
                     transition={{ duration: 0.4, delay: 0.1 }}
                     className="text-2xl md:text-section-headline-desktop font-semibold leading-section-headline tracking-section-headline"
                   >
-                    Calculate Your<br className="hidden md:block" />
-                    <span className="text-gradient-premium">Custom ROI</span>
+                    Estimate your
+                    <br className="hidden md:block" />
+                    <span className="text-gradient-premium">monthly impact</span>
                   </motion.h2>
 
                   <motion.p
@@ -268,78 +261,93 @@ const ROICalculatorModal = ({ isOpen, onClose }: ROICalculatorModalProps) => {
                     transition={{ duration: 0.4, delay: 0.2 }}
                     className="mt-16 text-body-mobile md:text-body-desktop text-text-secondary leading-body"
                   >
-                    Adjust the sliders to see your potential savings with SMMAHUB.
+                    Adjust assumptions to model a conservative estimate for your agency.
                   </motion.p>
                 </div>
 
-                {/* Calculator content */}
                 <div className="grid gap-48 lg:grid-cols-2">
-                  {/* Input sliders */}
                   <motion.div
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.4, delay: 0.3 }}
                     className="space-y-32"
                   >
+                    <Slider label="Number of clients" value={numClients} min={1} max={80} onChange={setNumClients} />
                     <Slider
-                      label="Number of Clients"
-                      value={numClients}
-                      min={5}
-                      max={50}
-                      onChange={setNumClients}
-                    />
-                    <Slider
-                      label="Hours Saved Per Client/Month"
-                      value={hoursPerClient}
-                      min={10}
-                      max={30}
+                      label="Hours saved per client / month"
+                      value={hoursSavedPerClient}
+                      min={0}
+                      max={20}
                       unit="h"
-                      onChange={setHoursPerClient}
+                      onChange={setHoursSavedPerClient}
                     />
                     <Slider
-                      label="Your Loaded Hourly Rate"
-                      value={hourlyRate}
-                      min={50}
-                      max={150}
+                      label="Loaded hourly cost"
+                      value={loadedHourlyCost}
+                      min={40}
+                      max={250}
                       step={5}
                       prefix="$"
-                      onChange={setHourlyRate}
+                      onChange={setLoadedHourlyCost}
+                    />
+                    <Slider
+                      label="Hiring avoided (monthly)"
+                      value={hiringAvoidedMonthly}
+                      min={0}
+                      max={20000}
+                      step={250}
+                      prefix="$"
+                      onChange={setHiringAvoidedMonthly}
+                    />
+                    <Slider
+                      label="Additional clients you can take on"
+                      value={additionalClients}
+                      min={0}
+                      max={40}
+                      onChange={setAdditionalClients}
+                    />
+                    <Slider
+                      label="MRR per client"
+                      value={mrrPerClient}
+                      min={0}
+                      max={20000}
+                      step={250}
+                      prefix="$"
+                      onChange={setMrrPerClient}
                     />
                   </motion.div>
 
-                  {/* Results */}
                   <div className="space-y-24">
                     <ResultCard
                       icon={Clock}
-                      label="Time Reclaimed"
+                      label="Time reclaimed"
                       value={calculations.timeReclaimed}
                       suffix="/mo"
-                      description={`${numClients} clients × ${hoursPerClient}h × $${hourlyRate}/hr`}
+                      description={`${numClients} clients x ${hoursSavedPerClient}h x $${loadedHourlyCost}/hr`}
                       color="primary"
                       delay={0.4}
                     />
                     <ResultCard
                       icon={UserMinus}
-                      label="Hiring Avoided"
-                      value={calculations.hiringAvoided}
+                      label="Hiring avoided"
+                      value={hiringAvoidedMonthly}
                       suffix="/mo"
-                      description="No recruiting fees, onboarding, or turnover risk"
+                      description="Optional - set this to 0 if you prefer"
                       color="accent"
                       delay={0.5}
                     />
                     <ResultCard
                       icon={TrendingUp}
-                      label="Revenue Unlocked"
+                      label="Revenue unlocked"
                       value={calculations.revenueUnlocked}
                       suffix="/mo"
-                      description={`Take on ${calculations.additionalClients} more clients without hiring`}
+                      description={`${additionalClients} additional clients x $${mrrPerClient.toLocaleString()} MRR`}
                       color="success"
                       delay={0.6}
                     />
                   </div>
                 </div>
 
-                {/* Total ROI section */}
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -349,7 +357,7 @@ const ROICalculatorModal = ({ isOpen, onClose }: ROICalculatorModalProps) => {
                   <div className="glass-card rounded-md p-32 text-center">
                     <div className="flex items-center justify-center gap-8 mb-16">
                       <Sparkles className="w-5 h-5 text-brand-primary icon-glow" />
-                      <span className="text-body-desktop font-semibold text-foreground">Total Monthly ROI</span>
+                      <span className="text-body-desktop font-semibold text-foreground">Total monthly estimate</span>
                     </div>
                     <Odometer
                       value={calculations.totalMonthlyROI}
@@ -359,48 +367,38 @@ const ROICalculatorModal = ({ isOpen, onClose }: ROICalculatorModalProps) => {
                       className="text-4xl md:text-5xl font-bold text-gradient-premium"
                     />
                     <p className="mt-12 text-body-mobile text-text-secondary">
-                      That's{' '}
-                      <span className="text-success font-semibold">
-                        ${calculations.annualROI.toLocaleString()}/year
-                      </span>
-                      {' '}in recovered value
+                      Annualized estimate: <span className="text-success font-semibold">${calculations.annualROI.toLocaleString()}/year</span>
                     </p>
                   </div>
 
-                  {/* CTA */}
                   <div className="mt-32 flex flex-col sm:flex-row gap-16 justify-center">
-                    <Button
-                      asChild
-                      size="lg"
-                      className="btn-glow btn-shimmer btn-press btn-primary-enhanced tracking-cta-text"
-                    >
-                      <a href={CAL_LINK} target="_blank" rel="noreferrer" className="inline-flex items-center gap-8">
-                        Get Your Custom ROI Plan
+                    <Button asChild size="lg" className="btn-glow btn-shimmer btn-press btn-primary-enhanced tracking-cta-text">
+                      <a
+                        href={CAL_LINK}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-8"
+                        onClick={() => track("cta_book_strategy_audit_click", { location: "roi_calculator_modal" })}
+                      >
+                        Book strategy audit
                         <ArrowRight className="w-4 h-4" />
                       </a>
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="lg"
-                      onClick={onClose}
-                      className="btn-secondary-enhanced tracking-cta-text"
-                    >
-                      Close Calculator
+                    <Button variant="outline" size="lg" onClick={onClose} className="btn-secondary-enhanced tracking-cta-text">
+                      Close
                     </Button>
                   </div>
 
-                  {/* Trust indicator */}
                   <p className="mt-24 text-center text-small-text text-text-muted">
-                    No credit card required • 60-day ROI guarantee
+                    Estimates only. Validate assumptions during your strategy audit.
                   </p>
                 </motion.div>
               </div>
             </div>
           </motion.div>
         </div>
-      )}
+      ) : null}
     </AnimatePresence>
   );
-};
+}
 
-export default ROICalculatorModal;

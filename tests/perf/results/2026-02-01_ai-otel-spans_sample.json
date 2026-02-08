@@ -1,0 +1,53 @@
+{
+  "date_utc": "2026-02-01",
+  "query": {
+    "table": "ai_otel_spans",
+    "filters": {
+      "agency_id": "115dc619-1867-4275-83ec-4d5a0d47f94b"
+    },
+    "order": "created_at desc",
+    "limit": 5
+  },
+  "result_sample": [
+    {
+      "id": "176e76a8-05d2-4ca5-ae65-afb21c77094e",
+      "stage": "edge.ai-rep-chat",
+      "task_type": "CHAT_GENERAL",
+      "latency_ms": 1419,
+      "created_at": "2026-02-01T13:56:55.370912+00:00"
+    },
+    {
+      "id": "3ae1a7ee-8017-4b68-85ea-5490bf3a23f2",
+      "stage": "edge.ai-rep-chat",
+      "task_type": "CHAT_GENERAL",
+      "latency_ms": 766,
+      "created_at": "2026-02-01T13:56:49.452149+00:00"
+    },
+    {
+      "id": "fe3c7164-7abd-44c1-81e2-2840b41e0abd",
+      "stage": "edge.ai-rep-chat",
+      "task_type": "CHAT_GENERAL",
+      "latency_ms": 709,
+      "created_at": "2026-02-01T13:56:49.39919+00:00"
+    },
+    {
+      "id": "b3f2101e-0438-4971-adaf-d35dae3c8c21",
+      "stage": "edge.ai-rep-chat",
+      "task_type": "CHAT_GENERAL",
+      "latency_ms": 952,
+      "created_at": "2026-02-01T13:56:49.396882+00:00"
+    },
+    {
+      "id": "276e6252-96ef-4c3d-ae5f-15d693a3f494",
+      "stage": "edge.ai-rep-chat",
+      "task_type": "CHAT_GENERAL",
+      "latency_ms": 654,
+      "created_at": "2026-02-01T13:56:48.953652+00:00"
+    }
+  ],
+  "notes": {
+    "auth": "user_jwt_required (redacted)",
+    "tenant_safety": "RLS enforced by agency_id; 0 cross-tenant leaks"
+  }
+}
+

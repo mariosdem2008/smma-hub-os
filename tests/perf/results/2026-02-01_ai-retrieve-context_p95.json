@@ -1,0 +1,21 @@
+{
+  "target": {
+    "url": "https://dbclmdeowohzmwtkktsa.supabase.co/functions/v1/ai-retrieve-context",
+    "method": "POST",
+    "requests": 200,
+    "concurrency": 10,
+    "timeout_ms": 15000
+  },
+  "results": {
+    "ok": 200,
+    "failed": 0,
+    "success_rate": 1,
+    "p50_ms": 947,
+    "p90_ms": 1305,
+    "p95_ms": 1482,
+    "p99_ms": 2157,
+    "mean_ms": 1004,
+    "min_ms": 578,
+    "max_ms": 3844
+  }
+}

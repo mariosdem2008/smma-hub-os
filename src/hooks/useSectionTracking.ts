@@ -1,5 +1,6 @@
 import { useRef, useEffect } from 'react';
 import { useInView } from 'framer-motion';
+import { track } from '@/lib/analytics';
 
 export const useSectionTracking = (sectionName: string, amount: number = 0.5) => {
   const ref = useRef(null);
@@ -7,7 +8,7 @@ export const useSectionTracking = (sectionName: string, amount: number = 0.5) =>
 
   useEffect(() => {
     if (isInView) {
-      console.log(`Section Scroll: ${sectionName} - Entered Viewport`);
+      track('landing_section_view', { section: sectionName });
     }
   }, [isInView, sectionName]);
 

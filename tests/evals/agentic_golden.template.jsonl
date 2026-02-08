@@ -1,0 +1,100 @@
+{"query":"Summarize Client 1 latest update","mode_expected":"CHAT","golden_sources":["doc_client_001"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 2","mode_expected":"EXECUTE","golden_sources":["doc_client_002"],"expected_schema":"StrategyPlanSchema","rubric":"workflow_success_v1"}
+{"query":"Summarize Client 3 latest update","mode_expected":"CHAT","golden_sources":["doc_client_003"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 4","mode_expected":"EXECUTE","golden_sources":["doc_client_004"],"expected_schema":"MemoryWriteProposal","rubric":"schema_validity_v1"}
+{"query":"Summarize Client 5 latest update","mode_expected":"CHAT","golden_sources":["doc_client_005"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 6","mode_expected":"EXECUTE","golden_sources":["doc_client_006"],"expected_schema":"PlanSchema_v1","rubric":"workflow_success_v1"}
+{"query":"Summarize Client 7 latest update","mode_expected":"CHAT","golden_sources":["doc_client_007"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 8","mode_expected":"EXECUTE","golden_sources":["doc_client_008"],"expected_schema":"StrategyPlanSchema","rubric":"workflow_success_v1"}
+{"query":"Summarize Client 9 latest update","mode_expected":"CHAT","golden_sources":["doc_client_009"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 10","mode_expected":"EXECUTE","golden_sources":["doc_client_010"],"expected_schema":"MemoryWriteProposal","rubric":"schema_validity_v1"}
+{"query":"Summarize Client 11 latest update","mode_expected":"CHAT","golden_sources":["doc_client_011"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 12","mode_expected":"EXECUTE","golden_sources":["doc_client_012"],"expected_schema":"PlanSchema_v1","rubric":"workflow_success_v1"}
+{"query":"Summarize Client 13 latest update","mode_expected":"CHAT","golden_sources":["doc_client_013"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 14","mode_expected":"EXECUTE","golden_sources":["doc_client_014"],"expected_schema":"StrategyPlanSchema","rubric":"workflow_success_v1"}
+{"query":"Summarize Client 15 latest update","mode_expected":"CHAT","golden_sources":["doc_client_015"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 16","mode_expected":"EXECUTE","golden_sources":["doc_client_016"],"expected_schema":"MemoryWriteProposal","rubric":"schema_validity_v1"}
+{"query":"Summarize Client 17 latest update","mode_expected":"CHAT","golden_sources":["doc_client_017"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 18","mode_expected":"EXECUTE","golden_sources":["doc_client_018"],"expected_schema":"PlanSchema_v1","rubric":"workflow_success_v1"}
+{"query":"Summarize Client 19 latest update","mode_expected":"CHAT","golden_sources":["doc_client_019"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 20","mode_expected":"EXECUTE","golden_sources":["doc_client_020"],"expected_schema":"StrategyPlanSchema","rubric":"workflow_success_v1"}
+{"query":"Summarize Client 21 latest update","mode_expected":"CHAT","golden_sources":["doc_client_021"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 22","mode_expected":"EXECUTE","golden_sources":["doc_client_022"],"expected_schema":"MemoryWriteProposal","rubric":"schema_validity_v1"}
+{"query":"Summarize Client 23 latest update","mode_expected":"CHAT","golden_sources":["doc_client_023"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 24","mode_expected":"EXECUTE","golden_sources":["doc_client_024"],"expected_schema":"PlanSchema_v1","rubric":"workflow_success_v1"}
+{"query":"Summarize Client 25 latest update","mode_expected":"CHAT","golden_sources":["doc_client_025"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 26","mode_expected":"EXECUTE","golden_sources":["doc_client_026"],"expected_schema":"StrategyPlanSchema","rubric":"workflow_success_v1"}
+{"query":"Summarize Client 27 latest update","mode_expected":"CHAT","golden_sources":["doc_client_027"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 28","mode_expected":"EXECUTE","golden_sources":["doc_client_028"],"expected_schema":"MemoryWriteProposal","rubric":"schema_validity_v1"}
+{"query":"Summarize Client 29 latest update","mode_expected":"CHAT","golden_sources":["doc_client_029"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 30","mode_expected":"EXECUTE","golden_sources":["doc_client_030"],"expected_schema":"PlanSchema_v1","rubric":"workflow_success_v1"}
+{"query":"Summarize Client 31 latest update","mode_expected":"CHAT","golden_sources":["doc_client_031"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 32","mode_expected":"EXECUTE","golden_sources":["doc_client_032"],"expected_schema":"StrategyPlanSchema","rubric":"workflow_success_v1"}
+{"query":"Summarize Client 33 latest update","mode_expected":"CHAT","golden_sources":["doc_client_033"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 34","mode_expected":"EXECUTE","golden_sources":["doc_client_034"],"expected_schema":"MemoryWriteProposal","rubric":"schema_validity_v1"}
+{"query":"Summarize Client 35 latest update","mode_expected":"CHAT","golden_sources":["doc_client_035"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 36","mode_expected":"EXECUTE","golden_sources":["doc_client_036"],"expected_schema":"PlanSchema_v1","rubric":"workflow_success_v1"}
+{"query":"Summarize Client 37 latest update","mode_expected":"CHAT","golden_sources":["doc_client_037"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 38","mode_expected":"EXECUTE","golden_sources":["doc_client_038"],"expected_schema":"StrategyPlanSchema","rubric":"workflow_success_v1"}
+{"query":"Summarize Client 39 latest update","mode_expected":"CHAT","golden_sources":["doc_client_039"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 40","mode_expected":"EXECUTE","golden_sources":["doc_client_040"],"expected_schema":"MemoryWriteProposal","rubric":"schema_validity_v1"}
+{"query":"Summarize Client 41 latest update","mode_expected":"CHAT","golden_sources":["doc_client_041"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 42","mode_expected":"EXECUTE","golden_sources":["doc_client_042"],"expected_schema":"PlanSchema_v1","rubric":"workflow_success_v1"}
+{"query":"Summarize Client 43 latest update","mode_expected":"CHAT","golden_sources":["doc_client_043"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 44","mode_expected":"EXECUTE","golden_sources":["doc_client_044"],"expected_schema":"StrategyPlanSchema","rubric":"workflow_success_v1"}
+{"query":"Summarize Client 45 latest update","mode_expected":"CHAT","golden_sources":["doc_client_045"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 46","mode_expected":"EXECUTE","golden_sources":["doc_client_046"],"expected_schema":"MemoryWriteProposal","rubric":"schema_validity_v1"}
+{"query":"Summarize Client 47 latest update","mode_expected":"CHAT","golden_sources":["doc_client_047"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 48","mode_expected":"EXECUTE","golden_sources":["doc_client_048"],"expected_schema":"PlanSchema_v1","rubric":"workflow_success_v1"}
+{"query":"Summarize Client 49 latest update","mode_expected":"CHAT","golden_sources":["doc_client_049"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 50","mode_expected":"EXECUTE","golden_sources":["doc_client_050"],"expected_schema":"StrategyPlanSchema","rubric":"workflow_success_v1"}
+{"query":"Summarize Client 51 latest update","mode_expected":"CHAT","golden_sources":["doc_client_051"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 52","mode_expected":"EXECUTE","golden_sources":["doc_client_052"],"expected_schema":"MemoryWriteProposal","rubric":"schema_validity_v1"}
+{"query":"Summarize Client 53 latest update","mode_expected":"CHAT","golden_sources":["doc_client_053"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 54","mode_expected":"EXECUTE","golden_sources":["doc_client_054"],"expected_schema":"PlanSchema_v1","rubric":"workflow_success_v1"}
+{"query":"Summarize Client 55 latest update","mode_expected":"CHAT","golden_sources":["doc_client_055"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 56","mode_expected":"EXECUTE","golden_sources":["doc_client_056"],"expected_schema":"StrategyPlanSchema","rubric":"workflow_success_v1"}
+{"query":"Summarize Client 57 latest update","mode_expected":"CHAT","golden_sources":["doc_client_057"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 58","mode_expected":"EXECUTE","golden_sources":["doc_client_058"],"expected_schema":"MemoryWriteProposal","rubric":"schema_validity_v1"}
+{"query":"Summarize Client 59 latest update","mode_expected":"CHAT","golden_sources":["doc_client_059"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 60","mode_expected":"EXECUTE","golden_sources":["doc_client_060"],"expected_schema":"PlanSchema_v1","rubric":"workflow_success_v1"}
+{"query":"Summarize Client 61 latest update","mode_expected":"CHAT","golden_sources":["doc_client_061"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 62","mode_expected":"EXECUTE","golden_sources":["doc_client_062"],"expected_schema":"StrategyPlanSchema","rubric":"workflow_success_v1"}
+{"query":"Summarize Client 63 latest update","mode_expected":"CHAT","golden_sources":["doc_client_063"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 64","mode_expected":"EXECUTE","golden_sources":["doc_client_064"],"expected_schema":"MemoryWriteProposal","rubric":"schema_validity_v1"}
+{"query":"Summarize Client 65 latest update","mode_expected":"CHAT","golden_sources":["doc_client_065"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 66","mode_expected":"EXECUTE","golden_sources":["doc_client_066"],"expected_schema":"PlanSchema_v1","rubric":"workflow_success_v1"}
+{"query":"Summarize Client 67 latest update","mode_expected":"CHAT","golden_sources":["doc_client_067"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 68","mode_expected":"EXECUTE","golden_sources":["doc_client_068"],"expected_schema":"StrategyPlanSchema","rubric":"workflow_success_v1"}
+{"query":"Summarize Client 69 latest update","mode_expected":"CHAT","golden_sources":["doc_client_069"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 70","mode_expected":"EXECUTE","golden_sources":["doc_client_070"],"expected_schema":"MemoryWriteProposal","rubric":"schema_validity_v1"}
+{"query":"Summarize Client 71 latest update","mode_expected":"CHAT","golden_sources":["doc_client_071"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 72","mode_expected":"EXECUTE","golden_sources":["doc_client_072"],"expected_schema":"PlanSchema_v1","rubric":"workflow_success_v1"}
+{"query":"Summarize Client 73 latest update","mode_expected":"CHAT","golden_sources":["doc_client_073"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 74","mode_expected":"EXECUTE","golden_sources":["doc_client_074"],"expected_schema":"StrategyPlanSchema","rubric":"workflow_success_v1"}
+{"query":"Summarize Client 75 latest update","mode_expected":"CHAT","golden_sources":["doc_client_075"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 76","mode_expected":"EXECUTE","golden_sources":["doc_client_076"],"expected_schema":"MemoryWriteProposal","rubric":"schema_validity_v1"}
+{"query":"Summarize Client 77 latest update","mode_expected":"CHAT","golden_sources":["doc_client_077"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 78","mode_expected":"EXECUTE","golden_sources":["doc_client_078"],"expected_schema":"PlanSchema_v1","rubric":"workflow_success_v1"}
+{"query":"Summarize Client 79 latest update","mode_expected":"CHAT","golden_sources":["doc_client_079"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 80","mode_expected":"EXECUTE","golden_sources":["doc_client_080"],"expected_schema":"StrategyPlanSchema","rubric":"workflow_success_v1"}
+{"query":"Summarize Client 81 latest update","mode_expected":"CHAT","golden_sources":["doc_client_081"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 82","mode_expected":"EXECUTE","golden_sources":["doc_client_082"],"expected_schema":"MemoryWriteProposal","rubric":"schema_validity_v1"}
+{"query":"Summarize Client 83 latest update","mode_expected":"CHAT","golden_sources":["doc_client_083"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 84","mode_expected":"EXECUTE","golden_sources":["doc_client_084"],"expected_schema":"PlanSchema_v1","rubric":"workflow_success_v1"}
+{"query":"Summarize Client 85 latest update","mode_expected":"CHAT","golden_sources":["doc_client_085"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 86","mode_expected":"EXECUTE","golden_sources":["doc_client_086"],"expected_schema":"StrategyPlanSchema","rubric":"workflow_success_v1"}
+{"query":"Summarize Client 87 latest update","mode_expected":"CHAT","golden_sources":["doc_client_087"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 88","mode_expected":"EXECUTE","golden_sources":["doc_client_088"],"expected_schema":"MemoryWriteProposal","rubric":"schema_validity_v1"}
+{"query":"Summarize Client 89 latest update","mode_expected":"CHAT","golden_sources":["doc_client_089"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 90","mode_expected":"EXECUTE","golden_sources":["doc_client_090"],"expected_schema":"PlanSchema_v1","rubric":"workflow_success_v1"}
+{"query":"Summarize Client 91 latest update","mode_expected":"CHAT","golden_sources":["doc_client_091"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 92","mode_expected":"EXECUTE","golden_sources":["doc_client_092"],"expected_schema":"StrategyPlanSchema","rubric":"workflow_success_v1"}
+{"query":"Summarize Client 93 latest update","mode_expected":"CHAT","golden_sources":["doc_client_093"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 94","mode_expected":"EXECUTE","golden_sources":["doc_client_094"],"expected_schema":"MemoryWriteProposal","rubric":"schema_validity_v1"}
+{"query":"Summarize Client 95 latest update","mode_expected":"CHAT","golden_sources":["doc_client_095"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 96","mode_expected":"EXECUTE","golden_sources":["doc_client_096"],"expected_schema":"PlanSchema_v1","rubric":"workflow_success_v1"}
+{"query":"Summarize Client 97 latest update","mode_expected":"CHAT","golden_sources":["doc_client_097"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 98","mode_expected":"EXECUTE","golden_sources":["doc_client_098"],"expected_schema":"StrategyPlanSchema","rubric":"workflow_success_v1"}
+{"query":"Summarize Client 99 latest update","mode_expected":"CHAT","golden_sources":["doc_client_099"],"expected_schema":"IntentResultSchema","rubric":"groundedness_v1"}
+{"query":"Generate action plan for Client 100","mode_expected":"EXECUTE","golden_sources":["doc_client_100"],"expected_schema":"MemoryWriteProposal","rubric":"schema_validity_v1"}

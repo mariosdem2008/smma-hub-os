@@ -1,6 +1,10 @@
 import { ToolType, TOOL_REGISTRY } from "../../../src/ai/toolSchemas.ts";
 import type { ToolSchema } from "../../../src/ai/toolSchemas.ts";
 import { fetchAgencyBrain, upsertAgencyBrain } from "./ai-context.ts";
+import { fetchBrainDocument } from "./brain-documents.ts";
+import { embedQueryForRag, getMatchRpcName } from "./rag-index.ts";
+import { clampMatchCount } from "./retrieval.ts";
+import { ingestMemoryItemAsDocument } from "./memory-ingest.ts";
 
 type ToolExecutionResult = {
   success: boolean;
@@ -13,9 +17,81 @@ type ExecuteToolOptions = {
   supabase: any;
   agencyId: string;
   userId: string;
+  clientId?: string | null;
+  isAdmin?: boolean;
 };
 
 const FORBIDDEN_KEYS = new Set(["__proto__", "constructor", "prototype"]);
+
+function readEnv(name: string) {
+  if (typeof Deno !== "undefined") {
+    return Deno.env.get(name);
+  }
+  if (typeof process !== "undefined") {
+    return process.env[name];
+  }
+  return undefined;
+}
+
+function isPhase2EnabledForAgency(agencyId: string | null | undefined): boolean {
+  if (!agencyId) return false;
+  const mode = (readEnv("PHASE2_COHORT_MODE") ?? "require_list").trim().toLowerCase();
+  if (mode === "allow_all") return true;
+  const raw = readEnv("PHASE2_COHORT_AGENCY_IDS") ?? "";
+  const set = new Set(raw.split(",").map((v) => v.trim()).filter(Boolean));
+  if (set.size === 0) return false;
+  return set.has(agencyId);
+}
+
+function isToolGovernanceEnabled(): boolean {
+  const raw = readEnv("ENFORCE_TOOL_GOVERNANCE");
+  if (raw === undefined) return false;
+  return raw.toLowerCase() === "true";
+}
+
+function isLongTermMemoryEnabled(): boolean {
+  const raw = readEnv("ENABLE_LONG_TERM_MEMORY");
+  if (raw === undefined) return false;
+  return raw.toLowerCase() === "true";
+}
+
+async function runWithTimeout<T>(fn: () => Promise<T>, timeoutMs: number): Promise<T> {
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+    return await fn();
+  }
+  let timeoutHandle: number | undefined;
+  const timeoutPromise = new Promise<T>((_, reject) => {
+    timeoutHandle = setTimeout(() => reject(new Error("tool_timeout")), timeoutMs) as unknown as number;
+  });
+  try {
+    return await Promise.race([fn(), timeoutPromise]);
+  } finally {
+    if (timeoutHandle !== undefined) clearTimeout(timeoutHandle);
+  }
+}
+
+async function runWithRetries<T>(fn: () => Promise<T>, retries: number): Promise<T> {
+  const attempts = Math.max(0, retries) + 1;
+  let lastError: unknown;
+  for (let i = 0; i < attempts; i += 1) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError;
+}
+
+function checkScope(schema: ToolSchema, opts: ExecuteToolOptions): string | null {
+  if (!opts.agencyId || !opts.userId) {
+    return "scope_missing";
+  }
+  if (schema.scope === "global-admin" && !opts.isAdmin) {
+    return "scope_insufficient";
+  }
+  return null;
+}
 
 export async function executeToolAction(opts: ExecuteToolOptions): Promise<ToolExecutionResult> {
   const toolType = opts.tool.type as ToolType;
@@ -34,6 +110,14 @@ export async function executeToolAction(opts: ExecuteToolOptions): Promise<ToolE
     return { success: false, error: validationError };
   }
 
+  if (isToolGovernanceEnabled()) {
+    const scopeError = checkScope(schema, opts);
+    if (scopeError) {
+      return { success: false, error: scopeError };
+    }
+  }
+
+  const execute = async () => {
   switch (toolType) {
     case ToolType.CREATE_CLIENT:
       return await executeCreateClient(opts);
@@ -59,9 +143,524 @@ export async function executeToolAction(opts: ExecuteToolOptions): Promise<ToolE
       return await executeRequestApproval(opts);
     case ToolType.SEND_MESSAGE:
       return await executeSendMessage(opts);
+    case ToolType.SEARCH_KNOWLEDGE_BASE:
+      return await executeSearchKnowledgeBase(opts);
+    case ToolType.GET_CLIENT_HISTORY:
+      return await executeGetClientHistory(opts);
+    case ToolType.FETCH_CAMPAIGN_PERFORMANCE:
+      return await executeFetchCampaignPerformance(opts);
+    case ToolType.GET_ACCOUNT_DETAILS:
+      return await executeGetAccountDetails(opts);
+    case ToolType.UPDATE_CLIENT_RECORD:
+      return await executeUpdateClientRecord(opts);
+    case ToolType.CREATE_NEW_TASK:
+      return await executeCreateNewTask(opts);
+    case ToolType.GENERATE_STRATEGY_REPORT:
+      return await executeGenerateStrategyReport(opts);
+    case ToolType.TRIGGER_EMAIL_SEQUENCE:
+      return await executeTriggerEmailSequence(opts);
+    case ToolType.PROPOSE_MEMORY_WRITE:
+      return await executeProposeMemoryWrite(opts);
+    case ToolType.VALIDATE_PII:
+      return await executeValidatePii(opts);
+    case ToolType.CHECK_COMPLIANCE_FLAGS:
+      return await executeCheckComplianceFlags(opts);
+    case ToolType.APPROVE_ACTION:
+      return await executeApproveAction(opts);
     default:
       return { success: false, error: "Not implemented" };
   }
+  };
+
+  if (!isToolGovernanceEnabled()) {
+    return await execute();
+  }
+
+  try {
+    const result = await runWithRetries(
+      () => runWithTimeout(execute, schema.timeoutMs),
+      schema.retries,
+    );
+    return result;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { success: false, error: message };
+  }
+}
+
+async function executeSearchKnowledgeBase(opts: ExecuteToolOptions): Promise<ToolExecutionResult> {
+  const query = String(opts.tool.payload.query ?? "").trim();
+  const tenantId = String(opts.tool.payload.tenant_id ?? "").trim();
+  const clientId = typeof opts.tool.payload.client_id === "string" ? opts.tool.payload.client_id.trim() : null;
+  const docTypesRaw = typeof opts.tool.payload.doc_types === "string" ? opts.tool.payload.doc_types.trim() : "";
+  const topKRaw = Number(opts.tool.payload.top_k ?? 5);
+
+  if (!query || !tenantId) {
+    return { success: false, error: "query and tenant_id are required" };
+  }
+  if (tenantId !== opts.agencyId) {
+    return { success: false, error: "tenant_scope_violation" };
+  }
+
+  const embedded = await embedQueryForRag({ query });
+  const queryEmbedding = embedded.embedding as any;
+
+  let docTypes = docTypesRaw ? docTypesRaw.split(",").map((t) => t.trim()).filter(Boolean) : null;
+  // Safety: never allow tenant-wide retrieval to pull other clients' docs.
+  // When client_id is missing, force doc_types to agency-scoped only (0 cross-tenant leaks).
+  if (!clientId) {
+    docTypes = docTypes ?? ["agency_sop", "agency_exemplar_strategy", "brain_document", "agency_memory", "agency_episodic"];
+  }
+  const matchCount = clampMatchCount(topKRaw, 8);
+
+  const rpcName = getMatchRpcName({ scoped: true });
+  const { data: matches, error } = await opts.supabase.rpc(rpcName, {
+    p_agency_id: tenantId,
+    p_client_id: clientId ?? null,
+    p_query_embedding: queryEmbedding,
+    p_match_count: matchCount,
+    p_doc_types: docTypes,
+    p_modules: null,
+    p_min_similarity: 0.2,
+  });
+
+  if (error) {
+    return { success: false, error: error.message ?? "retrieval_failed" };
+  }
+
+  const mapped = (matches ?? []).map((row: any) => ({
+    doc_id: row.document_id ?? null,
+    chunk_id: row.chunk_id ?? null,
+    doc_type: row.doc_type ?? null,
+    score: row.score ?? null,
+    text: row.chunk_text ?? "",
+  }));
+
+  return { success: true, result: { matches: mapped, retrieval_count: mapped.length } };
+}
+
+async function verifyClientOwnership(opts: ExecuteToolOptions, clientId: string) {
+  const { data, error } = await opts.supabase
+    .from("clients")
+    .select("id, agency_id, name, status")
+    .eq("id", clientId)
+    .maybeSingle();
+  if (error || !data) return { ok: false, error: "Client not found" };
+  if (data.agency_id !== opts.agencyId) return { ok: false, error: "tenant_scope_violation" };
+  return { ok: true, data };
+}
+
+async function executeGetClientHistory(opts: ExecuteToolOptions): Promise<ToolExecutionResult> {
+  const clientId = String(opts.tool.payload.client_id ?? "").trim();
+  const limit = Math.max(1, Math.min(20, Number(opts.tool.payload.limit ?? 5)));
+  if (!clientId) return { success: false, error: "client_id is required" };
+
+  const ownership = await verifyClientOwnership(opts, clientId);
+  if (!ownership.ok) return { success: false, error: ownership.error ?? "client_not_found" };
+
+  const { data: messages } = await opts.supabase
+    .from("messages")
+    .select("content, created_at")
+    .eq("client_id", clientId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  const latest = (messages ?? [])[0]?.created_at ?? null;
+  const summary = (messages ?? [])
+    .map((m: any, index: number) => `#${index + 1}: ${(m.content ?? "").slice(0, 120)}`)
+    .join(" ");
+
+  return {
+    success: true,
+    result: {
+      summary: summary || "No recent messages found.",
+      last_interaction_at: latest,
+      key_decisions: [],
+    },
+  };
+}
+
+async function executeFetchCampaignPerformance(opts: ExecuteToolOptions): Promise<ToolExecutionResult> {
+  const clientId = String(opts.tool.payload.client_id ?? "").trim();
+  const campaignId = typeof opts.tool.payload.campaign_id === "string" ? opts.tool.payload.campaign_id.trim() : "";
+  const dateRange = typeof opts.tool.payload.date_range === "string" ? opts.tool.payload.date_range.trim() : "";
+
+  if (!clientId) return { success: false, error: "client_id is required" };
+  const ownership = await verifyClientOwnership(opts, clientId);
+  if (!ownership.ok) return { success: false, error: ownership.error ?? "client_not_found" };
+
+  const { data: accounts, error: accountError } = await opts.supabase
+    .from("ad_accounts")
+    .select("id")
+    .eq("client_id", clientId);
+  if (accountError || !accounts || accounts.length === 0) {
+    return { success: true, result: { metrics: {}, source: "ad_insights" } };
+  }
+  const accountIds = accounts.map((row: any) => row.id);
+
+  const { data: campaigns } = await opts.supabase
+    .from("ad_campaigns")
+    .select("id, meta_campaign_id, name")
+    .in("ad_account_id", accountIds);
+
+  let campaignIds = (campaigns ?? []).map((row: any) => row.id);
+  if (campaignId) {
+    const matched = (campaigns ?? []).find((row: any) => row.id === campaignId || row.meta_campaign_id === campaignId);
+    campaignIds = matched ? [matched.id] : [];
+  }
+
+  if (campaignIds.length === 0) {
+    return { success: true, result: { metrics: {}, source: "ad_insights" } };
+  }
+
+  const { data: insights } = await opts.supabase
+    .from("ad_insights")
+    .select("*")
+    .in("ad_campaign_id", campaignIds);
+
+  const [startDate, endDate] = dateRange.includes("..") ? dateRange.split("..").map((d) => d.trim()) : [null, null];
+  const filtered = (insights ?? []).filter((row: any) => {
+    if (startDate && row.date < startDate) return false;
+    if (endDate && row.date > endDate) return false;
+    return true;
+  });
+
+  const metrics = filtered.reduce((acc: any, row: any) => {
+    acc.impressions = (acc.impressions ?? 0) + (row.impressions ?? 0);
+    acc.clicks = (acc.clicks ?? 0) + (row.clicks ?? 0);
+    acc.spend = (acc.spend ?? 0) + Number(row.spend ?? 0);
+    acc.reach = (acc.reach ?? 0) + (row.reach ?? 0);
+    acc.conversions = (acc.conversions ?? 0) + (row.conversions ?? 0);
+    return acc;
+  }, {});
+
+  return { success: true, result: { metrics, source: "ad_insights" } };
+}
+
+async function executeGetAccountDetails(opts: ExecuteToolOptions): Promise<ToolExecutionResult> {
+  const clientId = String(opts.tool.payload.client_id ?? "").trim();
+  if (!clientId) return { success: false, error: "client_id is required" };
+  const ownership = await verifyClientOwnership(opts, clientId);
+  if (!ownership.ok) return { success: false, error: ownership.error ?? "client_not_found" };
+  const data = ownership.data as any;
+  return {
+    success: true,
+    result: {
+      account_name: data.name ?? null,
+      status: data.status ?? null,
+      plan: "standard",
+    },
+  };
+}
+
+async function executeUpdateClientRecord(opts: ExecuteToolOptions): Promise<ToolExecutionResult> {
+  const clientId = String(opts.tool.payload.client_id ?? "").trim();
+  const fieldsRaw = String(opts.tool.payload.fields ?? "").trim();
+  if (!clientId || !fieldsRaw) return { success: false, error: "client_id and fields are required" };
+
+  const ownership = await verifyClientOwnership(opts, clientId);
+  if (!ownership.ok) return { success: false, error: ownership.error ?? "client_not_found" };
+
+  let fields: Record<string, unknown> = {};
+  try {
+    fields = JSON.parse(fieldsRaw);
+  } catch {
+    return { success: false, error: "fields must be valid JSON" };
+  }
+
+  const allowed = ["name", "email", "phone", "company", "status"];
+  const updates: Record<string, unknown> = {};
+  for (const key of allowed) {
+    if (fields[key] !== undefined) updates[key] = fields[key];
+  }
+  if (Object.keys(updates).length === 0) {
+    return { success: false, error: "no_updatable_fields" };
+  }
+
+  const { error } = await opts.supabase
+    .from("clients")
+    .update(updates)
+    .eq("id", clientId);
+  if (error) return { success: false, error: error.message ?? "update_failed" };
+  return { success: true, result: { updated: true, client_id: clientId } };
+}
+
+async function executeCreateNewTask(opts: ExecuteToolOptions): Promise<ToolExecutionResult> {
+  const clientId = String(opts.tool.payload.client_id ?? "").trim();
+  const title = String(opts.tool.payload.title ?? "").trim();
+  const dueDateInput = typeof opts.tool.payload.due_date === "string" ? opts.tool.payload.due_date.trim() : "";
+  const notes = typeof opts.tool.payload.notes === "string" ? opts.tool.payload.notes.trim() : "";
+
+  if (!clientId || !title) return { success: false, error: "client_id and title are required" };
+
+  const ownership = await verifyClientOwnership(opts, clientId);
+  if (!ownership.ok) return { success: false, error: ownership.error ?? "client_not_found" };
+
+  const dueDate = dueDateInput ? new Date(dueDateInput) : null;
+  if (dueDateInput && Number.isNaN(dueDate?.getTime() ?? NaN)) {
+    return { success: false, error: "due_date must be a valid ISO date string" };
+  }
+
+  const { data, error } = await opts.supabase
+    .from("tasks")
+    .insert({
+      agency_id: opts.agencyId,
+      client_id: clientId,
+      title,
+      description: notes || null,
+      due_date: dueDate ? dueDate.toISOString() : null,
+      status: "todo",
+      priority: "medium",
+      assigned_to: opts.userId,
+      created_by: opts.userId,
+    })
+    .select("id")
+    .single();
+
+  if (error) return { success: false, error: error.message ?? "task_create_failed" };
+  return { success: true, result: { task_id: data?.id ?? null, created: true } };
+}
+
+async function executeGenerateStrategyReport(opts: ExecuteToolOptions): Promise<ToolExecutionResult> {
+  const clientId = String(opts.tool.payload.client_id ?? "").trim();
+  if (!clientId) return { success: false, error: "client_id is required" };
+  const ownership = await verifyClientOwnership(opts, clientId);
+  if (!ownership.ok) return { success: false, error: ownership.error ?? "client_not_found" };
+
+  const dedupeKey = `seed_strategy:${clientId}`;
+  const { data, error } = await opts.supabase
+    .from("ai_jobs")
+    .insert({
+      agency_id: opts.agencyId,
+      client_id: clientId,
+      job_type: "seed_strategy",
+      payload_json: { source: "tool_generate_strategy" },
+      dedupe_key: dedupeKey,
+      status: "pending",
+    })
+    .select("id")
+    .single();
+
+  if (error) return { success: false, error: error.message ?? "job_create_failed" };
+  return { success: true, result: { job_id: data?.id ?? null, status: "pending" } };
+}
+
+async function executeTriggerEmailSequence(opts: ExecuteToolOptions): Promise<ToolExecutionResult> {
+  const clientId = String(opts.tool.payload.client_id ?? "").trim();
+  const sequenceId = String(opts.tool.payload.sequence_id ?? "").trim();
+  if (!clientId || !sequenceId) return { success: false, error: "client_id and sequence_id are required" };
+  const ownership = await verifyClientOwnership(opts, clientId);
+  if (!ownership.ok) return { success: false, error: ownership.error ?? "client_not_found" };
+
+  const dedupeKey = `email_sequence:${clientId}:${sequenceId}`;
+  const { data, error } = await opts.supabase
+    .from("ai_jobs")
+    .insert({
+      agency_id: opts.agencyId,
+      client_id: clientId,
+      job_type: "trigger_email_sequence",
+      payload_json: { sequence_id: sequenceId },
+      dedupe_key: dedupeKey,
+      status: "pending",
+    })
+    .select("id")
+    .single();
+
+  if (error) return { success: false, error: error.message ?? "job_create_failed" };
+  return { success: true, result: { job_id: data?.id ?? null, status: "pending" } };
+}
+
+async function executeProposeMemoryWrite(opts: ExecuteToolOptions): Promise<ToolExecutionResult> {
+  const tenantId = String(opts.tool.payload.tenant_id ?? "").trim();
+  const fact = String(opts.tool.payload.fact ?? "").trim();
+  const scope = typeof opts.tool.payload.scope === "string" ? opts.tool.payload.scope.trim() : "long_term";
+  const requiresApproval = String(opts.tool.payload.requires_approval ?? "false").toLowerCase() === "true";
+
+  if (!tenantId || !fact) return { success: false, error: "tenant_id and fact are required" };
+  if (tenantId !== opts.agencyId) return { success: false, error: "tenant_scope_violation" };
+
+  const status = requiresApproval ? "proposed" : "active";
+
+  const { data, error } = await opts.supabase
+    .from("ai_memory_items")
+    .insert({
+      agency_id: tenantId,
+      client_id: opts.clientId ?? null,
+      type: "proposal",
+      content: fact,
+      scope,
+      status,
+      created_by: opts.userId,
+      metadata: { requires_approval: requiresApproval },
+    })
+    .select("id")
+    .single();
+
+  if (error) return { success: false, error: error.message ?? "memory_write_failed" };
+  const proposalId = data?.id ?? null;
+
+  if (proposalId && status === "active" && isLongTermMemoryEnabled() && isPhase2EnabledForAgency(opts.agencyId)) {
+    // If scoped to a client, enqueue a durable ingest. If agency-wide, ingest immediately (ai_jobs requires client_id).
+    if (opts.clientId) {
+      const dedupeKey = `memory_ingest:${proposalId}`;
+      await opts.supabase.from("ai_jobs").upsert(
+        {
+          agency_id: opts.agencyId,
+          client_id: opts.clientId,
+          job_type: "ingest_memory_item",
+          payload_json: { memory_item_id: proposalId },
+          dedupe_key: dedupeKey,
+          status: "pending",
+          run_after: new Date().toISOString(),
+          last_error: null,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "job_type,client_id,dedupe_key" },
+      );
+    } else {
+      await ingestMemoryItemAsDocument({
+        supabase: opts.supabase,
+        agencyId: opts.agencyId,
+        clientId: null,
+        memoryItemId: proposalId,
+        docType: "agency_memory",
+        title: "Agency memory (long_term)",
+        content: fact,
+        metadata: { scope: "long_term", memory_item_type: "proposal" },
+      });
+    }
+  }
+
+  return {
+    success: true,
+    result: {
+      proposal_id: proposalId,
+      status,
+      requires_approval: requiresApproval,
+    },
+  };
+}
+
+function detectPii(text: string) {
+  const categories: string[] = [];
+  if (/\b\d{3}-\d{2}-\d{4}\b/.test(text)) categories.push("ssn");
+  if (/\b(?:\d[ -]*?){13,16}\b/.test(text)) categories.push("credit_card");
+  if (/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i.test(text)) categories.push("email");
+  if (/\b\+?\d{1,2}[\s.-]?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}\b/.test(text)) categories.push("phone");
+  return categories;
+}
+
+async function executeValidatePii(opts: ExecuteToolOptions): Promise<ToolExecutionResult> {
+  const text = String(opts.tool.payload.text ?? "");
+  const categories = detectPii(text);
+  return { success: true, result: { has_pii: categories.length > 0, categories } };
+}
+
+async function executeCheckComplianceFlags(opts: ExecuteToolOptions): Promise<ToolExecutionResult> {
+  const clientId = String(opts.tool.payload.client_id ?? "").trim();
+  const action = String(opts.tool.payload.action ?? "").trim();
+  if (!clientId || !action) return { success: false, error: "client_id and action are required" };
+  const ownership = await verifyClientOwnership(opts, clientId);
+  if (!ownership.ok) return { success: false, error: ownership.error ?? "client_not_found" };
+
+  const repPolicyDoc = await fetchBrainDocument(opts.supabase, opts.agencyId, "rep_policy");
+  if (!repPolicyDoc?.content_json) {
+    return {
+      success: true,
+      result: {
+        allowed: false,
+        reasons: ["UNKNOWN_rep_policy_missing"],
+        requires_human_review: true,
+      },
+    };
+  }
+
+  const policy = repPolicyDoc.content_json as Record<string, unknown>;
+  const cannotDo = normalizePolicyList(policy.cannot_do);
+  const escalation = normalizePolicyList(policy.escalation_triggers);
+  const neverSay = normalizePolicyList(policy.never_say);
+
+  const actionLower = action.toLowerCase();
+  const reasons: string[] = [];
+
+  const ruleMatch = (label: string, rule: string) => {
+    if (!rule) return;
+    if (actionLower.includes(rule.toLowerCase())) {
+      reasons.push(`${label}:${rule}`);
+    }
+  };
+
+  cannotDo.forEach((rule) => ruleMatch("cannot_do", rule));
+  escalation.forEach((rule) => ruleMatch("escalation_trigger", rule));
+  neverSay.forEach((rule) => ruleMatch("never_say", rule));
+
+  const heuristics = [
+    "guarantee",
+    "legal",
+    "compliance",
+    "privacy",
+    "refund",
+    "contract",
+    "pricing",
+    "medical",
+    "financial",
+  ];
+  heuristics.forEach((rule) => ruleMatch("heuristic", rule));
+
+  const pii = detectPii(action);
+  if (pii.length > 0) {
+    reasons.push(`pii_detected:${pii.join(",")}`);
+  }
+
+  return {
+    success: true,
+    result: {
+      allowed: reasons.length === 0,
+      reasons,
+      requires_human_review: reasons.length > 0,
+    },
+  };
+}
+
+function normalizePolicyList(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item ?? "").trim()).filter(Boolean);
+  }
+  if (typeof value === "string") {
+    return value
+      .split(/\n|;|,/g)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
+async function executeApproveAction(opts: ExecuteToolOptions): Promise<ToolExecutionResult> {
+  const proposalId = String(opts.tool.payload.proposal_id ?? "").trim();
+  const approverId = String(opts.tool.payload.approver_id ?? "").trim();
+  const decision = String(opts.tool.payload.decision ?? "").trim();
+  if (!proposalId || !approverId || !decision) {
+    return { success: false, error: "proposal_id, approver_id, decision are required" };
+  }
+
+  const { data: taskRow, error: taskError } = await opts.supabase
+    .from("approval_tasks")
+    .select("id, approver_id, asset_version_id, asset_versions(agency_id)")
+    .eq("id", proposalId)
+    .maybeSingle();
+  if (taskError || !taskRow) return { success: false, error: "approval_task_not_found" };
+  const taskAgencyId = (taskRow as any)?.asset_versions?.agency_id ?? null;
+  if (!taskAgencyId || taskAgencyId !== opts.agencyId) return { success: false, error: "tenant_scope_violation" };
+  if (taskRow.approver_id !== approverId) return { success: false, error: "approver_mismatch" };
+
+  const status = decision === "approved" ? "approved" : "changes_requested";
+  const { error } = await opts.supabase
+    .from("approval_tasks")
+    .update({ status })
+    .eq("id", proposalId)
+    .eq("approver_id", approverId);
+  if (error) return { success: false, error: error.message ?? "approval_update_failed" };
+  return { success: true, result: { status, approved: status === "approved" } };
 }
 
 function validateToolPayload(payload: Record<string, unknown>, schema: ToolSchema): string | null {

@@ -1,0 +1,31 @@
+{
+  "date_utc": "2026-02-01",
+  "tenant_scope": {
+    "agency_id": "115dc619-1867-4275-83ec-4d5a0d47f94b",
+    "client_id": "af1a1b5a-cf77-4303-a56b-4edf6b2a0c6e"
+  },
+  "note": "This is a spot check (denials for mismatched agency_id). Full audit still requires two real tenants/users.",
+  "checks": [
+    {
+      "endpoint": "ai-documents-ingest",
+      "status": 403,
+      "body": {
+        "error": "Forbidden"
+      }
+    },
+    {
+      "endpoint": "ai-retrieve-context",
+      "status": 403,
+      "body": {
+        "error": "Forbidden"
+      }
+    },
+    {
+      "endpoint": "ai-memory-approve",
+      "status": 403,
+      "body": {
+        "error": "Forbidden"
+      }
+    }
+  ]
+}

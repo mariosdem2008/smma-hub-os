@@ -5,10 +5,10 @@ import { MemoryRouter, Routes, Route, useLocation } from "react-router-dom";
 
 import Welcome from "@/pages/Welcome";
 import CreateAgencyStub from "@/pages/CreateAgencyStub";
+import AiOnboardingAgency from "@/pages/ai/AiOnboardingAgency";
 
 const mockRpc = vi.fn();
 const mockInvoke = vi.fn();
-const mockUpsert = vi.fn();
 
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
@@ -16,9 +16,6 @@ vi.mock("@/integrations/supabase/client", () => ({
     functions: {
       invoke: (...args: any[]) => mockInvoke(...args),
     },
-    from: () => ({
-      upsert: (...args: any[]) => mockUpsert(...args),
-    }),
   },
 }));
 
@@ -44,14 +41,13 @@ describe("create agency onboarding flow", () => {
   beforeEach(() => {
     mockRpc.mockReset();
     mockInvoke.mockReset();
-    mockUpsert.mockReset();
     window.localStorage.clear();
     window.sessionStorage.clear();
   });
 
   afterEach(() => cleanup());
 
-  it("welcome -> create-agency -> dashboard", async () => {
+  it("welcome -> create-agency -> ai onboarding", async () => {
     const user = userEvent.setup();
 
     mockRpc.mockImplementation((fnName: string) => {
@@ -61,68 +57,51 @@ describe("create agency onboarding flow", () => {
       return Promise.resolve({ data: null, error: null });
     });
 
-    mockInvoke.mockImplementation((fnName: string, args: any) => {
-      if (fnName === "ai-brains-agency" && args?.body?.action === "create") {
-        return Promise.resolve({ data: { brain: { id: "brain-1" } }, error: null });
-      }
-      if (fnName === "ai-brains-agency" && args?.body?.action === "update") {
-        return Promise.resolve({ data: { brain: { id: "brain-1" } }, error: null });
-      }
-      if (fnName === "ai-brains-agency" && args?.body?.action === "lock") {
-        return Promise.resolve({ data: { brain: { id: "brain-1" } }, error: null });
-      }
-      if (fnName === "ai-brain-ingest") {
-        return Promise.resolve({ data: { success: true }, error: null });
-      }
-      return Promise.resolve({ data: {}, error: null });
+    mockInvoke.mockResolvedValue({
+      data: {
+        v: "2.0.0",
+        trace_id: "trace-1",
+        onboarding_status: {
+          id: "status-1",
+          status: "in_progress",
+          scope: "agency",
+          last_step_id: "bootstrap",
+          started_at: null,
+          completed_at: null,
+        },
+        assistant_message: "Welcome to onboarding.",
+        expects: "text",
+        suggestions: ["Suggestion A", "Suggestion B", "Suggestion C"],
+        unknown: false,
+        brain_snapshot: {},
+        state: {
+          module: "bootstrap",
+          resolver_state: "ready",
+          missing_fields: [],
+        },
+      },
+      error: null,
     });
-
-    mockUpsert.mockResolvedValue({ error: null });
 
     render(
       <MemoryRouter initialEntries={["/welcome"]}>
         <Routes>
           <Route path="/welcome" element={<><LocationDisplay /><Welcome /></>} />
           <Route path="/create-agency" element={<><LocationDisplay /><CreateAgencyStub /></>} />
-          <Route path="/dashboard" element={<LocationDisplay />} />
+          <Route path="/ai/onboarding/agency" element={<><LocationDisplay /><AiOnboardingAgency /></>} />
         </Routes>
       </MemoryRouter>,
     );
 
-    await user.click(screen.getByRole("button", { name: "Create an agency" }));
+    await user.click(screen.getByRole("button", { name: "Create an agency (AI-guided)" }));
     await waitFor(() => expect(screen.getByTestId("location").textContent).toBe("/create-agency"));
 
     await user.type(screen.getByLabelText("Agency name"), "Acme Social");
     await user.type(screen.getByLabelText("Website (optional)"), "https://acme.test");
-    await user.click(screen.getByRole("button", { name: "Continue" }));
+    await user.click(screen.getByRole("button", { name: "Continue to AI onboarding" }));
 
-    await screen.findByText("Select the services you offer (add custom if needed).");
-    await user.click(screen.getByText("Paid social"));
-    await user.click(screen.getByRole("button", { name: "Continue" }));
-
-    await screen.findByText("Who do you work best with? Select industries and add custom.");
-    await user.click(screen.getByText("E-commerce"));
-    await user.click(screen.getByRole("button", { name: "Continue" }));
-
-    await screen.findByText("Define your “do / don’t” tone rules for outputs.");
-    await user.type(screen.getByLabelText("Do"), "Direct, concise.");
-    await user.type(screen.getByLabelText("Don’t"), "No guarantees.");
-    await user.click(screen.getByRole("button", { name: "Continue" }));
-
-    await screen.findByText("When should the system escalate uncertainty or risk?");
-    await user.click(screen.getByRole("button", { name: "Continue" }));
-
-    await screen.findByText("Add forbidden claims/topics (press Add to create a chip).");
-    await user.type(screen.getByPlaceholderText("e.g., guaranteed results"), "Guaranteed results");
-    await user.click(screen.getByRole("button", { name: "Add" }));
-    await user.click(screen.getByRole("button", { name: "Finish & Go to Dashboard" }));
-
-    await waitFor(() => expect(screen.getByTestId("location").textContent).toBe("/dashboard"));
+    await waitFor(() => expect(screen.getByTestId("location").textContent).toBe("/ai/onboarding/agency"));
     expect(window.localStorage.getItem("activeAgencyId")).toBe("agency-1");
-    expect(window.sessionStorage.getItem("postCreateAgencyCta")).toBeNull();
-
-    await waitFor(() => {
-      expect(mockInvoke.mock.calls.some(([fnName]) => fnName === "ai-seed-default-brain-pack")).toBe(true);
-    });
+    await screen.findByText("Agency Profile Setup");
   });
 });

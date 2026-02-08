@@ -6,9 +6,14 @@ import { verifyCronSecret } from "../_shared/cron.ts";
 import { getEndpointGuardResponse } from "../_shared/endpoint-guard.ts";
 import { mapV3AnswersToClientBrain } from "../_shared/client-brain-mapping.ts";
 import { evaluateClientBrainForStrategy } from "../_shared/brain-quality.ts";
-import { buildChunks, embedText, getExpectedEmbeddingDim, tokenize } from "../_shared/embeddings.ts";
+import { buildChunks, embedText, embedTextShadowGemini, getExpectedEmbeddingDim, getShadowEmbeddingDim, getShadowGeminiModelId, isShadowGeminiEnabled, tokenize } from "../_shared/embeddings.ts";
 import { embedWithPolicy } from "../_shared/embedding-policy.ts";
-import { persistEmbeddingResult } from "../_shared/embedding-store.ts";
+import { persistEmbeddingResult, persistShadowEmbeddingResult } from "../_shared/embedding-store.ts";
+import { generateSpanId, generateTraceId, logOtelSpan } from "../../../src/ai/otel.ts";
+import { TaskType } from "../../../src/ai/taskTypes.ts";
+import { isDurableExecutorEnabled } from "../../../src/ai/flags.ts";
+import { writeCheckpoint } from "../_shared/executor-checkpoints.ts";
+import { ingestMemoryItemAsDocument } from "../_shared/memory-ingest.ts";
 
 const MAX_ATTEMPTS = 5;
 const DEFAULT_BATCH_SIZE = 5;
@@ -183,6 +188,10 @@ async function ingestClientBrainSummaryAsGuidelines(opts: {
   const embeddingModel = Deno.env.get("EMBEDDING_MODEL_ID") ?? "text-embedding-3-small";
   const expectedDim = getExpectedEmbeddingDim();
   const failHard = Deno.env.get("AI_EMBEDDING_FAIL_HARD") === "true";
+  const shadowEnabled = isShadowGeminiEnabled();
+  const shadowModel = getShadowGeminiModelId();
+  const shadowDim = getShadowEmbeddingDim();
+  const shadowApiKey = Deno.env.get("GEMINI_API_KEY") ?? null;
 
   for (let index = 0; index < chunks.length; index += 1) {
     const chunk = chunks[index];
@@ -226,6 +235,34 @@ async function ingestClientBrainSummaryAsGuidelines(opts: {
         },
       },
     });
+
+    if (shadowEnabled) {
+      const shadowResult = await embedWithPolicy({
+        text: chunk.text,
+        apiKey: shadowApiKey ?? undefined,
+        failHard: false,
+        embed: (text) => embedTextShadowGemini(text),
+      });
+
+      await persistShadowEmbeddingResult({
+        supabase: opts.supabase,
+        embeddingResult: shadowResult,
+        embeddingPayload: {
+          agency_id: opts.agencyId,
+          client_id: opts.clientId,
+          doc_type: "client_guidelines",
+          document_id: docRow.id,
+          chunk_id: chunkRow.id,
+          embedding_json: [],
+          model: shadowModel,
+          metadata: {
+            similarity: "cosine",
+            embedding_dim: shadowDim ?? null,
+            shadow: true,
+          },
+        },
+      });
+    }
   }
 
   // Keep only the most recent generated summary for this client.
@@ -263,23 +300,30 @@ async function invokeStrategyGenerate(
 }
 
 serve(async (req: Request) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders(req) });
-  }
+  const traceId = generateTraceId();
+  const spanId = generateSpanId();
+  const spanStart = Date.now();
+  let response: Response | undefined;
+  let supabase: ReturnType<typeof createClient> | null = null;
 
-  if (req.method !== "POST") {
-    return jsonResponse({ error: "Method not allowed" }, 405, corsHeaders(req));
-  }
+  response = await (async () => {
+    if (req.method === "OPTIONS") {
+      return new Response(null, { headers: corsHeaders(req) });
+    }
 
-  const guardResponse = getEndpointGuardResponse("ai-job-worker", corsHeaders(req));
-  if (guardResponse) return guardResponse;
+    if (req.method !== "POST") {
+      return jsonResponse({ error: "Method not allowed" }, 405, corsHeaders(req));
+    }
 
-  const cronAuth = verifyCronSecret(req, corsHeaders(req));
-  if (cronAuth) return cronAuth;
+    const guardResponse = getEndpointGuardResponse("ai-job-worker", corsHeaders(req));
+    if (guardResponse) return guardResponse;
 
-  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-    auth: { persistSession: false },
-  });
+    const cronAuth = verifyCronSecret(req, corsHeaders(req));
+    if (cronAuth) return cronAuth;
+
+    supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+      auth: { persistSession: false },
+    });
 
   const batchSize = Number(Deno.env.get("AI_JOB_BATCH_SIZE") ?? DEFAULT_BATCH_SIZE);
   const { data: jobs, error } = await supabase.rpc("claim_ai_jobs", {
@@ -304,8 +348,21 @@ serve(async (req: Request) => {
     const agencyId = (job as any).agency_id as string;
     const attempts = Number((job as any).attempts ?? 1);
     const dedupeKey = (job as any).dedupe_key as string | null;
+    const durableEnabled = isDurableExecutorEnabled();
+    const planId = `job:${jobId}`;
 
     try {
+      if (durableEnabled) {
+        await writeCheckpoint(supabase, {
+          planId,
+          stepId: jobType,
+          status: "running",
+          agencyId,
+          clientId,
+          userId: null,
+          payload: { job_id: jobId, attempt: attempts },
+        });
+      }
       if (dedupeKey) {
         const { data: existing } = await supabase
           .from("ai_jobs")
@@ -432,6 +489,88 @@ serve(async (req: Request) => {
 
         // If the endpoint gates with UNKNOWN, the response is still HTTP 200.
         // We treat that as a success: the system is intentionally blocking.
+      } else if (jobType === "ingest_memory_item") {
+        const payload = (job as any).payload_json ?? {};
+        const memoryItemId = typeof payload.memory_item_id === "string" ? payload.memory_item_id.trim() : "";
+        if (!memoryItemId) {
+          throw new Error("Missing memory_item_id for ingest_memory_item job");
+        }
+
+        const { data: memoryRow, error: memoryError } = await supabase
+          .from("ai_memory_items")
+          .select("id, agency_id, client_id, type, content, scope, status, metadata")
+          .eq("id", memoryItemId)
+          .maybeSingle();
+
+        if (memoryError || !memoryRow) {
+          throw new Error("memory_item_not_found");
+        }
+        if ((memoryRow as any).agency_id !== agencyId) {
+          throw new Error("tenant_scope_violation");
+        }
+        const memoryStatus = String((memoryRow as any).status ?? "proposed");
+        if (memoryStatus !== "active") {
+          throw new Error("memory_item_not_active");
+        }
+
+        const scope = String((memoryRow as any).scope ?? "long_term");
+        const isEpisodic = scope === "episodic";
+        const docType = (memoryRow as any).client_id
+          ? (isEpisodic ? "client_episodic" : "client_memory")
+          : (isEpisodic ? "agency_episodic" : "agency_memory");
+        const title = `Memory (${String((memoryRow as any).scope ?? "long_term")})`;
+        await ingestMemoryItemAsDocument({
+          supabase,
+          agencyId,
+          clientId: (memoryRow as any).client_id ?? null,
+          memoryItemId,
+          docType,
+          title,
+          content: String((memoryRow as any).content ?? ""),
+          metadata: {
+            scope: String((memoryRow as any).scope ?? "long_term"),
+            memory_item_type: String((memoryRow as any).type ?? ""),
+            memory_item_status: memoryStatus,
+          },
+        });
+      } else if (jobType === "trigger_email_sequence") {
+        const payload = (job as any).payload_json ?? {};
+        const sequenceId = typeof payload.sequence_id === "string" ? payload.sequence_id.trim() : "";
+        if (!sequenceId) {
+          throw new Error("Missing sequence_id for email sequence job");
+        }
+
+        const { data: existingActive, error: existingError } = await supabase
+          .from("email_sequence_jobs")
+          .select("id, status")
+          .eq("agency_id", agencyId)
+          .eq("client_id", clientId)
+          .eq("sequence_id", sequenceId)
+          .in("status", ["pending", "processing"])
+          .limit(1);
+
+        if (existingError) {
+          throw new Error(existingError.message ?? "Failed to check email sequence queue");
+        }
+
+        if ((existingActive ?? []).length === 0) {
+          const { error: insertError } = await supabase
+            .from("email_sequence_jobs")
+            .insert({
+              agency_id: agencyId,
+              client_id: clientId,
+              sequence_id: sequenceId,
+              status: "pending",
+              payload: {
+                source_job_id: jobId,
+                triggered_at: new Date().toISOString(),
+              },
+            });
+
+          if (insertError) {
+            throw new Error(insertError.message ?? "Failed to enqueue email sequence");
+          }
+        }
       } else {
         throw new Error(`Unsupported job_type: ${jobType}`);
       }
@@ -441,6 +580,18 @@ serve(async (req: Request) => {
         last_error: null,
         updated_at: new Date().toISOString(),
       }).eq("id", jobId);
+
+      if (durableEnabled) {
+        await writeCheckpoint(supabase, {
+          planId,
+          stepId: jobType,
+          status: "completed",
+          agencyId,
+          clientId,
+          userId: null,
+          payload: { job_id: jobId, status: "succeeded" },
+        });
+      }
 
       results.push({ id: jobId, status: "succeeded" });
     } catch (err: any) {
@@ -454,9 +605,33 @@ serve(async (req: Request) => {
         updated_at: new Date().toISOString(),
       }).eq("id", jobId);
 
+      if (durableEnabled) {
+        await writeCheckpoint(supabase, {
+          planId,
+          stepId: jobType,
+          status: exceeded ? "failed" : "pending",
+          agencyId,
+          clientId,
+          userId: null,
+          payload: { job_id: jobId, error: err?.message ?? "Unknown error" },
+        });
+      }
+
       results.push({ id: jobId, status: exceeded ? "failed" : "retrying", error: err?.message });
     }
   }
 
-  return jsonResponse({ success: true, processed: results.length, results }, 200, corsHeaders(req));
+    return jsonResponse({ success: true, processed: results.length, results }, 200, corsHeaders(req));
+  })();
+
+  await logOtelSpan(supabase, {
+    traceId,
+    spanId,
+    stage: "edge.ai-job-worker",
+    taskType: TaskType.TOOL_EXECUTION,
+    latencyMs: Date.now() - spanStart,
+    attributes: { http_status: response?.status ?? 0 },
+  });
+
+  return response!;
 });

@@ -47,8 +47,8 @@ const DEFAULT_POLICIES: Record<TaskType, TaskModelPolicy> = {
   },
 
   [TaskType.AGENCY_ADMIN_SETUP_GUIDED_V2]: {
-    dev: { provider: "openai", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.3 } },
-    prod: { provider: "openai", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.3 } },
+    dev: { provider: "openai", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.2, max_tokens: 350 } },
+    prod: { provider: "openai", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.2, max_tokens: 350 } },
   },
 
   [TaskType.AGENCY_ADMIN_GENERAL_CHAT]: {
@@ -78,8 +78,13 @@ const DEFAULT_POLICIES: Record<TaskType, TaskModelPolicy> = {
   },
 
   [TaskType.CLASSIFY_INTENT]: {
-    dev: { provider: "openai", model: DEFAULT_TEXT_MODEL, params: { temperature: 0 } },
-    prod: { provider: "openai", model: DEFAULT_TEXT_MODEL, params: { temperature: 0 } },
+    dev: { provider: "openai", model: DEFAULT_TEXT_MODEL, params: { temperature: 0, max_tokens: 120 } },
+    prod: { provider: "openai", model: DEFAULT_TEXT_MODEL, params: { temperature: 0, max_tokens: 120 } },
+  },
+
+  [TaskType.PLANNER]: {
+    dev: { provider: "openai", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.1, max_tokens: 160 } },
+    prod: { provider: "openai", model: DEFAULT_TEXT_MODEL, params: { temperature: 0.1, max_tokens: 160 } },
   },
 
   [TaskType.STRATEGY_PLAN]: {
@@ -112,6 +117,14 @@ const DEFAULT_POLICIES: Record<TaskType, TaskModelPolicy> = {
     dev: { provider: "openai", model: DEFAULT_EMBED_MODEL },
     prod: { provider: "openai", model: DEFAULT_EMBED_MODEL },
     legacyModelEnv: "EMBEDDING_MODEL_ID",
+  },
+  [TaskType.ONBOARDING_ANSWER_CHECK]: {
+    dev: { provider: "gemini", model: DEFAULT_STRATEGY_MODEL, params: { temperature: 0.1, max_tokens: 160 } },
+    prod: { provider: "gemini", model: DEFAULT_STRATEGY_MODEL, params: { temperature: 0.1, max_tokens: 160 } },
+  },
+  [TaskType.ONBOARDING_CLARIFY]: {
+    dev: { provider: "gemini", model: DEFAULT_STRATEGY_MODEL, params: { temperature: 0.3, max_tokens: 220 } },
+    prod: { provider: "gemini", model: DEFAULT_STRATEGY_MODEL, params: { temperature: 0.3, max_tokens: 220 } },
   },
 }
 

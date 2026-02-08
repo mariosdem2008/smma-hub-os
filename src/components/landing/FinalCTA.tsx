@@ -1,20 +1,19 @@
-import React from 'react';
-import { motion, useInView } from 'framer-motion';
-import { Button } from '@/components/ui/button';
-import { ArrowRight, Play, Sparkles, Check } from 'lucide-react';
-import { useSectionTracking } from '@/hooks/useSectionTracking';
+import React from "react";
+import { motion, useInView } from "framer-motion";
+import { ArrowRight, Check, Play, Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useSectionTracking } from "@/hooks/useSectionTracking";
+import { marketing } from "@/lib/marketing";
+import { track } from "@/lib/analytics";
+import { LandingCard, LandingContainer, Pill } from "./LandingPrimitives";
 
-const CAL_LINK = "https://cal.com/SMMAHUB/fit";
-const LOOM_LINK = "https://loom.com/share/LOOM_ID";
+const CAL_LINK = marketing.calUrl;
+const DEMO_LINK = marketing.demoUrl;
 
-const TRUST_INDICATORS = [
-  "No credit card required",
-  "60-day ROI guarantee",
-  "SOC 2 Type II compliant",
-];
+const TRUST_INDICATORS = ["No card required to book", "Secure by design", "Export anytime"];
 
-const FinalCTA = () => {
-  const sectionRef = useSectionTracking('Final CTA');
+export default function FinalCTA() {
+  const sectionRef = useSectionTracking("Final CTA");
   const isInView = useInView(sectionRef, { once: true, amount: 0.3 });
 
   return (
@@ -23,86 +22,83 @@ const FinalCTA = () => {
       initial={{ opacity: 0 }}
       animate={isInView ? { opacity: 1 } : {}}
       transition={{ duration: 0.4 }}
-      className="section-lg relative overflow-hidden"
+      className="section-lg lp-section"
     >
-      <div className="container mx-auto px-[4px]">
+      <LandingContainer className="relative z-10">
         <motion.div
-          initial={{ opacity: 0, scale: 0.98 }}
-          animate={isInView ? { opacity: 1, scale: 1 } : {}}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className="relative overflow-hidden"
+          initial={{ opacity: 0 }}
+          animate={isInView ? { opacity: 1 } : {}}
+          transition={{ duration: 0.45, delay: 0.08 }}
         >
-          {/* Background with gradient */}
-          <div className="glass-card gradient-border-animated rounded-md p-[32px] md:p-[64px] text-center relative">
-            {/* Background orbs */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-              <div className="absolute top-0 left-1/4 w-96 h-96 bg-brand-primary/15 rounded-full blur-3xl" />
-              <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-accent/15 rounded-full blur-3xl" />
+          <LandingCard className="gradient-border-animated p-[26px] md:p-[56px] text-center relative overflow-hidden">
+            <div className="absolute inset-0 pointer-events-none">
+              <div className="absolute -top-24 left-1/3 w-[520px] h-[520px] bg-brand-primary/12 rounded-full blur-3xl" />
+              <div className="absolute -bottom-24 right-1/3 w-[520px] h-[520px] bg-accent/10 rounded-full blur-3xl" />
             </div>
 
-            <div className="relative z-10">
-              {/* Badge */}
+            <div className="relative">
               <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={isInView ? { opacity: 1, y: 0 } : {}}
-                transition={{ duration: 0.4, delay: 0.3 }}
-                className="inline-flex items-center gap-2 badge-gradient-border mb-[24px]"
+                initial={{ opacity: 0 }}
+                animate={isInView ? { opacity: 1 } : {}}
+                transition={{ duration: 0.35, delay: 0.16 }}
+                className="flex justify-center"
               >
-                <Sparkles className="w-4 h-4 text-success icon-glow" />
-                <span className="text-small-text font-medium tracking-small-text text-success">Start Scaling Today</span>
+                <Pill icon={Sparkles}>Next step</Pill>
               </motion.div>
 
-              {/* Headline */}
-              <h2 className="text-section-headline-mobile md:text-section-headline-desktop font-semibold leading-section-headline tracking-section-headline text-gradient-premium">
-                Ready to Scale Without Hiring?
+              <h2 className="mt-[16px] text-section-headline-mobile md:text-section-headline-desktop font-semibold leading-section-headline tracking-section-headline">
+                Ready to scale without hiring?
+                <span className="block text-gradient-premium">Start with a strategy audit.</span>
               </h2>
 
-              {/* Subheadline */}
-              <p className="mt-[24px] mx-auto max-w-prose-landing text-body-mobile md:text-body-desktop text-text-secondary leading-body">
-                Book a free Strategy Audit to see your custom ROI. We'll analyze your workflow, estimate your time savings, and show you exactly how SMMAHUB fits your agency.
+              <p className="mt-[16px] mx-auto max-w-2xl text-body-mobile md:text-body-desktop text-text-secondary leading-body">
+                We map your workflow, define what to systemize first, and outline a rollout plan for consistent delivery.
               </p>
 
-              {/* CTAs */}
               <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={isInView ? { opacity: 1, y: 0 } : {}}
-                transition={{ duration: 0.4, delay: 0.5 }}
-                className="mt-[48px] flex flex-col sm:flex-row justify-center gap-[16px]"
+                initial={{ opacity: 0 }}
+                animate={isInView ? { opacity: 1 } : {}}
+                transition={{ duration: 0.35, delay: 0.22 }}
+                className="mt-[30px] flex flex-col sm:flex-row justify-center gap-[12px]"
               >
-                <Button
-                  asChild
-                  size="lg"
-                  className="btn-glow btn-shimmer btn-press btn-primary-enhanced tracking-cta-text"
-                >
-                  <a href={CAL_LINK} target="_blank" rel="noreferrer" className="inline-flex items-center gap-[8px]">
-                    Book Your Strategy Audit (Free)
+                <Button asChild size="lg" className="btn-glow btn-shimmer btn-press btn-primary-enhanced tracking-cta-text">
+                  <a
+                    href={CAL_LINK}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-[8px]"
+                    onClick={() => track("cta_book_strategy_audit_click", { location: "final_cta" })}
+                  >
+                    Book strategy audit
                     <ArrowRight className="w-4 h-4" />
                   </a>
                 </Button>
 
-                <Button
-                  asChild
-                  size="lg"
-                  variant="outline"
-                  className="btn-secondary-enhanced group tracking-cta-text"
-                >
-                  <a href={LOOM_LINK} target="_blank" rel="noreferrer" className="inline-flex items-center gap-[8px]">
-                    <Play className="w-4 h-4" />
-                    Watch 6-Min Demo
-                  </a>
-                </Button>
+                {DEMO_LINK ? (
+                  <Button asChild size="lg" variant="outline" className="btn-secondary-enhanced group tracking-cta-text">
+                    <a
+                      href={DEMO_LINK}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-[8px]"
+                      onClick={() => track("cta_watch_demo_click", { location: "final_cta" })}
+                    >
+                      <Play className="w-4 h-4" />
+                      Watch demo
+                    </a>
+                  </Button>
+                ) : null}
               </motion.div>
 
-              {/* Trust indicators */}
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={isInView ? { opacity: 1 } : {}}
-                transition={{ duration: 0.4, delay: 0.7 }}
-                className="mt-[48px] flex flex-wrap justify-center gap-[24px] md:gap-[32px]"
+                transition={{ duration: 0.35, delay: 0.3 }}
+                className="mt-[22px] flex flex-wrap justify-center gap-[16px] md:gap-[22px]"
               >
                 {TRUST_INDICATORS.map((indicator) => (
                   <span key={indicator} className="flex items-center gap-[8px] text-small-text text-text-secondary">
-                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-success/20 flex-shrink-0">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-success/15 border border-white/10 flex-shrink-0">
                       <Check className="h-3 w-3 text-success" />
                     </span>
                     {indicator}
@@ -110,11 +106,9 @@ const FinalCTA = () => {
                 ))}
               </motion.div>
             </div>
-          </div>
+          </LandingCard>
         </motion.div>
-      </div>
+      </LandingContainer>
     </motion.section>
   );
-};
-
-export default FinalCTA;
+}

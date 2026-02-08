@@ -1,76 +1,32 @@
-import React, { useEffect, useState } from 'react';
-import { motion, useMotionValue, useTransform, animate, useInView } from 'framer-motion';
-import { Button } from '@/components/ui/button';
-import ROICalculatorModal from '@/components/modals/ROICalculator';
-import { useSectionTracking } from '@/hooks/useSectionTracking';
-import { Calculator, Clock, UserMinus, TrendingUp } from 'lucide-react';
+import React, { useState } from "react";
+import { motion, useInView } from "framer-motion";
+import { Calculator, Clock, TrendingUp, UserMinus, Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import ROICalculatorModal from "@/components/modals/ROICalculator";
+import { useSectionTracking } from "@/hooks/useSectionTracking";
+import { LandingCard, LandingContainer, Pill, SectionHeader } from "./LandingPrimitives";
 
-const ROI_CARDS = [
+const LEVERS = [
   {
-    title: "Time Reclaimed",
     icon: Clock,
-    formula: "18 hours/client/month × $75/hour (your loaded cost) × 8 clients =",
-    value: 10800,
-    prefix: "$",
-    suffix: "/month reclaimed",
-    description: "Use these hours for sales, client relationships, or higher-margin work.",
-    color: "brand-primary",
+    title: "Time reclaimed",
+    body: "Reduce manual strategy work, context hunting, and rewrite cycles so your team can focus on higher-leverage work.",
   },
   {
-    title: "Hiring Avoided",
     icon: UserMinus,
-    formula: "1 mid-level strategist salary ($60K/year = $5,000/month) vs. SMMAHUB =",
-    value: 4000,
-    prefix: "$",
-    suffix: "+ saved monthly",
-    description: "Plus: no recruiting fees, no onboarding time, no turnover risk.",
-    color: "accent",
+    title: "Hiring avoided",
+    body: "Systemize what your best people do so scaling does not require linear headcount growth.",
   },
   {
-    title: "Revenue Unlocked",
     icon: TrendingUp,
-    formula: "Your team handles 4 more clients (no new hires) × $2,000 MRR/client =",
-    value: 8000,
-    prefix: "$",
-    suffix: "/month new revenue",
-    description: "With SMMAHUB, your bottleneck shifts from delivery to sales. That's a good problem.",
-    color: "success",
+    title: "Capacity unlocked",
+    body: "Free up delivery bandwidth so you can take on more clients without sacrificing quality.",
   },
 ];
 
-interface OdometerProps {
-  value: number;
-  prefix: string;
-  suffix: string;
-}
-
-const Odometer = ({ value, prefix, suffix }: OdometerProps) => {
-  const count = useMotionValue(0);
-  const rounded = useTransform(count, (latest) => Math.round(latest).toLocaleString());
-  const ref = React.useRef<HTMLSpanElement>(null);
-  const isInView = useInView(ref, { once: true, amount: 0.6 });
-
-  useEffect(() => {
-    if (isInView) {
-      const controls = animate(count, value, { duration: 1.2, ease: "easeOut" });
-      return controls.stop;
-    }
-  }, [isInView, value, count]);
-
-  return (
-    <span ref={ref} className="block">
-      <span className="text-3xl md:text-4xl font-bold text-gradient-premium stat-number">
-        {prefix}
-        <motion.span>{rounded}</motion.span>
-      </span>
-      <span className="text-body-mobile md:text-body-desktop text-text-muted ml-2">{suffix}</span>
-    </span>
-  );
-};
-
-const ROI = () => {
+export default function ROI() {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const sectionRef = useSectionTracking('ROI');
+  const sectionRef = useSectionTracking("ROI");
   const isInView = useInView(sectionRef, { once: true, amount: 0.3 });
 
   return (
@@ -79,98 +35,77 @@ const ROI = () => {
       initial={{ opacity: 0 }}
       animate={isInView ? { opacity: 1 } : {}}
       transition={{ duration: 0.4 }}
-      className="section-md relative overflow-hidden"
+      className="section-md lp-section"
     >
-      {/* Background */}
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-success/5 to-transparent pointer-events-none" />
+      <LandingContainer className="relative z-10">
+        <SectionHeader
+          eyebrow={<Pill icon={Sparkles}>ROI</Pill>}
+          title={
+            <>
+              Estimate the upside
+              <span className="block text-gradient-premium">with your numbers.</span>
+            </>
+          }
+          lede="Every agency is different. Use the calculator to model a conservative estimate based on your client load, time, and economics."
+        />
 
-      <div className="container mx-auto px-[4px] relative z-10">
-        <div className="text-center">
-          {/* Badge */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={isInView ? { opacity: 1, scale: 1 } : {}}
-            transition={{ duration: 0.4 }}
-            className="inline-flex items-center gap-2 badge-gradient-border mb-[24px]"
-          >
-            <Calculator className="w-4 h-4 text-brand-primary icon-glow" />
-            <span className="text-small-text font-medium tracking-small-text text-brand-primary">The Math</span>
-          </motion.div>
-
-          {/* Headline */}
-          <h2 className="text-section-headline-mobile md:text-section-headline-desktop font-semibold leading-section-headline tracking-section-headline">
-            The Math: SMMAHUB ROI<br className="hidden md:block" />
-            <span className="text-gradient-premium">in Month One</span>
-          </h2>
-
-          {/* Subheadline */}
-          <p className="mt-[24px] mx-auto max-w-prose-landing text-body-mobile md:text-body-desktop text-text-secondary leading-body">
-            Here's the calculation agencies are using to justify the investment.
-          </p>
-        </div>
-
-        {/* ROI Cards */}
-        <div className="mt-[64px] grid gap-[24px] md:grid-cols-3">
-          {ROI_CARDS.map((card, index) => (
+        <div className="mt-[44px] grid gap-[12px] md:grid-cols-3">
+          {LEVERS.map((lever, idx) => (
             <motion.div
-              key={card.title}
-              initial={{ opacity: 0, y: 20 }}
-              animate={isInView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.5, delay: 0.2 + index * 0.1 }}
-              className="glass-card glass-card-hover card-lift rounded-md p-[32px] md:p-[40px]"
+              key={lever.title}
+              initial={{ opacity: 0 }}
+              animate={isInView ? { opacity: 1 } : {}}
+              transition={{ duration: 0.35, delay: 0.08 + idx * 0.05 }}
             >
-              <div className="flex items-center gap-[12px] mb-[16px]">
-                <div className={`w-10 h-10 rounded-lg bg-${card.color}/20 flex items-center justify-center`}>
-                  <card.icon className={`w-5 h-5 text-${card.color}`} />
+              <LandingCard className="glass-card-hover card-lift p-[22px] md:p-[26px] h-full">
+                <div className="flex items-start gap-[12px]">
+                  <div className="h-10 w-10 rounded-xl bg-white/6 border border-white/10 flex items-center justify-center">
+                    <lever.icon className="h-5 w-5 text-foreground/90" />
+                  </div>
+                  <div>
+                    <div className="text-lg font-semibold text-foreground">{lever.title}</div>
+                    <p className="mt-[8px] text-body-mobile md:text-body-desktop text-text-secondary leading-body">
+                      {lever.body}
+                    </p>
+                  </div>
                 </div>
-                <h3 className="text-xl font-semibold text-foreground">{card.title}</h3>
-              </div>
-
-              <p className="text-small-text text-text-muted leading-small-text mb-[24px]">{card.formula}</p>
-
-              <div className="mb-[16px]">
-                <Odometer value={card.value} prefix={card.prefix} suffix={card.suffix} />
-              </div>
-
-              <p className="text-small-text text-text-secondary italic leading-small-text">{card.description}</p>
+              </LandingCard>
             </motion.div>
           ))}
         </div>
 
-        {/* CTA - Enhanced ROI Calculator Button */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.5, delay: 0.6 }}
-          className="mt-[64px]"
+          initial={{ opacity: 0 }}
+          animate={isInView ? { opacity: 1 } : {}}
+          transition={{ duration: 0.35, delay: 0.26 }}
+          className="mt-[22px] mx-auto max-w-3xl"
         >
-          <div className="glass-card gradient-border-animated rounded-md p-[32px] md:p-[40px] max-w-2xl mx-auto text-center">
-            <div className="flex items-center justify-center gap-[8px] mb-[16px]">
-              <Calculator className="w-5 h-5 text-brand-primary icon-glow" />
-              <span className="text-body-desktop font-semibold text-foreground">
-                See Your Exact Numbers
-              </span>
+          <LandingCard className="gradient-border-animated p-[22px] md:p-[26px] flex flex-col md:flex-row md:items-center md:justify-between gap-[14px]">
+            <div className="flex items-start gap-[12px]">
+              <div className="h-10 w-10 rounded-xl bg-brand-primary/15 border border-white/10 flex items-center justify-center">
+                <Calculator className="h-5 w-5 text-brand-primary" />
+              </div>
+              <div>
+                <div className="text-sm font-semibold tracking-tight text-foreground">ROI calculator</div>
+                <div className="mt-[4px] text-sm text-text-muted">
+                  Adjust assumptions and see an estimated monthly and annual impact.
+                </div>
+              </div>
             </div>
-            <p className="text-body-mobile md:text-body-desktop text-text-secondary leading-body mb-[24px]">
-              These numbers are based on averages. Calculate your{' '}
-              <span className="text-brand-primary font-medium">personalized ROI</span>{' '}
-              based on your agency's specific metrics.
-            </p>
+
             <Button
               size="lg"
               onClick={() => setIsModalOpen(true)}
               className="btn-glow btn-shimmer btn-press btn-primary-enhanced tracking-cta-text"
             >
               <Calculator className="w-4 h-4 mr-2" />
-              Calculate Your Custom ROI
+              Open calculator
             </Button>
-          </div>
+          </LandingCard>
         </motion.div>
-      </div>
+      </LandingContainer>
 
       <ROICalculatorModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </motion.section>
   );
-};
-
-export default ROI;
+}

@@ -3,6 +3,8 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
 import { getEndpointGuardResponse } from "../_shared/endpoint-guard.ts";
+import { generateSpanId, generateTraceId, logOtelSpan } from "../../../src/ai/otel.ts";
+import { TaskType } from "../../../src/ai/taskTypes.ts";
 
 function jsonResponse(body: unknown, status = 200, headers: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
@@ -14,38 +16,48 @@ function jsonResponse(body: unknown, status = 200, headers: Record<string, strin
 type Body = { agency_id?: string; approved_modules?: string[] };
 
 serve(async (req: Request) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders(req) });
-  }
+  const traceId = generateTraceId();
+  const spanId = generateSpanId();
+  const spanStart = Date.now();
+  let response: Response | undefined;
+  let supabase: ReturnType<typeof createClient> | null = null;
+  let agencyId: string | undefined;
+  let userId: string | undefined;
 
-  if (req.method !== "POST") {
-    return jsonResponse({ error: "Method not allowed" }, 405, corsHeaders(req));
-  }
+  response = await (async () => {
+    if (req.method === "OPTIONS") {
+      return new Response(null, { headers: corsHeaders(req) });
+    }
 
-  const guardResponse = getEndpointGuardResponse("ai-default-brain-pack-ingestion-health", corsHeaders(req));
-  if (guardResponse) return guardResponse;
+    if (req.method !== "POST") {
+      return jsonResponse({ error: "Method not allowed" }, 405, corsHeaders(req));
+    }
 
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) {
-    return jsonResponse({ error: "Missing Authorization header" }, 401, corsHeaders(req));
-  }
+    const guardResponse = getEndpointGuardResponse("ai-default-brain-pack-ingestion-health", corsHeaders(req));
+    if (guardResponse) return guardResponse;
 
-  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-    auth: { persistSession: false },
-  });
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return jsonResponse({ error: "Missing Authorization header" }, 401, corsHeaders(req));
+    }
 
-  const token = authHeader.replace("Bearer ", "");
-  const { data: userData, error: userError } = await supabase.auth.getUser(token);
-  const user = userData?.user;
-  if (userError || !user) {
-    return jsonResponse({ error: "Unauthorized" }, 401, corsHeaders(req));
-  }
+    supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+      auth: { persistSession: false },
+    });
 
-  const body = (await req.json().catch(() => ({}))) as Body;
-  const agencyId = body.agency_id;
-  if (!agencyId) {
-    return jsonResponse({ error: "agency_id required" }, 400, corsHeaders(req));
-  }
+    const token = authHeader.replace("Bearer ", "");
+    const { data: userData, error: userError } = await supabase.auth.getUser(token);
+    const user = userData?.user;
+    if (userError || !user) {
+      return jsonResponse({ error: "Unauthorized" }, 401, corsHeaders(req));
+    }
+
+    userId = user.id;
+    const body = (await req.json().catch(() => ({}))) as Body;
+    agencyId = body.agency_id;
+    if (!agencyId) {
+      return jsonResponse({ error: "agency_id required" }, 400, corsHeaders(req));
+    }
 
   const requested = Array.isArray(body.approved_modules) ? body.approved_modules : [];
   const approvedModules = Array.from(
@@ -99,5 +111,19 @@ serve(async (req: Request) => {
   }
 
   const missingModules = approvedModules.filter((m) => !ingestedModules.has(m));
-  return jsonResponse({ approvedModules, missingModules }, 200, corsHeaders(req));
+    return jsonResponse({ approvedModules, missingModules }, 200, corsHeaders(req));
+  })();
+
+  await logOtelSpan(supabase, {
+    traceId,
+    spanId,
+    stage: "edge.ai-default-brain-pack-ingestion-health",
+    taskType: TaskType.TOOL_EXECUTION,
+    agencyId,
+    userId,
+    latencyMs: Date.now() - spanStart,
+    attributes: { http_status: response?.status ?? 0 },
+  });
+
+  return response!;
 });

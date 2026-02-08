@@ -1,6 +1,7 @@
 {
   "imports": {
     "@supabase/supabase-js": "npm:@supabase/supabase-js@2.84.0",
+    "marked": "npm:marked@9.1.6",
     "stripe": "npm:stripe@18.5.0",
     "std/http/server": "https://deno.land/std@0.190.0/http/server.ts"
   }

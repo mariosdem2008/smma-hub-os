@@ -1,0 +1,53 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0B1220"/>
+      <stop offset="0.55" stop-color="#070A10"/>
+      <stop offset="1" stop-color="#0B1220"/>
+    </linearGradient>
+    <radialGradient id="orb1" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(260 190) rotate(45) scale(520 380)">
+      <stop stop-color="#4C7DFF" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#4C7DFF" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="orb2" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(940 330) rotate(30) scale(520 380)">
+      <stop stop-color="#22D3EE" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#22D3EE" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="brand" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4C7DFF"/>
+      <stop offset="1" stop-color="#22D3EE"/>
+    </linearGradient>
+    <filter id="soft" x="-40" y="-40" width="1280" height="710" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="18" />
+    </filter>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect width="1200" height="630" fill="url(#orb1)"/>
+  <rect width="1200" height="630" fill="url(#orb2)"/>
+
+  <g filter="url(#soft)" opacity="0.65">
+    <path d="M155 130C155 104.595 175.595 84 201 84H999C1024.4 84 1045 104.595 1045 130V500C1045 525.405 1024.4 546 999 546H201C175.595 546 155 525.405 155 500V130Z" fill="rgba(255,255,255,0.04)"/>
+    <path d="M155.75 130C155.75 105.009 176.009 84.75 201 84.75H999C1023.99 84.75 1044.25 105.009 1044.25 130V500C1044.25 524.991 1023.99 545.25 999 545.25H201C176.009 545.25 155.75 524.991 155.75 500V130Z" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>
+  </g>
+
+  <g transform="translate(200 155)">
+    <rect x="0" y="0" width="46" height="46" rx="12" fill="url(#brand)"/>
+    <path d="M25.5 10L14 27.6H24.5L21 36L32.5 18.4H22L25.5 10Z" fill="white" opacity="0.95"/>
+    <text x="62" y="32" fill="white" font-family="Inter, ui-sans-serif, system-ui" font-size="24" font-weight="650" letter-spacing="0.2">SMMAHUB</text>
+  </g>
+
+  <g transform="translate(200 250)">
+    <text x="0" y="0" fill="white" font-family="Inter, ui-sans-serif, system-ui" font-size="54" font-weight="650" letter-spacing="-0.8">
+      Scale Without Hiring
+    </text>
+    <text x="0" y="48" fill="rgba(230,238,249,0.86)" font-family="Inter, ui-sans-serif, system-ui" font-size="24" font-weight="450" letter-spacing="-0.2">
+      Encode SOPs + client context to generate consistent, on-brand strategy outputs faster.
+    </text>
+  </g>
+
+  <g transform="translate(200 410)" fill="rgba(230,238,249,0.86)" font-family="Inter, ui-sans-serif, system-ui" font-size="18" font-weight="500">
+    <text x="0" y="0">Strategy • Briefs • Approvals • Client context</text>
+  </g>
+</svg>
+

@@ -7,12 +7,14 @@ import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { useNavigate } from "react-router-dom";
 
-async function readFunctionErrorPayload(error: unknown): Promise<{ code?: string; error?: string; message?: string } | null> {
+async function readFunctionErrorPayload(
+  error: unknown,
+): Promise<{ code?: string; error?: string; message?: string; trace_id?: string } | null> {
   if (!error || typeof error !== "object") return null;
   const context = (error as { context?: Response }).context;
   if (!context || typeof (context as any).json !== "function") return null;
   try {
-    return (await (context as any).json()) as { code?: string; error?: string; message?: string };
+    return (await (context as any).json()) as { code?: string; error?: string; message?: string; trace_id?: string };
   } catch {
     return null;
   }
@@ -89,17 +91,19 @@ export function useGenerateStrategyDocument() {
       if (error) {
         const payload = await readFunctionErrorPayload(error);
         const code = payload?.code ?? "EDGE_FUNCTION_ERROR";
+        const traceId = payload?.trace_id;
         const message =
           payload?.message ?? payload?.error ?? (error instanceof Error ? error.message : "Failed to call strategy generation");
 
         toast({
           variant: "destructive",
           title: "Strategy Generation Failed",
-          description: message,
+          description: `${message}${code ? ` (${code})` : ""}${traceId ? ` [trace_id=${traceId}]` : ""}`,
         });
 
         const err: any = new Error(message);
         err.code = code;
+        err.traceId = traceId;
         throw err;
       }
 

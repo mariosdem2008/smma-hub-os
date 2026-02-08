@@ -6,12 +6,15 @@ import { buildClassifyIntentPrompt } from "./prompts/classifyIntent.ts"
 import { buildClientPortalQaPrompt } from "./prompts/clientPortalQa.ts"
 import { buildContentIdeasPrompt } from "./prompts/contentIdeas.ts"
 import { buildExtractStructuredPrompt } from "./prompts/extractStructured.ts"
+import { buildOnboardingAnswerCheckPrompt } from "./prompts/onboardingAnswerCheck.ts"
+import { buildOnboardingClarifyPrompt } from "./prompts/onboardingClarify.ts"
 import { buildOnboardingAudiencePrompt, buildOnboardingDifferentiatorsPrompt, buildOnboardingOffersPrompt } from "./prompts/onboardingGuide.ts"
+import { buildPlannerPrompt } from "./prompts/planner.ts"
 import { buildStrategyPlanPrompt } from "./prompts/strategyPlan.ts"
 import { buildSummarizePrompt } from "./prompts/summarize.ts"
 import { buildToolExecutionPrompt } from "./prompts/toolExecution.ts"
 import { resolveModelPolicy } from "./modelPolicy.ts"
-import { adminChatSchema, adminChatStrategicSchema, aiAssistantSchema, arraySchema, objectSchema, OutputSchema } from "./schema.ts"
+import { adminChatSchema, adminChatStrategicSchema, aiAssistantSchema, arraySchema, intentResultSchema, objectSchema, onboardingAnswerCheckSchema, onboardingClarifySchema, planSchemaV1, OutputSchema } from "./schema.ts"
 import { TaskType } from "./taskTypes.ts"
 import type { ChatMessage } from "./providers/types.ts"
 
@@ -275,7 +278,20 @@ export const TASK_REGISTRY: Record<TaskType, TaskConfig> = {
     promptBuilder: (args) => buildClassifyIntentPrompt({ input: args.input ?? "" }),
     requires: { agency: false, client: false },
     usageEndpoint: "ai-router",
-    schema: objectSchema("classify_intent", ["intent"]),
+    schema: intentResultSchema(),
+  },
+  [TaskType.PLANNER]: {
+    taskType: TaskType.PLANNER,
+    outputMode: "json_schema",
+    safetyMode: "normal",
+    promptBuilder: (args) =>
+      buildPlannerPrompt({
+        input: args.input ?? "",
+        intent: (args.metadata?.intent as string | undefined) ?? undefined,
+      }),
+    requires: { agency: false, client: false },
+    usageEndpoint: "ai-router",
+    schema: planSchemaV1(),
   },
   [TaskType.STRATEGY_PLAN]: {
     taskType: TaskType.STRATEGY_PLAN,
@@ -360,6 +376,54 @@ export const TASK_REGISTRY: Record<TaskType, TaskConfig> = {
     safetyMode: "normal",
     requires: { agency: false, client: false },
     usageEndpoint: "ai-embeddings",
+  },
+  [TaskType.ONBOARDING_ANSWER_CHECK]: {
+    taskType: TaskType.ONBOARDING_ANSWER_CHECK,
+    outputMode: "json_schema",
+    safetyMode: "strict_unknown",
+    promptBuilder: (args) =>
+      buildOnboardingAnswerCheckPrompt({
+        questionText: (args.metadata?.questionText as string) ?? "",
+        fieldPath: (args.metadata?.fieldPath as string) ?? "",
+        inputType: (args.metadata?.inputType as string) ?? "text",
+        priority: (args.metadata?.priority as string) ?? "P1",
+        examples: (args.metadata?.examples as string[]) ?? [],
+        answer: args.input ?? "",
+      }),
+    requires: { agency: true, client: false },
+    usageEndpoint: "ai-onboarding",
+    schema: onboardingAnswerCheckSchema(),
+    buildUnknown: ({ reason }) => ({
+      decision: "accept",
+      follow_up: "",
+      reason: reason ?? "unknown",
+      confidence: 0,
+    }),
+  },
+  [TaskType.ONBOARDING_CLARIFY]: {
+    taskType: TaskType.ONBOARDING_CLARIFY,
+    outputMode: "json_schema",
+    safetyMode: "strict_unknown",
+    promptBuilder: (args) =>
+      buildOnboardingClarifyPrompt({
+        questionText: (args.metadata?.questionText as string) ?? "",
+        fieldPath: (args.metadata?.fieldPath as string) ?? "",
+        inputType: (args.metadata?.inputType as string) ?? "text",
+        priority: (args.metadata?.priority as string) ?? "P1",
+        examples: (args.metadata?.examples as string[]) ?? [],
+        userMessage: args.input ?? "",
+        whyNeeded: (args.metadata?.whyNeeded as string) ?? "",
+        impact: (args.metadata?.impact as string) ?? "",
+      }),
+    requires: { agency: true, client: false },
+    usageEndpoint: "ai-onboarding",
+    schema: onboardingClarifySchema(),
+    buildUnknown: ({ reason }) => ({
+      mode: "follow_up",
+      follow_up_text: "Can you share a bit more detail so I can capture it correctly?",
+      clarification_text: reason ?? "This helps me personalize your agency brain.",
+      confidence: 0,
+    }),
   },
 };
 

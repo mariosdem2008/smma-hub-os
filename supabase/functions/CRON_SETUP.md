@@ -103,6 +103,29 @@ SELECT cron.schedule(
 );
 ```
 
+### 6. email-sequence-dispatcher (Every 5 minutes)
+
+Dispatches queued email sequences for clients.
+
+```sql
+-- Run in Supabase SQL Editor
+SELECT cron.schedule(
+  'email-sequence-dispatcher-every-5-min',
+  '*/5 * * * *',
+  $$
+  SELECT net.http_post(
+    url := 'https://YOUR_PROJECT_REF.supabase.co/functions/v1/email-sequence-dispatcher',
+    headers := '{"Content-Type": "application/json", "x-cron-secret": "YOUR_CRON_SECRET"}'::jsonb,
+    body := '{}'::jsonb
+  ) as request_id;
+  $$
+);
+```
+
+**Replace:**
+- `YOUR_PROJECT_REF` with your Supabase project reference ID
+- `YOUR_CRON_SECRET` with the value of `CRON_SECRET`
+
 ## How to Enable pg_cron and pg_net
 
 1. Go to your Supabase Dashboard → Database → Extensions

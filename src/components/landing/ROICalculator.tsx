@@ -2,8 +2,10 @@ import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { Calculator, TrendingUp, Clock, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { marketing } from "@/lib/marketing";
+import { track } from "@/lib/analytics";
 
-const CAL_LINK = "https://cal.com/SMMAHUB/fit";
+const CAL_LINK = marketing.calUrl;
 
 // Price points for ROI calculation (real high-ticket pricing)
 const PLAN_PRICES = {
@@ -190,8 +192,13 @@ export function ROICalculator() {
           </div>
 
           <Button asChild size="lg" className="w-full btn-shimmer btn-glow">
-            <a href={CAL_LINK} target="_blank" rel="noreferrer">
-              Get Your Custom ROI Plan
+            <a
+              href={CAL_LINK}
+              target="_blank"
+              rel="noreferrer"
+              onClick={() => track("cta_book_strategy_audit_click", { location: "roi_calculator_inline" })}
+            >
+              Book Strategy Audit
             </a>
           </Button>
         </div>

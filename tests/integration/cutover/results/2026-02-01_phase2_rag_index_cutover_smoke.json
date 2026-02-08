@@ -1,0 +1,24 @@
+{
+  "date_utc": "2026-02-01",
+  "project_ref": "dbclmdeowohzmwtkktsa",
+  "phase": "2",
+  "result": "pass",
+  "notes": "Cutover smoke validates that RAG retrieval works with both OpenAI index (match_ai_embeddings*) and Gemini shadow vector index (match_ai_embeddings_shadow_gemini*), with strict tenant scoping and 0 cross-tenant leaks (scoped by agency_id/client_id).",
+  "tenant_scope": {
+    "agency_id": "115dc619-1867-4275-83ec-4d5a0d47f94b",
+    "client_id": "af1a1b5a-cf77-4303-a56b-4edf6b2a0c6e"
+  },
+  "runs": [
+    {
+      "rag_index_provider": "openai",
+      "documents_ingest_positive_document_id": "6170cee9-d31c-443e-9299-c9c96ba6940b",
+      "retrieve_context_match_count": 6
+    },
+    {
+      "rag_index_provider": "gemini",
+      "documents_ingest_positive_document_id": "bd84afb6-c925-4845-9456-0469d8f2fe70",
+      "retrieve_context_match_count": 4
+    }
+  ]
+}
+

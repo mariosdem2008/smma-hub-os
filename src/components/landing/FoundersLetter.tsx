@@ -2,8 +2,10 @@ import { motion } from "framer-motion";
 import { AnimatedSection } from "./AnimatedSection";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
+import { marketing } from "@/lib/marketing";
+import { track } from "@/lib/analytics";
 
-const CAL_LINK = "https://cal.com/SMMAHUB/fit";
+const CAL_LINK = marketing.calUrl;
 
 export function FoundersLetter() {
   return (
@@ -40,7 +42,12 @@ export function FoundersLetter() {
                 </p>
               </div>
                <Button asChild size="lg" className="mt-[8px]">
-                <a href={CAL_LINK} target="_blank" rel="noreferrer">
+                <a
+                  href={CAL_LINK}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={() => track("cta_book_strategy_audit_click", { location: "founders_letter" })}
+                >
                   Meet the Founders <ArrowRight className="ml-2 h-4 w-4" />
                 </a>
               </Button>

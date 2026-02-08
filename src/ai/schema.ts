@@ -9,6 +9,63 @@ export type OutputSchema<T> = {
   validate: (value: unknown) => SchemaResult<T>;
 };
 
+export type IntentResultSchema = {
+  mode: "CHAT" | "EXECUTE";
+  confidence: number;
+  intent?: string;
+};
+
+export type ToolCallSchema = {
+  tool_id: string;
+  args: Record<string, unknown>;
+};
+
+export type ToolResultSchema = {
+  tool_id: string;
+  status: "ok" | "error";
+  result?: Record<string, unknown>;
+  error?: string;
+};
+
+export type PlanStepSchema = {
+  id: string;
+  tool: ToolCallSchema;
+  depends_on?: string[];
+};
+
+export type PlanSchemaV1 = {
+  steps: PlanStepSchema[];
+  notes?: string;
+};
+
+export type RetrievalMatchSchema = {
+  doc_id: string;
+  chunk_id: string;
+  doc_type: string;
+  score: number;
+  text: string;
+  tenant_id?: string;
+};
+
+export type RetrievalResultSchema = {
+  matches: RetrievalMatchSchema[];
+  retrieval_count: number;
+};
+
+export type MemoryWriteProposalSchema = {
+  tenant_id: string;
+  fact: string;
+  requires_approval: boolean;
+  scope?: string;
+};
+
+export type StrategyPlanSchema = {
+  strategy_name: string;
+  target_audience: Record<string, unknown>;
+  marketing_channels: Array<Record<string, unknown>>;
+  budget: Record<string, unknown> | number;
+};
+
 export type AdminChatSchema = {
   assistant_message: string;
   suggestions: string[];
@@ -26,6 +83,20 @@ export type AdminChatStrategicSchema = {
   copywriting?: Record<string, unknown> | null;
   unknown?: Record<string, unknown> | null;
   suggestions?: string[];
+};
+
+export type OnboardingAnswerCheckSchema = {
+  decision: "accept" | "follow_up";
+  follow_up?: string;
+  reason?: string;
+  confidence?: number;
+};
+
+export type OnboardingClarifySchema = {
+  mode: "follow_up" | "answer_and_continue";
+  follow_up_text?: string;
+  clarification_text?: string;
+  confidence?: number;
 };
 
 export type AiAssistantProposal = {
@@ -61,6 +132,193 @@ export function objectSchema<T = Record<string, unknown>>(name: string, required
         return { ok: false, errors: missing.map((key) => `Missing key: ${key}`) };
       }
       return { ok: true, data: value as T };
+    },
+  };
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+export function intentResultSchema(): OutputSchema<IntentResultSchema> {
+  return {
+    name: "intent_result_v1",
+    validate: (value: unknown) => {
+      if (!isPlainObject(value)) return { ok: false, errors: ["Expected object"] };
+      const record = value as Record<string, unknown>;
+      const required = ["mode", "confidence"];
+      const missing = required.filter((key) => !(key in record));
+      if (missing.length > 0) return { ok: false, errors: missing.map((key) => `Missing key: ${key}`) };
+      if (record.mode !== "CHAT" && record.mode !== "EXECUTE") {
+        return { ok: false, errors: ["mode must be CHAT or EXECUTE"] };
+      }
+      if (typeof record.confidence !== "number") {
+        return { ok: false, errors: ["confidence must be a number"] };
+      }
+      if (record.intent !== undefined && typeof record.intent !== "string") {
+        return { ok: false, errors: ["intent must be a string"] };
+      }
+      return { ok: true, data: record as IntentResultSchema };
+    },
+  };
+}
+
+export function toolCallSchema(): OutputSchema<ToolCallSchema> {
+  return {
+    name: "tool_call_v1",
+    validate: (value: unknown) => {
+      if (!isPlainObject(value)) return { ok: false, errors: ["Expected object"] };
+      const record = value as Record<string, unknown>;
+      if (typeof record.tool_id !== "string" || !record.tool_id.trim()) {
+        return { ok: false, errors: ["tool_id must be a non-empty string"] };
+      }
+      if (!isPlainObject(record.args)) {
+        return { ok: false, errors: ["args must be an object"] };
+      }
+      return { ok: true, data: record as ToolCallSchema };
+    },
+  };
+}
+
+export function toolResultSchema(): OutputSchema<ToolResultSchema> {
+  return {
+    name: "tool_result_v1",
+    validate: (value: unknown) => {
+      if (!isPlainObject(value)) return { ok: false, errors: ["Expected object"] };
+      const record = value as Record<string, unknown>;
+      if (typeof record.tool_id !== "string" || !record.tool_id.trim()) {
+        return { ok: false, errors: ["tool_id must be a non-empty string"] };
+      }
+      if (record.status !== "ok" && record.status !== "error") {
+        return { ok: false, errors: ["status must be ok or error"] };
+      }
+      if (record.result !== undefined && !isPlainObject(record.result)) {
+        return { ok: false, errors: ["result must be an object"] };
+      }
+      if (record.error !== undefined && typeof record.error !== "string") {
+        return { ok: false, errors: ["error must be a string"] };
+      }
+      return { ok: true, data: record as ToolResultSchema };
+    },
+  };
+}
+
+export function planSchemaV1(): OutputSchema<PlanSchemaV1> {
+  return {
+    name: "plan_schema_v1",
+    validate: (value: unknown) => {
+      if (!isPlainObject(value)) return { ok: false, errors: ["Expected object"] };
+      const record = value as Record<string, unknown>;
+      if (!Array.isArray(record.steps)) return { ok: false, errors: ["steps must be an array"] };
+      for (const step of record.steps) {
+        if (!isPlainObject(step)) return { ok: false, errors: ["step must be an object"] };
+        const s = step as Record<string, unknown>;
+        if (typeof s.id !== "string" || !s.id.trim()) {
+          return { ok: false, errors: ["step.id must be a non-empty string"] };
+        }
+        if (!isPlainObject(s.tool)) {
+          return { ok: false, errors: ["step.tool must be an object"] };
+        }
+        const tool = s.tool as Record<string, unknown>;
+        if (typeof tool.tool_id !== "string" || !tool.tool_id.trim()) {
+          return { ok: false, errors: ["step.tool.tool_id must be a non-empty string"] };
+        }
+        if (!isPlainObject(tool.args)) {
+          return { ok: false, errors: ["step.tool.args must be an object"] };
+        }
+        if (s.depends_on !== undefined) {
+          if (!Array.isArray(s.depends_on) || !s.depends_on.every((v) => typeof v === "string")) {
+            return { ok: false, errors: ["step.depends_on must be an array of strings"] };
+          }
+        }
+      }
+      if (record.notes !== undefined && typeof record.notes !== "string") {
+        return { ok: false, errors: ["notes must be a string"] };
+      }
+      return { ok: true, data: record as PlanSchemaV1 };
+    },
+  };
+}
+
+export function retrievalResultSchema(): OutputSchema<RetrievalResultSchema> {
+  return {
+    name: "retrieval_result_v1",
+    validate: (value: unknown) => {
+      if (!isPlainObject(value)) return { ok: false, errors: ["Expected object"] };
+      const record = value as Record<string, unknown>;
+      if (!Array.isArray(record.matches)) return { ok: false, errors: ["matches must be an array"] };
+      if (typeof record.retrieval_count !== "number") {
+        return { ok: false, errors: ["retrieval_count must be a number"] };
+      }
+      for (const match of record.matches) {
+        if (!isPlainObject(match)) return { ok: false, errors: ["match must be an object"] };
+        const m = match as Record<string, unknown>;
+        for (const key of ["doc_id", "chunk_id", "doc_type", "text"]) {
+          if (typeof m[key] !== "string" || !(m[key] as string).trim()) {
+            return { ok: false, errors: [`match.${key} must be a non-empty string`] };
+          }
+        }
+        if (typeof m.score !== "number") {
+          return { ok: false, errors: ["match.score must be a number"] };
+        }
+        if (m.tenant_id !== undefined && typeof m.tenant_id !== "string") {
+          return { ok: false, errors: ["match.tenant_id must be a string"] };
+        }
+      }
+      return { ok: true, data: record as RetrievalResultSchema };
+    },
+  };
+}
+
+export function memoryWriteProposalSchema(): OutputSchema<MemoryWriteProposalSchema> {
+  return {
+    name: "memory_write_proposal_v1",
+    validate: (value: unknown) => {
+      if (!isPlainObject(value)) return { ok: false, errors: ["Expected object"] };
+      const record = value as Record<string, unknown>;
+      for (const key of ["tenant_id", "fact", "requires_approval"]) {
+        if (!(key in record)) return { ok: false, errors: [`Missing key: ${key}`] };
+      }
+      if (typeof record.tenant_id !== "string" || !record.tenant_id.trim()) {
+        return { ok: false, errors: ["tenant_id must be a non-empty string"] };
+      }
+      if (typeof record.fact !== "string" || !record.fact.trim()) {
+        return { ok: false, errors: ["fact must be a non-empty string"] };
+      }
+      if (typeof record.requires_approval !== "boolean") {
+        return { ok: false, errors: ["requires_approval must be a boolean"] };
+      }
+      if (record.scope !== undefined && typeof record.scope !== "string") {
+        return { ok: false, errors: ["scope must be a string"] };
+      }
+      return { ok: true, data: record as MemoryWriteProposalSchema };
+    },
+  };
+}
+
+export function strategyPlanSchema(): OutputSchema<StrategyPlanSchema> {
+  return {
+    name: "strategy_plan_v1",
+    validate: (value: unknown) => {
+      if (!isPlainObject(value)) return { ok: false, errors: ["Expected object"] };
+      const record = value as Record<string, unknown>;
+      const required = ["strategy_name", "target_audience", "marketing_channels", "budget"];
+      const missing = required.filter((key) => !(key in record));
+      if (missing.length > 0) return { ok: false, errors: missing.map((key) => `Missing key: ${key}`) };
+      if (typeof record.strategy_name !== "string" || !record.strategy_name.trim()) {
+        return { ok: false, errors: ["strategy_name must be a non-empty string"] };
+      }
+      if (!isPlainObject(record.target_audience)) {
+        return { ok: false, errors: ["target_audience must be an object"] };
+      }
+      if (!Array.isArray(record.marketing_channels)) {
+        return { ok: false, errors: ["marketing_channels must be an array"] };
+      }
+      const budget = record.budget;
+      if (!(typeof budget === "number" || isPlainObject(budget))) {
+        return { ok: false, errors: ["budget must be a number or object"] };
+      }
+      return { ok: true, data: record as StrategyPlanSchema };
     },
   };
 }
@@ -189,6 +447,52 @@ export function adminChatStrategicSchema(): OutputSchema<AdminChatStrategicSchem
       }
 
       return { ok: true, data: record as AdminChatStrategicSchema };
+    },
+  };
+}
+
+export function onboardingAnswerCheckSchema(): OutputSchema<OnboardingAnswerCheckSchema> {
+  return {
+    name: "onboarding_answer_check_v1",
+    validate: (value: unknown) => {
+      if (!isPlainObject(value)) return { ok: false, errors: ["Expected object"] };
+      const record = value as Record<string, unknown>;
+      if (record.decision !== "accept" && record.decision !== "follow_up") {
+        return { ok: false, errors: ["decision must be accept or follow_up"] };
+      }
+      if (record.follow_up !== undefined && typeof record.follow_up !== "string") {
+        return { ok: false, errors: ["follow_up must be a string"] };
+      }
+      if (record.reason !== undefined && typeof record.reason !== "string") {
+        return { ok: false, errors: ["reason must be a string"] };
+      }
+      if (record.confidence !== undefined && typeof record.confidence !== "number") {
+        return { ok: false, errors: ["confidence must be a number"] };
+      }
+      return { ok: true, data: record as OnboardingAnswerCheckSchema };
+    },
+  };
+}
+
+export function onboardingClarifySchema(): OutputSchema<OnboardingClarifySchema> {
+  return {
+    name: "onboarding_clarify_v1",
+    validate: (value: unknown) => {
+      if (!isPlainObject(value)) return { ok: false, errors: ["Expected object"] };
+      const record = value as Record<string, unknown>;
+      if (record.mode !== "follow_up" && record.mode !== "answer_and_continue") {
+        return { ok: false, errors: ["mode must be follow_up or answer_and_continue"] };
+      }
+      if (record.follow_up_text !== undefined && typeof record.follow_up_text !== "string") {
+        return { ok: false, errors: ["follow_up_text must be a string"] };
+      }
+      if (record.clarification_text !== undefined && typeof record.clarification_text !== "string") {
+        return { ok: false, errors: ["clarification_text must be a string"] };
+      }
+      if (record.confidence !== undefined && typeof record.confidence !== "number") {
+        return { ok: false, errors: ["confidence must be a number"] };
+      }
+      return { ok: true, data: record as OnboardingClarifySchema };
     },
   };
 }

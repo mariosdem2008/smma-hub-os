@@ -2,14 +2,15 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
-import { embedText } from "../_shared/embeddings.ts";
 import { calculateCost, checkBudget, incrementBudget } from "../_shared/budgets.ts";
 import { ai } from "../../../src/ai/router.ts";
 import { TaskType } from "../../../src/ai/taskTypes.ts";
 import { applyRagPolicy, getRagConfig, shouldUseRagPolicy } from "../../../src/ai/ragPolicy.ts";
 import { validateCitations } from "../../../src/ai/citations.ts";
-import { capMatchesByTokenBudget, clampMatchCount } from "../_shared/retrieval.ts";
+import { capMatchesByTokenBudget, clampMatchCount, getInitialMatchCount, applyScoreRerank } from "../_shared/retrieval.ts";
+import { embedQueryForRag, getMatchRpcName } from "../_shared/rag-index.ts";
 import { getEndpointGuardResponse } from "../_shared/endpoint-guard.ts";
+import { generateSpanId, generateTraceId, logOtelSpan } from "../../../src/ai/otel.ts";
 
 const TOKEN_CAP = 6000;
 const DAILY_LIMIT = 20;
@@ -78,43 +79,55 @@ function truncateContext(text: string, limit: number) {
 }
 
 serve(async (req: Request) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders(req) });
-  }
+  const traceId = generateTraceId();
+  const spanId = generateSpanId();
+  const spanStart = Date.now();
+  let response: Response | undefined;
+  let supabase: ReturnType<typeof createClient> | null = null;
+  let agencyId: string | undefined;
+  let clientId: string | undefined;
+  let userId: string | undefined;
 
-  if (req.method !== "POST") {
-    return jsonResponse({ error: "Method not allowed" }, 405, corsHeaders(req));
-  }
+  try {
+    response = await (async () => {
+      if (req.method === "OPTIONS") {
+        return new Response(null, { headers: corsHeaders(req) });
+      }
 
-  const guardResponse = getEndpointGuardResponse("ai-ask", corsHeaders(req));
-  if (guardResponse) return guardResponse;
+      if (req.method !== "POST") {
+        return jsonResponse({ error: "Method not allowed" }, 405, corsHeaders(req));
+      }
 
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) {
-    return jsonResponse({ error: "Missing Authorization header" }, 401, corsHeaders(req));
-  }
+      const guardResponse = getEndpointGuardResponse("ai-ask", corsHeaders(req));
+      if (guardResponse) return guardResponse;
 
-  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-    auth: { persistSession: false },
-  });
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader) {
+        return jsonResponse({ error: "Missing Authorization header" }, 401, corsHeaders(req));
+      }
 
-  const token = authHeader.replace("Bearer ", "");
-  const { data: userData, error: userError } = await supabase.auth.getUser(token);
-  const user = userData?.user;
-  if (userError || !user) {
-    return jsonResponse({ error: "Unauthorized" }, 401, corsHeaders(req));
-  }
+      supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+        auth: { persistSession: false },
+      });
 
-  const startTime = Date.now();
-  const strictSchema = Deno.env.get("AI_SCHEMA_STRICT") === "true";
-  const body = await req.json().catch(() => ({}));
-  const agencyId = body.agency_id as string | undefined;
-  const clientId = body.client_id as string | undefined;
-  const question = (body.question as string | undefined)?.trim() ?? "";
+      const token = authHeader.replace("Bearer ", "");
+      const { data: userData, error: userError } = await supabase.auth.getUser(token);
+      const user = userData?.user;
+      if (userError || !user) {
+        return jsonResponse({ error: "Unauthorized" }, 401, corsHeaders(req));
+      }
 
-  if (!agencyId || !question) {
-    return jsonResponse({ error: "agency_id and question are required" }, 400, corsHeaders(req));
-  }
+      userId = user.id;
+      const startTime = Date.now();
+      const strictSchema = Deno.env.get("AI_SCHEMA_STRICT") === "true";
+      const body = await req.json().catch(() => ({}));
+      agencyId = body.agency_id as string | undefined;
+      clientId = body.client_id as string | undefined;
+      const question = (body.question as string | undefined)?.trim() ?? "";
+
+      if (!agencyId || !question) {
+        return jsonResponse({ error: "agency_id and question are required" }, 400, corsHeaders(req));
+      }
 
   const { data: membership } = await supabase
     .from("agency_members")
@@ -123,9 +136,9 @@ serve(async (req: Request) => {
     .eq("agency_id", agencyId)
     .maybeSingle();
 
-  if (!membership) {
-    return jsonResponse({ error: "Forbidden" }, 403, corsHeaders(req));
-  }
+      if (!membership) {
+        return jsonResponse({ error: "Forbidden" }, 403, corsHeaders(req));
+      }
 
   const { data: promptRow, error: promptError } = await supabase
     .from("ai_prompt_registry")
@@ -136,9 +149,9 @@ serve(async (req: Request) => {
     .limit(1)
     .maybeSingle();
 
-  if (promptError || !promptRow) {
-    return jsonResponse({ error: "Prompt registry not configured" }, 500, corsHeaders(req));
-  }
+      if (promptError || !promptRow) {
+        return jsonResponse({ error: "Prompt registry not configured" }, 500, corsHeaders(req));
+      }
 
   const ragModelId = Deno.env.get("RAG_MODEL_ID") ?? "gpt-5-mini";
   const dayKey = utcDayString();
@@ -154,8 +167,8 @@ serve(async (req: Request) => {
     .eq("day_yyyy_mm_dd", dayKey)
     .maybeSingle();
 
-  if (!rateRow) {
-    await supabase.from("ai_rate_limits").insert({
+      if (!rateRow) {
+        await supabase.from("ai_rate_limits").insert({
       agency_id: agencyId,
       user_id: user.id,
       day_yyyy_mm_dd: dayKey,
@@ -164,9 +177,9 @@ serve(async (req: Request) => {
       reset_time_utc: "00:00",
       reset_timezone: "UTC",
     });
-  } else if (rateRow.used_count >= rateRow.limit_per_day) {
-    const latency = Date.now() - startTime;
-    const responsePayload = {
+      } else if (rateRow.used_count >= rateRow.limit_per_day) {
+        const latency = Date.now() - startTime;
+        const responsePayload = {
       answer: "UNKNOWN",
       unknown: true,
       questions: ["Daily rate limit reached. Please try again after 00:00 UTC."],
@@ -176,7 +189,7 @@ serve(async (req: Request) => {
       escalation_reason: null,
     };
 
-    await supabase.from("ai_runs").insert({
+        await supabase.from("ai_runs").insert({
       agency_id: agencyId,
       client_id: clientId ?? null,
       user_id: user.id,
@@ -195,8 +208,8 @@ serve(async (req: Request) => {
       metadata: { cost_estimation_method: DEFAULT_COST_ESTIMATION_METHOD },
     });
 
-    return jsonResponse(responsePayload, 200, corsHeaders(req));
-  }
+        return jsonResponse(responsePayload, 200, corsHeaders(req));
+      }
 
   let budgetSnapshot = await checkBudget(supabase, agencyId, monthKey);
   if (!budgetSnapshot.budgetId) {
@@ -213,9 +226,9 @@ serve(async (req: Request) => {
     budgetSnapshot = await checkBudget(supabase, agencyId, monthKey);
   }
 
-  if (!budgetSnapshot.allowed && budgetSnapshot.hardStop) {
-    const latency = Date.now() - startTime;
-    const responsePayload = {
+      if (!budgetSnapshot.allowed && budgetSnapshot.hardStop) {
+        const latency = Date.now() - startTime;
+        const responsePayload = {
       answer: "UNKNOWN",
       unknown: true,
       questions: null,
@@ -225,7 +238,7 @@ serve(async (req: Request) => {
       escalation_reason: "Monthly AI budget exceeded",
     };
 
-    await supabase.from("ai_escalations").insert({
+        await supabase.from("ai_escalations").insert({
       agency_id: agencyId,
       client_id: clientId ?? null,
       user_id: user.id,
@@ -235,7 +248,7 @@ serve(async (req: Request) => {
       assignee_role: "agency_admin",
     });
 
-    await supabase.from("ai_runs").insert({
+        await supabase.from("ai_runs").insert({
       agency_id: agencyId,
       client_id: clientId ?? null,
       user_id: user.id,
@@ -254,13 +267,13 @@ serve(async (req: Request) => {
       metadata: { cost_estimation_method: DEFAULT_COST_ESTIMATION_METHOD },
     });
 
-    return jsonResponse(responsePayload, 200, corsHeaders(req));
-  }
+        return jsonResponse(responsePayload, 200, corsHeaders(req));
+      }
 
   const tokenEstimate = estimateTokens(question);
-  if (tokenEstimate > TOKEN_CAP) {
-    const latency = Date.now() - startTime;
-    const responsePayload = {
+      if (tokenEstimate > TOKEN_CAP) {
+        const latency = Date.now() - startTime;
+        const responsePayload = {
       answer: "UNKNOWN",
       unknown: true,
       questions: ["Your request is too long. Please shorten it."],
@@ -270,7 +283,7 @@ serve(async (req: Request) => {
       escalation_reason: null,
     };
 
-    await supabase.from("ai_runs").insert({
+        await supabase.from("ai_runs").insert({
       agency_id: agencyId,
       client_id: clientId ?? null,
       user_id: user.id,
@@ -295,8 +308,8 @@ serve(async (req: Request) => {
       },
     });
 
-    return jsonResponse(responsePayload, 200, corsHeaders(req));
-  }
+        return jsonResponse(responsePayload, 200, corsHeaders(req));
+      }
 
   await supabase
     .from("ai_rate_limits")
@@ -305,18 +318,18 @@ serve(async (req: Request) => {
     .eq("user_id", user.id)
     .eq("day_yyyy_mm_dd", dayKey);
 
-  const embeddingModel = Deno.env.get("EMBEDDING_MODEL_ID") ?? "text-embedding-3-small";
   let queryEmbedding: number[];
-  try {
-    queryEmbedding = await embedText(question, "", embeddingModel);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    if (message.includes("API_KEY is not configured")) {
-      const responsePayload = buildUnknown([
-        "AI embeddings are not configured. Please contact support.",
-      ]);
-      const latency = Date.now() - startTime;
-      await supabase.from("ai_runs").insert({
+      try {
+        const embedded = await embedQueryForRag({ query: question });
+        queryEmbedding = embedded.embedding as any;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (message.includes("API_KEY is not configured")) {
+          const responsePayload = buildUnknown([
+            "AI embeddings are not configured. Please contact support.",
+          ]);
+          const latency = Date.now() - startTime;
+          await supabase.from("ai_runs").insert({
         agency_id: agencyId,
         client_id: clientId ?? null,
         user_id: user.id,
@@ -334,7 +347,7 @@ serve(async (req: Request) => {
         escalation_reason: null,
         metadata: { cost_estimation_method: DEFAULT_COST_ESTIMATION_METHOD },
       });
-      await supabase.from("ai_usage_logs").insert({
+          await supabase.from("ai_usage_logs").insert({
         agency_id: agencyId,
         client_id: clientId ?? null,
         endpoint: "ai-ask",
@@ -345,58 +358,65 @@ serve(async (req: Request) => {
         latency_ms: Date.now() - startTime,
         unknown: true,
       });
-      return jsonResponse(responsePayload, 200, corsHeaders(req));
-    }
-    throw error;
-  }
+          return jsonResponse(responsePayload, 200, corsHeaders(req));
+        }
+        throw error;
+      }
 
   const legacyClientDocTypes = ["client_guidelines", "client_notes", "approved_posts", "ai_artifact", "strategy_draft"];
   const legacyAgencyDocTypes = ["agency_sop"];
   const legacyExemplarDocTypes = ["agency_exemplar_strategy"];
 
-  const { data: clientMatches } = await supabase.rpc("match_ai_embeddings", {
+  const rpcName = getMatchRpcName({ scoped: false });
+  const { data: clientMatches } = await supabase.rpc(rpcName, {
     p_agency_id: agencyId,
     p_client_id: clientId ?? null,
     p_query_embedding: queryEmbedding,
-    p_match_count: clampMatchCount(useRagPolicy ? ragConfig.client_memory_top_k : CLIENT_MEMORY_TOP_K),
+    p_match_count: clampMatchCount(
+      getInitialMatchCount(useRagPolicy ? ragConfig.client_memory_top_k : CLIENT_MEMORY_TOP_K, 50),
+    ),
     p_doc_types: useRagPolicy ? ragConfig.client_doc_types : legacyClientDocTypes,
     p_modules: null,
     p_min_similarity: useRagPolicy ? ragConfig.min_similarity : 0.2,
   });
 
-  const { data: agencyMatches } = await supabase.rpc("match_ai_embeddings", {
+  const { data: agencyMatches } = await supabase.rpc(rpcName, {
     p_agency_id: agencyId,
     p_client_id: null,
     p_query_embedding: queryEmbedding,
-    p_match_count: clampMatchCount(useRagPolicy ? ragConfig.agency_memory_top_k : AGENCY_MEMORY_TOP_K),
+    p_match_count: clampMatchCount(
+      getInitialMatchCount(useRagPolicy ? ragConfig.agency_memory_top_k : AGENCY_MEMORY_TOP_K, 50),
+    ),
     p_doc_types: useRagPolicy ? ragConfig.agency_doc_types : legacyAgencyDocTypes,
     p_modules: null,
     p_min_similarity: useRagPolicy ? ragConfig.min_similarity : 0.2,
   });
 
-  const { data: exemplarMatches } = await supabase.rpc("match_ai_embeddings", {
+  const { data: exemplarMatches } = await supabase.rpc(rpcName, {
     p_agency_id: agencyId,
     p_client_id: null,
     p_query_embedding: queryEmbedding,
-    p_match_count: clampMatchCount(useRagPolicy ? ragConfig.exemplar_top_k : EXEMPLAR_TOP_K),
+    p_match_count: clampMatchCount(
+      getInitialMatchCount(useRagPolicy ? ragConfig.exemplar_top_k : EXEMPLAR_TOP_K, 50),
+    ),
     p_doc_types: useRagPolicy ? ragConfig.exemplar_doc_types : legacyExemplarDocTypes,
     p_modules: null,
     p_min_similarity: useRagPolicy ? ragConfig.min_similarity : 0.2,
   });
 
-  const matches = [
+  const matches = applyScoreRerank([
     ...(clientMatches || []),
     ...(agencyMatches || []),
     ...(exemplarMatches || []),
-  ];
+  ], 12);
 
-  if (matches.length === 0) {
-    const responsePayload = buildUnknown([
-      "What platform is this for?",
-      "What is the primary goal of this request?",
-    ]);
-    const latency = Date.now() - startTime;
-    await supabase.from("ai_runs").insert({
+      if (matches.length === 0) {
+        const responsePayload = buildUnknown([
+          "What platform is this for?",
+          "What is the primary goal of this request?",
+        ]);
+        const latency = Date.now() - startTime;
+        await supabase.from("ai_runs").insert({
       agency_id: agencyId,
       client_id: clientId ?? null,
       user_id: user.id,
@@ -414,7 +434,7 @@ serve(async (req: Request) => {
       escalation_reason: null,
       metadata: { cost_estimation_method: DEFAULT_COST_ESTIMATION_METHOD },
     });
-    await supabase.from("ai_usage_logs").insert({
+        await supabase.from("ai_usage_logs").insert({
       agency_id: agencyId,
       client_id: clientId ?? null,
       endpoint: "ai-ask",
@@ -425,8 +445,8 @@ serve(async (req: Request) => {
       latency_ms: Date.now() - startTime,
       unknown: true,
     });
-    return jsonResponse(responsePayload, 200, corsHeaders(req));
-  }
+        return jsonResponse(responsePayload, 200, corsHeaders(req));
+      }
 
   const legacyMatches = useRagPolicy ? matches : capMatchesByTokenBudget(matches, MAX_CONTEXT_TOKENS).matches;
   const fullContext = legacyMatches.map((row: any) => `(${row.doc_type}) ${row.chunk_text}`).join("\n\n");
@@ -451,9 +471,9 @@ serve(async (req: Request) => {
     true,
   );
 
-  if (!reservation.allowed && reservation.hardStop) {
-    const latency = Date.now() - startTime;
-    const responsePayload = {
+      if (!reservation.allowed && reservation.hardStop) {
+        const latency = Date.now() - startTime;
+        const responsePayload = {
       answer: "UNKNOWN",
       unknown: true,
       questions: null,
@@ -463,7 +483,7 @@ serve(async (req: Request) => {
       escalation_reason: "Monthly AI budget exceeded",
     };
 
-    await supabase.from("ai_escalations").insert({
+        await supabase.from("ai_escalations").insert({
       agency_id: agencyId,
       client_id: clientId ?? null,
       user_id: user.id,
@@ -473,7 +493,7 @@ serve(async (req: Request) => {
       assignee_role: "agency_admin",
     });
 
-    await supabase.from("ai_runs").insert({
+        await supabase.from("ai_runs").insert({
       agency_id: agencyId,
       client_id: clientId ?? null,
       user_id: user.id,
@@ -492,16 +512,16 @@ serve(async (req: Request) => {
       metadata: { cost_estimation_method: DEFAULT_COST_ESTIMATION_METHOD },
     });
 
-    return jsonResponse(responsePayload, 200, corsHeaders(req));
-  }
+        return jsonResponse(responsePayload, 200, corsHeaders(req));
+      }
 
   let responsePayload = buildUnknown([
     "What additional details should the agency provide to answer this accurately?",
   ]);
 
   let aiResult: any = null;
-  try {
-    aiResult = await ai.run({
+      try {
+        aiResult = await ai.run({
       taskType: TaskType.CLIENT_PORTAL_QA,
       input: question,
       context: {
@@ -539,11 +559,11 @@ serve(async (req: Request) => {
       escalate_to_human: false,
       escalation_reason: null,
     };
-  } catch {
-    responsePayload = buildUnknown([
-      "Unable to generate a grounded answer. Please add more context.",
-    ]);
-  }
+      } catch {
+        responsePayload = buildUnknown([
+          "Unable to generate a grounded answer. Please add more context.",
+        ]);
+      }
 
   const latency = Date.now() - startTime;
   const usage = extractUsageFromRaw(aiResult?.raw);
@@ -575,8 +595,8 @@ serve(async (req: Request) => {
     selectedMatches,
   );
 
-  if (!citationValidation.valid && strictSchema) {
-    await supabase.from("ai_runs").insert({
+      if (!citationValidation.valid && strictSchema) {
+        await supabase.from("ai_runs").insert({
       agency_id: agencyId,
       client_id: clientId ?? null,
       user_id: user.id,
@@ -602,10 +622,10 @@ serve(async (req: Request) => {
       },
     });
 
-    return jsonResponse({ error: "Citation validation failed", code: "CITATION_VALIDATION_FAILED" }, 500, corsHeaders(req));
-  }
+        return jsonResponse({ error: "Citation validation failed", code: "CITATION_VALIDATION_FAILED" }, 500, corsHeaders(req));
+      }
 
-  await supabase.from("ai_runs").insert({
+      await supabase.from("ai_runs").insert({
     agency_id: agencyId,
     client_id: clientId ?? null,
     user_id: user.id,
@@ -631,5 +651,21 @@ serve(async (req: Request) => {
     },
   });
 
-  return jsonResponse(responsePayload, 200, corsHeaders(req));
+      return jsonResponse(responsePayload, 200, corsHeaders(req));
+    })();
+  } finally {
+    await logOtelSpan(supabase, {
+      traceId,
+      spanId,
+      stage: "edge.ai-ask",
+      taskType: TaskType.CLIENT_PORTAL_QA,
+      agencyId,
+      clientId,
+      userId,
+      latencyMs: Date.now() - spanStart,
+      attributes: { http_status: response?.status ?? 0 },
+    });
+  }
+
+  return response!;
 });

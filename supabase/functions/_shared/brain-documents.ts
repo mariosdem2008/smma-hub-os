@@ -5,9 +5,9 @@
  * Used by Supabase Edge Functions for brain document CRUD operations.
  */
 
-import { buildChunks, embedText, getExpectedEmbeddingDim, tokenize } from "./embeddings.ts";
+import { buildChunks, embedText, embedTextShadowGemini, getExpectedEmbeddingDim, getShadowEmbeddingDim, getShadowGeminiModelId, isShadowGeminiEnabled, tokenize } from "./embeddings.ts";
 import { embedWithPolicy } from "./embedding-policy.ts";
-import { persistEmbeddingResult } from "./embedding-store.ts";
+import { persistEmbeddingResult, persistShadowEmbeddingResult } from "./embedding-store.ts";
 
 type MaybeSingleResult<T> = { data: T | null; error?: { message?: string } | null };
 type MaybeArrayResult<T> = { data: T[] | null; error?: { message?: string } | null };
@@ -691,6 +691,14 @@ export async function ingestBrainDocumentForRag(
   }
 
   const expectedDim = getExpectedEmbeddingDim();
+  const shadowEnabled = isShadowGeminiEnabled();
+  const shadowModel = getShadowGeminiModelId();
+  const shadowDim = getShadowEmbeddingDim();
+  const shadowApiKey = typeof Deno !== "undefined"
+    ? Deno.env.get("GEMINI_API_KEY")
+    : typeof process !== "undefined"
+    ? process.env.GEMINI_API_KEY
+    : undefined;
 
   for (let index = 0; index < chunks.length; index += 1) {
     const chunk = chunks[index];
@@ -739,6 +747,34 @@ export async function ingestBrainDocumentForRag(
 
     if (!persistResult.stored && persistResult.errorCode === "EMBEDDING_DIM_MISMATCH") {
       throw new Error("Embedding dimension mismatch");
+    }
+
+    if (shadowEnabled) {
+      const shadowResult = await embedWithPolicy({
+        text: chunk.text,
+        apiKey: shadowApiKey ?? undefined,
+        failHard,
+        embed: (text) => embedTextShadowGemini(text),
+      });
+
+      await persistShadowEmbeddingResult({
+        supabase,
+        embeddingResult: shadowResult,
+        embeddingPayload: {
+          agency_id: doc.agency_id,
+          client_id: null,
+          doc_type: "brain_document",
+          document_id: documentRow.id,
+          chunk_id: chunkRow.id,
+          embedding_json: [],
+          model: shadowModel,
+          metadata: {
+            similarity: "cosine",
+            embedding_dim: shadowDim ?? null,
+            shadow: true,
+          },
+        },
+      });
     }
   }
 

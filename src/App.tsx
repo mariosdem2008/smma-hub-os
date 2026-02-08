@@ -27,6 +27,8 @@ import ClientDetail from "./pages/ClientDetail";
 import Team from "./pages/Team";
 import Settings from "./pages/Settings";
 import Pricing from "./pages/Pricing";
+import Terms from "./pages/Terms";
+import Privacy from "./pages/Privacy";
 import Billing from "./pages/Billing";
 import BillingOverview from "./pages/BillingOverview";
 import InviteAccept from "./pages/InviteAccept";
@@ -136,6 +138,8 @@ const App = () => {
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/pricing" element={<Pricing />} />
+              <Route path="/terms" element={<Terms />} />
+              <Route path="/privacy" element={<Privacy />} />
               <Route path="/invite/:token" element={<InviteAccept />} />
 
               {/* Client Portal Auth Routes (public) */}

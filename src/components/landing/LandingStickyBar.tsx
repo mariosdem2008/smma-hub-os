@@ -1,0 +1,89 @@
+import React, { useEffect, useState } from "react";
+import { AnimatePresence, motion, useScroll } from "framer-motion";
+import { ArrowRight, Play, Zap } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { track } from "@/lib/analytics";
+import { LandingContainer } from "./LandingPrimitives";
+
+export function LandingStickyBar(props: {
+  calUrl: string;
+  demoUrl?: string;
+  demoEmbedUrl?: string;
+}) {
+  const [isVisible, setIsVisible] = useState(false);
+  const { scrollY } = useScroll();
+
+  useEffect(() => {
+    const unsubscribe = scrollY.on("change", (latest) => {
+      const threshold = typeof window !== "undefined" ? globalThis.innerHeight * 0.55 : 560;
+      setIsVisible(latest > threshold);
+    });
+    return () => unsubscribe();
+  }, [scrollY]);
+
+  const hasDemo = Boolean(props.demoUrl);
+  const demoIsEmbed = Boolean(props.demoEmbedUrl);
+  const demoHref = demoIsEmbed ? "#demo" : props.demoUrl!;
+
+  return (
+    <AnimatePresence>
+      {isVisible ? (
+        <motion.div
+          initial={{ y: -80, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: -80, opacity: 0 }}
+          transition={{ duration: 0.25, ease: "easeOut" }}
+          className="fixed top-0 left-0 right-0 z-[90] bg-background/85 backdrop-blur-xl border-b border-white/10"
+          role="region"
+          aria-label="Quick actions"
+        >
+          <LandingContainer className="flex items-center justify-between gap-[12px] py-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
+                <Zap className="h-4 w-4 text-primary-foreground" />
+              </div>
+              <div className="hidden sm:block min-w-0">
+                <div className="text-sm font-semibold tracking-tight">SMMAHUB</div>
+                <div className="text-xs text-text-muted truncate">Audit first. Scale second.</div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-[10px]">
+              {hasDemo ? (
+                <Button
+                  asChild
+                  size="sm"
+                  variant="ghost"
+                  className="hidden sm:inline-flex text-text-muted hover:text-foreground tracking-cta-text"
+                >
+                  <a
+                    href={demoHref}
+                    target={demoIsEmbed ? undefined : "_blank"}
+                    rel={demoIsEmbed ? undefined : "noreferrer"}
+                    onClick={() => track("cta_watch_demo_click", { location: "sticky_bar" })}
+                  >
+                    <Play className="w-3.5 h-3.5 mr-1.5" />
+                    Watch demo
+                  </a>
+                </Button>
+              ) : null}
+
+              <Button asChild size="sm" className="btn-glow btn-shimmer btn-primary-enhanced tracking-cta-text">
+                <a
+                  href={props.calUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={() => track("cta_book_strategy_audit_click", { location: "sticky_bar" })}
+                >
+                  <ArrowRight className="w-3.5 h-3.5 mr-1.5" />
+                  Book audit
+                </a>
+              </Button>
+            </div>
+          </LandingContainer>
+        </motion.div>
+      ) : null}
+    </AnimatePresence>
+  );
+}
+

@@ -1,0 +1,28 @@
+{
+  "target": {
+    "url": "https://dbclmdeowohzmwtkktsa.supabase.co/functions/v1/ai-rep-chat",
+    "method": "POST",
+    "requests": 200,
+    "concurrency": 10,
+    "timeout_ms": 20000
+  },
+  "results": {
+    "ok": 200,
+    "failed": 0,
+    "success_rate": 1,
+    "p50_ms": 985,
+    "p90_ms": 1199,
+    "p95_ms": 1305,
+    "p99_ms": 2726,
+    "mean_ms": 1069,
+    "min_ms": 639,
+    "max_ms": 7834
+  },
+  "notes": {
+    "date_utc": "2026-02-01",
+    "runner": "node scripts/perf/http_load_test.ts",
+    "auth": "user_jwt_required (redacted)",
+    "tenant_safety": "staging run; 0 cross-tenant leaks requirement unchanged"
+  }
+}
+

@@ -55,7 +55,32 @@ export const TASK_MODULE_MAP: Record<TaskType, ModuleRequirement[]> = {
     {
       module: "bootstrap",
       required: true,
-      fieldPaths: ["agency_name", "services"],
+      fieldPaths: ["agency_name", "services", "target_industries"],
+    },
+    {
+      module: "offer_stack",
+      required: true,
+      fieldPaths: ["core_offers"],
+    },
+    {
+      module: "tone_voice",
+      required: true,
+      fieldPaths: ["voice_attributes"],
+    },
+    {
+      module: "sop_strategy",
+      required: true,
+      fieldPaths: ["content_pillars"],
+    },
+    {
+      module: "rep_policy",
+      required: true,
+      fieldPaths: ["boundaries"],
+    },
+    {
+      module: "faq_objections",
+      required: true,
+      fieldPaths: ["faqs"],
     },
   ],
 
@@ -109,6 +134,9 @@ export const TASK_MODULE_MAP: Record<TaskType, ModuleRequirement[]> = {
 
   // Classify intent - no brain needed
   [TaskType.CLASSIFY_INTENT]: [],
+
+  // Planner - no brain needed
+  [TaskType.PLANNER]: [],
 
   // Strategy plan - needs full context
   [TaskType.STRATEGY_PLAN]: [

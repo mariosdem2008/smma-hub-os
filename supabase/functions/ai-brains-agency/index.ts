@@ -3,6 +3,8 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
 import { getEndpointGuardResponse } from "../_shared/endpoint-guard.ts";
+import { generateSpanId, generateTraceId, logOtelSpan } from "../../../src/ai/otel.ts";
+import { TaskType } from "../../../src/ai/taskTypes.ts";
 
 const ACTIONS = ["create", "update", "lock"] as const;
 
@@ -16,36 +18,46 @@ function jsonResponse(body: unknown, status = 200, headers: Record<string, strin
 }
 
 serve(async (req: Request) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders(req) });
-  }
+  const traceId = generateTraceId();
+  const spanId = generateSpanId();
+  const spanStart = Date.now();
+  let response: Response | undefined;
+  let supabase: ReturnType<typeof createClient> | null = null;
+  let agencyId: string | undefined;
+  let userId: string | undefined;
 
-  if (req.method !== "POST") {
-    return jsonResponse({ error: "Method not allowed" }, 405, corsHeaders(req));
-  }
+  response = await (async () => {
+    if (req.method === "OPTIONS") {
+      return new Response(null, { headers: corsHeaders(req) });
+    }
 
-  const guardResponse = getEndpointGuardResponse("ai-brains-agency", corsHeaders(req));
-  if (guardResponse) return guardResponse;
+    if (req.method !== "POST") {
+      return jsonResponse({ error: "Method not allowed" }, 405, corsHeaders(req));
+    }
 
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) {
-    return jsonResponse({ error: "Missing Authorization header" }, 401, corsHeaders(req));
-  }
+    const guardResponse = getEndpointGuardResponse("ai-brains-agency", corsHeaders(req));
+    if (guardResponse) return guardResponse;
 
-  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-    auth: { persistSession: false },
-  });
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return jsonResponse({ error: "Missing Authorization header" }, 401, corsHeaders(req));
+    }
 
-  const token = authHeader.replace("Bearer ", "");
-  const { data: userData, error: userError } = await supabase.auth.getUser(token);
-  const user = userData?.user;
-  if (userError || !user) {
-    return jsonResponse({ error: "Unauthorized" }, 401, corsHeaders(req));
-  }
+    supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+      auth: { persistSession: false },
+    });
 
-  const body = await req.json().catch(() => ({}));
-  const action = body.action as Action | undefined;
-  const agencyId = body.agency_id as string | undefined;
+    const token = authHeader.replace("Bearer ", "");
+    const { data: userData, error: userError } = await supabase.auth.getUser(token);
+    const user = userData?.user;
+    if (userError || !user) {
+      return jsonResponse({ error: "Unauthorized" }, 401, corsHeaders(req));
+    }
+
+    userId = user.id;
+    const body = await req.json().catch(() => ({}));
+    const action = body.action as Action | undefined;
+    agencyId = body.agency_id as string | undefined;
 
   if (!action || !ACTIONS.includes(action)) {
     return jsonResponse({ error: "Invalid action" }, 400, corsHeaders(req));
@@ -143,5 +155,19 @@ serve(async (req: Request) => {
     return jsonResponse({ error: error.message }, 400, corsHeaders(req));
   }
 
-  return jsonResponse({ success: true, brain: data }, 200, corsHeaders(req));
+    return jsonResponse({ success: true, brain: data }, 200, corsHeaders(req));
+  })();
+
+  await logOtelSpan(supabase, {
+    traceId,
+    spanId,
+    stage: "edge.ai-brains-agency",
+    taskType: TaskType.TOOL_EXECUTION,
+    agencyId,
+    userId,
+    latencyMs: Date.now() - spanStart,
+    attributes: { http_status: response?.status ?? 0 },
+  });
+
+  return response!;
 });

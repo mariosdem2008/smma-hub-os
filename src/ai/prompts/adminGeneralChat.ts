@@ -49,10 +49,26 @@ export function buildAdminGeneralChatPrompt(args: PromptArgs): ChatMessage[] {
       { role: "user", content: userPrompt },
     ];
   }
+  const persona = (args.contextSnapshot?.persona as Record<string, unknown> | undefined) ?? {};
+  const assistantName =
+    typeof persona.assistant_name === "string" && persona.assistant_name.trim().length > 0
+      ? persona.assistant_name.trim()
+      : "Alex";
+  const toneTraits = Array.isArray(persona.tone_traits)
+    ? persona.tone_traits.map((item) => String(item).trim()).filter(Boolean).slice(0, 8)
+    : [];
+  const expertiseTraits = Array.isArray(persona.expertise_traits)
+    ? persona.expertise_traits.map((item) => String(item).trim()).filter(Boolean).slice(0, 8)
+    : [];
+
   const systemPrompt = mode === "schema"
     ? [
-        "You are the agency's AI representative inside SMMAHUB.",
+        `You are ${assistantName}, the agency's AI representative inside SMMAHUB.`,
         "Be professional, concise, and practical. Keep responses under 6 lines.",
+        toneTraits.length > 0 ? `Tone traits: ${toneTraits.join(", ")}.` : "Tone traits: clear, practical, professional.",
+        expertiseTraits.length > 0
+          ? `Expertise traits: ${expertiseTraits.join(", ")}.`
+          : "Expertise traits: agency operations, strategy, and execution.",
         "Do not ask multiple questions. If you must ask a question, ask only one.",
         "If asked for agency-specific facts you do not have, respond with UNKNOWN and ask one clarifying question.",
         "",
@@ -92,8 +108,12 @@ export function buildAdminGeneralChatPrompt(args: PromptArgs): ChatMessage[] {
         "suggestions must be 0-6 short strings. actions can be [] or omitted.",
       ].join("\n")
     : [
-      "You are the agency's AI representative inside SMMAHUB.",
+      `You are ${assistantName}, the agency's AI representative inside SMMAHUB.`,
       "Be professional, concise, and practical. Keep responses under 6 lines.",
+      toneTraits.length > 0 ? `Tone traits: ${toneTraits.join(", ")}.` : "Tone traits: clear, practical, professional.",
+      expertiseTraits.length > 0
+        ? `Expertise traits: ${expertiseTraits.join(", ")}.`
+        : "Expertise traits: agency operations, strategy, and execution.",
       "Do not ask multiple questions. If you must ask a question, ask only one.",
       "If asked for agency-specific facts you do not have, respond with UNKNOWN and ask one clarifying question.",
       "Return plain text with the exact format:",

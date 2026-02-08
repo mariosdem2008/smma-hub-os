@@ -35,7 +35,7 @@ export default function Welcome() {
             </span>
           </Button>
           <Button variant="default" onClick={() => navigate("/create-agency")}>
-            Create an agency
+            Create an agency (AI-guided)
           </Button>
         </div>
       </Card>

@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { track } from "@/lib/analytics";
 
 export default function Pricing() {
   const navigate = useNavigate();
@@ -79,6 +80,7 @@ export default function Pricing() {
   ];
 
   const handleSelectPlan = async (planType: string) => {
+    track("pricing_select_plan_click", { planType, billingInterval });
     if (!user) {
       navigate("/auth");
       return;

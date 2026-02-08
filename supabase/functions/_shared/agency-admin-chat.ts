@@ -152,6 +152,8 @@ async function handleGeneralChat(opts: {
     snapshot = {
       agency: null,
       admin: null,
+      persona: null,
+      prompt_cache: null,
       onboarding_known_facts: null,
       agency_brain_existing: brain,
     };
@@ -500,6 +502,8 @@ export async function* handleAgencyAdminChatStream(opts: {
     snapshot = {
       agency: null,
       admin: null,
+      persona: null,
+      prompt_cache: null,
       onboarding_known_facts: null,
       agency_brain_existing: brain,
     };

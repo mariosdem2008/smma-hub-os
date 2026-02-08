@@ -11,9 +11,12 @@ import {
   type AdminChatPlaybook,
   type AdminChatStrategicOutput,
 } from "../../../src/ai/adminChatStrategic.ts";
-import { embedText } from "./embeddings.ts";
+import { embedQueryForRag, getMatchRpcName } from "./rag-index.ts";
 import { executeToolAction } from "./tool-executor.ts";
-import { capMatchesByTokenBudget, clampMatchCount } from "./retrieval.ts";
+import { writeCheckpoint } from "./executor-checkpoints.ts";
+import { runDurablePlan } from "../../../src/ai/durableExecutor.ts";
+import { isDurableExecutorEnabled } from "../../../src/ai/flags.ts";
+import { capMatchesByTokenBudget, clampMatchCount, getInitialMatchCount, applyScoreRerank } from "./retrieval.ts";
 
 export type Suggestion = { id: string; label: string; user_message: string };
 
@@ -486,17 +489,14 @@ async function fetchAgencyRagSnippets(opts: {
 }): Promise<Array<Record<string, unknown>>> {
   try {
     if (!opts.supabase?.rpc) return [];
-    const embeddingModel = typeof Deno !== "undefined"
-      ? Deno.env.get("EMBEDDING_MODEL_ID") ?? "text-embedding-3-small"
-      : process.env.EMBEDDING_MODEL_ID ?? "text-embedding-3-small";
+    const embedded = await embedQueryForRag({ query: opts.query });
+    const rpcName = getMatchRpcName({ scoped: true });
 
-    const queryEmbedding = await embedText(opts.query, "", embeddingModel);
-
-    const { data: matches } = await opts.supabase.rpc("match_ai_embeddings", {
+    const { data: matches } = await opts.supabase.rpc(rpcName, {
       p_agency_id: opts.agencyId,
       p_client_id: null,
-      p_query_embedding: queryEmbedding,
-      p_match_count: clampMatchCount(5),
+      p_query_embedding: embedded.embedding as any,
+      p_match_count: clampMatchCount(getInitialMatchCount(5, 50)),
       p_doc_types: null,
       p_modules: null,
       p_min_similarity: 0.2,
@@ -506,7 +506,8 @@ async function fetchAgencyRagSnippets(opts: {
       return [];
     }
 
-    const capped = capMatchesByTokenBudget(matches, 600);
+    const reranked = applyScoreRerank(matches, 12);
+    const capped = capMatchesByTokenBudget(reranked, 600);
     const mapped = capped.matches.map((match: any, index: number) => ({
       rank: index + 1,
       text: match.chunk_text ?? "",
@@ -599,6 +600,8 @@ export async function runAdminGeneralChatAi(opts: {
       ragContext,
       contextBlob,
       playbook,
+      prompt_cache_version: opts.snapshot.prompt_cache?.prompt_cache_version ?? null,
+      persona_source: opts.snapshot.persona?.source ?? "default",
     },
     supabase: opts.supabase,
   });
@@ -703,22 +706,67 @@ export async function runAdminGeneralChatAi(opts: {
 
     const actionResults: ToolActionResult[] = [];
     if (output.actions && output.actions.length > 0) {
-      for (const action of output.actions) {
-        try {
-          const result = await executeToolAction({
-            tool: { type: action.type, payload: normalizeActionPayload(action.payload) },
-            supabase: opts.supabase,
-            agencyId: opts.agencyId,
-            userId: opts.userId,
-          });
-          actionResults.push({ type: action.type, ...result });
-          if (!result.success) {
-            console.warn("admin_chat_tool_failed", { tool: action.type, error: result.error });
+      if (isDurableExecutorEnabled()) {
+        const planId = `admin_chat:${opts.agencyId}:${Date.now()}`;
+        const steps = output.actions.map((action, index) => ({
+          stepId: `step_${index + 1}`,
+          toolId: action.type,
+          input: normalizeActionPayload(action.payload),
+          dependsOn: index === 0 ? [] : [`step_${index}`],
+        }));
+        const durableResult = await runDurablePlan({
+          plan: { planId, taskType: "admin_chat", steps },
+          context: { agencyId: opts.agencyId, clientId: null, userId: opts.userId },
+          executeTool: async (step) => {
+            return await executeToolAction({
+              tool: { type: step.toolId, payload: step.input },
+              supabase: opts.supabase,
+              agencyId: opts.agencyId,
+              userId: opts.userId,
+              clientId: null,
+              isAdmin: true,
+            });
+          },
+          writeCheckpoint: async (input) => {
+            await writeCheckpoint(opts.supabase, {
+              planId: input.planId,
+              stepId: input.stepId,
+              status: input.status,
+              agencyId: input.context.agencyId,
+              clientId: input.context.clientId ?? null,
+              userId: input.context.userId ?? null,
+              payload: input.payload ?? null,
+            });
+          },
+        });
+        for (const step of steps) {
+          const result = durableResult.results?.[step.stepId];
+          if (durableResult.success) {
+            actionResults.push({ type: step.toolId, success: true, result });
+          } else {
+            actionResults.push({ type: step.toolId, success: false, error: durableResult.error });
           }
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          actionResults.push({ type: action.type, success: false, error: message });
-          console.error("admin_chat_tool_exception", { tool: action.type, error: message });
+        }
+      } else {
+        for (const action of output.actions) {
+          try {
+            const result = await executeToolAction({
+              tool: { type: action.type, payload: normalizeActionPayload(action.payload) },
+              supabase: opts.supabase,
+              agencyId: opts.agencyId,
+              userId: opts.userId,
+              clientId: null,
+              isAdmin: true,
+            });
+            actionResults.push({ type: action.type, ...result });
+            if (!result.success) {
+              console.warn("admin_chat_tool_failed", { tool: action.type, error: result.error });
+            }
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            actionResults.push({ type: action.type, success: false, error: message });
+            console.error("admin_chat_tool_exception", { tool: action.type, error: message });
+          }
         }
       }
     }
@@ -738,6 +786,8 @@ export async function runAdminGeneralChatAi(opts: {
     const latencyMs = Date.now() - startTime;
     const metadata: Record<string, unknown> = {
       admin_chat_output_mode: outputMode,
+      prompt_cache_version: opts.snapshot.prompt_cache?.prompt_cache_version ?? null,
+      persona_source: opts.snapshot.persona?.source ?? "default",
     };
     if (strategicEnabled) {
       metadata.admin_chat_prompt_version = 1;

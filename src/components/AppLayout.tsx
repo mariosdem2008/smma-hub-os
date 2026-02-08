@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import { AppSidebar } from "./AppSidebar";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { useAuth } from "@/lib/auth";
@@ -16,6 +16,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 
 export function AppLayout() {
+  const location = useLocation();
   const { user } = useAuth();
   const { canManageTeam } = useRole();
   const { subscription } = useSubscription();
@@ -34,6 +35,18 @@ export function AppLayout() {
   };
 
   const upgradeBadgeText = getUpgradeBadgeText();
+
+  const isOnboarding = location.pathname.startsWith("/ai/onboarding/agency");
+
+  if (isOnboarding) {
+    return (
+      <div className="min-h-screen w-full">
+        <main className="min-h-screen p-0">
+          <Outlet />
+        </main>
+      </div>
+    );
+  }
 
   return (
     <SidebarProvider>

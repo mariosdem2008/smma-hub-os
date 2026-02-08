@@ -30,6 +30,7 @@ export const TaskTypes = {
   SUMMARIZE: "SUMMARIZE",
   EXTRACT_STRUCTURED: "EXTRACT_STRUCTURED",
   CLASSIFY_INTENT: "CLASSIFY_INTENT",
+  PLANNER: "PLANNER",
   STRATEGY_PLAN: "STRATEGY_PLAN",
   CONTENT_IDEAS: "CONTENT_IDEAS",
   SCRIPT_WRITING: "SCRIPT_WRITING",
@@ -57,7 +58,12 @@ const TASK_MODULE_MAP: Record<TaskType, ModuleRequirement[]> = {
     { module: "bootstrap", required: true, fieldPaths: ["agency_name"] },
   ],
   [TaskTypes.AGENCY_ADMIN_SETUP_GUIDED_V2]: [
-    { module: "bootstrap", required: true, fieldPaths: ["agency_name", "services"] },
+    { module: "bootstrap", required: true, fieldPaths: ["agency_name", "services", "target_industries"] },
+    { module: "offer_stack", required: true, fieldPaths: ["core_offers"] },
+    { module: "tone_voice", required: true, fieldPaths: ["voice_attributes"] },
+    { module: "sop_strategy", required: true, fieldPaths: ["content_pillars"] },
+    { module: "rep_policy", required: true, fieldPaths: ["boundaries"] },
+    { module: "faq_objections", required: true, fieldPaths: ["faqs"] },
   ],
   [TaskTypes.AGENCY_ADMIN_GENERAL_CHAT]: [
     { module: "bootstrap", required: true, fieldPaths: ["agency_name", "services"] },
@@ -74,6 +80,7 @@ const TASK_MODULE_MAP: Record<TaskType, ModuleRequirement[]> = {
   [TaskTypes.SUMMARIZE]: [],
   [TaskTypes.EXTRACT_STRUCTURED]: [],
   [TaskTypes.CLASSIFY_INTENT]: [],
+  [TaskTypes.PLANNER]: [],
   [TaskTypes.STRATEGY_PLAN]: [
     { module: "bootstrap", required: true, fieldPaths: ["agency_name", "services", "target_industries"] },
     { module: "tone_voice", required: true, fieldPaths: ["voice_attributes"] },

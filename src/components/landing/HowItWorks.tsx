@@ -3,8 +3,16 @@ import { motion, useInView } from 'framer-motion';
 import { Button } from "@/components/ui/button";
 import { UploadCloud, UserPlus, FileText, ArrowRight, Cog } from 'lucide-react';
 import { useSectionTracking } from '@/hooks/useSectionTracking';
+import { marketing } from '@/lib/marketing';
+import { track } from '@/lib/analytics';
 
-const CAL_LINK = "https://cal.com/SMMAHUB/fit";
+const CAL_LINK = marketing.calUrl;
+
+const COLOR_STYLES: Record<string, { bg: string; text: string }> = {
+  "brand-primary": { bg: "bg-brand-primary/20", text: "text-brand-primary" },
+  accent: { bg: "bg-accent/20", text: "text-accent" },
+  success: { bg: "bg-success/20", text: "text-success" },
+};
 
 const HOW_IT_WORKS_STEPS = [
   {
@@ -107,8 +115,12 @@ const HowItWorks = () => {
                 </div>
 
                 <div className="flex items-center gap-[16px] mb-[24px]">
-                  <div className={`w-12 h-12 rounded-lg bg-${step.color}/20 flex items-center justify-center group-hover:scale-110 transition-transform`}>
-                    <step.icon className={`w-6 h-6 text-${step.color}`} />
+                  <div
+                    className={`w-12 h-12 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform ${
+                      COLOR_STYLES[step.color]?.bg ?? "bg-white/10"
+                    }`}
+                  >
+                    <step.icon className={`w-6 h-6 ${COLOR_STYLES[step.color]?.text ?? "text-foreground"}`} />
                   </div>
                   <span className="text-small-text font-medium text-text-muted tracking-small-text">Step {step.step}</span>
                 </div>
@@ -131,8 +143,14 @@ const HowItWorks = () => {
             size="lg"
             className="btn-glow btn-shimmer btn-press btn-primary-enhanced tracking-cta-text"
           >
-            <a href={CAL_LINK} target="_blank" rel="noreferrer" className="inline-flex items-center gap-[8px]">
-              Book Your Strategy Audit
+            <a
+              href={CAL_LINK}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-[8px]"
+              onClick={() => track("cta_book_strategy_audit_click", { location: "how_it_works" })}
+            >
+              Book Strategy Audit
               <ArrowRight className="w-4 h-4" />
             </a>
           </Button>

@@ -8,6 +8,8 @@ import { approveBrainDocument, ingestBrainDocumentForRag } from "../_shared/brai
 import { seedApproveAndIngestDefaultBrainPackV1 } from "../_shared/seed-default-brain-pack.ts";
 import { resolveAgencyAdminUserId } from "../_shared/agency-members.ts";
 import { renderDefaultBrainPackV1 } from "../_shared/defaultBrainPackV1.ts";
+import { generateSpanId, generateTraceId, logOtelSpan } from "../../../src/ai/otel.ts";
+import { TaskType } from "../../../src/ai/taskTypes.ts";
 
 function jsonResponse(body: unknown, status = 200, headers: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
@@ -23,32 +25,39 @@ type Body = {
 
 serve(async (req: Request) => {
   const startedAt = Date.now();
+  const traceId = generateTraceId();
+  const spanId = generateSpanId();
+  const spanStart = Date.now();
+  let response: Response | undefined;
+  let supabase: ReturnType<typeof createClient> | null = null;
+  let agencyId: string | undefined;
 
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders(req) });
-  }
+  response = await (async () => {
+    if (req.method === "OPTIONS") {
+      return new Response(null, { headers: corsHeaders(req) });
+    }
 
-  if (req.method !== "POST") {
-    return jsonResponse({ error: "Method not allowed" }, 405, corsHeaders(req));
-  }
+    if (req.method !== "POST") {
+      return jsonResponse({ error: "Method not allowed" }, 405, corsHeaders(req));
+    }
 
-  const guardResponse = getEndpointGuardResponse("ai-seed-default-brain-pack-admin", corsHeaders(req));
-  if (guardResponse) return guardResponse;
+    const guardResponse = getEndpointGuardResponse("ai-seed-default-brain-pack-admin", corsHeaders(req));
+    if (guardResponse) return guardResponse;
 
-  const cronAuth = verifyCronSecret(req, corsHeaders(req));
-  if (cronAuth) return cronAuth;
+    const cronAuth = verifyCronSecret(req, corsHeaders(req));
+    if (cronAuth) return cronAuth;
 
-  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-    auth: { persistSession: false },
-  });
+    supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+      auth: { persistSession: false },
+    });
 
-  const body = (await req.json().catch(() => ({}))) as Body;
-  const agencyId = body.agency_id;
-  const dryRun = Boolean(body.dry_run);
+    const body = (await req.json().catch(() => ({}))) as Body;
+    agencyId = body.agency_id;
+    const dryRun = Boolean(body.dry_run);
 
-  if (!agencyId) {
-    return jsonResponse({ error: "agency_id is required" }, 400, corsHeaders(req));
-  }
+    if (!agencyId) {
+      return jsonResponse({ error: "agency_id is required" }, 400, corsHeaders(req));
+    }
 
   const actingUserId = await resolveAgencyAdminUserId(supabase as any, agencyId);
   if (!actingUserId) {
@@ -121,5 +130,18 @@ serve(async (req: Request) => {
     });
   }
 
-  return jsonResponse({ ...result, agency_id: agencyId, acting_user_id: actingUserId }, 200, corsHeaders(req));
+    return jsonResponse({ ...result, agency_id: agencyId, acting_user_id: actingUserId }, 200, corsHeaders(req));
+  })();
+
+  await logOtelSpan(supabase, {
+    traceId,
+    spanId,
+    stage: "edge.ai-seed-default-brain-pack-admin",
+    taskType: TaskType.TOOL_EXECUTION,
+    agencyId,
+    latencyMs: Date.now() - spanStart,
+    attributes: { http_status: response?.status ?? 0 },
+  });
+
+  return response!;
 });

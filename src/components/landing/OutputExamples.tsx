@@ -1,143 +1,135 @@
+import React from "react";
 import { motion } from "framer-motion";
-import { FileText, Calendar, MessageSquare } from "lucide-react";
+import { Calendar, FileText, MessageSquare } from "lucide-react";
+import { LandingCard } from "./LandingPrimitives";
 
 export function OutputExamples() {
   return (
-    <div className="grid gap-6 lg:grid-cols-3">
-      {/* Strategy Excerpt */}
-      <motion.div
-        className="p-6 rounded-lg bg-card border border-border"
-        whileHover={{ y: -4, transition: { duration: 0.2 } }}
+    <div className="grid gap-[12px] lg:grid-cols-3">
+      <ExampleCard
+        icon={FileText}
+        title="Strategy brief"
+        subtitle="Monthly direction + angles"
+        tone="primary"
       >
-        <div className="flex items-center gap-3 mb-[4px]">
-          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-            <FileText className="w-5 h-5 text-primary" />
-          </div>
-          <div>
-            <h3 className="font-semibold text-foreground">Strategy Excerpt</h3>
-            <p className="text-xs text-muted-foreground">Monthly content strategy</p>
-          </div>
-        </div>
-
-        <div className="space-y-3 text-sm">
-          <div className="p-3 rounded-lg bg-surface border border-border">
-            <p className="text-xs font-semibold text-primary uppercase tracking-wider mb-1">
-              Theme: Authority Building
-            </p>
-            <p className="text-muted-foreground">
-              Position client as industry thought leader through case studies and expert insights.
-            </p>
+        <div className="space-y-[12px]">
+          <div className="rounded-md border border-white/10 bg-white/5 p-[14px]">
+            <div className="text-xs font-semibold tracking-wider text-brand-primary uppercase">Theme</div>
+            <div className="mt-[4px] text-sm text-foreground">Authority + trust</div>
+            <div className="mt-[6px] text-sm text-text-secondary leading-body">
+              Build credibility with proof, process transparency, and clear positioning against alternatives.
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Content Angles
-            </p>
-            <ul className="space-y-1.5 text-muted-foreground">
-              <li className="flex items-start gap-2">
-                <span className="text-primary mt-1">•</span>
-                Behind-the-scenes process reveals
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-primary mt-1">•</span>
-                Client transformation stories
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-primary mt-1">•</span>
-                Industry myth-busting content
-              </li>
+          <div className="rounded-md border border-white/10 bg-white/5 p-[14px]">
+            <div className="text-xs font-semibold tracking-wider text-text-muted uppercase">Content angles</div>
+            <ul className="mt-[10px] space-y-[8px]">
+              {[
+                "Behind-the-scenes: how results are produced",
+                "Client story: what changed and why",
+                "Myth-busting: common mistakes to avoid",
+              ].map((line) => (
+                <li key={line} className="flex gap-[10px]">
+                  <span className="mt-[10px] h-1.5 w-1.5 rounded-full bg-white/30 shrink-0" />
+                  <span className="text-sm text-text-secondary leading-body">{line}</span>
+                </li>
+              ))}
             </ul>
           </div>
         </div>
-      </motion.div>
+      </ExampleCard>
 
-      {/* Weekly Plan */}
-      <motion.div
-        className="p-6 rounded-lg bg-card border border-border"
-        whileHover={{ y: -4, transition: { duration: 0.2 } }}
+      <ExampleCard
+        icon={Calendar}
+        title="Weekly plan"
+        subtitle="7-day posting map"
+        tone="accent"
       >
-        <div className="flex items-center gap-3 mb-[4px]">
-          <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
-            <Calendar className="w-5 h-5 text-accent" />
-          </div>
-          <div>
-            <h3 className="font-semibold text-foreground">Weekly Plan</h3>
-            <p className="text-xs text-muted-foreground">7-day content schedule</p>
-          </div>
-        </div>
-
-        <div className="space-y-2 text-sm">
+        <div className="space-y-[8px]">
           {[
             { day: "Mon", type: "Educational carousel", time: "9:00 AM" },
             { day: "Tue", type: "Behind-the-scenes", time: "12:00 PM" },
-            { day: "Wed", type: "Client testimonial", time: "3:00 PM" },
-            { day: "Thu", type: "Industry tips", time: "9:00 AM" },
+            { day: "Wed", type: "Client proof", time: "3:00 PM" },
+            { day: "Thu", type: "How-to tips", time: "9:00 AM" },
             { day: "Fri", type: "Team spotlight", time: "11:00 AM" },
             { day: "Sat", type: "Engagement post", time: "10:00 AM" },
             { day: "Sun", type: "Week recap", time: "6:00 PM" },
-          ].map((item, idx) => (
+          ].map((item) => (
             <div
-              key={idx}
-              className="flex items-center justify-between p-2 rounded-lg hover:bg-surface transition-colors"
+              key={`${item.day}-${item.type}`}
+              className="flex items-center justify-between rounded-md border border-white/10 bg-white/5 px-[12px] py-[10px]"
             >
-              <div className="flex items-center gap-3">
-                <span className="w-8 text-xs font-semibold text-primary">{item.day}</span>
-                <span className="text-muted-foreground">{item.type}</span>
+              <div className="flex items-center gap-[10px] min-w-0">
+                <span className="w-9 text-xs font-semibold text-foreground/90">{item.day}</span>
+                <span className="text-sm text-text-secondary truncate">{item.type}</span>
               </div>
-              <span className="text-xs text-muted-foreground">{item.time}</span>
+              <span className="text-xs text-text-muted">{item.time}</span>
             </div>
           ))}
         </div>
-      </motion.div>
+      </ExampleCard>
 
-      {/* Post Drafts */}
-      <motion.div
-        className="p-6 rounded-lg bg-card border border-border"
-        whileHover={{ y: -4, transition: { duration: 0.2 } }}
+      <ExampleCard
+        icon={MessageSquare}
+        title="Post drafts"
+        subtitle="Voice variations"
+        tone="primary"
       >
-        <div className="flex items-center gap-3 mb-[4px]">
-          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-            <MessageSquare className="w-5 h-5 text-primary" />
-          </div>
-          <div>
-            <h3 className="font-semibold text-foreground">Post Drafts</h3>
-            <p className="text-xs text-muted-foreground">3 caption variations</p>
-          </div>
-        </div>
-
-        <div className="space-y-3">
+        <div className="space-y-[10px]">
           {[
             {
               label: "Professional",
-              text: "After implementing our proven framework, our client saw a 340% increase in qualified leads. Here's the methodology...",
+              text: "If your delivery relies on tribal knowledge, scaling will break. Here is the system we use to keep outputs consistent.",
             },
             {
               label: "Conversational",
-              text: "Real talk: These numbers surprised even us. Here's what happened when we applied consistent execution...",
+              text: "Real talk: the problem is not tools - it is consistency. Here is how we turn a process into repeatable drafts.",
             },
             {
               label: "Story-driven",
-              text: "Most agencies promise results but deliver excuses. Here's how we approach things differently...",
+              text: "Most agencies try to scale by working harder. The better move is to encode what already works, then reuse it.",
             },
-          ].map((item, idx) => (
-            <div
-              key={idx}
-              className="p-3 rounded-lg bg-surface border border-border"
-            >
-              <p className="text-xs font-semibold text-primary uppercase tracking-wider mb-1">
-                {item.label}
-              </p>
-              <p className="text-sm text-muted-foreground line-clamp-2">
-                {item.text}
-              </p>
+          ].map((item) => (
+            <div key={item.label} className="rounded-md border border-white/10 bg-white/5 p-[12px]">
+              <div className="text-xs font-semibold tracking-wider text-brand-primary uppercase">{item.label}</div>
+              <div className="mt-[6px] text-sm text-text-secondary leading-body line-clamp-3">{item.text}</div>
             </div>
           ))}
         </div>
 
-        <p className="mt-[4px] text-xs text-muted-foreground text-center">
-          AI generates variations based on approved brand voice
-        </p>
-      </motion.div>
+        <div className="mt-[12px] text-xs text-text-muted text-center">
+          Generated from approved brand voice + client context.
+        </div>
+      </ExampleCard>
     </div>
   );
 }
+
+function ExampleCard(props: {
+  icon: typeof FileText;
+  title: string;
+  subtitle: string;
+  tone: "primary" | "accent";
+  children: React.ReactNode;
+}) {
+  const Icon = props.icon;
+  const tint = props.tone === "accent" ? "bg-accent/15 text-accent" : "bg-brand-primary/15 text-brand-primary";
+
+  return (
+    <motion.div whileHover={{ y: -2, transition: { duration: 0.18 } }}>
+      <LandingCard className="glass-card-hover card-lift p-[18px] md:p-[20px] h-full">
+        <div className="flex items-center gap-[12px] mb-[14px]">
+          <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${tint}`}>
+            <Icon className="h-5 w-5" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-sm font-semibold tracking-tight text-foreground">{props.title}</div>
+            <div className="text-xs text-text-muted">{props.subtitle}</div>
+          </div>
+        </div>
+        {props.children}
+      </LandingCard>
+    </motion.div>
+  );
+}
+

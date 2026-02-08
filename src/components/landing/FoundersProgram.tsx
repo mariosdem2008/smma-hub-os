@@ -3,8 +3,10 @@ import { StaggerContainer, StaggerItem, AnimatedSection } from "./AnimatedSectio
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, Zap, ShieldCheck, Star } from "lucide-react";
+import { marketing } from "@/lib/marketing";
+import { track } from "@/lib/analytics";
 
-const CAL_LINK = "https://cal.com/SMMAHUB/fit";
+const CAL_LINK = marketing.calUrl;
 
 const PROGRAM_BENEFITS = [
     {
@@ -53,7 +55,12 @@ export function FoundersProgram() {
 
             <div className="mt-10">
                 <Button asChild size="lg" className="btn-glow">
-                    <a href={CAL_LINK} target="_blank" rel="noreferrer">
+                    <a
+                        href={CAL_LINK}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={() => track("cta_book_strategy_audit_click", { location: "founders_program" })}
+                    >
                         Apply for the Founder's Program <ArrowRight className="ml-2 h-4 w-4" />
                     </a>
                 </Button>

@@ -1,27 +1,30 @@
-import React from 'react';
-import { motion, useInView } from 'framer-motion';
+import React from "react";
+import { motion, useInView } from "framer-motion";
+import { ArrowRight, BarChart3, BookOpen, Brain, Palette, Play, Sparkles, Target, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Brain, Users, FileText, Target, Palette, BarChart3, BookOpen, Sparkles, ArrowRight, Play } from "lucide-react";
-import { useSectionTracking } from '@/hooks/useSectionTracking';
+import { useSectionTracking } from "@/hooks/useSectionTracking";
+import { marketing } from "@/lib/marketing";
+import { track } from "@/lib/analytics";
+import { LandingCard, LandingContainer, Pill, SectionHeader } from "./LandingPrimitives";
 
-const LOOM_LINK = "https://loom.com/share/LOOM_ID";
+const DEMO_LINK = marketing.demoUrl;
 
-const AGENCY_BRAIN_INPUTS = [
-  { icon: BookOpen, label: "SOPs & Processes" },
-  { icon: Palette, label: "Tone Guides" },
-  { icon: FileText, label: "Past Strategies" },
-  { icon: Target, label: "Quality Standards" },
+const AGENCY_LAYERS = [
+  { icon: BookOpen, label: "SOPs & processes" },
+  { icon: Palette, label: "Tone & brand standards" },
+  { icon: Target, label: "Quality checklist" },
+  { icon: Brain, label: "Approved playbooks" },
 ];
 
-const CLIENT_BRAIN_INPUTS = [
+const CLIENT_LAYERS = [
   { icon: Target, label: "Goals & KPIs" },
-  { icon: Palette, label: "Brand Voice" },
-  { icon: Users, label: "Audience Data" },
-  { icon: BarChart3, label: "Past Performance" },
+  { icon: Palette, label: "Voice & positioning" },
+  { icon: Users, label: "Audience & offers" },
+  { icon: BarChart3, label: "Performance history" },
 ];
 
-const DualBrain = () => {
-  const sectionRef = useSectionTracking('Dual Brain');
+export default function DualBrain() {
+  const sectionRef = useSectionTracking("Dual Brain");
   const isInView = useInView(sectionRef, { once: true, amount: 0.3 });
 
   return (
@@ -30,162 +33,129 @@ const DualBrain = () => {
       initial={{ opacity: 0 }}
       animate={isInView ? { opacity: 1 } : {}}
       transition={{ duration: 0.4 }}
-      className="section-md relative overflow-hidden"
+      className="section-md lp-section"
     >
-      {/* Background */}
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-accent/5 to-transparent pointer-events-none" />
+      <LandingContainer className="relative z-10">
+        <SectionHeader
+          eyebrow={<Pill icon={Sparkles}>How it stays on-brand</Pill>}
+          title={
+            <>
+              Two layers of memory.
+              <span className="block text-gradient-premium">One consistent output.</span>
+            </>
+          }
+          subtitle="Agency standards + per-client context"
+          lede="SMMAHUB stores what makes your agency good, plus what makes each client unique. Every deliverable is generated from both - automatically."
+        />
 
-      <div className="container mx-auto px-[4px] relative z-10">
-        <div className="text-center">
-          {/* Badge */}
+        <div className="mt-[56px] grid gap-[18px] lg:grid-cols-2">
           <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={isInView ? { opacity: 1, scale: 1 } : {}}
-            transition={{ duration: 0.4 }}
-            className="inline-flex items-center gap-2 badge-gradient-border mb-[24px]"
+            initial={{ opacity: 0 }}
+            animate={isInView ? { opacity: 1 } : {}}
+            transition={{ duration: 0.45, delay: 0.12 }}
           >
-            <Sparkles className="w-4 h-4 text-brand-primary icon-glow" />
-            <span className="text-small-text font-medium tracking-small-text text-brand-primary">Proprietary Technology</span>
+            <LandingCard className="glass-card-hover card-lift p-[28px] md:p-[34px] relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-brand-primary/10 to-transparent opacity-70" />
+              <div className="relative">
+                <div className="flex items-center gap-[14px]">
+                  <div className="h-12 w-12 rounded-xl bg-brand-primary/20 flex items-center justify-center">
+                    <Brain className="h-6 w-6 text-brand-primary" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-semibold text-foreground">Agency layer</h3>
+                    <p className="text-small-text text-text-muted tracking-small-text">Encoded once, applied everywhere</p>
+                  </div>
+                </div>
+
+                <p className="mt-[14px] text-body-mobile md:text-body-desktop text-text-secondary leading-body">
+                  The non-negotiables: how you write, structure strategy, and run approvals.
+                </p>
+
+                <div className="mt-[18px] grid grid-cols-2 gap-[10px]">
+                  {AGENCY_LAYERS.map((item) => (
+                    <div
+                      key={item.label}
+                      className="flex items-center gap-[8px] px-[12px] py-[10px] rounded-lg bg-white/5 border border-white/5"
+                    >
+                      <item.icon className="h-4 w-4 text-brand-primary shrink-0" />
+                      <span className="text-small-text text-foreground">{item.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </LandingCard>
           </motion.div>
 
-          {/* Headline - Math formula structure */}
-          <h2 className="text-section-headline-mobile md:text-section-headline-desktop font-semibold leading-section-headline tracking-section-headline">
-            Your Agency Brain + Every Client Brain<br className="hidden md:block" />
-            <span className="text-gradient-premium">= Always On-Brand</span>
-          </h2>
-
-          {/* Subheadline */}
-          <p className="mt-[16px] text-subheadline-mobile md:text-subheadline-desktop text-text-secondary tracking-subheadline">
-            Why SMMAHUB Isn't "Just Another AI Tool"
-          </p>
-
-          {/* Body copy */}
-          <p className="mt-[24px] mx-auto max-w-prose-landing text-body-mobile md:text-body-desktop text-text-secondary leading-body">
-            Generic AI tools (ChatGPT, Jasper, Copy.ai) have one fatal flaw: they have no memory. Every prompt starts from zero. You re-explain your SOPs, your client's brand voice, your quality bar—every. single. time.
-          </p>
-          <p className="mt-[16px] mx-auto max-w-prose-landing text-body-mobile md:text-body-desktop text-foreground font-medium leading-body">
-            SMMAHUB is different. It has two brains:
-          </p>
-        </div>
-
-        {/* Dual Brain Visualization */}
-        <div className="mt-[64px] grid gap-[32px] lg:grid-cols-2">
-          {/* Agency Brain */}
           <motion.div
-            initial={{ opacity: 0, x: -30 }}
-            animate={isInView ? { opacity: 1, x: 0 } : {}}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="glass-card glass-card-hover card-lift rounded-md p-[32px] md:p-[40px] relative overflow-hidden group"
+            initial={{ opacity: 0 }}
+            animate={isInView ? { opacity: 1 } : {}}
+            transition={{ duration: 0.45, delay: 0.18 }}
           >
-            {/* Glow effect */}
-            <div className="absolute inset-0 bg-gradient-to-br from-brand-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-
-            <div className="relative z-10">
-              <div className="flex items-center gap-[16px] mb-[24px]">
-                <div className="w-14 h-14 rounded-xl bg-brand-primary/20 flex items-center justify-center brain-core">
-                  <Brain className="w-7 h-7 text-brand-primary" />
+            <LandingCard className="glass-card-hover card-lift p-[28px] md:p-[34px] relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-accent/10 to-transparent opacity-70" />
+              <div className="relative">
+                <div className="flex items-center gap-[14px]">
+                  <div className="h-12 w-12 rounded-xl bg-accent/20 flex items-center justify-center">
+                    <Users className="h-6 w-6 text-accent" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-semibold text-foreground">Client layer</h3>
+                    <p className="text-small-text text-text-muted tracking-small-text">Persistent, per-client context</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-2xl font-semibold text-foreground">Agency Brain</h3>
-                  <p className="text-small-text text-text-muted tracking-small-text">Encoded once, applied forever</p>
-                </div>
-              </div>
 
-              <p className="text-text-secondary mb-[24px] leading-body text-body-mobile md:text-body-desktop">
-                Your SOPs, tone guides, successful strategies, and quality standards—captured once, applied to every client. The AI learns what "good" looks like for your agency.
-              </p>
+                <p className="mt-[14px] text-body-mobile md:text-body-desktop text-text-secondary leading-body">
+                  The inputs that change per account - captured once and reused.
+                </p>
 
-              <div className="grid grid-cols-2 gap-[12px]">
-                {AGENCY_BRAIN_INPUTS.map((input, index) => (
-                  <motion.div
-                    key={input.label}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={isInView ? { opacity: 1, y: 0 } : {}}
-                    transition={{ duration: 0.3, delay: 0.4 + index * 0.1 }}
-                    className="flex items-center gap-[8px] p-[12px] rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
-                  >
-                    <input.icon className="w-4 h-4 text-brand-primary flex-shrink-0" />
-                    <span className="text-small-text text-foreground">{input.label}</span>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Client Brain */}
-          <motion.div
-            initial={{ opacity: 0, x: 30 }}
-            animate={isInView ? { opacity: 1, x: 0 } : {}}
-            transition={{ duration: 0.5, delay: 0.4 }}
-            className="glass-card glass-card-hover card-lift rounded-md p-[32px] md:p-[40px] relative overflow-hidden group"
-          >
-            {/* Glow effect */}
-            <div className="absolute inset-0 bg-gradient-to-br from-accent/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-
-            <div className="relative z-10">
-              <div className="flex items-center gap-[16px] mb-[24px]">
-                <div className="w-14 h-14 rounded-xl bg-accent/20 flex items-center justify-center brain-core">
-                  <Users className="w-7 h-7 text-accent" />
-                </div>
-                <div>
-                  <h3 className="text-2xl font-semibold text-foreground">Client Brain</h3>
-                  <p className="text-small-text text-text-muted tracking-small-text">Per-client context that persists</p>
+                <div className="mt-[18px] grid grid-cols-2 gap-[10px]">
+                  {CLIENT_LAYERS.map((item) => (
+                    <div
+                      key={item.label}
+                      className="flex items-center gap-[8px] px-[12px] py-[10px] rounded-lg bg-white/5 border border-white/5"
+                    >
+                      <item.icon className="h-4 w-4 text-accent shrink-0" />
+                      <span className="text-small-text text-foreground">{item.label}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
-
-              <p className="text-text-secondary mb-[24px] leading-body text-body-mobile md:text-body-desktop">
-                Each client's goals, brand voice, audience demographics, past performance, and approval history. The AI remembers what works for Client A vs. Client B.
-              </p>
-
-              <div className="grid grid-cols-2 gap-[12px]">
-                {CLIENT_BRAIN_INPUTS.map((input, index) => (
-                  <motion.div
-                    key={input.label}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={isInView ? { opacity: 1, y: 0 } : {}}
-                    transition={{ duration: 0.3, delay: 0.6 + index * 0.1 }}
-                    className="flex items-center gap-[8px] p-[12px] rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
-                  >
-                    <input.icon className="w-4 h-4 text-accent flex-shrink-0" />
-                    <span className="text-small-text text-foreground">{input.label}</span>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
+            </LandingCard>
           </motion.div>
         </div>
 
-        {/* Result - Value Prop Box */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.5, delay: 0.8 }}
-          className="mt-[64px] text-center"
+          initial={{ opacity: 0 }}
+          animate={isInView ? { opacity: 1 } : {}}
+          transition={{ duration: 0.45, delay: 0.28 }}
+          className="mt-[44px] text-center"
         >
-          <div className="glass-card gradient-border-animated inline-block rounded-md p-[32px] md:p-[40px]">
+          <LandingCard className="gradient-border-animated inline-block p-[26px] md:p-[32px]">
             <p className="text-subheadline-mobile md:text-subheadline-desktop text-foreground max-w-2xl leading-subheadline">
-              When you generate a strategy, SMMAHUB pulls from both brains. The result? Content that <span className="text-brand-primary font-semibold">sounds like your agency</span> and <span className="text-accent font-semibold">fits the specific client</span>—without you typing a 500-word prompt.
+              Generate a strategy, brief, or approval-ready plan and SMMAHUB applies both layers - so the first draft is
+              already aligned.
             </p>
-          </div>
+          </LandingCard>
 
-          <div className="mt-[48px]">
-            <Button
-              asChild
-              variant="outline"
-              size="lg"
-              className="btn-secondary-enhanced group tracking-cta-text"
-            >
-              <a href={LOOM_LINK} target="_blank" rel="noreferrer" className="inline-flex items-center gap-[8px]">
-                <Play className="w-4 h-4" />
-                See It In Action
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </a>
-            </Button>
-          </div>
+          {DEMO_LINK ? (
+            <div className="mt-[22px]">
+              <Button asChild variant="outline" size="lg" className="btn-secondary-enhanced group tracking-cta-text">
+                <a
+                  href={DEMO_LINK}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-[8px]"
+                  onClick={() => track("cta_watch_demo_click", { location: "dual_brain" })}
+                >
+                  <Play className="w-4 h-4" />
+                  See it in action
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </a>
+              </Button>
+            </div>
+          ) : null}
         </motion.div>
-      </div>
+      </LandingContainer>
     </motion.section>
   );
-};
-
-export default DualBrain;
+}

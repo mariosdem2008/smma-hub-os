@@ -7,6 +7,7 @@ import { providers as defaultProviders } from "./providers/index.ts"
 import { createBrainResolver, type CalibrationRequirement, type ResolvedBrainContext } from "./brainResolver.ts"
 import type { ChatMessage, GenerateResult } from "./providers/types.ts"
 import type { OutputSchema } from "./schema.ts"
+import { generateSpanId, generateTraceId, logOtelSpan } from "./otel.ts"
 
 type MinimalSupabase = {
   from: (table: string) => any;
@@ -196,6 +197,8 @@ export function createAiRouter(deps: RouterDeps = {}) {
 
   async function run(options: AiRunOptions): Promise<AiRunResult> {
     const start = now();
+    const traceId = generateTraceId();
+    const spanId = generateSpanId();
     const taskConfig = getTaskConfig(options.taskType);
     if (!taskConfig) {
       return { text: "UNKNOWN", unknown: true, error: "Unknown task type" };
@@ -362,6 +365,23 @@ export function createAiRouter(deps: RouterDeps = {}) {
       });
     }
 
+    await logOtelSpan(supabase, {
+      traceId,
+      spanId,
+      parentSpanId: null,
+      stage: "router.run",
+      taskType: options.taskType,
+      agencyId: context.agencyId ?? null,
+      clientId: context.clientId ?? null,
+      userId: context.userId ?? null,
+      latencyMs,
+      attributes: {
+        provider: providerKey,
+        model: runtimeModel,
+        schema_ok: result.schemaOk ?? null,
+      },
+    });
+
     return {
       text: result.text,
       output: result.output,
@@ -377,6 +397,8 @@ export function createAiRouter(deps: RouterDeps = {}) {
 
   async function* runStream(options: AiRunOptions): AsyncGenerator<AiStreamChunk> {
     const start = now();
+    const traceId = generateTraceId();
+    const spanId = generateSpanId();
     const taskConfig = getTaskConfig(options.taskType);
     if (!taskConfig) {
       yield { type: "done", result: { text: "UNKNOWN", unknown: true, error: "Unknown task type" } };
@@ -510,6 +532,22 @@ export function createAiRouter(deps: RouterDeps = {}) {
         errorCode: null,
       });
     }
+
+    await logOtelSpan(supabase, {
+      traceId,
+      spanId,
+      parentSpanId: null,
+      stage: "router.runStream",
+      taskType: options.taskType,
+      agencyId: context.agencyId ?? null,
+      clientId: context.clientId ?? null,
+      userId: context.userId ?? null,
+      latencyMs,
+      attributes: {
+        provider: providerKey,
+        model: modelConfig.model,
+      },
+    });
 
     const result: AiRunResult = {
       text,

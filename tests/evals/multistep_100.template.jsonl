@@ -1,0 +1,10 @@
+{"query":"Fetch campaign data then generate strategy","mode_expected":"EXECUTE","golden_sources":["doc_campaign_001"],"expected_schema":"PlanSchema_v1","rubric":"workflow_success_v1"}
+{"query":"Get client history then update record","mode_expected":"EXECUTE","golden_sources":["doc_client_002"],"expected_schema":"PlanSchema_v1","rubric":"workflow_success_v1"}
+{"query":"Search KB then summarize answer","mode_expected":"EXECUTE","golden_sources":["doc_kb_003"],"expected_schema":"PlanSchema_v1","rubric":"workflow_success_v1"}
+{"query":"Generate strategy and propose memory write","mode_expected":"EXECUTE","golden_sources":["doc_strategy_004"],"expected_schema":"PlanSchema_v1","rubric":"workflow_success_v1"}
+{"query":"Validate PII then approve action","mode_expected":"EXECUTE","golden_sources":["doc_policy_005"],"expected_schema":"PlanSchema_v1","rubric":"workflow_success_v1"}
+{"query":"Fetch account details then create task","mode_expected":"EXECUTE","golden_sources":["doc_account_006"],"expected_schema":"PlanSchema_v1","rubric":"workflow_success_v1"}
+{"query":"Search KB then check compliance flags","mode_expected":"EXECUTE","golden_sources":["doc_compliance_007"],"expected_schema":"PlanSchema_v1","rubric":"workflow_success_v1"}
+{"query":"Trigger email then update record","mode_expected":"EXECUTE","golden_sources":["doc_email_008"],"expected_schema":"PlanSchema_v1","rubric":"workflow_success_v1"}
+{"query":"Generate report then approve action","mode_expected":"EXECUTE","golden_sources":["doc_report_009"],"expected_schema":"PlanSchema_v1","rubric":"workflow_success_v1"}
+{"query":"Search KB then propose memory write","mode_expected":"EXECUTE","golden_sources":["doc_memory_010"],"expected_schema":"PlanSchema_v1","rubric":"workflow_success_v1"}
