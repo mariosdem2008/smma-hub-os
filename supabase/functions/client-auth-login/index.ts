@@ -76,9 +76,9 @@ async function generateRefreshToken(): Promise<{ token: string; hash: string; ex
 
 function createAuthCookies(accessToken: string, refreshToken: string): string[] {
   const accessCookie =
-    `cp_access_token=${accessToken}; Max-Age=${ACCESS_TOKEN_TTL_SECONDS}; Path=/; HttpOnly; Secure; SameSite=Lax`;
+    `cp_access_token=${accessToken}; Max-Age=${ACCESS_TOKEN_TTL_SECONDS}; Path=/; HttpOnly; Secure; SameSite=None`;
   const refreshCookie =
-    `cp_refresh_token=${refreshToken}; Max-Age=${REFRESH_TOKEN_TTL_SECONDS}; Path=/; HttpOnly; Secure; SameSite=Lax`;
+    `cp_refresh_token=${refreshToken}; Max-Age=${REFRESH_TOKEN_TTL_SECONDS}; Path=/; HttpOnly; Secure; SameSite=None`;
 
   return [accessCookie, refreshCookie];
 }
@@ -99,9 +99,9 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { email, password, client_id } = await req.json();
+    const { email, password, client_id, portal_slug } = await req.json();
 
-    if (!email || !password || !client_id) {
+    if (!email || !password || (!client_id && !portal_slug)) {
       return new Response(JSON.stringify({ success: false, code: "E400_FIELDS", error: "Missing required fields", v: FN_VERSION }), {
         status: 400,
         headers,
@@ -134,12 +134,30 @@ Deno.serve(async (req) => {
       },
     });
 
+    let resolvedClientId = String(client_id ?? "").trim();
+    if (!resolvedClientId && portal_slug) {
+      const { data: clientFromSlug, error: slugError } = await supabaseAdmin
+        .from("clients")
+        .select("id")
+        .eq("portal_slug", String(portal_slug).trim())
+        .eq("portal_enabled", true)
+        .maybeSingle();
+
+      if (slugError || !clientFromSlug?.id) {
+        return new Response(JSON.stringify({ success: false, code: "E404_PORTAL", error: "Portal not found", v: FN_VERSION }), {
+          status: 404,
+          headers,
+        });
+      }
+      resolvedClientId = clientFromSlug.id;
+    }
+
     // Find user
     const { data: user, error: userError } = await supabaseAdmin
       .from("client_users")
       .select("id, email, full_name, client_id, agency_id, role, password_hash")
       .eq("email", email)
-      .eq("client_id", client_id)
+      .eq("client_id", resolvedClientId)
       .single();
 
     if (userError || !user) {

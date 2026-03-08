@@ -6,27 +6,24 @@ describe("onboardingScript", () => {
     const snapshot = {};
     const question = getNextQuestion(snapshot, {});
     expect(question?.priority).toBe("P0");
-    expect(question?.field_path).toBe("bootstrap.agency_name");
+    expect(question?.field_path).toBe("agency.name");
   });
 
   it("marks required complete when all P0 fields are answered", () => {
     const snapshot: Record<string, unknown> = {
-      bootstrap: {
-        agency_name: "Orbit",
-        locale: "Europe/Athens, English",
-        team_size: "5",
-        active_clients: "8",
-        target_industries: ["SaaS"],
-        services: ["SMM"],
-      },
-      positioning: {
-        icp_best: "B2B SaaS",
-        differentiators: ["48h turnaround"],
-      },
-      offer_stack: {
-        core_offer_high_margin: "Retainer",
-        core_offers: ["Retainer"],
-        pricing_model: "Fixed retainer",
+      agency: {
+        name: "Orbit",
+        timezone: "Europe/Athens",
+        primary_client_languages: ["English 80%", "Greek 20%"],
+        team_size_total: "5",
+        active_paying_clients: "8",
+        top_industries: ["SaaS"],
+        best_client_summary: "B2B SaaS founder at $40k MRR focused on qualified demo bookings.",
+        key_differentiators: ["Fast turnarounds", "Founder-led strategy", "SaaS specialization"],
+        service_catalog: ["Paid Ads | Meta and Google campaign management"],
+        top_margin_offers: ["Retainer Growth | Weekly strategy; 12 creatives; reporting | 1500-2500 | Reusable workflow"],
+        packaged_offers: ["Lead Engine | 40 leads/month | 12 creatives; ad mgmt; reporting | 30 days | 1500-2500"],
+        pricing_model: "Fixed retainer | Predictable monthly workload and scope",
       },
     };
     const progress = countRequiredComplete(snapshot);

@@ -1,0 +1,27 @@
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Auth.tsx:27:const { error } = await supabase.auth.signInWithPassword({
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Auth.tsx:48:const handleSignup = async (e: React.FormEvent) => {
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Auth.tsx:54:description: "Passwords do not match",
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Auth.tsx:62:const { data, error } = await supabase.auth.signUp({
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Auth.tsx:71:console.log("SIGNUP data:", data);
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Auth.tsx:72:console.log("SIGNUP error:", error);
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Auth.tsx:84:description: "Check your email to confirm your account",
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Auth.tsx:137:onClick={() => navigate("/forgot-password")}
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Auth.tsx:154:<form onSubmit={handleSignup} className="space-y-4">
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Auth.tsx:168:<Label htmlFor="signupEmail">Email</Label>
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Auth.tsx:170:id="signupEmail"
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Auth.tsx:180:<Label htmlFor="signupPassword">Password</Label>
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Auth.tsx:182:id="signupPassword"
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ResetPassword.tsx:47:description: "Passwords do not match",
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ResetPassword.tsx:116:onClick={() => navigate("/forgot-password")}
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Bootstrap.tsx:5:import { getUserAgencyBootstrap } from "@/lib/bootstrap";
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Bootstrap.tsx:28:const bootstrap = await getUserAgencyBootstrap();
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Welcome.tsx:6:import { getMyPendingAgencyInvites } from "@/lib/agency-invites";
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Welcome.tsx:15:const invites = await getMyPendingAgencyInvites();
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Invitations.tsx:7:import { acceptAgencyInvite, declineAgencyInvite, getMyPendingAgencyInvites, type PendingAgencyInvite } from "@/lib/agency-invites";
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Invitations.tsx:9:import { getUserAgencyBootstrap } from "@/lib/bootstrap";
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Invitations.tsx:23:const data = await getMyPendingAgencyInvites();
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Invitations.tsx:46:const bootstrap = await getUserAgencyBootstrap();
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Invitations.tsx:63:navigate("/bootstrap", { replace: true });
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\SelectAgency.tsx:6:import { getUserAgencyBootstrap, type BootstrapMembership } from "@/lib/bootstrap";
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\SelectAgency.tsx:29:const bootstrap = await getUserAgencyBootstrap();
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\CreateAgencyStub.tsx:28:const { data, error } = await supabase.rpc("create_agency_with_admin", {

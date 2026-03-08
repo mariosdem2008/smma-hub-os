@@ -1,10 +1,10 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import Stripe from 'https://esm.sh/stripe@14.21.0';
+import Stripe from 'https://esm.sh/stripe@18.5.0';
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
-  apiVersion: '2023-10-16',
+  apiVersion: '2025-08-27.basil',
 });
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -25,7 +25,10 @@ serve(async (req) => {
     const signature = req.headers.get('stripe-signature');
     if (!signature || !webhookSecret) {
       console.error('Missing signature or webhook secret');
-      return new Response('Webhook signature missing', { status: 400 });
+      return new Response(JSON.stringify({ error: 'Webhook signature missing' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const body = await req.text();
@@ -69,7 +72,10 @@ serve(async (req) => {
   } catch (err) {
     console.error('Webhook error:', err);
     const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-    return new Response(`Webhook Error: ${errorMessage}`, { status: 400 });
+    return new Response(JSON.stringify({ error: `Webhook Error: ${errorMessage}` }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 });
 

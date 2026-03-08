@@ -10,7 +10,12 @@ const TIMEOUT_MS = 12000;
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const location = useLocation();
-  const { user, loading: authLoading } = useAuth();
+  const { user, session, loading: authLoading } = useAuth();
+  const sessionExpiresAtMs = session?.expires_at ? session.expires_at * 1000 : null;
+  const hasValidSession = session
+    ? (!sessionExpiresAtMs || sessionExpiresAtMs > Date.now())
+    : Boolean(user);
+  const isAuthenticated = Boolean(user && hasValidSession);
 
   const [membershipStatus, setMembershipStatus] = useState<"loading" | "has" | "none">("loading");
   const [onboardingStatus, setOnboardingStatus] = useState<"loading" | "complete" | "incomplete">("loading");
@@ -39,18 +44,25 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }, [authLoading, membershipStatus]);
 
   useEffect(() => {
-    if (!user) {
-      setMembershipStatus("none");
+    // Keep guard state pending until auth has definitively resolved.
+    if (authLoading) {
+      setMembershipStatus("loading");
       setOnboardingStatus("loading");
+      return;
+    }
+
+    if (!isAuthenticated) {
+      setMembershipStatus("none");
+      setOnboardingStatus("incomplete");
       return;
     }
 
     const activeAgencyId = getActiveAgencyId();
     setMembershipStatus(activeAgencyId ? "has" : "none");
-  }, [user?.id]);
+  }, [authLoading, isAuthenticated, user?.id]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!isAuthenticated) return;
     const activeAgencyId = getActiveAgencyId();
     if (!activeAgencyId) {
       setOnboardingStatus("incomplete");
@@ -84,7 +96,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [user?.id]);
+  }, [isAuthenticated, user?.id]);
 
   // === RENDER LOGIC ===
 
@@ -98,8 +110,9 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Still loading auth or membership
-  if (authLoading || membershipStatus === "loading" || onboardingStatus === "loading") {
+  // Still loading auth or membership.
+  // Onboarding status only blocks when a user is present.
+  if (authLoading || membershipStatus === "loading" || (isAuthenticated && onboardingStatus === "loading")) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
@@ -111,7 +124,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   // Not logged in -> redirect to auth
-  if (!user) {
+  if (!isAuthenticated) {
     if (location.pathname !== "/auth") {
       sessionStorage.setItem("redirectUrl", location.pathname);
     }

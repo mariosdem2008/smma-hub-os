@@ -1,0 +1,9 @@
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ai\AgencyAiAdmin.tsx:627:const { data, error } = await supabase.functions.invoke("ai-agency-admin-chat", {
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ai\AgencyAiAdmin.tsx:819:return <Navigate to="/dashboard" replace />;
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ai\AiOnboardingAgency.tsx:381:const { data, error: invokeError } = await supabase.functions.invoke("ai-onboarding", {
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ai\AiOnboardingAgency.tsx:426:const { data, error: invokeError } = await supabase.functions.invoke("ai-onboarding", {
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ai\AiOnboardingAgency.tsx:464:const { data, error: invokeError } = await supabase.functions.invoke("ai-onboarding", {
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ai\AiOnboardingAgency.tsx:551:const { data, error: invokeError } = await supabase.functions.invoke("ai-onboarding", {
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ai\AiOnboardingAgency.tsx:589:return <Navigate to="/auth" replace />;
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\components\client-tabs\AiRepChatTab.tsx:27:const { data, error } = await supabase.functions.invoke("ai-rep-chat", {
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\hooks\useAiAssistant.ts:66:const invokePromise = supabase.functions.invoke("ai-assistant", {

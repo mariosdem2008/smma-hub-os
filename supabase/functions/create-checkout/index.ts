@@ -1,10 +1,10 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import Stripe from 'https://esm.sh/stripe@14.21.0';
+import Stripe from 'https://esm.sh/stripe@18.5.0';
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from '../_shared/env.ts';
+import { PUBLIC_URL, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from '../_shared/env.ts';
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
-  apiVersion: '2023-10-16',
+  apiVersion: '2025-08-27.basil',
 });
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -22,20 +22,29 @@ serve(async (req) => {
   try {
     const authHeader = req.headers.get('authorization');
     if (!authHeader) {
-      return new Response('Unauthorized', { status: 401 });
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const token = authHeader.replace('Bearer ', '');
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
     if (authError || !user) {
-      return new Response('Unauthorized', { status: 401 });
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const { planType, billingInterval = 'monthly' } = await req.json();
 
     if (!planType) {
-      return new Response('Plan type is required', { status: 400 });
+      return new Response(JSON.stringify({ error: 'Plan type is required' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     // Get or create Stripe customer
@@ -73,16 +82,24 @@ serve(async (req) => {
 
     const plan = priceMap[planType];
     if (!plan) {
-      return new Response('Invalid plan type', { status: 400 });
+      return new Response(JSON.stringify({ error: 'Invalid plan type' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const priceId = billingInterval === 'yearly' ? plan.yearly : plan.monthly;
 
     if (!priceId) {
-      return new Response('Price not configured', { status: 400 });
+      return new Response(JSON.stringify({ error: 'Price not configured' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     // Create Checkout Session
+    const origin = req.headers.get('origin') || PUBLIC_URL || 'http://localhost:5173';
+
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       mode: 'subscription',
@@ -92,8 +109,8 @@ serve(async (req) => {
           quantity: 1,
         },
       ],
-      success_url: `${req.headers.get('origin')}/billing?success=true`,
-      cancel_url: `${req.headers.get('origin')}/pricing?canceled=true`,
+      success_url: `${origin}/billing?success=true`,
+      cancel_url: `${origin}/pricing?canceled=true`,
       metadata: {
         user_id: user.id,
         plan_type: planType,

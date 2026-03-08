@@ -50,13 +50,13 @@ export function AppLayout() {
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen w-full">
+      <div className="saas-onboarding-theme flex min-h-screen w-full">
         {!isMobile && <AppSidebar />}
-        <div className="flex flex-1 flex-col">
-          <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b glass-header px-4 shadow-lg">
+        <div className="relative z-10 flex flex-1 flex-col">
+          <header className="sticky top-0 z-20 flex h-14 items-center gap-4 border-b border-white/10 bg-black/45 px-4 backdrop-blur-md">
             {!isMobile && <SidebarTrigger className="icon-hover" />}
             <div className="flex-1">
-              <h2 className="text-lg font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">SMMAHUB</h2>
+              <h2 className="bg-gradient-to-r from-[#5b5fff] to-[#22d3ee] bg-clip-text text-lg font-bold text-transparent">SMMAHUB</h2>
             </div>
             <div className="flex items-center gap-2 md:gap-3">
               <NotificationCenter />

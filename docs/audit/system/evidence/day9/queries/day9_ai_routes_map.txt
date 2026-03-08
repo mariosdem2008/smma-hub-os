@@ -1,0 +1,3 @@
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\App.tsx:285:<Route path="/ai/admin" element={<AgencyAiAdmin />} />
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\App.tsx:286:<Route path="/ai/onboarding/agency" element={<AiOnboardingAgency />} />
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\App.tsx:288:<Route path="/onboarding/client/:clientId" element={<AiOnboardingClient />} />

@@ -26,39 +26,79 @@ export const ONBOARDING_MODULE_SPECS: OnboardingModuleSpec[] = [
     key: "bootstrap",
     required: true,
     requiredPaths: [
-      "bootstrap.agency_name",
-      "bootstrap.locale",
-      "bootstrap.team_size",
-      "bootstrap.active_clients",
-      "bootstrap.target_industries",
-      "bootstrap.services",
+      "agency.name",
+      "agency.timezone",
+      "agency.primary_client_languages",
+      "agency.team_size_total",
+      "agency.active_paying_clients",
+      "agency.top_industries",
     ],
   },
   {
     key: "positioning",
     required: true,
-    requiredPaths: ["positioning.icp_best", "positioning.differentiators"],
+    requiredPaths: ["agency.best_client_summary", "agency.key_differentiators"],
   },
   {
     key: "offer_stack",
     required: true,
-    requiredPaths: ["offer_stack.core_offer_high_margin", "offer_stack.core_offers", "offer_stack.pricing_model"],
+    requiredPaths: ["agency.service_catalog", "agency.top_margin_offers", "agency.packaged_offers", "agency.pricing_model"],
   },
   {
     key: "operations",
     required: false,
-    requiredPaths: ["operations.content_pillars", "rep_policy.boundaries"],
+    requiredPaths: [
+      "operations.required_client_assets",
+      "operations.approval_workflow",
+      "operations.turnaround_slas",
+      "operations.reporting_cadence",
+      "operations.tools_stack",
+      "operations.platforms_managed",
+      "operations.rep_policy_boundaries",
+    ],
   },
   {
     key: "ai_persona",
     required: false,
-    requiredPaths: ["ai_persona.name", "ai_persona.role_title", "ai_persona.traits", "ai_persona.writing_style"],
+    requiredPaths: ["ai.persona_name", "ai.role_title", "ai.personality_traits", "ai.writing_preferences"],
   },
 ];
 
 const PATH_ALIASES: Record<string, string[]> = {
+  "agency.name": ["agency.name", "bootstrap.agency_name", "identity.name", "setup_profile_v1.agency.name"],
+  "agency.timezone": ["agency.timezone", "bootstrap.locale", "agency.locale", "agency.timezone"],
+  "agency.primary_client_languages": ["agency.primary_client_languages", "identity.languages"],
+  "agency.team_size_total": ["agency.team_size_total", "bootstrap.team_size", "agency.team_size"],
+  "agency.active_paying_clients": ["agency.active_paying_clients", "bootstrap.active_clients", "agency.active_clients"],
+  "agency.top_industries": ["agency.top_industries", "bootstrap.target_industries", "identity.niches"],
+  "agency.best_client_summary": ["agency.best_client_summary", "positioning.icp_best", "positioning.best_icp"],
+  "agency.key_differentiators": ["agency.key_differentiators", "positioning.differentiators", "positioning.usp"],
+  "agency.service_catalog": ["agency.service_catalog", "bootstrap.services", "identity.offers"],
+  "agency.top_margin_offers": ["agency.top_margin_offers", "offer_stack.core_offer_high_margin", "offer_stack.high_margin_offer"],
+  "agency.packaged_offers": ["agency.packaged_offers", "offer_stack.core_offers", "identity.offers"],
+  "agency.pricing_model": ["agency.pricing_model", "offer_stack.pricing_model"],
+  "agency.website_and_links": ["agency.website_and_links", "bootstrap.links", "agency.links", "agency.website", "agency.socials"],
+  "agency.role_counts": ["agency.role_counts", "bootstrap.team_roles", "agency.team_roles"],
+  "agency.client_type_split": ["agency.client_type_split", "bootstrap.client_types", "agency.client_types"],
+  "agency.who_to_avoid": ["agency.who_to_avoid", "positioning.icp_worst", "positioning.worst_icp"],
+  "agency.proof_metrics": ["agency.proof_metrics", "positioning.proof"],
+  "agency.competitor_urls": ["agency.competitor_urls", "positioning.competitors"],
+  "agency.price_ranges_by_tier": ["agency.price_ranges_by_tier", "offer_stack.price_ranges"],
+  "ai.persona_name": ["ai.persona_name", "ai_persona.name", "persona.assistant_name", "assistant_name"],
+  "ai.role_title": ["ai.role_title", "ai_persona.role_title"],
+  "ai.personality_traits": ["ai.personality_traits", "ai_persona.traits", "persona.tone_traits", "tone_traits"],
+  "ai.writing_preferences": ["ai.writing_preferences", "ai_persona.writing_style"],
+  "operations.required_client_assets": ["operations.required_client_assets", "operations.required_assets"],
+  "operations.approval_workflow": ["operations.approval_workflow", "operations.approvals"],
+  "operations.turnaround_slas": ["operations.turnaround_slas", "operations.turnaround_sla"],
+  "operations.platforms_managed": ["operations.platforms_managed", "operations.platforms"],
+  "operations.rep_policy_boundaries": ["operations.rep_policy_boundaries", "rep_policy.boundaries"],
+  "operations.paid_ads_account_access": ["operations.paid_ads_account_access"],
+  "operations.paid_ads_spend_bracket": ["operations.paid_ads_spend_bracket"],
+
   "bootstrap.agency_name": [
     "bootstrap.agency_name",
+    "agency.name",
     "identity.name",
     "setup_profile_v1.agency.name",
   ],
@@ -68,13 +108,14 @@ const PATH_ALIASES: Record<string, string[]> = {
     "setup_profile_v1.agency.primary_services",
   ],
   "bootstrap.links": ["bootstrap.links", "agency.links", "agency.website", "agency.socials"],
-  "bootstrap.locale": ["bootstrap.locale", "agency.locale", "agency.timezone"],
+  "bootstrap.locale": ["bootstrap.locale", "agency.timezone", "agency.locale"],
   "bootstrap.team_size": ["bootstrap.team_size", "agency.team_size"],
   "bootstrap.team_roles": ["bootstrap.team_roles", "agency.team_roles"],
   "bootstrap.active_clients": ["bootstrap.active_clients", "agency.active_clients"],
   "bootstrap.client_types": ["bootstrap.client_types", "agency.client_types"],
   "bootstrap.target_industries": [
     "bootstrap.target_industries",
+    "agency.top_industries",
     "identity.niches",
     "setup_profile_v1.agency.niche_industries",
   ],
@@ -84,28 +125,28 @@ const PATH_ALIASES: Record<string, string[]> = {
   "positioning.proof": ["positioning.proof"],
   "positioning.competitors": ["positioning.competitors"],
   "offer_stack.core_offer_high_margin": ["offer_stack.core_offer_high_margin", "offer_stack.high_margin_offer"],
-  "offer_stack.core_offers": ["offer_stack.core_offers", "identity.offers", "setup_profile_v1.agency.primary_services"],
-  "offer_stack.pricing_model": ["offer_stack.pricing_model"],
+  "offer_stack.core_offers": ["offer_stack.core_offers", "agency.packaged_offers", "identity.offers", "setup_profile_v1.agency.primary_services"],
+  "offer_stack.pricing_model": ["offer_stack.pricing_model", "agency.pricing_model"],
   "offer_stack.price_ranges": ["offer_stack.price_ranges"],
   "offer_stack.add_ons": ["offer_stack.add_ons"],
   "offer_stack.guarantees": ["offer_stack.guarantees"],
   "operations.content_pillars": ["operations.content_pillars", "sop_strategy.content_pillars", "strategy_defaults.pillars", "pillars"],
-  "operations.approvals": ["operations.approvals"],
-  "operations.turnaround_sla": ["operations.turnaround_sla"],
+  "operations.approvals": ["operations.approvals", "operations.approval_workflow"],
+  "operations.turnaround_sla": ["operations.turnaround_sla", "operations.turnaround_slas"],
   "operations.reporting_cadence": ["operations.reporting_cadence"],
   "operations.tools_stack": ["operations.tools_stack"],
   "operations.platforms": ["operations.platforms"],
-  "operations.required_assets": ["operations.required_assets"],
-  "ai_persona.name": ["ai_persona.name", "persona.assistant_name", "assistant_name"],
-  "ai_persona.role_title": ["ai_persona.role_title"],
-  "ai_persona.traits": ["ai_persona.traits", "persona.tone_traits", "tone_traits"],
-  "ai_persona.writing_style": ["ai_persona.writing_style"],
+  "operations.required_assets": ["operations.required_assets", "operations.required_client_assets"],
+  "ai_persona.name": ["ai_persona.name", "ai.persona_name", "persona.assistant_name", "assistant_name"],
+  "ai_persona.role_title": ["ai_persona.role_title", "ai.role_title"],
+  "ai_persona.traits": ["ai_persona.traits", "ai.personality_traits", "persona.tone_traits", "tone_traits"],
+  "ai_persona.writing_style": ["ai_persona.writing_style", "ai.writing_preferences"],
   "tone_voice.voice_attributes": [
     "tone_voice.voice_attributes",
     "voice_tone.adjectives",
     "setup_profile_v1.brand.voice_adjectives",
   ],
-  "rep_policy.boundaries": ["rep_policy.boundaries", "constraints.banned_claims", "constraints.taboo_topics"],
+  "rep_policy.boundaries": ["rep_policy.boundaries", "operations.rep_policy_boundaries", "constraints.banned_claims", "constraints.taboo_topics"],
   "faq_objections.faqs": ["faq_objections.faqs", "faq"],
 };
 
@@ -253,9 +294,9 @@ function moduleFallbackSuggestions(
   module: OnboardingModuleKey,
   snapshot: Record<string, unknown>
 ): string[] {
-  const agencyName = getFirstString(snapshot, "bootstrap.agency_name");
-  const nicheValues = getFirstList(snapshot, "bootstrap.target_industries");
-  const serviceValues = getFirstList(snapshot, "bootstrap.services");
+  const agencyName = getFirstString(snapshot, "agency.name");
+  const nicheValues = getFirstList(snapshot, "agency.top_industries");
+  const serviceValues = getFirstList(snapshot, "agency.service_catalog");
   const voiceValues = getFirstList(snapshot, "tone_voice.voice_attributes");
   const pillarValues = getFirstList(snapshot, "sop_strategy.content_pillars");
 
@@ -352,6 +393,24 @@ export function applyCalibrationInput(
   const listLike = [
     "services",
     "target_industries",
+    "top_industries",
+    "primary_client_languages",
+    "key_differentiators",
+    "service_catalog",
+    "top_margin_offers",
+    "packaged_offers",
+    "website_and_links",
+    "role_counts",
+    "client_type_split",
+    "who_to_avoid",
+    "proof_metrics",
+    "competitor_urls",
+    "price_ranges_by_tier",
+    "required_client_assets",
+    "approval_workflow",
+    "turnaround_slas",
+    "platforms_managed",
+    "rep_policy_boundaries",
     "core_offers",
     "links",
     "team_roles",
@@ -426,15 +485,19 @@ export function normalizeOnboardingSuggestions(opts: {
   snapshot: Record<string, unknown>;
 }) {
   const knownTokens = buildKnownTokenSet(opts.snapshot);
+  const rawNormalized = (opts.rawSuggestions ?? [])
+    .map(normalizeSuggestionValue)
+    .filter((value): value is string => Boolean(value));
   const filteredRaw = (opts.rawSuggestions ?? [])
     .map(normalizeSuggestionValue)
     .filter((value): value is string => Boolean(value))
     .filter((value) => keepSuggestionBySnapshot(value, knownTokens));
+  const effectiveRaw = filteredRaw.length > 0 ? filteredRaw : rawNormalized;
 
   const fallback = opts.fieldPath
     ? fieldFallbackSuggestions(opts.module, opts.fieldPath, opts.snapshot)
     : moduleFallbackSuggestions(opts.module, opts.snapshot);
-  const merged = [...filteredRaw, ...fallback].map((value) => value.trim()).filter(Boolean);
+  const merged = [...effectiveRaw, ...fallback].map((value) => value.trim()).filter(Boolean);
   const unique: string[] = [];
   for (const value of merged) {
     if (!unique.includes(value)) unique.push(value);
@@ -456,9 +519,9 @@ function fieldFallbackSuggestions(
   snapshot: Record<string, unknown>
 ): string[] {
   const leaf = fieldPath.split(".").at(-1) ?? fieldPath;
-  const agencyName = getFirstString(snapshot, "bootstrap.agency_name");
-  const services = getFirstList(snapshot, "bootstrap.services");
-  const industries = getFirstList(snapshot, "bootstrap.target_industries");
+  const agencyName = getFirstString(snapshot, "agency.name");
+  const services = getFirstList(snapshot, "agency.service_catalog");
+  const industries = getFirstList(snapshot, "agency.top_industries");
   const voice = getFirstList(snapshot, "tone_voice.voice_attributes");
   const pillars = getFirstList(snapshot, "sop_strategy.content_pillars");
   const personaName = getFirstString(snapshot, "persona.assistant_name");
@@ -573,8 +636,8 @@ export function personalizeCalibrationQuestion(
   question: string,
   snapshot: Record<string, unknown>
 ) {
-  const agencyName = getFirstString(snapshot, "bootstrap.agency_name");
-  const nicheList = getFirstList(snapshot, "bootstrap.target_industries");
+  const agencyName = getFirstString(snapshot, "agency.name");
+  const nicheList = getFirstList(snapshot, "agency.top_industries");
   let nextQuestion = question.trim();
   if (!nextQuestion) {
     nextQuestion = "Please share the missing detail so I can continue onboarding.";

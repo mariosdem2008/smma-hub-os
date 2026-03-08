@@ -1,0 +1,27 @@
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Dashboard.tsx:196:onboardingMode: "agency",
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Dashboard.tsx:547:if (first?.client?.id) navigate(`/clients/${first.client.id}?tab=pipeline&focus=review`);
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Dashboard.tsx:561:if (first?.client?.id) navigate(`/clients/${first.client.id}?tab=pipeline&focus=publish`);
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Dashboard.tsx:612:navigate(`/clients/${clientId}?tab=strategy&action=${action}`);
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Dashboard.tsx:654:setClientFormData({ name: "", email: "", phone: "", company: "", status: "active", onboardingMode: "agency" });
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Dashboard.tsx:657:if (clientFormData.onboardingMode === "agency") navigate(`/onboarding/client/${data.id}`);
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Dashboard.tsx:658:else navigate(`/clients/${data.id}?tab=portal`);
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Dashboard.tsx:871:<Button size="sm" variant="ghost" className="text-white" onClick={() => navigate(`/clients/${client.id}`)}>
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Dashboard.tsx:936:<Button size="sm" variant="outline" className="border-white/20 bg-white/5 text-white" onClick={() => project.client?.id && navigate(`/clients/${project.client.id}?tab=pipeline&focus=review`)}>Review</Button>
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Dashboard.tsx:952:<Button size="sm" variant="outline" className="border-white/20 bg-white/5 text-white" onClick={() => project.client?.id && navigate(`/clients/${project.client.id}?tab=pipeline&focus=publish`)}>Reschedule</Button>
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Dashboard.tsx:1045:<Select value={clientFormData.onboardingMode} onValueChange={(value) => setClientFormData((prev) => ({ ...prev, onboardingMode: value }))}>
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Clients.tsx:60:onboardingMode: "agency",
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Clients.tsx:250:setFormData({ name: "", email: "", phone: "", company: "", status: "active", onboardingMode: "agency" });
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Clients.tsx:252:if (formData.onboardingMode === "agency") {
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Clients.tsx:253:navigate(`/onboarding/client/${newClient.id}`);
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Clients.tsx:255:navigate(`/clients/${newClient.id}?tab=portal`);
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Clients.tsx:446:<Button size="sm" variant="outline" onClick={() => navigate(`/clients/${client.id}`)}>
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Clients.tsx:449:<Button size="sm" onClick={() => navigate(`/clients/${client.id}?tab=strategy&action=strategy`)}>
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Clients.tsx:523:<Label htmlFor="onboardingMode" className="text-sm">
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Clients.tsx:527:value={formData.onboardingMode}
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Clients.tsx:528:onValueChange={(value) => setFormData({ ...formData, onboardingMode: value })}
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\components\onboarding-v5\OnboardingV5Wizard.tsx:208:.from('client_onboarding_profiles')
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\components\onboarding-v5\OnboardingV5Wizard.tsx:249:.from('client_onboarding_profiles')
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\components\onboarding-v5\OnboardingV5Wizard.tsx:261:const { error: createError } = await supabase.rpc('upsert_onboarding_profile', {
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\components\onboarding-v5\OnboardingV5Wizard.tsx:402:const { data, error } = await supabase.functions.invoke('ai-onboarding-scan', {
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\components\onboarding-v5\OnboardingV5Wizard.tsx:576:const { error } = await supabase.rpc('complete_onboarding_profile', {
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\components\onboarding-v5\OnboardingV5Wizard.tsx:589:navigate(`/clients/${clientId}`, { replace: true });

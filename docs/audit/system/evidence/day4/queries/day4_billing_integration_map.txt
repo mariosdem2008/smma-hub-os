@@ -1,0 +1,5 @@
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Billing.tsx:100:supabase.rpc("get_monthly_ai_usage", { p_agency_id: membership.agency_id }),
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Billing.tsx:123:const { data, error } = await supabase.functions.invoke("customer-portal", {
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\BillingOverview.tsx:69:supabase.rpc("get_monthly_ai_usage", { p_agency_id: membership.agency_id }),
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\components\settings\BillingTab.tsx:61:const { data, error } = await supabase.functions.invoke("create-checkout", {
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\components\settings\BillingTab.tsx:84:const { data, error } = await supabase.functions.invoke("customer-portal");

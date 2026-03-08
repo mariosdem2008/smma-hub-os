@@ -315,8 +315,9 @@ export default function SocialConnectionsSection({ clientId, isClientPortal = fa
 
       if (error) throw error;
 
-      if (data?.authUrl) {
-        window.location.href = data.authUrl;
+      const redirectUrl = data?.url || data?.authUrl;
+      if (redirectUrl) {
+        window.location.href = redirectUrl;
       } else {
         throw new Error("No auth URL returned");
       }

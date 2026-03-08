@@ -1,0 +1,16 @@
+C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\58cf9e95a0eecd03\src\pages\Billing.tsx:29:import { useRole } from "@/hooks/useRole";
+C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\58cf9e95a0eecd03\src\pages\Billing.tsx:58:const { role, loading: roleLoading, isOwner } = useRole();
+C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\58cf9e95a0eecd03\src\pages\Billing.tsx:75:if (!roleLoading && !isOwner) {
+C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\58cf9e95a0eecd03\src\pages\Billing.tsx:76:if (role === "admin") navigate("/billing/overview", { replace: true });
+C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\58cf9e95a0eecd03\src\pages\Billing.tsx:79:}, [roleLoading, isOwner, role, navigate]);
+C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\58cf9e95a0eecd03\src\pages\Billing.tsx:100:supabase.rpc("get_monthly_ai_usage", { p_agency_id: membership.agency_id }),
+C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\58cf9e95a0eecd03\src\pages\Billing.tsx:123:const { data, error } = await supabase.functions.invoke("customer-portal", {
+C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\58cf9e95a0eecd03\src\pages\Billing.tsx:136:if (loading || roleLoading) {
+C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\58cf9e95a0eecd03\src\pages\Billing.tsx:150:if (!open) navigate("/dashboard", { replace: true });
+C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\58cf9e95a0eecd03\src\pages\Billing.tsx:331:<Button onClick={() => navigate("/pricing")}>
+C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\58cf9e95a0eecd03\src\pages\Billing.tsx:360:<Button onClick={() => navigate("/pricing")}>
+C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\58cf9e95a0eecd03\src\pages\BillingOverview.tsx:69:supabase.rpc("get_monthly_ai_usage", { p_agency_id: membership.agency_id }),
+C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\58cf9e95a0eecd03\src\components\settings\BillingTab.tsx:61:const { data, error } = await supabase.functions.invoke("create-checkout", {
+C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\58cf9e95a0eecd03\src\components\settings\BillingTab.tsx:84:const { data, error } = await supabase.functions.invoke("customer-portal");
+C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\58cf9e95a0eecd03\src\hooks\useSubscription.ts:78:const { data, error } = await supabase.functions.invoke('check-subscription', {
+C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\58cf9e95a0eecd03\src\pages\Pricing.tsx:102:const { data, error } = await supabase.functions.invoke("create-checkout", {

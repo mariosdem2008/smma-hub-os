@@ -5,8 +5,42 @@ import { getActiveAgencyId } from "@/lib/active-agency";
 
 type UserRole = "owner" | "admin" | "manager" | "member" | null;
 
+const ROLE_CACHE_TTL_MS = 2 * 60 * 1000;
+const rolePromiseCache = new Map<string, Promise<UserRole>>();
+
+function isTransientNetworkError(error: unknown) {
+  const message = String((error as { message?: string })?.message ?? "");
+  return (
+    message.includes("TypeError: Failed to fetch") ||
+    message.includes("ERR_ABORTED") ||
+    message.includes("Failed to send a request to the Edge Function")
+  );
+}
+
+function readRoleCache(cacheKey: string): UserRole | undefined {
+  try {
+    const raw = sessionStorage.getItem(cacheKey);
+    if (!raw) return undefined;
+    const parsed = JSON.parse(raw) as { at?: number; role?: UserRole };
+    if (!parsed || typeof parsed.at !== "number") return undefined;
+    if (Date.now() - parsed.at > ROLE_CACHE_TTL_MS) return undefined;
+    return parsed.role ?? null;
+  } catch {
+    return undefined;
+  }
+}
+
+function writeRoleCache(cacheKey: string, role: UserRole) {
+  try {
+    sessionStorage.setItem(cacheKey, JSON.stringify({ at: Date.now(), role }));
+  } catch {
+    // best-effort cache
+  }
+}
+
 export function useRole() {
   const { user } = useAuth();
+  const activeAgencyId = getActiveAgencyId();
   const [role, setRole] = useState<UserRole>(null);
   const [loading, setLoading] = useState(true);
 
@@ -19,36 +53,64 @@ export function useRole() {
       }
 
       try {
-        const activeAgencyId = getActiveAgencyId();
         if (!activeAgencyId) {
           setRole(null);
+          setLoading(false);
           return;
         }
 
-        const { data: memberData, error: memberErr } = await supabase
-          .from("agency_members")
-          .select("role")
-          .eq("agency_id", activeAgencyId)
-          .eq("user_id", user.id)
-          .maybeSingle();
-        if (memberErr) throw memberErr;
-
-        if (memberData?.role) {
-          setRole(memberData.role as UserRole);
+        const cacheKey = `role:${user.id}:${activeAgencyId}`;
+        const cachedRole = readRoleCache(cacheKey);
+        if (cachedRole !== undefined) {
+          setRole(cachedRole);
           return;
         }
 
-        const { data: agencyData, error: ownerErr } = await supabase
-          .from("agencies")
-          .select("id")
-          .eq("id", activeAgencyId)
-          .eq("user_id", user.id)
-          .maybeSingle();
-        if (ownerErr) throw ownerErr;
+        const requestKey = `${user.id}:${activeAgencyId}`;
+        const existingPromise = rolePromiseCache.get(requestKey);
+        if (existingPromise) {
+          const resolved = await existingPromise;
+          setRole(resolved);
+          return;
+        }
 
-        setRole(agencyData ? "owner" : null);
+        const fetchPromise = (async () => {
+          const { data: memberData, error: memberErr } = await supabase
+            .from("agency_members")
+            .select("role")
+            .eq("agency_id", activeAgencyId)
+            .eq("user_id", user.id)
+            .maybeSingle();
+          if (memberErr) throw memberErr;
+
+          if (memberData?.role) {
+            return memberData.role as UserRole;
+          }
+
+          const { data: agencyData, error: ownerErr } = await supabase
+            .from("agencies")
+            .select("id")
+            .eq("id", activeAgencyId)
+            .eq("user_id", user.id)
+            .maybeSingle();
+          if (ownerErr) throw ownerErr;
+
+          return agencyData ? "owner" : null;
+        })();
+
+        rolePromiseCache.set(
+          requestKey,
+          fetchPromise.finally(() => {
+            rolePromiseCache.delete(requestKey);
+          })
+        );
+        const resolvedRole = await fetchPromise;
+        writeRoleCache(cacheKey, resolvedRole);
+        setRole(resolvedRole);
       } catch (error) {
-        console.error("Error fetching role:", error);
+        if (!isTransientNetworkError(error)) {
+          console.error("Error fetching role:", error);
+        }
         setRole(null);
       } finally {
         setLoading(false);
@@ -56,10 +118,10 @@ export function useRole() {
     }
 
     fetchRole();
-  }, [user]);
+  }, [user, activeAgencyId]);
 
   const isOwner = role === "owner";
-  const isAdmin = role === "admin";
+  const isAdmin = role === "admin" || role === "owner";
   const isManager = role === "manager";
   const isMember = role === "member";
 

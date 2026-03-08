@@ -1,0 +1,5 @@
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\client-portal\PortalBranding.tsx:55:const { data, error } = await supabase.functions.invoke('generate-brand-guidelines-pdf', {
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ClientPortalLayout.tsx:59:const navigate = useNavigate();
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ClientPortalLayout.tsx:82:navigate(portalSlug ? `/client/login/${portalSlug}` : "/client/login");
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ClientPortalLayout.tsx:121:navigate(resolvedPortalSlug ? `/client/login/${resolvedPortalSlug}` : "/client/login");
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ClientPortalLayout.tsx:147:const basePortalPath = resolvedPortalSlug ? `/client/portal/${resolvedPortalSlug}` : "/client/portal";

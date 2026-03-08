@@ -1,0 +1,2 @@
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\components\client-tabs\PipelineTab.tsx:287:await supabase.functions.invoke('notify-assigned-editor', {
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\components\client-tabs\ClientPortalTab.tsx:120:const { data: slugData } = await supabase.rpc("generate_portal_slug");

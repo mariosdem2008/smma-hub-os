@@ -1,19 +1,32 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { format, startOfDay, subDays } from "date-fns";
+import {
+  AlertTriangle,
+  ArrowRight,
+  Briefcase,
+  CheckSquare,
+  ClipboardList,
+  Loader2,
+  Plus,
+  RefreshCw,
+  Sparkles,
+  Target,
+  Users,
+  Wand2,
+} from "lucide-react";
+
 import { useAuth } from "@/lib/auth";
 import { useRole } from "@/hooks/useRole";
-import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { usePullToRefresh } from "@/hooks/usePullToRefresh";
-import { hapticButton } from "@/lib/haptics";
+import { getActiveAgencyId } from "@/lib/active-agency";
+import { PostCreateAgencyCta } from "@/components/PostCreateAgencyCta";
+import { ClientPickerDialog } from "@/components/ClientPickerDialog";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { Textarea } from "@/components/ui/textarea";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -21,95 +34,158 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
-import { ClientPickerDialog } from "@/components/ClientPickerDialog";
-import { cn } from "@/lib/utils";
-import { getActiveAgencyId } from "@/lib/active-agency";
-import { PostCreateAgencyCta } from "@/components/PostCreateAgencyCta";
 import { Progress } from "@/components/ui/progress";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 
-import {
-  Plus,
-  AlertTriangle,
-  Clock,
-  Calendar as CalendarIcon,
-  ClipboardList,
-  ShieldAlert,
-  Sparkles,
-  TrendingUp,
-  Users,
-  CheckSquare,
-  Wand2,
-  Target,
-  Zap,
-  BarChart3,
-  PieChart,
-  Briefcase,
-  ArrowUpRight,
-  ArrowDownRight,
-  ChevronRight,
-  Filter,
-  MoreVertical,
-} from "lucide-react";
+type ViewMode = "executive" | "operations";
+type PeriodKey = "7d" | "30d" | "90d";
+type Trend = "up" | "down" | "flat";
 
-import { differenceInDays, differenceInHours, endOfWeek, format, startOfWeek } from "date-fns";
+type ClientRecord = {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  company: string | null;
+  status: string | null;
+  assetCount: number;
+  publishedVideoCount: number;
+};
+
+type ProjectRecord = {
+  id: string;
+  title: string;
+  status: string | null;
+  pipeline_stage: string | null;
+  scheduled_time: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  client?: { id?: string; name?: string } | null;
+};
+
+type TeamMember = {
+  user_id: string;
+  role: string | null;
+  profiles: { id: string; full_name: string | null; email: string | null } | null;
+};
+
+type PipelineCounts = {
+  idea: number;
+  production: number;
+  review: number;
+  approved: number;
+  scheduled: number;
+  published: number;
+  other: number;
+};
+
+type DashboardSignals = {
+  totalClients: number;
+  approvalsPending: number;
+  oldestApprovalAgeDays: number;
+  reviewStuck48h: number;
+  overdueContent: number;
+  tasksDuePeriod: number;
+  projectsScheduledPeriod: number;
+  pipelineCounts: PipelineCounts;
+  pipelineTotal: number;
+};
+
+type AlertItem = {
+  id: string;
+  severity: "critical" | "high" | "medium" | "low";
+  title: string;
+  description: string;
+  ctaLabel: string;
+  onCta: () => void;
+};
 
 const PRIORITIES = ["low", "medium", "high", "urgent"] as const;
 const TASK_STATUSES = ["todo", "in_progress", "completed"] as const;
-
-function getProjectStage(project: any) {
-  return (project?.pipeline_stage || project?.status || "").toString();
-}
-
-function getReadinessSignals(client: any) {
-  const hasContact = Boolean(client?.email) || Boolean(client?.phone);
-  const hasAssets = (client?.assetCount || 0) > 0;
-  const hasPublished = (client?.publishedVideoCount || 0) > 0;
-  const trueCount = Number(hasContact) + Number(hasAssets) + Number(hasPublished);
-
-  if (trueCount === 0) {
-    return { status: "NOT_STARTED", hasContact, hasAssets, hasPublished, trueCount };
-  }
-  if (trueCount === 1) {
-    return { status: "IN_PROGRESS", hasContact, hasAssets, hasPublished, trueCount };
-  }
-  return { status: "COMPLETE", hasContact, hasAssets, hasPublished, trueCount };
-}
-
 const AI_SETUP_CORE_MODULES = ["bootstrap", "rep_policy", "quality_bar"] as const;
+const DASHBOARD_PREFS_KEY = "dashboard:command-center:prefs";
+
+const initialSignals: DashboardSignals = {
+  totalClients: 0,
+  approvalsPending: 0,
+  oldestApprovalAgeDays: 0,
+  reviewStuck48h: 0,
+  overdueContent: 0,
+  tasksDuePeriod: 0,
+  projectsScheduledPeriod: 0,
+  pipelineCounts: {
+    idea: 0,
+    production: 0,
+    review: 0,
+    approved: 0,
+    scheduled: 0,
+    published: 0,
+    other: 0,
+  },
+  pipelineTotal: 0,
+};
+
+function getProjectStage(project: Pick<ProjectRecord, "pipeline_stage" | "status">) {
+  return (project.pipeline_stage || project.status || "").toLowerCase();
+}
+
+function getPeriodDays(period: PeriodKey) {
+  if (period === "7d") return 7;
+  if (period === "30d") return 30;
+  return 90;
+}
+
+function calcTrend(nowValue: number, baseline: number): Trend {
+  if (nowValue > baseline) return "up";
+  if (nowValue < baseline) return "down";
+  return "flat";
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function badgeVariantForSeverity(severity: AlertItem["severity"]) {
+  if (severity === "critical") return "destructive" as const;
+  if (severity === "high") return "default" as const;
+  if (severity === "medium") return "secondary" as const;
+  return "outline" as const;
+}
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const { canManageClients, canCreateContent, isAdmin } = useRole();
-  const navigate = useNavigate();
+  const { isAdmin } = useRole();
   const { toast } = useToast();
-  const isMobile = useIsMobile();
+  const navigate = useNavigate();
 
-  const [clients, setClients] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [dataUnavailable, setDataUnavailable] = useState(false);
-  const [aiSetupComplete, setAiSetupComplete] = useState<boolean | null>(null);
-  const [viewMode, setViewMode] = useState<"executive" | "operations">("executive");
-
-  const { isRefreshing, pullDistance } = usePullToRefresh({
-    onRefresh: async () => {
-      await fetchDashboardData();
-    },
-  });
+  const [viewMode, setViewMode] = useState<ViewMode>("executive");
+  const [period, setPeriod] = useState<PeriodKey>("30d");
 
   const [agencyId, setAgencyId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [dataUnavailable, setDataUnavailable] = useState(false);
+
+  const [clients, setClients] = useState<ClientRecord[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [reviewProjects, setReviewProjects] = useState<ProjectRecord[]>([]);
+  const [overdueProjects, setOverdueProjects] = useState<ProjectRecord[]>([]);
+  const [teamOpenTasks, setTeamOpenTasks] = useState<Record<string, number>>({});
+  const [signals, setSignals] = useState<DashboardSignals>(initialSignals);
+
+  const [aiSetupComplete, setAiSetupComplete] = useState<boolean | null>(null);
+  const [executiveSummary, setExecutiveSummary] = useState<string>("");
+
   const [showNewClientDialog, setShowNewClientDialog] = useState(false);
   const [showTaskDialog, setShowTaskDialog] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [capacityUtilization, setCapacityUtilization] = useState(74);
-  const [hoursSavedThisWeek, setHoursSavedThisWeek] = useState(42);
-  const [clientHealthScores, setClientHealthScores] = useState<Array<{id: string, name: string, score: number, trend: 'up' | 'down'}>>([]);
+
+  const [clientPickerOpen, setClientPickerOpen] = useState(false);
+  const [pendingAiAction, setPendingAiAction] = useState<"strategy" | "hooks" | "captions" | null>(null);
 
   const [clientFormData, setClientFormData] = useState({
     name: "",
@@ -127,223 +203,189 @@ export default function Dashboard() {
     priority: "medium",
     status: "todo",
     assigned_to: "",
-  });
-
-  const [taskDueDate, setTaskDueDate] = useState<Date | undefined>();
-  const [teamMembers, setTeamMembers] = useState<any[]>([]);
-  const [reviewProjects, setReviewProjects] = useState<any[]>([]);
-  const [overdueProjects, setOverdueProjects] = useState<any[]>([]);
-
-  const [signals, setSignals] = useState({
-    totalClients: 0,
-    approvalsPending: 0,
-    oldestApprovalAgeDays: 0,
-    reviewStuck48h: 0,
-    overdueContent: 0,
-    tasksDue7d: 0,
-    projectsScheduled7d: 0,
-    pipelineCounts: {
-      idea: 0,
-      production: 0,
-      review: 0,
-      approved: 0,
-      scheduled: 0,
-      published: 0,
-      other: 0,
-    } as Record<string, number>,
-    pipelineTotal: 0,
+    due_date: "",
   });
 
   useEffect(() => {
-    fetchDashboardData();
-  }, [user]);
+    try {
+      const raw = localStorage.getItem(DASHBOARD_PREFS_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as { viewMode?: ViewMode; period?: PeriodKey };
+      if (parsed.viewMode) setViewMode(parsed.viewMode);
+      if (parsed.period) setPeriod(parsed.period);
+    } catch {
+      // no-op
+    }
+  }, []);
 
   useEffect(() => {
-    if (!user?.id || !isAdmin) {
+    localStorage.setItem(DASHBOARD_PREFS_KEY, JSON.stringify({ viewMode, period }));
+  }, [viewMode, period]);
+
+  useEffect(() => {
+    void fetchDashboardData(false);
+  }, [user?.id, period]);
+
+  useEffect(() => {
+    if (!user?.id || !isAdmin || !agencyId) {
       setAiSetupComplete(null);
       return;
     }
 
-    const activeId = agencyId || getActiveAgencyId();
-    if (!activeId) {
-      setAiSetupComplete(null);
-      return;
-    }
-
-    setAiSetupComplete(null);
-
-    const fetchAiSetupStatus = async (nextAgencyId: string) => {
+    const run = async () => {
       try {
         const { data, error } = await supabase
           .from("brain_documents")
           .select("module")
-          .eq("agency_id", nextAgencyId)
+          .eq("agency_id", agencyId)
           .in("module", [...AI_SETUP_CORE_MODULES])
           .eq("status", "approved");
         if (error) throw error;
 
         const approvedModules = new Set((data ?? []).map((row: any) => row?.module).filter(Boolean));
         setAiSetupComplete(AI_SETUP_CORE_MODULES.every((module) => approvedModules.has(module)));
-      } catch (error) {
-        console.warn("AI setup status fetch warning:", (error as any)?.message ?? error);
+      } catch {
         setAiSetupComplete(false);
       }
     };
 
-    fetchAiSetupStatus(activeId);
+    void run();
   }, [agencyId, isAdmin, user?.id]);
 
-  const fetchTeamMembers = async (agencyId: string) => {
-    try {
-      const { data: members, error: membersError } = await supabase
-        .from("agency_members")
-        .select("user_id, role")
-        .eq("agency_id", agencyId);
+  const fetchTeamMembers = async (activeAgencyId: string): Promise<TeamMember[]> => {
+    const { data: members, error: membersError } = await supabase
+      .from("agency_members")
+      .select("user_id, role")
+      .eq("agency_id", activeAgencyId);
 
-      if (membersError) throw membersError;
-      if (!members || members.length === 0) return [];
+    if (membersError || !members || members.length === 0) return [];
 
-      const userIds = members.map((m) => m.user_id);
-      const { data: profiles, error: profilesError } = await supabase
-        .from("profiles")
-        .select("id, full_name, email")
-        .in("id", userIds);
+    const userIds = members.map((m: any) => m.user_id);
+    const { data: profiles } = await supabase.from("profiles").select("id, full_name, email").in("id", userIds);
 
-      if (profilesError) throw profilesError;
-
-      return members.map((member) => ({
-        ...member,
-        profiles: profiles?.find((p) => p.id === member.user_id) || null,
-      }));
-    } catch (error) {
-      console.error("Error fetching team members:", error);
-      return [];
-    }
+    return members.map((member: any) => ({
+      user_id: member.user_id,
+      role: member.role,
+      profiles: profiles?.find((p: any) => p.id === member.user_id) ?? null,
+    }));
   };
 
-  const fetchDashboardData = async () => {
-    if (!user) return;
+  const fetchDashboardData = async (silentRefresh: boolean) => {
+    if (!user?.id) return;
 
-    setLoading(true);
+    if (silentRefresh) setRefreshing(true);
+    else setLoading(true);
     setDataUnavailable(false);
 
     try {
-      const aId = getActiveAgencyId();
-      setAgencyId(aId);
+      const activeAgencyId = getActiveAgencyId();
+      setAgencyId(activeAgencyId);
 
-      if (!aId) {
+      if (!activeAgencyId) {
         setDataUnavailable(true);
-        setLoading(false);
         return;
       }
 
-      const { data: clientsData, error: clientsError } = await supabase
-        .from("clients")
-        .select("id, name, email, phone, company, status, created_at, logo_url, agency_id")
-        .eq("agency_id", aId);
+      const periodDays = getPeriodDays(period);
+      const now = new Date();
+      const periodStart = startOfDay(subDays(now, periodDays));
 
+      const { data: clientRows, error: clientsError } = await supabase
+        .from("clients")
+        .select("id, name, email, phone, company, status")
+        .eq("agency_id", activeAgencyId);
       if (clientsError) throw clientsError;
 
-      const baseClients = clientsData || [];
-      const clientIds = baseClients.map((c) => c.id);
+      const baseClients = (clientRows ?? []) as Array<{
+        id: string;
+        name: string;
+        email: string | null;
+        phone: string | null;
+        company: string | null;
+        status: string | null;
+      }>;
 
-      if (clientIds.length === 0) {
+      if (baseClients.length === 0) {
+        setClients([]);
+        setTeamMembers([]);
         setReviewProjects([]);
         setOverdueProjects([]);
-        setTeamMembers([]);
-        setSignals({
-          totalClients: 0,
-          approvalsPending: 0,
-          oldestApprovalAgeDays: 0,
-          reviewStuck48h: 0,
-          overdueContent: 0,
-          tasksDue7d: 0,
-          projectsScheduled7d: 0,
-          pipelineCounts: {
-            idea: 0,
-            production: 0,
-            review: 0,
-            approved: 0,
-            scheduled: 0,
-            published: 0,
-            other: 0,
-          },
-          pipelineTotal: 0,
-        });
-        setLoading(false);
+        setTeamOpenTasks({});
+        setSignals(initialSignals);
+        setExecutiveSummary("");
         return;
       }
 
-      const { data: countsData, error: countsError } = await supabase
-        .from("client_asset_counts")
-        .select("client_id, asset_count, published_video_count")
-        .in("client_id", clientIds);
+      const clientIds = baseClients.map((c) => c.id);
 
-      if (countsError) {
-        console.warn("client asset counts warning:", countsError.message);
+      const [countsRes, reviewRes, pipelineRes, scheduledRes, overdueRes, tasksRes, teamRes] = await Promise.all([
+        supabase
+          .from("client_asset_counts")
+          .select("client_id, asset_count, published_video_count")
+          .in("client_id", clientIds),
+        supabase
+          .from("projects")
+          .select("id, title, status, pipeline_stage, scheduled_time, created_at, updated_at, client:clients(id, name)")
+          .in("client_id", clientIds)
+          .in("status", ["review", "in_review", "approval_pending"])
+          .order("created_at", { ascending: true })
+          .limit(50),
+        supabase
+          .from("projects")
+          .select("id, status, pipeline_stage, created_at, updated_at")
+          .in("client_id", clientIds)
+          .gte("created_at", periodStart.toISOString())
+          .order("updated_at", { ascending: false })
+          .limit(1000),
+        supabase
+          .from("projects")
+          .select("*", { count: "exact", head: true })
+          .in("client_id", clientIds)
+          .not("scheduled_time", "is", null)
+          .gte("scheduled_time", periodStart.toISOString())
+          .lte("scheduled_time", now.toISOString()),
+        supabase
+          .from("projects")
+          .select("id, title, status, pipeline_stage, scheduled_time, client:clients(id, name)")
+          .in("client_id", clientIds)
+          .not("scheduled_time", "is", null)
+          .lt("scheduled_time", now.toISOString())
+          .neq("status", "published")
+          .order("scheduled_time", { ascending: true })
+          .limit(20),
+        supabase
+          .from("tasks")
+          .select("id, status, priority, due_date, assigned_to", { count: "exact" })
+          .eq("agency_id", activeAgencyId)
+          .neq("status", "completed")
+          .gte("due_date", periodStart.toISOString())
+          .lte("due_date", now.toISOString()),
+        fetchTeamMembers(activeAgencyId),
+      ]);
+
+      if (countsRes.error || reviewRes.error || pipelineRes.error || overdueRes.error || tasksRes.error) {
         setDataUnavailable(true);
       }
 
-      const countsByClientId = new Map(
-        (countsData || []).map((row: any) => [
+      const countsByClientId = new Map<string, { assetCount: number; publishedVideoCount: number }>(
+        (countsRes.data ?? []).map((row: any) => [
           row.client_id,
-          {
-            assetCount: row.asset_count || 0,
-            publishedVideoCount: row.published_video_count || 0,
-          },
+          { assetCount: row.asset_count ?? 0, publishedVideoCount: row.published_video_count ?? 0 },
         ]),
       );
 
-      const clientsWithCounts = baseClients.map((client) => ({
+      const clientsWithCounts: ClientRecord[] = baseClients.map((client) => ({
         ...client,
-        assetCount: countsByClientId.get(client.id)?.assetCount || 0,
-        publishedVideoCount: countsByClientId.get(client.id)?.publishedVideoCount || 0,
+        assetCount: countsByClientId.get(client.id)?.assetCount ?? 0,
+        publishedVideoCount: countsByClientId.get(client.id)?.publishedVideoCount ?? 0,
       }));
 
-      setClients(clientsWithCounts);
+      const reviewData = (reviewRes.data ?? []) as ProjectRecord[];
+      const overdueData = (overdueRes.data ?? []) as ProjectRecord[];
+      const pipelineData = (pipelineRes.data ?? []) as Array<Pick<ProjectRecord, "status" | "pipeline_stage">>;
+      const openTasksRows = (tasksRes.data ?? []) as Array<{ assigned_to: string | null }>;
 
-      const now = new Date();
-      const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-      const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
-
-      const approvalStages = ["review", "in_review", "approval_pending"];
-      const { data: reviewData, error: reviewErr } = await supabase
-        .from("projects")
-        .select(
-          `
-          id,
-          title,
-          platforms,
-          status,
-          pipeline_stage,
-          scheduled_time,
-          created_at,
-          updated_at,
-          client:clients(id, name)
-        `,
-        )
-        .in("client_id", clientIds)
-        .in("status", approvalStages)
-        .order("created_at", { ascending: true })
-        .limit(20);
-
-      if (reviewErr) {
-        console.warn("review projects fetch warning:", reviewErr.message);
-        setReviewProjects([]);
-      } else {
-        setReviewProjects(reviewData || []);
-      }
-
-      const { data: pipelineData, error: pipelineErr } = await supabase
-        .from("projects")
-        .select("id, status, pipeline_stage, created_at, updated_at")
-        .in("client_id", clientIds)
-        .order("updated_at", { ascending: false })
-        .limit(500);
-
-      if (pipelineErr) console.warn("pipeline fetch warning:", pipelineErr.message);
-
-      const pipelineCounts: Record<string, number> = {
+      const pipelineCounts: PipelineCounts = {
         idea: 0,
         production: 0,
         review: 0,
@@ -352,105 +394,75 @@ export default function Dashboard() {
         published: 0,
         other: 0,
       };
-
-      const stages = (pipelineData || []).map((p) => getProjectStage(p).toLowerCase());
-      for (const s of stages) {
-        if (s.includes("idea")) pipelineCounts.idea += 1;
-        else if (s.includes("production")) pipelineCounts.production += 1;
-        else if (s.includes("review")) pipelineCounts.review += 1;
-        else if (s.includes("approved")) pipelineCounts.approved += 1;
-        else if (s.includes("scheduled")) pipelineCounts.scheduled += 1;
-        else if (s.includes("published")) pipelineCounts.published += 1;
+      for (const project of pipelineData) {
+        const stage = getProjectStage(project);
+        if (stage.includes("idea")) pipelineCounts.idea += 1;
+        else if (stage.includes("production")) pipelineCounts.production += 1;
+        else if (stage.includes("review")) pipelineCounts.review += 1;
+        else if (stage.includes("approved")) pipelineCounts.approved += 1;
+        else if (stage.includes("scheduled")) pipelineCounts.scheduled += 1;
+        else if (stage.includes("published")) pipelineCounts.published += 1;
         else pipelineCounts.other += 1;
       }
 
-      const { count: scheduledThisWeekCount } = await supabase
-        .from("projects")
-        .select("*", { count: "exact", head: true })
-        .in("client_id", clientIds)
-        .not("scheduled_time", "is", null)
-        .gte("scheduled_time", weekStart.toISOString())
-        .lte("scheduled_time", weekEnd.toISOString());
+      const oldestApprovalAgeDays = reviewData.length
+        ? Math.max(
+            0,
+            Math.floor(
+              (Date.now() - new Date(reviewData[0].created_at ?? reviewData[0].updated_at ?? now.toISOString()).getTime()) /
+                (1000 * 60 * 60 * 24),
+            ),
+          )
+        : 0;
 
-      const { data: overdueProjectsData, error: overdueProjectsErr } = await supabase
-        .from("projects")
-        .select(
-          `
-          id,
-          title,
-          scheduled_time,
-          status,
-          pipeline_stage,
-          client:clients(id, name)
-        `,
-        )
-        .in("client_id", clientIds)
-        .not("scheduled_time", "is", null)
-        .lt("scheduled_time", now.toISOString())
-        .neq("status", "published")
-        .order("scheduled_time", { ascending: true })
-        .limit(10);
-
-      if (overdueProjectsErr) console.warn("overdue projects fetch warning:", overdueProjectsErr.message);
-      setOverdueProjects(overdueProjectsData || []);
-
-      const { count: tasksThisWeekCount } = await supabase
-        .from("tasks")
-        .select("*", { count: "exact", head: true })
-        .in("client_id", clientIds)
-        .not("due_date", "is", null)
-        .gte("due_date", weekStart.toISOString())
-        .lte("due_date", weekEnd.toISOString())
-        .neq("status", "completed");
-
-      const reviewItems = (reviewData || []).map((p: any) => ({
-        ...p,
-        stage: getProjectStage(p),
-      }));
-
-      const approvalsPending = reviewItems.length;
-      const oldestApprovalAgeDays =
-        approvalsPending > 0
-          ? Math.max(
-              0,
-              differenceInDays(
-                now,
-                new Date(reviewItems[0]?.created_at || reviewItems[0]?.updated_at || now.toISOString()),
-              ),
-            )
-          : 0;
-
-      const reviewStuck48h = reviewItems.filter((p: any) => {
-        const ref = new Date(p?.updated_at || p?.created_at || now.toISOString());
-        return differenceInHours(now, ref) >= 48;
+      const reviewStuck48h = reviewData.filter((item) => {
+        const ref = new Date(item.updated_at ?? item.created_at ?? now.toISOString());
+        return Date.now() - ref.getTime() >= 48 * 60 * 60 * 1000;
       }).length;
 
-      const teamMembersData = await fetchTeamMembers(aId);
-      setTeamMembers(teamMembersData);
-
-      setSignals({
-        totalClients: clientsWithCounts.length,
-        approvalsPending,
-        oldestApprovalAgeDays,
-        reviewStuck48h,
-        overdueContent: (overdueProjectsData || []).length,
-        tasksDue7d: tasksThisWeekCount || 0,
-        projectsScheduled7d: scheduledThisWeekCount || 0,
-        pipelineCounts,
-        pipelineTotal: (pipelineData || []).length,
+      const openTasksByAssignee: Record<string, number> = {};
+      openTasksRows.forEach((task) => {
+        if (!task.assigned_to) return;
+        openTasksByAssignee[task.assigned_to] = (openTasksByAssignee[task.assigned_to] ?? 0) + 1;
       });
 
-      setClientHealthScores(
-        clientsWithCounts.slice(0, 5).map((client, index) => ({
-          id: client.id,
-          name: client.name,
-          score: 85 - index * 5,
-          trend: index % 3 === 0 ? 'down' : 'up'
-        }))
-      );
+      const nextSignals: DashboardSignals = {
+        totalClients: clientsWithCounts.length,
+        approvalsPending: reviewData.length,
+        oldestApprovalAgeDays,
+        reviewStuck48h,
+        overdueContent: overdueData.length,
+        tasksDuePeriod: tasksRes.count ?? 0,
+        projectsScheduledPeriod: scheduledRes.count ?? 0,
+        pipelineCounts,
+        pipelineTotal: pipelineData.length,
+      };
 
+      const capacityBaseline = Math.max(1, teamRes.length) * 14;
+      const workload = nextSignals.tasksDuePeriod + nextSignals.approvalsPending + nextSignals.overdueContent;
+      const utilization = clamp(Math.round((workload / capacityBaseline) * 100), 0, 100);
+      const qualityValue = nextSignals.pipelineTotal
+        ? clamp(
+            Math.round(((nextSignals.pipelineCounts.published + nextSignals.pipelineCounts.approved) / nextSignals.pipelineTotal) * 100),
+            0,
+            100,
+          )
+        : 0;
+
+      const summary = [
+        `In the last ${periodDays} days, ${nextSignals.totalClients} clients generated ${nextSignals.pipelineTotal} pipeline items.`,
+        `${nextSignals.approvalsPending} approvals are pending and ${nextSignals.overdueContent} content items are overdue.`,
+        `Operational load is estimated at ${utilization}% utilization with a quality score of ${qualityValue}%.`,
+      ].join(" ");
+
+      setClients(clientsWithCounts);
+      setReviewProjects(reviewData);
+      setOverdueProjects(overdueData);
+      setTeamMembers(teamRes);
+      setTeamOpenTasks(openTasksByAssignee);
+      setSignals(nextSignals);
+      setExecutiveSummary(summary);
     } catch (error: any) {
-      console.error("Error fetching dashboard data:", error);
       setDataUnavailable(true);
       toast({
         title: "Dashboard error",
@@ -459,168 +471,146 @@ export default function Dashboard() {
       });
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
-
-  const handleCreateTask = async () => {
-    if (!taskFormData.title || !taskFormData.client_id) {
-      toast({
-        title: "Validation Error",
-        description: "Task title and client are required",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      const aId = agencyId || getActiveAgencyId();
-      if (!aId) throw new Error("Agency not found");
-
-      const { error } = await supabase.from("tasks").insert({
-        client_id: taskFormData.client_id,
-        agency_id: aId,
-        title: taskFormData.title,
-        description: taskFormData.description || null,
-        priority: taskFormData.priority,
-        status: taskFormData.status,
-        due_date: taskDueDate ? taskDueDate.toISOString() : null,
-        assigned_to: taskFormData.assigned_to || null,
-        created_by: user?.id,
-      });
-
-      if (error) throw error;
-
-      toast({ title: "Success", description: "Task created successfully" });
-
-      setTaskFormData({
-        title: "",
-        description: "",
-        client_id: "",
-        priority: "medium",
-        status: "todo",
-        assigned_to: "",
-      });
-      setTaskDueDate(undefined);
-      setShowTaskDialog(false);
-      fetchDashboardData();
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleCreateClient = async () => {
-    if (!user || !clientFormData.name.trim()) {
-      toast({
-        title: "Error",
-        description: "Client name is required",
-        variant: "destructive",
-      });
-      return;
-    }
-    if (!clientFormData.company.trim()) {
-      toast({
-        title: "Error",
-        description: "Company name is required",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      const aId = agencyId || getActiveAgencyId();
-      if (!aId) throw new Error("Agency not found");
-
-      const clientId = crypto.randomUUID();
-      const clientData = [
-        {
-          id: clientId,
-          agency_id: aId,
-          name: clientFormData.name.trim(),
-          email: clientFormData.email.trim() || null,
-          phone: clientFormData.phone.trim() || null,
-          company: clientFormData.company.trim(),
-          status: clientFormData.status,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-      ];
-
-      const { data: client, error } = await supabase.from("clients").insert(clientData).select().single();
-      if (error) throw error;
-
-      toast({ title: "Success", description: "Client created successfully" });
-
-      setShowNewClientDialog(false);
-      setClientFormData({
-        name: "",
-        email: "",
-        phone: "",
-        company: "",
-        status: "active",
-        onboardingMode: "agency",
-      });
-
-      fetchDashboardData();
-      if (clientFormData.onboardingMode === "agency") {
-        navigate(`/onboarding/client/${client.id}`);
-      } else {
-        navigate(`/clients/${client.id}?tab=portal`);
-      }
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create client",
-        variant: "destructive",
-      });
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const readinessCandidates = useMemo(
-    () =>
-      clients
-        .map((client) => ({
-          ...client,
-          readiness: getReadinessSignals(client),
-        }))
-        .sort((a, b) => a.readiness.trueCount - b.readiness.trueCount),
-    [clients],
-  );
 
   const readinessSummary = useMemo(() => {
-    const summary = { NOT_STARTED: 0, IN_PROGRESS: 0, COMPLETE: 0 };
-    readinessCandidates.forEach((client) => {
-      summary[client.readiness.status] += 1;
+    const summary = { notStarted: 0, inProgress: 0, complete: 0 };
+    clients.forEach((client) => {
+      const hasContact = Boolean(client.email || client.phone);
+      const hasAssets = client.assetCount > 0;
+      const hasPublished = client.publishedVideoCount > 0;
+      const count = Number(hasContact) + Number(hasAssets) + Number(hasPublished);
+      if (count === 0) summary.notStarted += 1;
+      else if (count === 1) summary.inProgress += 1;
+      else summary.complete += 1;
     });
     return summary;
-  }, [readinessCandidates]);
+  }, [clients]);
 
-  const readinessTargets = readinessCandidates
-    .filter((client) => client.readiness.status !== "COMPLETE")
-    .slice(0, 5);
-  const itemsDueThisWeek = signals.tasksDue7d + signals.projectsScheduled7d;
+  const clientHealthScores = useMemo(() => {
+    return clients
+      .map((client) => {
+        const hasContact = Boolean(client.email || client.phone);
+        const readinessPoints = (Number(hasContact) + Number(client.assetCount > 0) + Number(client.publishedVideoCount > 0)) * 22;
+        const overduePenalty = overdueProjects.some((project) => project.client?.id === client.id) ? 18 : 0;
+        const reviewPenalty = reviewProjects.some((project) => project.client?.id === client.id) ? 12 : 0;
+        const score = clamp(40 + readinessPoints - overduePenalty - reviewPenalty, 0, 100);
+        const trend = calcTrend(score, 70);
+        return { id: client.id, name: client.name, score, trend };
+      })
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 8);
+  }, [clients, overdueProjects, reviewProjects]);
 
-  const approvalsTarget = reviewProjects[0];
-  const stuckReviewTarget = reviewProjects.find((project) => {
-    const ref = new Date(project?.updated_at || project?.created_at || new Date().toISOString());
-    return differenceInHours(new Date(), ref) >= 48;
-  });
-  const overdueContentTarget = overdueProjects[0];
+  const capacityUtilization = useMemo(() => {
+    const baseline = Math.max(1, teamMembers.length) * 14;
+    const load = signals.tasksDuePeriod + signals.approvalsPending + signals.overdueContent;
+    return clamp(Math.round((load / baseline) * 100), 0, 100);
+  }, [signals, teamMembers.length]);
 
-  const [clientPickerOpen, setClientPickerOpen] = useState(false);
-  const [pendingAiAction, setPendingAiAction] = useState<"strategy" | "hooks" | "captions" | null>(null);
+  const hoursSavedThisPeriod = useMemo(() => {
+    return Math.round(signals.pipelineCounts.published * 1.2 + signals.pipelineCounts.approved * 0.7 + signals.tasksDuePeriod * 0.35);
+  }, [signals]);
+
+  const automationRate = useMemo(() => {
+    if (!signals.pipelineTotal) return 0;
+    return clamp(
+      Math.round(((signals.pipelineCounts.scheduled + signals.pipelineCounts.published) / signals.pipelineTotal) * 100),
+      0,
+      100,
+    );
+  }, [signals]);
+
+  const qualityScore = useMemo(() => {
+    if (!signals.pipelineTotal) return 0;
+    return clamp(
+      Math.round(((signals.pipelineCounts.published + signals.pipelineCounts.approved) / signals.pipelineTotal) * 100),
+      0,
+      100,
+    );
+  }, [signals]);
+
+  const alerts = useMemo<AlertItem[]>(() => {
+    const items: AlertItem[] = [];
+
+    if (signals.approvalsPending > 0) {
+      const first = reviewProjects[0];
+      items.push({
+        id: "approvals",
+        severity: signals.oldestApprovalAgeDays >= 3 ? "critical" : "high",
+        title: "Approval backlog is building",
+        description: `${signals.approvalsPending} approvals pending. Oldest is ${signals.oldestApprovalAgeDays} day(s).`,
+        ctaLabel: "Open approvals",
+        onCta: () => {
+          if (first?.client?.id) navigate(`/clients/${first.client.id}?tab=pipeline&focus=review`);
+        },
+      });
+    }
+
+    if (signals.overdueContent > 0) {
+      const first = overdueProjects[0];
+      items.push({
+        id: "overdue",
+        severity: signals.overdueContent >= 3 ? "critical" : "high",
+        title: "Overdue content detected",
+        description: `${signals.overdueContent} scheduled item(s) missed publish date.`,
+        ctaLabel: "Reschedule now",
+        onCta: () => {
+          if (first?.client?.id) navigate(`/clients/${first.client.id}?tab=pipeline&focus=publish`);
+        },
+      });
+    }
+
+    if (capacityUtilization >= 85) {
+      items.push({
+        id: "capacity",
+        severity: "medium",
+        title: "Capacity threshold approaching",
+        description: `Current utilization is ${capacityUtilization}%. Consider load balancing.`,
+        ctaLabel: "Open team view",
+        onCta: () => navigate("/team"),
+      });
+    }
+
+    if (readinessSummary.notStarted > 0) {
+      items.push({
+        id: "readiness",
+        severity: "medium",
+        title: "Client readiness gap",
+        description: `${readinessSummary.notStarted} client(s) have not started onboarding essentials.`,
+        ctaLabel: "Review clients",
+        onCta: () => navigate("/clients"),
+      });
+    }
+
+    if (items.length === 0) {
+      items.push({
+        id: "healthy",
+        severity: "low",
+        title: "Operationally healthy",
+        description: "No immediate risk thresholds are breached.",
+        ctaLabel: "Open clients",
+        onCta: () => navigate("/clients"),
+      });
+    }
+
+    return items;
+  }, [
+    capacityUtilization,
+    navigate,
+    overdueProjects,
+    readinessSummary.notStarted,
+    reviewProjects,
+    signals.approvalsPending,
+    signals.oldestApprovalAgeDays,
+    signals.overdueContent,
+  ]);
 
   const runAiAction = (clientId: string, action: "strategy" | "hooks" | "captions") => {
     navigate(`/clients/${clientId}?tab=strategy&action=${action}`);
-    toast({
-      title: "AI action ready",
-      description: "AI action ready (client selected).",
-    });
+    toast({ title: "AI action started", description: "Client context loaded for AI action." });
   };
 
   const handleAiActionClick = (action: "strategy" | "hooks" | "captions") => {
@@ -634,771 +624,505 @@ export default function Dashboard() {
     setClientPickerOpen(true);
   };
 
-  const handleReadinessCta = (client: any) => {
-    const { hasContact, hasAssets, hasPublished } = client.readiness;
-    if (!hasContact) {
-      navigate(`/onboarding/ai/client/${client.id}`);
+  const handleCreateClient = async () => {
+    if (!user?.id || !agencyId) return;
+    if (!clientFormData.name.trim() || !clientFormData.company.trim()) {
+      toast({ title: "Validation error", description: "Client name and company are required.", variant: "destructive" });
       return;
     }
-    if (!hasAssets) {
-      navigate(`/clients/${client.id}?tab=library&focus=assets`);
-      return;
+
+    setSubmitting(true);
+    try {
+      const clientId = crypto.randomUUID();
+      const payload = {
+        id: clientId,
+        agency_id: agencyId,
+        name: clientFormData.name.trim(),
+        email: clientFormData.email.trim() || null,
+        phone: clientFormData.phone.trim() || null,
+        company: clientFormData.company.trim(),
+        status: clientFormData.status,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      const { data, error } = await supabase.from("clients").insert([payload]).select().single();
+      if (error) throw error;
+
+      toast({ title: "Client created", description: "Client workspace is ready." });
+      setShowNewClientDialog(false);
+      setClientFormData({ name: "", email: "", phone: "", company: "", status: "active", onboardingMode: "agency" });
+      await fetchDashboardData(true);
+
+      if (clientFormData.onboardingMode === "agency") navigate(`/onboarding/client/${data.id}`);
+      else navigate(`/clients/${data.id}?tab=portal`);
+    } catch (error: any) {
+      toast({ title: "Failed to create client", description: error?.message ?? "Please try again.", variant: "destructive" });
+    } finally {
+      setSubmitting(false);
     }
-    if (!hasPublished) {
-      navigate(`/clients/${client.id}?tab=pipeline&focus=publish`);
-      return;
-    }
-    navigate(`/clients/${client.id}`);
   };
 
-  const clientTeamRatio = clients.length > 0 && teamMembers.length > 0 
-    ? (clients.length / teamMembers.length).toFixed(1)
-    : "0.0";
+  const handleCreateTask = async () => {
+    if (!user?.id || !agencyId) return;
+    if (!taskFormData.title.trim() || !taskFormData.client_id) {
+      toast({ title: "Validation error", description: "Task title and client are required.", variant: "destructive" });
+      return;
+    }
 
-  const nextBestAction = useMemo(() => {
-    if (signals.approvalsPending > 0) {
-      return {
-        title: "Review pending approvals",
-        description: approvalsTarget?.client?.name
-          ? `Approval waiting for ${approvalsTarget.client.name}.`
-          : "Client approvals are waiting for your review.",
-        ctaLabel: "Review approvals",
-        type: "approval",
-      };
-    }
-    if (signals.overdueContent > 0) {
-      return {
-        title: "Reschedule overdue content",
-        description: overdueContentTarget?.client?.name
-          ? `Overdue post for ${overdueContentTarget.client.name}.`
-          : "Overdue posts need to be rescheduled.",
-        ctaLabel: "Reschedule",
-        type: "overdue",
-      };
-    }
-    if (readinessTargets.length > 0) {
-      return {
-        title: "Complete client readiness",
-        description: `${readinessTargets[0].name} is missing onboarding signals.`,
-        ctaLabel: "Complete setup",
-        type: "readiness",
-      };
-    }
-    return {
-      title: "Create a priority task",
-      description: "Capture the most important action for this week.",
-      ctaLabel: "Create task",
-      type: "task",
-    };
-  }, [
-    signals.approvalsPending,
-    signals.overdueContent,
-    approvalsTarget?.client?.name,
-    overdueContentTarget?.client?.name,
-    readinessTargets,
-  ]);
+    setSubmitting(true);
+    try {
+      const { error } = await supabase.from("tasks").insert({
+        agency_id: agencyId,
+        client_id: taskFormData.client_id,
+        title: taskFormData.title.trim(),
+        description: taskFormData.description.trim() || null,
+        priority: taskFormData.priority,
+        status: taskFormData.status,
+        assigned_to: taskFormData.assigned_to || null,
+        due_date: taskFormData.due_date ? new Date(taskFormData.due_date).toISOString() : null,
+        created_by: user.id,
+      });
 
-  const handleNextBestAction = () => {
-    if (nextBestAction.type === "approval" && approvalsTarget?.client?.id) {
-      navigate(`/clients/${approvalsTarget.client.id}?tab=pipeline&focus=review`);
-      return;
+      if (error) throw error;
+
+      toast({ title: "Task created", description: "Task added to operations queue." });
+      setShowTaskDialog(false);
+      setTaskFormData({ title: "", description: "", client_id: "", priority: "medium", status: "todo", assigned_to: "", due_date: "" });
+      await fetchDashboardData(true);
+    } catch (error: any) {
+      toast({ title: "Failed to create task", description: error?.message ?? "Please try again.", variant: "destructive" });
+    } finally {
+      setSubmitting(false);
     }
-    if (nextBestAction.type === "overdue" && overdueContentTarget?.client?.id) {
-      navigate(`/clients/${overdueContentTarget.client.id}?tab=pipeline&focus=publish`);
-      return;
-    }
-    if (nextBestAction.type === "readiness" && readinessTargets[0]) {
-      handleReadinessCta(readinessTargets[0]);
-      return;
-    }
-    setShowTaskDialog(true);
   };
+
+  const copyExecutiveSummary = async () => {
+    if (!executiveSummary) return;
+    try {
+      await navigator.clipboard.writeText(executiveSummary);
+      toast({ title: "Summary copied", description: "Executive summary copied to clipboard." });
+    } catch {
+      toast({ title: "Copy failed", description: "Could not copy summary.", variant: "destructive" });
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[70vh] items-center justify-center">
+        <div className="flex items-center gap-3 text-white/75">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          <span>Loading command center...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen  ai-glow">
-      {/* Executive Header */}
-      <div className="border-b ">
-        <div className="px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold data-[state=active]:bg-white">Agency Command Center</h1>
-              <p className="text-sm text-slate-1000 mt-1">
-                Managing {clients.length} clients with {teamMembers.length} team members
-              </p>
-            </div>
-            
-            <div className="flex items-center gap-3">
-              <Tabs value={viewMode} onValueChange={(v: any) => setViewMode(v)} className="w-auto">
-                <TabsList className="bg-slate-800">
-                  <TabsTrigger value="executive" className="bg-slate-800">
-                    <BarChart3 className="h-4 w-4 mr-2" />
-                    Executive
-                  </TabsTrigger>
-                  <TabsTrigger value="operations" className="bg-slate-800">
-                    <Briefcase className="h-4 w-4 mr-2" />
-                    Operations
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
-              
-              <Button variant="outline" size="sm">
-                <Filter className="h-4 w-4 mr-2" />
-                Filter
-              </Button>
-            </div>
+    <div className="space-y-6">
+      <div className="rounded-2xl border border-white/10 bg-black/40 p-5 backdrop-blur-sm">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div className="text-xs uppercase tracking-[0.2em] text-white/55">Enterprise Dashboard</div>
+            <h1 className="mt-1 text-2xl font-semibold text-white">Agency Command Center</h1>
+            <p className="mt-1 text-sm text-white/65">
+              Real-time portfolio control for {signals.totalClients} clients and {teamMembers.length} team members.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={viewMode} onValueChange={(value: ViewMode) => setViewMode(value)}>
+              <SelectTrigger className="w-[160px] border-white/20 bg-white/5 text-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="executive">Executive</SelectItem>
+                <SelectItem value="operations">Operations</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={period} onValueChange={(value: PeriodKey) => setPeriod(value)}>
+              <SelectTrigger className="w-[120px] border-white/20 bg-white/5 text-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="7d">Last 7d</SelectItem>
+                <SelectItem value="30d">Last 30d</SelectItem>
+                <SelectItem value="90d">Last 90d</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Button
+              variant="outline"
+              className="border-white/20 bg-white/5 text-white"
+              onClick={() => void fetchDashboardData(true)}
+              disabled={refreshing}
+            >
+              {refreshing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+              Refresh
+            </Button>
           </div>
         </div>
       </div>
 
-      <div className="p-6">
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="text-center space-y-3">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" />
-              <p className="text-muted-foreground">Loading dashboard...</p>
+      {dataUnavailable ? (
+        <Card className="border-amber-400/40 bg-amber-500/10 text-amber-100">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5" />
+              Partial Data Available
+            </CardTitle>
+            <CardDescription className="text-amber-100/80">
+              Some widgets may be incomplete due to data source warnings. Core actions remain available.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      ) : null}
+
+      <PostCreateAgencyCta isAdmin={isAdmin} aiSetupComplete={aiSetupComplete} />
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
+        {[
+          { label: "Capacity Utilization", value: `${capacityUtilization}%`, sub: "Team load", icon: Briefcase },
+          { label: "AI Hours Saved", value: `${hoursSavedThisPeriod}h`, sub: `${period.toUpperCase()} period`, icon: Sparkles },
+          { label: "Quality Score", value: `${qualityScore}%`, sub: "Approved + published ratio", icon: Target },
+          { label: "Automation Rate", value: `${automationRate}%`, sub: "Scheduled + published ratio", icon: Wand2 },
+          { label: "Revenue Risk", value: `${signals.approvalsPending + signals.overdueContent}`, sub: "Items at risk", icon: AlertTriangle },
+        ].map((kpi) => (
+          <Card key={kpi.label} className="border-white/10 bg-black/40">
+            <CardHeader className="pb-2">
+              <CardDescription className="text-white/60">{kpi.label}</CardDescription>
+              <CardTitle className="text-2xl text-white">{kpi.value}</CardTitle>
+            </CardHeader>
+            <CardContent className="flex items-center justify-between pt-0 text-xs text-white/55">
+              <span>{kpi.sub}</span>
+              <kpi.icon className="h-4 w-4" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <Card className="border-white/10 bg-black/40 xl:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-white">Action Queue</CardTitle>
+            <CardDescription className="text-white/60">
+              Prioritized actions to protect delivery, retention, and quality.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {alerts.map((alert) => (
+              <div key={alert.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-medium text-white">{alert.title}</h3>
+                      <Badge variant={badgeVariantForSeverity(alert.severity)}>{alert.severity}</Badge>
+                    </div>
+                    <p className="mt-1 text-sm text-white/65">{alert.description}</p>
+                  </div>
+                  <Button size="sm" variant="outline" className="border-white/20 bg-white/5 text-white" onClick={alert.onCta}>
+                    {alert.ctaLabel}
+                    <ArrowRight className="ml-2 h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card className="border-white/10 bg-black/40">
+          <CardHeader>
+            <CardTitle className="text-white">Executive Summary</CardTitle>
+            <CardDescription className="text-white/60">Auto-generated from live KPI signals.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm leading-relaxed text-white/80">{executiveSummary || "No data available yet."}</p>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" className="border-white/20 bg-white/5 text-white" onClick={copyExecutiveSummary}>
+                Copy Summary
+              </Button>
+              <Button size="sm" onClick={() => void fetchDashboardData(true)} disabled={refreshing}>
+                Regenerate
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {viewMode === "executive" ? (
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+          <Card className="border-white/10 bg-black/40 xl:col-span-2">
+            <CardHeader>
+              <CardTitle className="text-white">Client Portfolio Health</CardTitle>
+              <CardDescription className="text-white/60">Top clients ranked by operational health score.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {clientHealthScores.map((client) => (
+                <div key={client.id} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+                  <div>
+                    <div className="font-medium text-white">{client.name}</div>
+                    <div className="text-xs text-white/60">Health driver: readiness + delivery stability</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={client.score >= 80 ? "secondary" : client.score >= 60 ? "default" : "destructive"}>{client.score}</Badge>
+                    <Badge variant="outline" className="border-white/20 text-white/80">
+                      {client.trend === "up" ? "Improving" : client.trend === "down" ? "Declining" : "Stable"}
+                    </Badge>
+                    <Button size="sm" variant="ghost" className="text-white" onClick={() => navigate(`/clients/${client.id}`)}>
+                      Open
+                    </Button>
+                  </div>
+                </div>
+              ))}
+              {clientHealthScores.length === 0 ? <p className="text-sm text-white/60">No clients found.</p> : null}
+            </CardContent>
+          </Card>
+
+          <Card className="border-white/10 bg-black/40">
+            <CardHeader>
+              <CardTitle className="text-white">Forecast & Risk</CardTitle>
+              <CardDescription className="text-white/60">30/60/90 style indicators from current load.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <div className="mb-1 flex items-center justify-between text-xs text-white/60">
+                  <span>Capacity pressure</span>
+                  <span>{capacityUtilization}%</span>
+                </div>
+                <Progress value={capacityUtilization} className="h-2" />
+              </div>
+              <div>
+                <div className="mb-1 flex items-center justify-between text-xs text-white/60">
+                  <span>Approval bottleneck</span>
+                  <span>{signals.approvalsPending}</span>
+                </div>
+                <Progress value={clamp(signals.approvalsPending * 10, 0, 100)} className="h-2" />
+              </div>
+              <div>
+                <div className="mb-1 flex items-center justify-between text-xs text-white/60">
+                  <span>Overdue risk</span>
+                  <span>{signals.overdueContent}</span>
+                </div>
+                <Progress value={clamp(signals.overdueContent * 15, 0, 100)} className="h-2" />
+              </div>
+
+              <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                <div className="text-sm font-medium text-white">Scenario Planner</div>
+                <p className="mt-1 text-xs text-white/60">
+                  With current load, adding 5 new clients would move utilization to ~
+                  {clamp(capacityUtilization + Math.round((5 / Math.max(1, teamMembers.length)) * 12), 0, 100)}%.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+          <Card className="border-white/10 bg-black/40 xl:col-span-2">
+            <CardHeader>
+              <CardTitle className="text-white">Operations Control</CardTitle>
+              <CardDescription className="text-white/60">Live queue for approvals and overdue items.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div>
+                <div className="mb-2 text-xs uppercase tracking-[0.2em] text-white/50">Approvals</div>
+                <div className="space-y-2">
+                  {reviewProjects.slice(0, 5).map((project) => (
+                    <div key={project.id} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+                      <div>
+                        <div className="font-medium text-white">{project.title}</div>
+                        <div className="text-xs text-white/60">{project.client?.name ?? "Unknown client"}</div>
+                      </div>
+                      <Button size="sm" variant="outline" className="border-white/20 bg-white/5 text-white" onClick={() => project.client?.id && navigate(`/clients/${project.client.id}?tab=pipeline&focus=review`)}>Review</Button>
+                    </div>
+                  ))}
+                  {reviewProjects.length === 0 ? <p className="text-sm text-white/60">No approvals pending.</p> : null}
+                </div>
+              </div>
+
+              <div>
+                <div className="mb-2 text-xs uppercase tracking-[0.2em] text-white/50">Overdue Content</div>
+                <div className="space-y-2">
+                  {overdueProjects.slice(0, 5).map((project) => (
+                    <div key={project.id} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+                      <div>
+                        <div className="font-medium text-white">{project.title}</div>
+                        <div className="text-xs text-white/60">{project.client?.name ?? "Unknown client"} - {project.scheduled_time ? format(new Date(project.scheduled_time), "MMM d") : "No date"}</div>
+                      </div>
+                      <Button size="sm" variant="outline" className="border-white/20 bg-white/5 text-white" onClick={() => project.client?.id && navigate(`/clients/${project.client.id}?tab=pipeline&focus=publish`)}>Reschedule</Button>
+                    </div>
+                  ))}
+                  {overdueProjects.length === 0 ? <p className="text-sm text-white/60">No overdue content.</p> : null}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-white/10 bg-black/40">
+            <CardHeader>
+              <CardTitle className="text-white">Team Load</CardTitle>
+              <CardDescription className="text-white/60">Open tasks by assignee.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {teamMembers.slice(0, 8).map((member) => {
+                const openCount = teamOpenTasks[member.user_id] ?? 0;
+                const utilization = clamp(openCount * 18, 0, 100);
+                return (
+                  <div key={member.user_id} className="space-y-1">
+                    <div className="flex items-center justify-between text-sm text-white/80">
+                      <span>{member.profiles?.full_name || member.profiles?.email || "Unknown"}</span>
+                      <span>{openCount} open</span>
+                    </div>
+                    <Progress value={utilization} className="h-2" />
+                  </div>
+                );
+              })}
+              {teamMembers.length === 0 ? <p className="text-sm text-white/60">No team members found.</p> : null}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <Card className="border-white/10 bg-black/40 xl:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-white">AI Performance & ROI</CardTitle>
+            <CardDescription className="text-white/60">Enterprise AI throughput, quality, and value tracking.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                <div className="text-xs uppercase tracking-[0.2em] text-white/50">Hours Saved</div>
+                <div className="mt-2 text-2xl font-semibold text-white">{hoursSavedThisPeriod}h</div>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                <div className="text-xs uppercase tracking-[0.2em] text-white/50">Automation Rate</div>
+                <div className="mt-2 text-2xl font-semibold text-white">{automationRate}%</div>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                <div className="text-xs uppercase tracking-[0.2em] text-white/50">Quality Score</div>
+                <div className="mt-2 text-2xl font-semibold text-white">{qualityScore}%</div>
+              </div>
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button variant="outline" className="border-white/20 bg-white/5 text-white" onClick={() => handleAiActionClick("strategy")}>Generate Strategy</Button>
+              <Button variant="outline" className="border-white/20 bg-white/5 text-white" onClick={() => handleAiActionClick("hooks")}>Generate Hooks</Button>
+              <Button variant="outline" className="border-white/20 bg-white/5 text-white" onClick={() => handleAiActionClick("captions")}>Draft Captions</Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-white/10 bg-black/40">
+          <CardHeader>
+            <CardTitle className="text-white">Quick Actions</CardTitle>
+            <CardDescription className="text-white/60">High-frequency operations shortcuts.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <Button className="w-full justify-start" onClick={() => setShowNewClientDialog(true)}><Plus className="mr-2 h-4 w-4" />Add New Client</Button>
+            <Button variant="outline" className="w-full justify-start border-white/20 bg-white/5 text-white" onClick={() => setShowTaskDialog(true)}><CheckSquare className="mr-2 h-4 w-4" />Create Task</Button>
+            <Button variant="outline" className="w-full justify-start border-white/20 bg-white/5 text-white" onClick={() => navigate("/clients")}><Users className="mr-2 h-4 w-4" />Open Clients</Button>
+            <Button variant="outline" className="w-full justify-start border-white/20 bg-white/5 text-white" onClick={() => navigate("/team")}><ClipboardList className="mr-2 h-4 w-4" />Open Team Queue</Button>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Dialog open={showNewClientDialog} onOpenChange={setShowNewClientDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Client</DialogTitle>
+            <DialogDescription>Create a new client workspace and start onboarding.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div><Label htmlFor="client_name">Client Name</Label><Input id="client_name" value={clientFormData.name} onChange={(e) => setClientFormData((prev) => ({ ...prev, name: e.target.value }))} /></div>
+            <div><Label htmlFor="client_company">Company</Label><Input id="client_company" value={clientFormData.company} onChange={(e) => setClientFormData((prev) => ({ ...prev, company: e.target.value }))} /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label htmlFor="client_email">Email</Label><Input id="client_email" value={clientFormData.email} onChange={(e) => setClientFormData((prev) => ({ ...prev, email: e.target.value }))} /></div>
+              <div><Label htmlFor="client_phone">Phone</Label><Input id="client_phone" value={clientFormData.phone} onChange={(e) => setClientFormData((prev) => ({ ...prev, phone: e.target.value }))} /></div>
+            </div>
+            <div>
+              <Label>Onboarding Path</Label>
+              <Select value={clientFormData.onboardingMode} onValueChange={(value) => setClientFormData((prev) => ({ ...prev, onboardingMode: value }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="agency">Agency-led onboarding</SelectItem>
+                  <SelectItem value="client">Client portal onboarding</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-              <Card>
-                <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-2">
-                    <Target className="h-5 w-5" />
-                    Next Best Action
-                  </CardTitle>
-                  <CardDescription>{nextBestAction.title}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-slate-600 mb-4">
-                    {nextBestAction.description}
-                  </p>
-                  <Button className="w-full" onClick={handleNextBestAction}>
-                    {nextBestAction.ctaLabel}
-                  </Button>
-                </CardContent>
-              </Card>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowNewClientDialog(false)} disabled={submitting}>Cancel</Button>
+            <Button onClick={handleCreateClient} disabled={submitting}>{submitting ? "Creating..." : "Create Client"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-              <Card>
-                <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-2">
-                    <AlertTriangle className="h-5 w-5 text-amber-500" />
-                    Risks
-                  </CardTitle>
-                  <CardDescription>Items needing attention</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-2xl font-bold">{signals.approvalsPending}</p>
-                      <p className="text-sm text-slate-600">Pending approvals</p>
-                    </div>
-                    <Badge variant={signals.oldestApprovalAgeDays > 2 ? "destructive" : "secondary"}>
-                      {signals.oldestApprovalAgeDays}d oldest
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-2xl font-bold">{signals.reviewStuck48h}</p>
-                      <p className="text-sm text-slate-600">Stuck in review 48h+</p>
-                    </div>
-                    <Badge variant={signals.reviewStuck48h > 3 ? "destructive" : "secondary"}>
-                      48h
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-2xl font-bold">{signals.overdueContent}</p>
-                      <p className="text-sm text-slate-600">Overdue content</p>
-                    </div>
-                    <Badge variant={signals.overdueContent > 0 ? "destructive" : "secondary"}>
-                      {signals.overdueContent > 0 ? "Overdue" : "Clear"}
-                    </Badge>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-2">
-                    <Sparkles className="h-5 w-5 text-emerald-500" />
-                    Wins
-                  </CardTitle>
-                  <CardDescription>Momentum across clients</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-2xl font-bold">{signals.pipelineCounts.published}</p>
-                      <p className="text-sm text-slate-600">Published</p>
-                    </div>
-                    <Badge variant="secondary">Live</Badge>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-2xl font-bold">{signals.pipelineCounts.approved}</p>
-                      <p className="text-sm text-slate-600">Approved</p>
-                    </div>
-                    <Badge variant="secondary">Ready</Badge>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-2xl font-bold">{signals.projectsScheduled7d}</p>
-                      <p className="text-sm text-slate-600">Scheduled this week</p>
-                    </div>
-                    <Badge variant="secondary">Queued</Badge>
-                  </div>
-                </CardContent>
-              </Card>
+      <Dialog open={showTaskDialog} onOpenChange={setShowTaskDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Task</DialogTitle>
+            <DialogDescription>Create a task in the agency operations queue.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div><Label htmlFor="task_title">Title</Label><Input id="task_title" value={taskFormData.title} onChange={(e) => setTaskFormData((prev) => ({ ...prev, title: e.target.value }))} /></div>
+            <div><Label htmlFor="task_description">Description</Label><Textarea id="task_description" value={taskFormData.description} onChange={(e) => setTaskFormData((prev) => ({ ...prev, description: e.target.value }))} /></div>
+            <div>
+              <Label>Client</Label>
+              <Select value={taskFormData.client_id} onValueChange={(value) => setTaskFormData((prev) => ({ ...prev, client_id: value }))}>
+                <SelectTrigger><SelectValue placeholder="Select client" /></SelectTrigger>
+                <SelectContent>{clients.map((client) => (<SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>))}</SelectContent>
+              </Select>
             </div>
-
-            {viewMode === "executive" ? (
-              <Accordion type="single" collapsible className="w-full">
-                <AccordionItem value="insights">
-                  <AccordionTrigger>More insights</AccordionTrigger>
-                  <AccordionContent>
-                    <div className="space-y-8 pt-4">
-                      <PostCreateAgencyCta isAdmin={isAdmin} aiSetupComplete={aiSetupComplete} />
-            {/* Capacity Multiplier Scoreboard */}
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
-              <Card className="lg:col-span-2 bg-gradient-to-br from-slate-900  text-white">
-                <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-2 text-white">
-                    <Target className="h-5 w-5" />
-                    Capacity Multiplier Dashboard
-                  </CardTitle>
-                  <CardDescription className="text-slate-300">
-                    Your path to managing 2× clients with the same team
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="space-y-4">
-                      <div>
-                        <p className="text-sm text-slate-400">Capacity Utilization</p>
-                        <div className="flex items-end gap-2">
-                          <span className="text-3xl font-bold">{capacityUtilization}%</span>
-                          <span className="text-sm text-slate-300 mb-1">of team capacity</span>
-                        </div>
-                        <Progress value={capacityUtilization} className="mt-2 h-2" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-slate-400">Client/Team Ratio</p>
-                        <div className="flex items-end gap-2">
-                          <span className="text-3xl font-bold">{clientTeamRatio}x</span>
-                          <div className="flex items-center text-sm text-slate-300 mb-1">
-                            <ArrowUpRight className="h-4 w-4 text-green-400 mr-1" />
-                            +12% this month
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="space-y-4">
-                      <div>
-                        <p className="text-sm text-slate-400">AI Hours Saved</p>
-                        <div className="flex items-end gap-2">
-                          <span className="text-3xl font-bold">{hoursSavedThisWeek}h</span>
-                          <span className="text-sm text-slate-300 mb-1">this week</span>
-                        </div>
-                      </div>
-                      <div>
-                        <p className="text-sm text-slate-400">Target Ratio</p>
-                        <div className="flex items-end gap-2">
-                          <span className="text-3xl font-bold text-emerald-400">2.0x</span>
-                          <span className="text-sm text-slate-300 mb-1">goal</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-2 text-sm">
-                    <AlertTriangle className="h-4 w-4 text-amber-500" />
-                    Revenue at Risk
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-2xl font-bold">{signals.approvalsPending}</p>
-                        <p className="text-sm text-slate-600">Pending Approvals</p>
-                      </div>
-                      <Badge variant={signals.oldestApprovalAgeDays > 2 ? "destructive" : "secondary"}>
-                        {signals.oldestApprovalAgeDays}d oldest
-                      </Badge>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-2xl font-bold">{signals.overdueContent}</p>
-                        <p className="text-sm text-slate-600">Overdue Content</p>
-                      </div>
-                      <Button size="sm" variant="outline">
-                        Resolve
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-2 text-sm">
-                    <Zap className="h-4 w-4 text-emerald-500" />
-                    Efficiency Gains
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-2xl font-bold">{signals.reviewStuck48h}</p>
-                        <p className="text-sm text-slate-600">Stuck in Review</p>
-                      </div>
-                      <Badge variant={signals.reviewStuck48h > 3 ? "destructive" : "secondary"}>
-                        48h
-                      </Badge>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-2xl font-bold">{itemsDueThisWeek}</p>
-                        <p className="text-sm text-slate-600">Due This Week</p>
-                      </div>
-                      <Button size="sm" variant="outline">
-                        Schedule
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Strategic Priority Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-              {/* Client Portfolio Health */}
-              <Card>
-                <CardHeader className="pb-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Users className="h-5 w-5 text-slate-700" />
-                      <CardTitle>Client Portfolio Health</CardTitle>
-                    </div>
-                    <Button variant="ghost" size="sm">
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <CardDescription>Client health scores and engagement levels</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {clientHealthScores.map((client) => (
-                      <div key={client.id} className="flex items-center justify-between p-3 rounded-lg border">
-                        <div className="flex items-center gap-3">
-                          <div className={`h-10 w-10 rounded-full flex items-center justify-center ${
-                            client.score >= 80 ? 'bg-emerald-100 text-emerald-700' :
-                            client.score >= 60 ? 'bg-amber-100 text-amber-700' :
-                            'bg-red-100 text-red-700'
-                          }`}>
-                            <span className="font-bold">{client.score}</span>
-                          </div>
-                          <div>
-                            <p className="font-medium">{client.name}</p>
-                            <p className="text-sm text-slate-600">Health score</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {client.trend === 'up' ? (
-                            <ArrowUpRight className="h-4 w-4 text-emerald-500" />
-                          ) : (
-                            <ArrowDownRight className="h-4 w-4 text-red-500" />
-                          )}
-                          <Button size="sm" variant="ghost" onClick={() => navigate(`/clients/${client.id}`)}>
-                            <ChevronRight className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Bottleneck Radar */}
-              <Card>
-                <CardHeader className="pb-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <PieChart className="h-5 w-5 text-slate-700" />
-                      <CardTitle>Bottleneck Analysis</CardTitle>
-                    </div>
-                    <Button variant="ghost" size="sm">
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <CardDescription>Process bottlenecks affecting scalability</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {[
-                      { label: 'Content Creation', severity: 'high', value: signals.pipelineCounts.production },
-                      { label: 'Client Approvals', severity: 'critical', value: signals.approvalsPending },
-                      { label: 'Strategy Development', severity: 'medium', value: readinessSummary.NOT_STARTED },
-                      { label: 'Asset Collection', severity: 'medium', value: readinessSummary.IN_PROGRESS },
-                      { label: 'Publishing', severity: 'low', value: signals.pipelineCounts.published },
-                      { label: 'Reporting', severity: 'low', value: 0 },
-                    ].map((item) => (
-                      <div key={item.label} className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium">{item.label}</span>
-                          <Badge variant={
-                            item.severity === 'critical' ? 'destructive' :
-                            item.severity === 'high' ? 'default' :
-                            item.severity === 'medium' ? 'secondary' : 'outline'
-                          }>
-                            {item.value}
-                          </Badge>
-                        </div>
-                        <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
-                          <div 
-                            className={`h-full ${
-                              item.severity === 'critical' ? 'bg-red-500' :
-                              item.severity === 'high' ? 'bg-amber-500' :
-                              item.severity === 'medium' ? 'bg-blue-500' : 'bg-emerald-500'
-                            }`}
-                            style={{ width: `${Math.min(item.value * 20, 100)}%` }}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* AI Efficiency & Quick Actions */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <Card className="lg:col-span-2">
-                <CardHeader className="pb-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Wand2 className="h-5 w-5 text-slate-700" />
-                      <CardTitle>AI Efficiency Scorecard</CardTitle>
-                    </div>
-                    <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
-                      Active
-                    </Badge>
-                  </div>
-                  <CardDescription>Hours saved and automation impact</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="p-4 rounded-lg border border-emerald-200 bg-emerald-50">
-                      <p className="text-2xl font-bold text-emerald-700">{hoursSavedThisWeek}h</p>
-                      <p className="text-sm text-emerald-600">Saved this week</p>
-                    </div>
-                    <div className="p-4 rounded-lg border border-blue-200 bg-blue-50">
-                      <p className="text-2xl font-bold text-blue-700">24</p>
-                      <p className="text-sm text-blue-600">Tasks automated</p>
-                    </div>
-                    <div className="p-4 rounded-lg border border-purple-200 bg-purple-50">
-                      <p className="text-2xl font-bold text-purple-700">92%</p>
-                      <p className="text-sm text-purple-600">Quality score</p>
-                    </div>
-                  </div>
-                  <div className="mt-6">
-                    <p className="text-sm font-medium mb-3">Quick AI Actions</p>
-                    <div className="grid grid-cols-3 gap-3">
-                      <Button variant="outline" onClick={() => handleAiActionClick("strategy")}>
-                        Generate Strategy
-                      </Button>
-                      <Button variant="outline" onClick={() => handleAiActionClick("hooks")}>
-                        10 Hooks
-                      </Button>
-                      <Button variant="outline" onClick={() => handleAiActionClick("captions")}>
-                        Draft Captions
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-2 text-sm">
-                    <Sparkles className="h-4 w-4 text-slate-700" />
-                    Quick Actions
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <Button 
-                    className="w-full justify-start" 
-                    onClick={() => setShowNewClientDialog(true)}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add New Client
-                  </Button>
-                  <Button 
-                    className="w-full justify-start" 
-                    variant="outline"
-                    onClick={() => setShowTaskDialog(true)}
-                  >
-                    <CheckSquare className="h-4 w-4 mr-2" />
-                    Create Task
-                  </Button>
-                  <Button 
-                    className="w-full justify-start" 
-                    variant="outline"
-                    onClick={() => navigate("/clients")}
-                  >
-                    <Users className="h-4 w-4 mr-2" />
-                    View All Clients
-                  </Button>
-                  <Button 
-                    className="w-full justify-start" 
-                    variant="outline"
-                    onClick={() => navigate("/analytics")}
-                  >
-                    <BarChart3 className="h-4 w-4 mr-2" />
-                    Performance Analytics
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-            ) : (
-              <Accordion type="single" collapsible className="w-full">
-                <AccordionItem value="insights">
-                  <AccordionTrigger>More insights</AccordionTrigger>
-                  <AccordionContent>
-                    <div className="space-y-6 pt-4">
-                      <PostCreateAgencyCta isAdmin={isAdmin} aiSetupComplete={aiSetupComplete} />
-
-                      {/* Operations View */}
-                      <div className="space-y-6">
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                          <Card>
-                            <CardHeader className="pb-4">
-                              <CardTitle className="flex items-center gap-2">
-                                <ClipboardList className="h-5 w-5" />
-                                Approval Queue
-                              </CardTitle>
-                              <CardDescription>Items waiting for client approval</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                              <div className="space-y-4">
-                                {reviewProjects.slice(0, 5).map((project) => (
-                                  <div key={project.id} className="flex items-center justify-between p-3 rounded-lg border">
-                                    <div>
-                                      <p className="font-medium">{project.title}</p>
-                                      <p className="text-sm text-slate-600">{project.client?.name}</p>
-                                    </div>
-                                    <Badge variant="outline">Review</Badge>
-                                  </div>
-                                ))}
-                                {reviewProjects.length === 0 && (
-                                  <p className="text-sm text-slate-500 text-center py-4">No pending approvals</p>
-                                )}
-                              </div>
-                            </CardContent>
-                          </Card>
-
-                          <Card>
-                            <CardHeader className="pb-4">
-                              <CardTitle className="flex items-center gap-2">
-                                <Clock className="h-5 w-5" />
-                                Overdue Content
-                              </CardTitle>
-                              <CardDescription>Missed publish dates</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                              <div className="space-y-4">
-                                {overdueProjects.slice(0, 5).map((project) => (
-                                  <div key={project.id} className="flex items-center justify-between p-3 rounded-lg border">
-                                    <div>
-                                      <p className="font-medium">{project.title}</p>
-                                      <p className="text-sm text-slate-600">
-                                        {format(new Date(project.scheduled_time), 'MMM d')}
-                                      </p>
-                                    </div>
-                                    <Button size="sm" variant="outline">Reschedule</Button>
-                                  </div>
-                                ))}
-                                {overdueProjects.length === 0 && (
-                                  <p className="text-sm text-slate-500 text-center py-4">No overdue content</p>
-                                )}
-                              </div>
-                            </CardContent>
-                          </Card>
-
-                          <Card>
-                            <CardHeader className="pb-4">
-                              <CardTitle className="flex items-center gap-2">
-                                <TrendingUp className="h-5 w-5" />
-                                Production Pipeline
-                              </CardTitle>
-                              <CardDescription>Content workflow status</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                              <div className="grid grid-cols-3 gap-2">
-                                {Object.entries(signals.pipelineCounts).map(([key, value]) => (
-                                  <div key={key} className="text-center p-3 rounded-lg border">
-                                    <p className="text-lg font-bold">{value}</p>
-                                    <p className="text-xs text-slate-600 capitalize">{key}</p>
-                                  </div>
-                                ))}
-                              </div>
-                            </CardContent>
-                          </Card>
-                        </div>
-
-                        {/* Client Readiness & Team Capacity */}
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                          <Card>
-                            <CardHeader className="pb-4">
-                              <CardTitle>Client Readiness</CardTitle>
-                              <CardDescription>Onboarding progress status</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                              <div className="space-y-4">
-                                <div className="grid grid-cols-3 gap-3">
-                                  <div className="text-center p-4 rounded-lg border">
-                                    <p className="text-2xl font-bold">{readinessSummary.NOT_STARTED}</p>
-                                    <p className="text-sm text-slate-600">Not Started</p>
-                                  </div>
-                                  <div className="text-center p-4 rounded-lg border">
-                                    <p className="text-2xl font-bold">{readinessSummary.IN_PROGRESS}</p>
-                                    <p className="text-sm text-slate-600">In Progress</p>
-                                  </div>
-                                  <div className="text-center p-4 rounded-lg border">
-                                    <p className="text-2xl font-bold">{readinessSummary.COMPLETE}</p>
-                                    <p className="text-sm text-slate-600">Complete</p>
-                                  </div>
-                                </div>
-                                <div className="space-y-3">
-                                  {readinessTargets.map((client) => (
-                                    <div key={client.id} className="flex items-center justify-between p-3 rounded-lg border">
-                                      <div>
-                                        <p className="font-medium">{client.name}</p>
-                                        <p className="text-sm text-slate-600">
-                                          Signals: {client.readiness.trueCount}/3
-                                        </p>
-                                      </div>
-                                      <Button size="sm" variant="outline" onClick={() => handleReadinessCta(client)}>
-                                        Complete
-                                      </Button>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-
-                          <Card>
-                            <CardHeader className="pb-4">
-                              <CardTitle>Team Capacity</CardTitle>
-                              <CardDescription>This week's workload distribution</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                              <div className="space-y-4">
-                                {teamMembers.slice(0, 5).map((member) => (
-                                  <div key={member.user_id} className="space-y-2">
-                                    <div className="flex items-center justify-between">
-                                      <span className="font-medium">
-                                        {member.profiles?.full_name || member.profiles?.email}
-                                      </span>
-                                      <Badge variant="outline">{member.role}</Badge>
-                                    </div>
-                                    <Progress value={Math.random() * 100} className="h-2" />
-                                  </div>
-                                ))}
-                              </div>
-                            </CardContent>
-                          </Card>
-                        </div>
-                      </div>
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-            )}
-          </>
-        )}
-
-        {/* Dialogs (unchanged but kept for functionality) */}
-        <Dialog open={showNewClientDialog} onOpenChange={setShowNewClientDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add New Client</DialogTitle>
-              <DialogDescription>Create a new client workspace</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label htmlFor="name">Client Name *</Label>
-                <Input
-                  id="name"
-                  value={clientFormData.name}
-                  onChange={(e) => setClientFormData({ ...clientFormData, name: e.target.value })}
-                  placeholder="Enter client name"
-                />
+                <Label>Priority</Label>
+                <Select value={taskFormData.priority} onValueChange={(value) => setTaskFormData((prev) => ({ ...prev, priority: value }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{PRIORITIES.map((priority) => (<SelectItem key={priority} value={priority}>{priority}</SelectItem>))}</SelectContent>
+                </Select>
               </div>
-              {/* ... rest of client form ... */}
+              <div>
+                <Label>Status</Label>
+                <Select value={taskFormData.status} onValueChange={(value) => setTaskFormData((prev) => ({ ...prev, status: value }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{TASK_STATUSES.map((status) => (<SelectItem key={status} value={status}>{status}</SelectItem>))}</SelectContent>
+                </Select>
+              </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowNewClientDialog(false)} disabled={submitting}>
-                Cancel
-              </Button>
-              <Button onClick={handleCreateClient} disabled={submitting}>
-                {submitting ? "Creating..." : "Create Client"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={showTaskDialog} onOpenChange={setShowTaskDialog}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <CheckSquare className="h-5 w-5" />
-                Create New Task
-              </DialogTitle>
-              <DialogDescription>Add a new task for a client</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              {/* ... task form ... */}
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label htmlFor="task_due">Due date</Label><Input id="task_due" type="date" value={taskFormData.due_date} onChange={(e) => setTaskFormData((prev) => ({ ...prev, due_date: e.target.value }))} /></div>
+              <div>
+                <Label>Assignee</Label>
+                <Select value={taskFormData.assigned_to || "unassigned"} onValueChange={(value) => setTaskFormData((prev) => ({ ...prev, assigned_to: value === "unassigned" ? "" : value }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unassigned">Unassigned</SelectItem>
+                    {teamMembers.map((member) => (<SelectItem key={member.user_id} value={member.user_id}>{member.profiles?.full_name || member.profiles?.email || member.user_id}</SelectItem>))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowTaskDialog(false)} disabled={submitting}>
-                Cancel
-              </Button>
-              <Button onClick={handleCreateTask} disabled={submitting}>
-                {submitting ? "Creating..." : "Create Task"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowTaskDialog(false)} disabled={submitting}>Cancel</Button>
+            <Button onClick={handleCreateTask} disabled={submitting}>{submitting ? "Creating..." : "Create Task"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-        <ClientPickerDialog
-          open={clientPickerOpen}
-          onOpenChange={(open) => {
-            setClientPickerOpen(open);
-            if (!open) {
-              setPendingAiAction(null);
-            }
-          }}
-          clients={clients}
-          onSelect={(clientId) => {
-            if (pendingAiAction) {
-              runAiAction(clientId, pendingAiAction);
-            }
-            setPendingAiAction(null);
-          }}
-        />
-      </div>
+      <ClientPickerDialog
+        open={clientPickerOpen}
+        onOpenChange={(open) => {
+          setClientPickerOpen(open);
+          if (!open) setPendingAiAction(null);
+        }}
+        clients={clients}
+        onSelect={(clientId) => {
+          if (pendingAiAction) runAiAction(clientId, pendingAiAction);
+          setPendingAiAction(null);
+        }}
+      />
     </div>
   );
 }

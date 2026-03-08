@@ -1,0 +1,6 @@
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\App.tsx:148:path="/client/login/:portalSlug"
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\App.tsx:156:path="/client/accept-invite"
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\App.tsx:164:path="/client/forgot-password/:portalSlug"
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\App.tsx:172:path="/client/reset-password"
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\App.tsx:181:<Route path="/client/portal" element={<ClientPortalShell />}>
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\App.tsx:195:<Route path="/client/portal/:portalSlug" element={<ClientPortalShell />}>

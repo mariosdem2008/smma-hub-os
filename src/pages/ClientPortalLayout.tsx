@@ -57,7 +57,7 @@ const navItems = [
 function ClientPortalLayoutContent() {
   const { portalSlug } = useParams();
   const navigate = useNavigate();
-  const { logout } = useClientAuth();
+  const { logout, clientUser, loading: clientAuthLoading } = useClientAuth();
   const [client, setClient] = useState<Client | null>(null);
   const [portalLoading, setPortalLoading] = useState(true);
   const [notLinked, setNotLinked] = useState(false);
@@ -72,13 +72,8 @@ function ClientPortalLayoutContent() {
 
   useEffect(() => {
     const bootstrap = async () => {
-      const { data: authUser } = await supabase.auth.getUser();
-      console.log("[client-portal] mount", {
-        hasSession: !!authUser?.user,
-        lookup: authUser?.user ? "portal_user_id" : "slug",
-      });
-
-      if (!authUser?.user) {
+      if (clientAuthLoading) return;
+      if (!clientUser) {
         navigate(portalSlug ? `/client/login/${portalSlug}` : "/client/login");
         setPortalLoading(false);
         return;
@@ -88,8 +83,8 @@ function ClientPortalLayoutContent() {
         .select(
           "id,name,logo_url,primary_font,secondary_font,brand_colors,website,notes,niche,tone_of_voice,agency_id,portal_slug",
         )
-        .eq("portal_user_id", authUser.user.id)
-        .single();
+        .eq("id", clientUser.client_id)
+        .maybeSingle();
 
       if (error) {
         console.error("[client-portal] portal_user_id lookup failed", error);
@@ -109,14 +104,9 @@ function ClientPortalLayoutContent() {
     };
 
     bootstrap();
-  }, [portalSlug, navigate]);
+  }, [portalSlug, navigate, clientUser, clientAuthLoading]);
 
   const handleSignOut = async () => {
-    try {
-      await supabase.auth.signOut();
-    } catch (err) {
-      console.error("[client-portal] supabase signOut failed", err);
-    }
     logout();
     navigate(resolvedPortalSlug ? `/client/login/${resolvedPortalSlug}` : "/client/login");
   };

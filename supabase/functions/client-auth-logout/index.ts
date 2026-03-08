@@ -10,12 +10,12 @@ function clearAuthCookiesHeaders(base: Record<string, string>): Headers {
 
   headers.append(
     "Set-Cookie",
-    "cp_access_token=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Lax",
+    "cp_access_token=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=None",
   );
 
   headers.append(
     "Set-Cookie",
-    "cp_refresh_token=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Lax",
+    "cp_refresh_token=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=None",
   );
 
   return headers;

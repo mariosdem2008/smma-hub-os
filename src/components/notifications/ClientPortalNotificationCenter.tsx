@@ -11,12 +11,6 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useNavigate, useParams } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
-import {
-  useNotifications,
-  useUnreadNotificationsCount,
-  useMarkNotificationRead,
-  useMarkAllNotificationsRead,
-} from '@/hooks/useNotifications';
 import { cn } from '@/lib/utils';
 import { Check } from 'lucide-react';
 
@@ -25,17 +19,17 @@ export function ClientPortalNotificationCenter() {
   const navigate = useNavigate();
   const { portalSlug } = useParams();
   const basePortalPath = portalSlug ? `/client/portal/${portalSlug}` : "/client/portal";
-  const { data: notifications, isLoading } = useNotifications();
-  const { data: unreadCount } = useUnreadNotificationsCount();
-  const { mutate: markRead } = useMarkNotificationRead();
-  const { mutate: markAllRead } = useMarkAllNotificationsRead();
+  const notifications: any[] = [];
+  const isLoading = false;
+  const markRead = () => {};
+  const markAllRead = () => {};
 
   // Filter to only show new_message and approval_reminder for client portal
   const clientNotifications = notifications?.filter(
     n => n.type === 'new_message' || n.type === 'approval_reminder'
   );
 
-  const clientUnreadCount = clientNotifications?.filter(n => !n.read_at).length || 0;
+  const clientUnreadCount = 0;
 
   const getNotificationIcon = (type: string) => {
     switch (type) {

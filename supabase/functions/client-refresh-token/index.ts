@@ -1,18 +1,15 @@
-// supabase/functions/client-refresh-token/index.ts
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { portalCors } from "../_shared/cors_portal.ts";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
 
-const FN_VERSION = "client-refresh-token_2025-12-21_3";
-
+const FN_VERSION = "client-refresh-token_2026-03-07_4";
 const CLIENT_PORTAL_JWT_SECRET = Deno.env.get("CLIENT_PORTAL_JWT_SECRET");
-const CLIENT_PORTAL_JWT_REFRESH_SECRET = Deno.env.get("CLIENT_PORTAL_JWT_REFRESH_SECRET");
+
+const ACCESS_TOKEN_TTL_SECONDS = 20 * 60; // 20 minutes
+const REFRESH_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60; // 30 days
 
 if (!CLIENT_PORTAL_JWT_SECRET) {
   console.warn("[client-refresh-token] Missing CLIENT_PORTAL_JWT_SECRET");
-}
-if (!CLIENT_PORTAL_JWT_REFRESH_SECRET) {
-  console.warn("[client-refresh-token] Missing CLIENT_PORTAL_JWT_REFRESH_SECRET");
 }
 
 interface ClientPortalJwtPayload {
@@ -35,15 +32,6 @@ function base64UrlEncodeJson(obj: unknown): string {
   return base64UrlEncode(bytes);
 }
 
-function base64UrlDecodeToBytes(input: string): Uint8Array {
-  const base64 = input.replace(/-/g, "+").replace(/_/g, "/");
-  const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
-  const bin = atob(padded);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return bytes;
-}
-
 async function hmacSha256Sign(secret: string, data: string): Promise<string> {
   const key = await crypto.subtle.importKey(
     "raw",
@@ -55,26 +43,6 @@ async function hmacSha256Sign(secret: string, data: string): Promise<string> {
   const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(data));
   return base64UrlEncode(new Uint8Array(sig));
 }
-
-async function hmacSha256Verify(secret: string, data: string, signatureB64Url: string): Promise<boolean> {
-  const key = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["verify"],
-  );
-
-  const sigBytes = base64UrlDecodeToBytes(signatureB64Url);
-
-  return await crypto.subtle.verify(
-    "HMAC",
-    key,
-    new Uint8Array(sigBytes).buffer as ArrayBuffer,
-    new TextEncoder().encode(data),
-  );
-}
-
 
 function getCookie(header: string | null, name: string): string | null {
   if (!header) return null;
@@ -89,43 +57,22 @@ function getCookie(header: string | null, name: string): string | null {
   return null;
 }
 
-// Verify refresh token (JWT HS256)
-async function verifyRefreshToken(token: string): Promise<ClientPortalJwtPayload | null> {
-  if (!CLIENT_PORTAL_JWT_REFRESH_SECRET) return null;
-
-  try {
-    const parts = token.split(".");
-    if (parts.length !== 3) return null;
-
-    const [headerB64, payloadB64, sigB64] = parts;
-
-    const signingInput = `${headerB64}.${payloadB64}`;
-    const ok = await hmacSha256Verify(CLIENT_PORTAL_JWT_REFRESH_SECRET, signingInput, sigB64);
-    if (!ok) return null;
-
-    const payloadJson = new TextDecoder().decode(base64UrlDecodeToBytes(payloadB64));
-    const payload: ClientPortalJwtPayload = JSON.parse(payloadJson);
-
-    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
-      return null;
-    }
-
-    return payload;
-  } catch (err) {
-    console.error("[client-refresh-token] verifyRefreshToken error:", err);
-    return null;
-  }
+async function hashToken(token: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(token);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-// Generate new access token (JWT HS256)
-async function generateAccessToken(payload: ClientPortalJwtPayload): Promise<{ token: string; exp: number }> {
+async function generateAccessToken(payload: Omit<ClientPortalJwtPayload, "exp">): Promise<{ token: string; exp: number }> {
   if (!CLIENT_PORTAL_JWT_SECRET) {
     throw new Error("CLIENT_PORTAL_JWT_SECRET not configured");
   }
 
-  const exp = Math.floor(Date.now() / 1000) + 60 * 60; // 1 hour
+  const exp = Math.floor(Date.now() / 1000) + ACCESS_TOKEN_TTL_SECONDS;
   const header = { alg: "HS256", typ: "JWT" };
-  const body = { ...payload, exp };
+  const body: ClientPortalJwtPayload = { ...payload, exp };
 
   const headerB64 = base64UrlEncodeJson(header);
   const payloadB64 = base64UrlEncodeJson(body);
@@ -146,7 +93,6 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  // Preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: { ...cors, "X-FN-VERSION": FN_VERSION } });
   }
@@ -169,15 +115,7 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const payload = await verifyRefreshToken(refreshToken);
-    if (!payload) {
-      return new Response(JSON.stringify({ success: false, error: "Invalid refresh token", v: FN_VERSION }), {
-        status: 401,
-        headers,
-      });
-    }
-
-    const { token: accessToken, exp } = await generateAccessToken(payload);
+    const refreshHash = await hashToken(refreshToken);
 
     const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
       auth: { persistSession: false },
@@ -189,10 +127,24 @@ Deno.serve(async (req: Request) => {
       },
     });
 
+    const { data: refreshRow, error: refreshErr } = await supabaseAdmin
+      .from("client_refresh_tokens")
+      .select("id, client_user_id, expires_at, revoked_at")
+      .eq("token_hash", refreshHash)
+      .maybeSingle();
+
+    const refreshExpired = refreshRow?.expires_at ? new Date(refreshRow.expires_at).getTime() <= Date.now() : true;
+    if (refreshErr || !refreshRow || refreshRow.revoked_at || refreshExpired) {
+      return new Response(JSON.stringify({ success: false, error: "Invalid refresh token", v: FN_VERSION }), {
+        status: 401,
+        headers,
+      });
+    }
+
     const { data: clientUser, error: userErr } = await supabaseAdmin
       .from("client_users")
-      .select("id,email,full_name,client_id,agency_id,role,clients(*)")
-      .eq("id", payload.sub)
+      .select("id,email,full_name,client_id,agency_id,role")
+      .eq("id", refreshRow.client_user_id)
       .single();
 
     if (userErr || !clientUser) {
@@ -202,33 +154,40 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const userData = {
-      id: clientUser.id,
+    const { token: accessToken, exp } = await generateAccessToken({
+      sub: clientUser.id,
       email: clientUser.email,
-      full_name: clientUser.full_name,
       client_id: clientUser.client_id,
       agency_id: clientUser.agency_id,
       role: clientUser.role,
-    };
+    });
 
     const resHeaders = new Headers(headers);
-
-    // IMPORTANT:
-    // - SameSite=None requires Secure (true) in browsers.
-    // - On localhost over http, Secure cookies may be dropped by the browser.
-    // If you’re testing on http://localhost, you may need to set Secure=false OR use https locally.
-    const isLocalhost = (req.headers.get("origin") ?? "").includes("localhost");
-    const secureAttr = isLocalhost ? "" : " Secure;";
-
     resHeaders.append(
       "Set-Cookie",
-      `cp_access_token=${accessToken}; HttpOnly;${secureAttr} SameSite=None; Path=/; Max-Age=3600`,
+      `cp_access_token=${accessToken}; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=${ACCESS_TOKEN_TTL_SECONDS}`,
+    );
+    resHeaders.append(
+      "Set-Cookie",
+      `cp_refresh_token=${refreshToken}; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=${REFRESH_TOKEN_TTL_SECONDS}`,
     );
 
-    return new Response(JSON.stringify({ success: true, user: userData, exp, v: FN_VERSION }), {
-      status: 200,
-      headers: resHeaders,
-    });
+    return new Response(
+      JSON.stringify({
+        success: true,
+        user: {
+          id: clientUser.id,
+          email: clientUser.email,
+          full_name: clientUser.full_name,
+          client_id: clientUser.client_id,
+          agency_id: clientUser.agency_id,
+          role: clientUser.role,
+        },
+        exp,
+        v: FN_VERSION,
+      }),
+      { status: 200, headers: resHeaders },
+    );
   } catch (error) {
     console.error("[client-refresh-token] Error:", error);
     const message = error instanceof Error ? error.message : "Unknown error";

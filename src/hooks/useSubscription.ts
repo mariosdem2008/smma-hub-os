@@ -16,11 +16,43 @@ export interface Subscription {
   updated_at: string;
 }
 
+const subscriptionSyncPromises = new Map<string, Promise<void>>();
+
 export function useSubscription() {
   const { user } = useAuth();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const CHECK_SYNC_TTL_MS = 5 * 60 * 1000;
+
+  const readLastSyncAt = () => {
+    if (!user) return 0;
+    try {
+      const raw = sessionStorage.getItem(`subsync:${user.id}`);
+      const parsed = Number(raw);
+      return Number.isFinite(parsed) ? parsed : 0;
+    } catch {
+      return 0;
+    }
+  };
+
+  const writeLastSyncAt = (value: number) => {
+    if (!user) return;
+    try {
+      sessionStorage.setItem(`subsync:${user.id}`, String(value));
+    } catch {
+      // best-effort cache only
+    }
+  };
+
+  const isTransientNetworkError = (error: unknown) => {
+    const message = String((error as { message?: string })?.message ?? "");
+    return (
+      message.includes("Failed to send a request to the Edge Function") ||
+      message.includes("TypeError: Failed to fetch") ||
+      message.includes("ERR_ABORTED")
+    );
+  };
 
   const fetchSubscriptionRow = useCallback(async () => {
     const { data, error } = await supabase
@@ -74,26 +106,49 @@ export function useSubscription() {
 
       // Only call edge function if we have a valid token
       if (accessToken) {
-        console.log('[useSubscription] Calling check-subscription edge function');
-        const { data, error } = await supabase.functions.invoke('check-subscription', {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        });
+        const lastSyncAt = readLastSyncAt();
+        const shouldSyncRemote = Date.now() - lastSyncAt > CHECK_SYNC_TTL_MS;
+        if (shouldSyncRemote) {
+          const existingSync = subscriptionSyncPromises.get(user.id);
+          if (existingSync) {
+            await existingSync;
+          } else {
+            const syncPromise = (async () => {
+              const { data, error } = await supabase.functions.invoke('check-subscription', {
+                headers: {
+                  Authorization: `Bearer ${accessToken}`,
+                },
+              });
 
-        if (error) {
-          console.error('[useSubscription] Error checking subscription:', error);
-        } else {
-          console.log('[useSubscription] Subscription check result:', data);
+              if (error) {
+                if (!isTransientNetworkError(error)) {
+                  console.error('[useSubscription] Error checking subscription:', error);
+                }
+              } else {
+                writeLastSyncAt(Date.now());
+                if (import.meta.env.DEV) {
+                  console.debug('[useSubscription] Subscription check result:', data);
+                }
+              }
+            })().finally(() => {
+              subscriptionSyncPromises.delete(user.id);
+            });
+            subscriptionSyncPromises.set(user.id, syncPromise);
+            await syncPromise;
+          }
+          if (readLastSyncAt() === 0) {
+            // Prevent hot-loop retries across parallel mounts when sync failed transiently.
+            writeLastSyncAt(Date.now());
+          }
         }
-      } else {
-        console.warn('[useSubscription] No valid session token, skipping edge function call');
       }
 
       const row = await ensureSubscriptionRow();
       if (row) setSubscription(row);
     } catch (err) {
-      console.error('[useSubscription] Error refreshing subscription:', err);
+      if (!isTransientNetworkError(err)) {
+        console.error('[useSubscription] Error refreshing subscription:', err);
+      }
     } finally {
       setRefreshing(false);
     }
@@ -114,7 +169,9 @@ export function useSubscription() {
         // Refresh from Stripe on initial load
         await refreshSubscription();
       } catch (err) {
-        console.error('Error in fetchSubscription:', err);
+        if (!isTransientNetworkError(err)) {
+          console.error('Error in fetchSubscription:', err);
+        }
       } finally {
         setLoading(false);
       }

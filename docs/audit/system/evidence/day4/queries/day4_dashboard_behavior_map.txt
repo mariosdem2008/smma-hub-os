@@ -1,0 +1,18 @@
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Dashboard.tsx:109:const AI_SETUP_CORE_MODULES = ["bootstrap", "rep_policy", "quality_bar"] as const;
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Dashboard.tsx:180:const [aiSetupComplete, setAiSetupComplete] = useState<boolean | null>(null);
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Dashboard.tsx:196:onboardingMode: "agency",
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Dashboard.tsx:231:setAiSetupComplete(null);
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Dashboard.tsx:238:.from("brain_documents")
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Dashboard.tsx:241:.in("module", [...AI_SETUP_CORE_MODULES])
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Dashboard.tsx:246:setAiSetupComplete(AI_SETUP_CORE_MODULES.every((module) => approvedModules.has(module)));
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Dashboard.tsx:248:setAiSetupComplete(false);
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Dashboard.tsx:573:onCta: () => navigate("/team"),
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Dashboard.tsx:584:onCta: () => navigate("/clients"),
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Dashboard.tsx:595:onCta: () => navigate("/clients"),
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Dashboard.tsx:627:const handleCreateClient = async () => {
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Dashboard.tsx:654:setClientFormData({ name: "", email: "", phone: "", company: "", status: "active", onboardingMode: "agency" });
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Dashboard.tsx:657:if (clientFormData.onboardingMode === "agency") navigate(`/onboarding/client/${data.id}`);
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Dashboard.tsx:1024:<Button variant="outline" className="w-full justify-start border-white/20 bg-white/5 text-white" onClick={() => navigate("/clients")}><Users className="mr-2 h-4 w-4" />Open Clients</Button>
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Dashboard.tsx:1025:<Button variant="outline" className="w-full justify-start border-white/20 bg-white/5 text-white" onClick={() => navigate("/team")}><ClipboardList className="mr-2 h-4 w-4" />Open Team Queue</Button>
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Dashboard.tsx:1045:<Select value={clientFormData.onboardingMode} onValueChange={(value) => setClientFormData((prev) => ({ ...prev, onboardingMode: value }))}>
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\Dashboard.tsx:1056:<Button onClick={handleCreateClient} disabled={submitting}>{submitting ? "Creating..." : "Create Client"}</Button>

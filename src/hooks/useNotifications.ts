@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/lib/auth';
 
 interface Notification {
   id: string;
@@ -24,8 +25,10 @@ interface Notification {
 }
 
 export const useNotifications = () => {
+  const { user } = useAuth();
   return useQuery({
     queryKey: ['notifications'],
+    enabled: !!user,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('notifications')
@@ -41,8 +44,10 @@ export const useNotifications = () => {
 };
 
 export const useUnreadNotificationsCount = () => {
+  const { user } = useAuth();
   return useQuery({
     queryKey: ['notifications-unread-count'],
+    enabled: !!user,
     queryFn: async () => {
       const { count, error } = await supabase
         .from('notifications')

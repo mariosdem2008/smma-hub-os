@@ -1,0 +1,17 @@
+accept_agency_invite
+add_strategy_history
+ai_budget_apply_delta
+complete_onboarding_profile
+create_agency_with_admin
+decline_agency_invite
+delete_client_cascade
+delete_project_cascade
+generate_portal_slug
+get_agency_invite_by_token
+get_monthly_ai_usage
+get_my_pending_agency_invites
+get_onboarding_profile_status
+get_user_agency_bootstrap
+toggle_strategy_module_lock
+upsert_onboarding_profile
+upsert_strategy_module

@@ -11,11 +11,74 @@ import { TaskType } from "../../../src/ai/taskTypes.ts";
 import { isEpisodicMemoryEnabled, isPhase2EnabledForAgency } from "../../../src/ai/flags.ts";
 import { ai } from "../../../src/ai/router.ts";
 
+const CLIENT_PORTAL_JWT_SECRET = Deno.env.get("CLIENT_PORTAL_JWT_SECRET");
+
+interface ClientPortalJwtPayload {
+  sub: string;
+  email: string;
+  client_id: string;
+  agency_id: string;
+  role: string;
+  exp: number;
+}
+
 function jsonResponse(body: unknown, status = 200, headers: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
     status,
     headers: { "Content-Type": "application/json", ...headers },
   });
+}
+
+function getCookie(header: string | null, name: string): string | null {
+  if (!header) return null;
+  const cookies = header.split(";").map((c) => c.trim());
+  for (const cookie of cookies) {
+    const idx = cookie.indexOf("=");
+    if (idx === -1) continue;
+    const cookieName = cookie.slice(0, idx);
+    const cookieVal = cookie.slice(idx + 1);
+    if (cookieName === name) return cookieVal;
+  }
+  return null;
+}
+
+async function verifyClientPortalToken(token: string): Promise<ClientPortalJwtPayload | null> {
+  if (!CLIENT_PORTAL_JWT_SECRET) return null;
+
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    const [encodedHeader, encodedPayload, encodedSignature] = parts;
+
+    const key = await crypto.subtle.importKey(
+      "raw",
+      new TextEncoder().encode(CLIENT_PORTAL_JWT_SECRET),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["verify"],
+    );
+
+    const base64 = encodedSignature.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
+    const signature = Uint8Array.from(atob(padded), (c) => c.charCodeAt(0));
+
+    const isValid = await crypto.subtle.verify(
+      "HMAC",
+      key,
+      signature,
+      new TextEncoder().encode(`${encodedHeader}.${encodedPayload}`),
+    );
+    if (!isValid) return null;
+
+    const payloadBase64 = encodedPayload.replace(/-/g, "+").replace(/_/g, "/");
+    const payloadPadded = payloadBase64 + "=".repeat((4 - (payloadBase64.length % 4)) % 4);
+    const payload: ClientPortalJwtPayload = JSON.parse(atob(payloadPadded));
+
+    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) return null;
+    return payload;
+  } catch {
+    return null;
+  }
 }
 
 async function safeRetrieveContext(opts: {
@@ -72,22 +135,24 @@ serve(async (req: Request) => {
     if (guardResponse) return guardResponse;
 
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return jsonResponse({ error: "Missing Authorization header" }, 401, corsHeaders(req));
-    }
+    const cookieHeader = req.headers.get("Cookie");
+    const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.replace("Bearer ", "") : null;
+    const cookieToken = getCookie(cookieHeader, "cp_access_token");
+    const token = bearerToken ?? cookieToken;
+    if (!token) return jsonResponse({ error: "Unauthorized" }, 401, corsHeaders(req));
 
     supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
       auth: { persistSession: false },
     });
 
-    const token = authHeader.replace("Bearer ", "");
     const { data: userData, error: userError } = await supabase.auth.getUser(token);
     const user = userData?.user;
-    if (userError || !user) {
+    const clientPortalUser = user ? null : await verifyClientPortalToken(token);
+    if ((userError || !user) && !clientPortalUser) {
       return jsonResponse({ error: "Unauthorized" }, 401, corsHeaders(req));
     }
 
-    userId = user.id;
+    userId = user?.id ?? clientPortalUser?.sub;
     const body = await req.json().catch(() => ({}));
     clientId = body.client_id as string | undefined;
     const message = (body.message as string | undefined)?.trim();
@@ -107,18 +172,31 @@ serve(async (req: Request) => {
     }
     agencyId = clientRow.agency_id;
 
-  const isPortalUserForClient = clientRow.portal_user_id && clientRow.portal_user_id === user.id;
-
-  if (!isPortalUserForClient) {
-    const { data: membership } = await supabase
-      .from("agency_members")
-      .select("agency_id")
-      .eq("user_id", user.id)
-      .eq("agency_id", clientRow.agency_id)
+  if (clientPortalUser) {
+    const { data: cpUser } = await supabase
+      .from("client_users")
+      .select("id, client_id, agency_id")
+      .eq("id", clientPortalUser.sub)
       .maybeSingle();
+    const ownsClient =
+      cpUser?.client_id === clientId &&
+      cpUser?.agency_id === clientRow.agency_id &&
+      clientPortalUser.client_id === clientId &&
+      clientPortalUser.agency_id === clientRow.agency_id;
+    if (!ownsClient) return jsonResponse({ error: "Forbidden" }, 403, corsHeaders(req));
+  } else if (user) {
+    const isPortalUserForClient = clientRow.portal_user_id && clientRow.portal_user_id === user.id;
+    if (!isPortalUserForClient) {
+      const { data: membership } = await supabase
+        .from("agency_members")
+        .select("agency_id")
+        .eq("user_id", user.id)
+        .eq("agency_id", clientRow.agency_id)
+        .maybeSingle();
 
-    if (!membership) {
-      return jsonResponse({ error: "Forbidden" }, 403, corsHeaders(req));
+      if (!membership) {
+        return jsonResponse({ error: "Forbidden" }, 403, corsHeaders(req));
+      }
     }
   }
 
@@ -227,7 +305,7 @@ serve(async (req: Request) => {
             checkpoint_id: null,
             scope: "episodic",
             status: "active",
-            created_by: user.id,
+            created_by: user?.id ?? null,
             metadata: { source: "ai-rep-chat", turns: 5, max_chars: 1500 },
           })
           .select("id")

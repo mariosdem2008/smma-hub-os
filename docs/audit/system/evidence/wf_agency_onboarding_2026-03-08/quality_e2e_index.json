@@ -1,0 +1,16 @@
+{
+  "runAt": "2026-03-08T15:38:27.707Z",
+  "baseUrl": "http://localhost:8080",
+  "normal": {
+    "totalSteps": 11,
+    "passCount": 11,
+    "failCount": 0,
+    "log": "normal_user_flow/logs/summary.json"
+  },
+  "adversarial": {
+    "totalSteps": 20,
+    "passCount": 20,
+    "failCount": 0,
+    "log": "adversarial_user_flow/logs/summary.json"
+  }
+}

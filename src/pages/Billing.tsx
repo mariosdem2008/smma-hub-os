@@ -1,90 +1,82 @@
-
-import { 
-  Loader2, 
-  CreditCard, 
-  Users, 
-  FolderOpen, 
-  Building2, 
-  Shield, 
-  CheckCircle2, 
-  XCircle, 
+import {
+  AlertTriangle,
+  ArrowRight,
+  CheckCircle2,
+  Clock,
+  CreditCard,
+  ExternalLink,
+  FileText,
+  Infinity as InfinityIcon,
+  Loader2,
+  Lock,
   Sparkles,
   TrendingUp,
-  Zap,
-  Crown,
-  ArrowRight,
-  Calendar,
-  Clock,
-  FileText,
-  ExternalLink,
-  Info,
-  AlertCircle,
-  Receipt,
-  Activity,
-  BarChart3,
-  Infinity as InfinityIcon,
-  Lock,
-} from 'lucide-react';
-import { format, differenceInDays } from 'date-fns';
-import { motion } from 'framer-motion';
-import { useState, useEffect } from 'react';
-import { NoPermissionModal } from '../components/billing/NoPermissionModal.tsx';
-import { Button } from '../components/ui/button.tsx';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card.tsx';
-import { Separator } from '../components/ui/separator.tsx';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs.tsx';
-import { usePlanLimits } from '../hooks/usePlanLimits.ts';
-import { useRole } from '../hooks/useRole.ts';
-import { useSubscription } from '../hooks/useSubscription.ts';
-import { supabase } from '../integrations/supabase/client.ts';
-import { getNextPlan, canUpgrade, PLAN_PRICES, PLAN_NAMES, formatStorageSize } from '../lib/plan-limits.ts';
-import { useNavigate } from 'react-router-dom';
-import { Badge } from '../components/ui/badge.tsx';
+  Users,
+  Building2,
+  FolderOpen,
+} from "lucide-react";
+import { differenceInDays, format } from "date-fns";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+
+import { NoPermissionModal } from "@/components/billing/NoPermissionModal";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
+import { useRole } from "@/hooks/useRole";
+import { useSubscription } from "@/hooks/useSubscription";
+import { supabase } from "@/integrations/supabase/client";
+import { PLAN_NAMES, PLAN_PRICES, canUpgrade, formatStorageSize, getNextPlan } from "@/lib/plan-limits";
+
+type UsageState = {
+  clients: number;
+  teamMembers: number;
+  aiGenerations: number;
+};
+
+const AI_QUOTAS: Record<string, number> = {
+  free: 20,
+  starter: 200,
+  pro: 500,
+  agency_plus: 1500,
+  ltd_starter: 200,
+  ltd_pro: 500,
+  ltd_agency_plus: 1500,
+};
+
+function clamp(value: number, min = 0, max = 100) {
+  return Math.min(max, Math.max(min, value));
+}
 
 export default function Billing() {
   const navigate = useNavigate();
   const { subscription, loading, refreshSubscription } = useSubscription();
   const { limits } = usePlanLimits();
   const { role, loading: roleLoading, isOwner } = useRole();
-  const [usage, setUsage] = useState({ clients: 0, teamMembers: 0 });
+
+  const [usage, setUsage] = useState<UsageState>({ clients: 0, teamMembers: 0, aiGenerations: 0 });
   const [loadingUsage, setLoadingUsage] = useState(true);
   const [showNoPermission, setShowNoPermission] = useState(false);
   const [managingSubscription, setManagingSubscription] = useState(false);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState("overview");
 
-  // Check URL params for successful checkout
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get('success') === 'true' || params.get('checkout') === 'success') {
-      console.log('[Billing] Checkout success detected, refreshing subscription');
+    if (params.get("success") === "true" || params.get("checkout") === "success") {
       refreshSubscription();
-      window.history.replaceState({}, '', '/billing');
+      window.history.replaceState({}, "", "/billing");
     }
   }, [refreshSubscription]);
 
-  const handleManageSubscription = async () => {
-    setManagingSubscription(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('customer-portal', {
-        headers: {
-          Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
-        },
-      });
-
-      if (error) {
-        console.error('Error opening customer portal:', error);
-        return;
-      }
-
-      if (data?.url) {
-        window.open(data.url, '_blank');
-      }
-    } catch (err) {
-      console.error('Error managing subscription:', err);
-    } finally {
-      setManagingSubscription(false);
+  useEffect(() => {
+    if (!roleLoading && !isOwner) {
+      if (role === "admin") navigate("/billing/overview", { replace: true });
+      else setShowNoPermission(true);
     }
-  };
+  }, [roleLoading, isOwner, role, navigate]);
 
   useEffect(() => {
     const fetchUsage = async () => {
@@ -92,57 +84,59 @@ export default function Billing() {
 
       try {
         const { data: membership } = await supabase
-          .from('agency_members')
-          .select('agency_id')
-          .eq('user_id', subscription.user_id)
+          .from("agency_members")
+          .select("agency_id")
+          .eq("user_id", subscription.user_id)
           .single();
 
-        if (!membership) return;
+        if (!membership?.agency_id) {
+          setLoadingUsage(false);
+          return;
+        }
 
-        const { count: clientCount } = await supabase
-          .from('clients')
-          .select('*', { count: 'exact', head: true })
-          .eq('agency_id', membership.agency_id);
-
-        const { count: memberCount } = await supabase
-          .from('agency_members')
-          .select('*', { count: 'exact', head: true })
-          .eq('agency_id', membership.agency_id);
+        const [clientRes, teamRes, aiRes] = await Promise.all([
+          supabase.from("clients").select("*", { count: "exact", head: true }).eq("agency_id", membership.agency_id),
+          supabase.from("agency_members").select("*", { count: "exact", head: true }).eq("agency_id", membership.agency_id),
+          supabase.rpc("get_monthly_ai_usage", { p_agency_id: membership.agency_id }),
+        ]);
 
         setUsage({
-          clients: clientCount || 0,
-          teamMembers: memberCount || 0,
+          clients: clientRes.count || 0,
+          teamMembers: teamRes.count || 0,
+          aiGenerations: typeof aiRes.data === "number" ? aiRes.data : 0,
         });
       } catch (error) {
-        console.error('Error fetching usage:', error);
+        console.error("Error fetching billing usage", error);
       } finally {
         setLoadingUsage(false);
       }
     };
 
-    fetchUsage();
+    void fetchUsage();
   }, [subscription]);
 
-  useEffect(() => {
-    if (!roleLoading && !isOwner) {
-      if (role === 'admin') {
-        navigate('/billing/overview', { replace: true });
-      } else {
-        setShowNoPermission(true);
-      }
+  const handleManageSubscription = async () => {
+    setManagingSubscription(true);
+    try {
+      const session = await supabase.auth.getSession();
+      const token = session.data.session?.access_token;
+      const { data, error } = await supabase.functions.invoke("customer-portal", {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+
+      if (error) throw error;
+      if (data?.url) window.open(data.url, "_blank");
+    } catch (error) {
+      console.error("Error opening billing portal", error);
+    } finally {
+      setManagingSubscription(false);
     }
-  }, [roleLoading, isOwner, role, navigate]);
+  };
 
   if (loading || roleLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.3 }}
-        >
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </motion.div>
+      <div className="flex min-h-[70vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -153,7 +147,7 @@ export default function Billing() {
         open={showNoPermission}
         onOpenChange={(open) => {
           setShowNoPermission(open);
-          if (!open) navigate('/dashboard', { replace: true });
+          if (!open) navigate("/dashboard", { replace: true });
         }}
       />
     );
@@ -161,743 +155,343 @@ export default function Billing() {
 
   if (!subscription) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-        >
-          <Card>
-            <CardHeader>
-              <CardTitle>No Subscription Found</CardTitle>
-              <CardDescription>Please contact support if you believe this is an error.</CardDescription>
-            </CardHeader>
-          </Card>
-        </motion.div>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>No Subscription Found</CardTitle>
+          <CardDescription>Please contact support if you believe this is an error.</CardDescription>
+        </CardHeader>
+      </Card>
     );
   }
 
-  const storagePercent = limits?.storage
-    ? Math.round((subscription.storage_used / limits.storage) * 100)
-    : 0;
-
-  const clientPercent = limits?.clients
-    ? Math.round((usage.clients / limits.clients) * 100)
-    : 0;
-
-  const memberPercent = limits?.teamMembers
-    ? Math.round((usage.teamMembers / limits.teamMembers) * 100)
-    : 0;
-
-  const isActive = subscription.status === 'active';
-  const isLifetime = subscription.plan_type.startsWith('ltd');
+  const planLabel = PLAN_NAMES[subscription.plan_type] ?? subscription.plan_type ?? "Unknown";
+  const isActive = subscription.status === "active";
+  const isLifetime = subscription.plan_type.startsWith("ltd");
   const nextPlan = getNextPlan(subscription.plan_type);
-  const hasUpgrade = canUpgrade(subscription.plan_type);
-  
-  const currentPrice = subscription.plan_type !== 'free' 
-    ? PLAN_PRICES[subscription.plan_type as keyof typeof PLAN_PRICES]
-    : null;
-
+  const canMoveUp = canUpgrade(subscription.plan_type);
+  const currentPrice = subscription.plan_type !== "free" ? PLAN_PRICES[subscription.plan_type as keyof typeof PLAN_PRICES] : null;
   const daysUntilRenewal = subscription.current_period_end
     ? differenceInDays(new Date(subscription.current_period_end), new Date())
     : null;
 
-  const quintOut: [number, number, number, number] = [0.22, 1, 0.36, 1];
+  const clientPercent = limits?.clients ? clamp(Math.round((usage.clients / limits.clients) * 100)) : 0;
+  const memberPercent = limits?.teamMembers ? clamp(Math.round((usage.teamMembers / limits.teamMembers) * 100)) : 0;
+  const storagePercent = limits?.storage ? clamp(Math.round((subscription.storage_used / limits.storage) * 100)) : 0;
+  const aiQuota = AI_QUOTAS[subscription.plan_type] ?? AI_QUOTAS.free;
+  const aiPercent = clamp(Math.round((usage.aiGenerations / aiQuota) * 100));
 
-  // Animation variants
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.08,
-        delayChildren: 0.1,
-      },
-    },
-  };
+  const usagePressure = Math.max(clientPercent, memberPercent, storagePercent, aiPercent);
+  const openRisks = [clientPercent, memberPercent, storagePercent, aiPercent].filter((value) => value >= 85).length;
 
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.5,
-        ease: quintOut,
-      },
+  const priceLabel = currentPrice ? `EUR ${currentPrice.monthly}/mo` : "Free";
+  const renewal = isLifetime
+    ? "lifetime license"
+    : subscription.current_period_end
+    ? `renews on ${format(new Date(subscription.current_period_end), "MMM d, yyyy")}`
+    : "no renewal date";
+  const billingSummary = `${planLabel} (${priceLabel}), ${renewal}. Usage pressure is ${usagePressure}% with ${openRisks} active billing risk signal(s).`;
+
+  const usageCards = [
+    {
+      id: "clients",
+      label: "Clients",
+      icon: Building2,
+      current: usage.clients,
+      limit: limits?.clients ?? null,
+      percent: clientPercent,
+      helper: "Client seats in your plan",
     },
-  };
+    {
+      id: "team",
+      label: "Team Members",
+      icon: Users,
+      current: usage.teamMembers,
+      limit: limits?.teamMembers ?? null,
+      percent: memberPercent,
+      helper: "Internal team seats",
+    },
+    {
+      id: "storage",
+      label: "Storage",
+      icon: FolderOpen,
+      current: formatStorageSize(subscription.storage_used),
+      limit: limits?.storage ? formatStorageSize(limits.storage) : null,
+      percent: storagePercent,
+      helper: "Media and file storage",
+    },
+    {
+      id: "ai",
+      label: "AI Generations",
+      icon: Sparkles,
+      current: usage.aiGenerations,
+      limit: aiQuota,
+      percent: aiPercent,
+      helper: "Monthly AI generation budget",
+    },
+  ] as const;
+
+  const planFeatures = limits?.features ?? {};
+  const lockedFeatures = [
+    { key: "whiteLabel", label: "White-label workspace" },
+    { key: "approvalWorkflows", label: "Approval workflows" },
+    { key: "bulkActions", label: "Bulk operations" },
+    { key: "templates", label: "Template libraries" },
+    { key: "automation", label: "Automation engine" },
+    { key: "multiAdmin", label: "Multi-admin controls" },
+  ].map((feature) => ({
+    ...feature,
+    enabled: Boolean((planFeatures as Record<string, unknown>)[feature.key]),
+  }));
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-surface/20">
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
-          className="space-y-8"
-        >
-          {/* Premium Header */}
-          <motion.div variants={itemVariants} className="mb-8">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-4">
-                <motion.div
-                  whileHover={{ scale: 1.05, rotate: 5 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="relative"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-r from-primary/30 to-accent/30 blur-2xl rounded-full animate-pulse" />
-                  <div className="relative bg-gradient-to-br from-primary/20 via-primary/10 to-accent/10 p-4 rounded-2xl border-2 border-primary/30 shadow-lg shadow-primary/20">
-                    <CreditCard className="h-8 w-8 text-primary" />
-                  </div>
-                </motion.div>
+    <div className="space-y-6">
+      <div className="rounded-2xl border border-white/10 bg-black/40 p-5 backdrop-blur-sm">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div className="text-xs uppercase tracking-[0.2em] text-white/55">Enterprise Billing</div>
+            <h1 className="mt-1 text-2xl font-semibold text-white">Billing Command Center</h1>
+            <p className="mt-1 text-sm text-white/65">Plan, usage, and payment controls for high-scale agencies.</p>
+          </div>
+          <Badge className="bg-primary/25 text-primary-foreground border border-primary/40">Owner Access</Badge>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
+        <Card className="border-white/10 bg-black/40">
+          <CardHeader className="pb-2">
+            <CardDescription className="text-white/60">Current Plan</CardDescription>
+            <CardTitle className="text-xl text-white">{planLabel}</CardTitle>
+          </CardHeader>
+          <CardContent className="text-xs text-white/55">{isLifetime ? "Lifetime" : "Subscription"}</CardContent>
+        </Card>
+        <Card className="border-white/10 bg-black/40">
+          <CardHeader className="pb-2">
+            <CardDescription className="text-white/60">Monthly Price</CardDescription>
+            <CardTitle className="text-xl text-white">{currentPrice ? `EUR ${currentPrice.monthly}` : "Free"}</CardTitle>
+          </CardHeader>
+          <CardContent className="text-xs text-white/55">per month</CardContent>
+        </Card>
+        <Card className="border-white/10 bg-black/40">
+          <CardHeader className="pb-2">
+            <CardDescription className="text-white/60">Renewal Window</CardDescription>
+            <CardTitle className="text-xl text-white">{isLifetime ? "N/A" : daysUntilRenewal ?? "-"}</CardTitle>
+          </CardHeader>
+          <CardContent className="text-xs text-white/55">days remaining</CardContent>
+        </Card>
+        <Card className="border-white/10 bg-black/40">
+          <CardHeader className="pb-2">
+            <CardDescription className="text-white/60">Usage Pressure</CardDescription>
+            <CardTitle className="text-xl text-white">{usagePressure}%</CardTitle>
+          </CardHeader>
+          <CardContent className="text-xs text-white/55">highest resource pressure</CardContent>
+        </Card>
+        <Card className="border-white/10 bg-black/40">
+          <CardHeader className="pb-2">
+            <CardDescription className="text-white/60">Risk Signals</CardDescription>
+            <CardTitle className="text-xl text-white">{openRisks}</CardTitle>
+          </CardHeader>
+          <CardContent className="text-xs text-white/55">limits above 85%</CardContent>
+        </Card>
+      </div>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full max-w-[520px] grid-cols-4 border border-white/15 bg-black/40">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="usage">Usage</TabsTrigger>
+          <TabsTrigger value="invoices">Invoices</TabsTrigger>
+          <TabsTrigger value="payment">Payment</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-6 pt-4">
+          <Card className="border-white/10 bg-black/40">
+            <CardHeader>
+              <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                  <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-foreground via-foreground/90 to-foreground/70 bg-clip-text text-transparent mb-2">
-                    Billing & Subscription
-                  </h1>
-                  <p className="text-muted-foreground text-lg">
-                    Manage your subscription, usage, and billing preferences
-                  </p>
+                  <CardTitle className="text-white">Plan Status</CardTitle>
+                  <CardDescription className="text-white/60">
+                    {isLifetime
+                      ? "Lifetime access active"
+                      : subscription.current_period_end
+                      ? `Renews on ${format(new Date(subscription.current_period_end), "MMM d, yyyy")}`
+                      : "No billing cycle date found"}
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant={isActive ? "secondary" : "destructive"}>{subscription.status}</Badge>
+                  {subscription.stripe_customer_id ? <Badge variant="outline">Stripe Connected</Badge> : <Badge variant="outline">No Stripe Customer</Badge>}
                 </div>
               </div>
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <Badge 
-                  variant="secondary" 
-                  className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-primary/15 to-accent/15 border-2 border-primary/30 shadow-md"
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm leading-relaxed text-white/75">{billingSummary}</p>
+              <div className="flex flex-wrap gap-2">
+                <Button onClick={() => navigate("/pricing")}>
+                  <TrendingUp className="mr-2 h-4 w-4" />
+                  Change Plan
+                </Button>
+                <Button
+                  variant="outline"
+                  className="border-white/20 bg-white/5 text-white"
+                  onClick={handleManageSubscription}
+                  disabled={!subscription.stripe_customer_id || managingSubscription}
                 >
-                  <Shield className="h-4 w-4 text-primary" />
-                  Owner Access
-                </Badge>
-              </motion.div>
-            </div>
+                  {managingSubscription ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CreditCard className="mr-2 h-4 w-4" />}
+                  Manage Subscription
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
 
-            {/* Tabs Navigation */}
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full max-w-md grid-cols-3 bg-muted/50 border border-border/50 p-1.5 h-auto">
-                <TabsTrigger value="overview" className="data-[state=active]:bg-background data-[state=active]:shadow-sm">
-                  <Activity className="h-4 w-4 mr-2" />
-                  Overview
-                </TabsTrigger>
-                <TabsTrigger value="billing" className="data-[state=active]:bg-background data-[state=active]:shadow-sm">
-                  <Receipt className="h-4 w-4 mr-2" />
-                  Billing
-                </TabsTrigger>
-                <TabsTrigger value="payment" className="data-[state=active]:bg-background data-[state=active]:shadow-sm">
-                  <CreditCard className="h-4 w-4 mr-2" />
-                  Payment
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </motion.div>
+          {canMoveUp && nextPlan ? (
+            <Card className="border-primary/40 bg-primary/10">
+              <CardHeader>
+                <CardTitle className="text-white">Upgrade Opportunity</CardTitle>
+                <CardDescription className="text-white/70">
+                  {PLAN_NAMES[nextPlan]} unlocks higher limits and enterprise controls.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-wrap items-center justify-between gap-3">
+                <div className="text-sm text-white/80">
+                  Starts at EUR {PLAN_PRICES[nextPlan as keyof typeof PLAN_PRICES]?.monthly ?? 0}/month
+                </div>
+                <Button onClick={() => navigate("/pricing")}>
+                  View Plans
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </CardContent>
+            </Card>
+          ) : null}
 
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            {/* Overview Tab */}
-            <TabsContent value="overview" className="space-y-6 mt-6">
-              {/* Current Plan - Hero Card */}
-              <motion.div variants={itemVariants}>
-                <Card className="relative overflow-hidden border-2 border-primary/30 bg-gradient-to-br from-card via-card/95 to-card/90 shadow-2xl">
-                  <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/10" />
-                  <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-                  <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-accent/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
-                  
-                  <CardHeader className="relative z-10 pb-4">
-                    <div className="flex items-start justify-between flex-wrap gap-4">
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-3">
-                          <motion.div
-                            animate={{ 
-                              rotate: [0, 5, -5, 0],
-                              scale: [1, 1.05, 1],
-                            }}
-                            transition={{ 
-                              duration: 4,
-                              repeat: Infinity,
-                              repeatDelay: 3,
-                            }}
-                          >
-                            <Crown className="h-7 w-7 text-primary" />
-                          </motion.div>
-                          <div>
-                            <CardTitle className="text-3xl mb-1">Current Plan</CardTitle>
-                            <CardDescription className="text-base flex items-center gap-2 mt-2">
-                              {isLifetime ? (
-                                <>
-                                  <Sparkles className="h-4 w-4 text-primary" />
-                                  <span>Lifetime access - no recurring billing</span>
-                                </>
-                              ) : subscription.current_period_end ? (
-                                <>
-                                  <Calendar className="h-4 w-4" />
-                                  <span>Renews {daysUntilRenewal !== null && daysUntilRenewal > 0 ? `in ${daysUntilRenewal} days` : 'today'}</span>
-                                  <span className="text-muted-foreground">•</span>
-                                  <span>{format(new Date(subscription.current_period_end), 'MMM d, yyyy')}</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Clock className="h-4 w-4" />
-                                  <span>No billing date set</span>
-                                </>
-                              )}
-                            </CardDescription>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right space-y-3">
-                        <motion.div
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                        >
-                          <Badge 
-                            variant="default" 
-                            className="text-xl px-6 py-2.5 bg-gradient-to-r from-primary via-primary/90 to-primary/80 shadow-lg shadow-primary/40 border-2 border-primary/50"
-                          >
-                            {PLAN_NAMES[subscription.plan_type]}
-                          </Badge>
-                        </motion.div>
-                        <motion.div
-                          initial={{ scale: 0.8, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          transition={{ delay: 0.3, type: 'spring' }}
-                        >
-                          <Badge 
-                            variant={isActive ? 'default' : 'destructive'}
-                            className={`flex items-center gap-1.5 px-4 py-1.5 ${
-                              isActive 
-                                ? 'bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-400 border-2 border-green-500/40 shadow-md' 
-                                : ''
-                            }`}
-                          >
-                            {isActive ? (
-                              <motion.div
-                                animate={{ scale: [1, 1.2, 1] }}
-                                transition={{ duration: 2, repeat: Infinity }}
-                              >
-                                <CheckCircle2 className="h-4 w-4" />
-                              </motion.div>
-                            ) : (
-                              <XCircle className="h-4 w-4" />
-                            )}
-                            {subscription.status.charAt(0).toUpperCase() + subscription.status.slice(1)}
-                          </Badge>
-                        </motion.div>
-                        {currentPrice && (
-                          <div className="pt-2">
-                            <div className="text-3xl font-bold">
-                              €{currentPrice.monthly}
-                              <span className="text-lg font-normal text-muted-foreground">/mo</span>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </CardHeader>
-                  
-                  <CardContent className="relative z-10 pt-6">
-                    <div className="flex flex-wrap gap-3">
-                      <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                        <Button 
-                          onClick={() => navigate('/pricing')} 
-                          className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary/80 shadow-lg shadow-primary/40 border-2 border-primary/50"
-                          size="lg"
-                        >
-                          <Zap className="mr-2 h-5 w-5" />
-                          Change Plan
-                          <ArrowRight className="ml-2 h-5 w-5" />
-                        </Button>
-                      </motion.div>
-                      {subscription.stripe_customer_id && (
-                        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                          <Button 
-                            variant="outline" 
-                            onClick={handleManageSubscription}
-                            disabled={managingSubscription}
-                            size="lg"
-                            className="border-2 hover:bg-primary/10 hover:border-primary/50"
-                          >
-                            {managingSubscription ? (
-                              <>
-                                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                                Opening...
-                              </>
-                            ) : (
-                              <>
-                                <CreditCard className="mr-2 h-5 w-5" />
-                                Manage Subscription
-                              </>
-                            )}
-                          </Button>
-                        </motion.div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-
-              {/* Usage Statistics Grid */}
-              <motion.div variants={itemVariants}>
-                <Card className="border-2 border-primary/20 shadow-xl">
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 border border-primary/30">
-                          <BarChart3 className="h-6 w-6 text-primary" />
-                        </div>
-                        <div>
-                          <CardTitle className="text-2xl">Usage & Limits</CardTitle>
-                          <CardDescription className="text-base mt-1">
-                            Monitor your resource consumption and plan limits
-                          </CardDescription>
-                        </div>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-8 pt-6">
-                    {/* Clients */}
-                    <motion.div
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.4 }}
-                      className="space-y-4"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 border-2 border-primary/30 shadow-md">
-                            <Building2 className="h-6 w-6 text-primary" />
-                          </div>
-                          <div>
-                            <div className="font-semibold text-lg">Clients</div>
-                            <p className="text-sm text-muted-foreground">Active client accounts</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-3xl font-bold">
-                            {loadingUsage ? (
-                              <Loader2 className="h-6 w-6 animate-spin inline" />
-                            ) : (
-                              usage.clients
-                            )}
-                          </div>
-                          <div className="text-muted-foreground text-sm mt-1">
-                            {limits?.clients ? `/ ${limits.clients}` : <InfinityIcon className="h-4 w-4 inline" />}
-                          </div>
-                        </div>
-                      </div>
-                      {limits?.clients && (
-                        <>
-                          <div className="relative h-4 bg-muted/50 rounded-full overflow-hidden border border-border/50">
-                            <motion.div
-                              initial={{ width: 0 }}
-                              animate={{ width: `${Math.min(clientPercent, 100)}%` }}
-                              transition={{ duration: 1.5, delay: 0.5, ease: quintOut }}
-                              className="absolute inset-y-0 left-0 bg-gradient-to-r from-primary via-primary/90 to-primary/80 rounded-full shadow-lg shadow-primary/40"
-                            />
-                            {clientPercent > 80 && (
-                              <motion.div
-                                animate={{ opacity: [0.5, 1, 0.5] }}
-                                transition={{ duration: 1.5, repeat: Infinity }}
-                                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
-                              />
-                            )}
-                          </div>
-                          {clientPercent > 80 && (
-                            <div className="flex items-center gap-2 text-sm text-amber-500 bg-amber-500/10 px-3 py-2 rounded-lg border border-amber-500/20">
-                              <AlertCircle className="h-4 w-4" />
-                              <span>Approaching limit - consider upgrading</span>
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </motion.div>
-
-                    <Separator className="bg-border/50" />
-
-                    {/* Team Members */}
-                    <motion.div
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.5 }}
-                      className="space-y-4"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className="p-3 rounded-xl bg-gradient-to-br from-accent/20 to-accent/10 border-2 border-accent/30 shadow-md">
-                            <Users className="h-6 w-6 text-accent" />
-                          </div>
-                          <div>
-                            <div className="font-semibold text-lg">Team Members</div>
-                            <p className="text-sm text-muted-foreground">Active team collaborators</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-3xl font-bold">
-                            {loadingUsage ? (
-                              <Loader2 className="h-6 w-6 animate-spin inline" />
-                            ) : (
-                              usage.teamMembers
-                            )}
-                          </div>
-                          <div className="text-muted-foreground text-sm mt-1">
-                            {limits?.teamMembers ? `/ ${limits.teamMembers}` : <InfinityIcon className="h-4 w-4 inline" />}
-                          </div>
-                        </div>
-                      </div>
-                      {limits?.teamMembers && (
-                        <>
-                          <div className="relative h-4 bg-muted/50 rounded-full overflow-hidden border border-border/50">
-                            <motion.div
-                              initial={{ width: 0 }}
-                              animate={{ width: `${Math.min(memberPercent, 100)}%` }}
-                              transition={{ duration: 1.5, delay: 0.6, ease: quintOut }}
-                              className="absolute inset-y-0 left-0 bg-gradient-to-r from-accent via-accent/90 to-accent/80 rounded-full shadow-lg shadow-accent/40"
-                            />
-                            {memberPercent > 80 && (
-                              <motion.div
-                                animate={{ opacity: [0.5, 1, 0.5] }}
-                                transition={{ duration: 1.5, repeat: Infinity }}
-                                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
-                              />
-                            )}
-                          </div>
-                          {memberPercent > 80 && (
-                            <div className="flex items-center gap-2 text-sm text-amber-500 bg-amber-500/10 px-3 py-2 rounded-lg border border-amber-500/20">
-                              <AlertCircle className="h-4 w-4" />
-                              <span>Approaching limit - consider upgrading</span>
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </motion.div>
-
-                    <Separator className="bg-border/50" />
-
-                    {/* Storage */}
-                    <motion.div
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.6 }}
-                      className="space-y-4"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className="p-3 rounded-xl bg-gradient-to-br from-purple-500/20 to-purple-500/10 border-2 border-purple-500/30 shadow-md">
-                            <FolderOpen className="h-6 w-6 text-purple-400" />
-                          </div>
-                          <div>
-                            <div className="font-semibold text-lg">Storage</div>
-                            <p className="text-sm text-muted-foreground">File storage capacity</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-2xl font-bold">
-                            {formatStorageSize(subscription.storage_used)}
-                          </div>
-                          <div className="text-muted-foreground text-sm mt-1">
-                            {limits?.storage ? `/ ${formatStorageSize(limits.storage)}` : <InfinityIcon className="h-4 w-4 inline" />}
-                          </div>
-                        </div>
-                      </div>
-                      {limits?.storage && (
-                        <>
-                          <div className="relative h-4 bg-muted/50 rounded-full overflow-hidden border border-border/50">
-                            <motion.div
-                              initial={{ width: 0 }}
-                              animate={{ width: `${Math.min(storagePercent, 100)}%` }}
-                              transition={{ duration: 1.5, delay: 0.7, ease: quintOut }}
-                              className="absolute inset-y-0 left-0 bg-gradient-to-r from-purple-500 via-purple-400 to-purple-300 rounded-full shadow-lg shadow-purple-500/40"
-                            />
-                            {storagePercent > 80 && (
-                              <motion.div
-                                animate={{ opacity: [0.5, 1, 0.5] }}
-                                transition={{ duration: 1.5, repeat: Infinity }}
-                                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
-                              />
-                            )}
-                          </div>
-                          {storagePercent > 80 && (
-                            <div className="flex items-center gap-2 text-sm text-amber-500 bg-amber-500/10 px-3 py-2 rounded-lg border border-amber-500/20">
-                              <AlertCircle className="h-4 w-4" />
-                              <span>Approaching limit - consider upgrading</span>
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </motion.div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-
-              {/* Upgrade Suggestion */}
-              {hasUpgrade && nextPlan && (
-                <motion.div variants={itemVariants}>
-                  <Card className="border-2 border-primary/30 bg-gradient-to-br from-primary/10 via-primary/5 to-accent/5 shadow-xl">
-                    <CardHeader>
-                      <div className="flex items-center gap-3">
-                        <div className="p-3 rounded-xl bg-gradient-to-br from-primary/30 to-primary/20 border-2 border-primary/40">
-                          <TrendingUp className="h-6 w-6 text-primary" />
-                        </div>
-                        <div>
-                          <CardTitle className="text-2xl">Upgrade Available</CardTitle>
-                          <CardDescription className="text-base">
-                            Unlock more features and higher limits with {PLAN_NAMES[nextPlan]}
-                          </CardDescription>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex items-center justify-between flex-wrap gap-4">
-                        <div className="space-y-1">
-                          <div className="text-sm text-muted-foreground">Starting at</div>
-                          <div className="text-3xl font-bold">
-                            €{PLAN_PRICES[nextPlan as keyof typeof PLAN_PRICES]?.monthly || 0}
-                            <span className="text-lg font-normal text-muted-foreground">/month</span>
-                          </div>
-                        </div>
-                        <Button 
-                          onClick={() => navigate('/pricing')}
-                          size="lg"
-                          className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary/80 shadow-lg shadow-primary/40"
-                        >
-                          View Plans
-                          <ArrowRight className="ml-2 h-4 w-4" />
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              )}
-
-              {/* Features Grid */}
-              <motion.div variants={itemVariants}>
-                <Card className="border-2 border-primary/20 shadow-xl">
-                  <CardHeader>
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 border border-primary/30">
-                        <Sparkles className="h-6 w-6 text-primary" />
-                      </div>
-                      <div>
-                        <CardTitle className="text-2xl">Plan Features</CardTitle>
-                        <CardDescription className="text-base mt-1">
-                          Features and capabilities included in your current plan
-                        </CardDescription>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {[
-                        { key: 'whiteLabel', label: 'White-label', icon: '🎨', desc: 'Brand customization' },
-                        { key: 'approvalWorkflows', label: 'Approval Workflows', icon: '✅', desc: 'Content review process' },
-                        { key: 'bulkActions', label: 'Bulk Actions', icon: '⚡', desc: 'Batch operations' },
-                        { key: 'templates', label: 'Templates Library', icon: '📚', desc: 'Pre-built templates' },
-                        { key: 'automation', label: 'Automation', icon: '🤖', desc: 'Workflow automation' },
-                        { key: 'multiAdmin', label: 'Multi-admin', icon: '👥', desc: 'Multiple administrators' },
-                      ].map((feature, index) => {
-                        const isEnabled = limits?.features[feature.key as keyof typeof limits.features] || false;
-                        return (
-                          <motion.div
-                            key={feature.key}
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            transition={{ delay: 0.8 + index * 0.05, type: 'spring' }}
-                            whileHover={{ scale: 1.03, y: -4 }}
-                            className={`p-5 rounded-xl border-2 transition-all ${
-                              isEnabled
-                                ? 'bg-gradient-to-br from-primary/10 to-accent/5 border-primary/30 shadow-md hover:shadow-lg'
-                                : 'bg-muted/30 border-muted hover:border-muted-foreground/30'
-                            }`}
-                          >
-                            <div className="flex items-start gap-3">
-                              <div className="text-2xl">{feature.icon}</div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between mb-1">
-                                  <span className={`font-semibold ${isEnabled ? 'text-foreground' : 'text-muted-foreground'}`}>
-                                    {feature.label}
-                                  </span>
-                                  <motion.div
-                                    initial={{ scale: 0 }}
-                                    animate={{ scale: 1 }}
-                                    transition={{ delay: 0.9 + index * 0.05, type: 'spring' }}
-                                  >
-                                    {isEnabled ? (
-                                      <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0" />
-                                    ) : (
-                                      <XCircle className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                                    )}
-                                  </motion.div>
-                                </div>
-                                <p className="text-xs text-muted-foreground">{feature.desc}</p>
-                              </div>
-                            </div>
-                          </motion.div>
-                        );
-                      })}
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            </TabsContent>
-
-            {/* Billing History Tab */}
-            <TabsContent value="billing" className="space-y-6 mt-6">
-              <motion.div variants={itemVariants}>
-                <Card className="border-2 border-primary/20 shadow-xl">
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 border border-primary/30">
-                          <Receipt className="h-6 w-6 text-primary" />
-                        </div>
-                        <div>
-                          <CardTitle className="text-2xl">Billing History</CardTitle>
-                          <CardDescription className="text-base mt-1">
-                            View and download your invoices
-                          </CardDescription>
-                        </div>
-                      </div>
-                      {subscription.stripe_customer_id && (
-                        <Button
-                          variant="outline"
-                          onClick={handleManageSubscription}
-                          disabled={managingSubscription}
-                          className="border-2"
-                        >
-                          {managingSubscription ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Loading...
-                            </>
-                          ) : (
-                            <>
-                              <ExternalLink className="mr-2 h-4 w-4" />
-                              View All Invoices
-                            </>
-                          )}
-                        </Button>
-                      )}
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex flex-col items-center justify-center py-16 text-center">
-                      <div className="p-4 rounded-full bg-muted/50 mb-4">
-                        <FileText className="h-12 w-12 text-muted-foreground" />
-                      </div>
-                      <h3 className="text-lg font-semibold mb-2">No invoices yet</h3>
-                      <p className="text-muted-foreground max-w-md">
-                        Your billing history will appear here once you have subscription invoices. 
-                        {subscription.stripe_customer_id && ' You can also view all invoices in the customer portal.'}
-                      </p>
-                      {subscription.stripe_customer_id && (
-                        <Button
-                          variant="outline"
-                          onClick={handleManageSubscription}
-                          className="mt-6 border-2"
-                        >
-                          <ExternalLink className="mr-2 h-4 w-4" />
-                          Open Customer Portal
-                        </Button>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            </TabsContent>
-
-            {/* Payment Methods Tab */}
-            <TabsContent value="payment" className="space-y-6 mt-6">
-              <motion.div variants={itemVariants}>
-                <Card className="border-2 border-primary/20 shadow-xl">
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 border border-primary/30">
-                          <CreditCard className="h-6 w-6 text-primary" />
-                        </div>
-                        <div>
-                          <CardTitle className="text-2xl">Payment Methods</CardTitle>
-                          <CardDescription className="text-base mt-1">
-                            Manage your payment methods and billing information
-                          </CardDescription>
-                        </div>
-                      </div>
-                      {subscription.stripe_customer_id && (
-                        <Button
-                          variant="outline"
-                          onClick={handleManageSubscription}
-                          disabled={managingSubscription}
-                          className="border-2"
-                        >
-                          {managingSubscription ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Loading...
-                            </>
-                          ) : (
-                            <>
-                              <ExternalLink className="mr-2 h-4 w-4" />
-                              Manage Payment Methods
-                            </>
-                          )}
-                        </Button>
-                      )}
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    {subscription.stripe_customer_id ? (
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between p-4 rounded-xl border-2 border-border bg-muted/30">
-                          <div className="flex items-center gap-4">
-                            <div className="p-3 rounded-lg bg-background border border-border">
-                              <CreditCard className="h-6 w-6 text-muted-foreground" />
-                            </div>
-                            <div>
-                              <div className="font-semibold">Payment Method</div>
-                              <div className="text-sm text-muted-foreground">
-                                Managed via Stripe Customer Portal
-                              </div>
-                            </div>
-                          </div>
-                          <Badge variant="secondary">Active</Badge>
-                        </div>
-                        <div className="bg-muted/30 border border-border rounded-lg p-4">
-                          <div className="flex items-start gap-3">
-                            <Info className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                            <div className="text-sm text-muted-foreground">
-                              To add, update, or remove payment methods, please use the customer portal. 
-                              This ensures your payment information is securely managed by Stripe.
-                            </div>
-                          </div>
-                        </div>
-                        <Button
-                          variant="outline"
-                          onClick={handleManageSubscription}
-                          className="w-full border-2"
-                          size="lg"
-                        >
-                          <ExternalLink className="mr-2 h-4 w-4" />
-                          Open Customer Portal
-                        </Button>
-                      </div>
+          <Card className="border-white/10 bg-black/40">
+            <CardHeader>
+              <CardTitle className="text-white">Feature Access</CardTitle>
+              <CardDescription className="text-white/60">Capabilities available on your current plan.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                {lockedFeatures.map((feature) => (
+                  <div key={feature.key} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+                    <span className="text-sm text-white/85">{feature.label}</span>
+                    {feature.enabled ? (
+                      <CheckCircle2 className="h-4 w-4 text-emerald-400" />
                     ) : (
-                      <div className="flex flex-col items-center justify-center py-16 text-center">
-                        <div className="p-4 rounded-full bg-muted/50 mb-4">
-                          <Lock className="h-12 w-12 text-muted-foreground" />
-                        </div>
-                        <h3 className="text-lg font-semibold mb-2">No Payment Method</h3>
-                        <p className="text-muted-foreground max-w-md">
-                          Payment methods are managed through the customer portal once you have an active subscription.
-                        </p>
-                      </div>
+                      <Lock className="h-4 w-4 text-white/45" />
                     )}
-                  </CardContent>
-                </Card>
-              </motion.div>
-            </TabsContent>
-          </Tabs>
-        </motion.div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="usage" className="space-y-6 pt-4">
+          <Card className="border-white/10 bg-black/40">
+            <CardHeader>
+              <CardTitle className="text-white">Resource Consumption</CardTitle>
+              <CardDescription className="text-white/60">Track consumption against plan limits.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              {usageCards.map((item) => {
+                const isHigh = item.percent >= 85;
+                return (
+                  <div key={item.id} className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <item.icon className="h-4 w-4 text-white/70" />
+                        <span className="text-sm text-white">{item.label}</span>
+                      </div>
+                      <span className="text-sm text-white/70">
+                        {loadingUsage ? "..." : item.current} / {item.limit ?? <InfinityIcon className="inline h-4 w-4" />}
+                      </span>
+                    </div>
+                    <Progress value={item.percent} className="h-2" />
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-white/50">{item.helper}</span>
+                      {isHigh ? (
+                        <span className="flex items-center gap-1 text-amber-400">
+                          <AlertTriangle className="h-3 w-3" />
+                          Near limit
+                        </span>
+                      ) : (
+                        <span className="text-emerald-400">Healthy</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="invoices" className="space-y-6 pt-4">
+          <Card className="border-white/10 bg-black/40">
+            <CardHeader>
+              <CardTitle className="text-white">Invoices & Billing History</CardTitle>
+              <CardDescription className="text-white/60">
+                Invoices are managed in Stripe portal for security and compliance.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                <div className="flex items-center gap-2 text-white">
+                  <FileText className="h-4 w-4" />
+                  <span className="font-medium">Invoice Center</span>
+                </div>
+                <p className="mt-2 text-sm text-white/65">
+                  Open the customer portal to view or download invoices, receipts, and full payment history.
+                </p>
+              </div>
+
+              <Button
+                variant="outline"
+                className="border-white/20 bg-white/5 text-white"
+                onClick={handleManageSubscription}
+                disabled={!subscription.stripe_customer_id || managingSubscription}
+              >
+                {managingSubscription ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ExternalLink className="mr-2 h-4 w-4" />}
+                Open Invoice Portal
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="payment" className="space-y-6 pt-4">
+          <Card className="border-white/10 bg-black/40">
+            <CardHeader>
+              <CardTitle className="text-white">Payment Methods</CardTitle>
+              <CardDescription className="text-white/60">Securely managed by Stripe customer portal.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {subscription.stripe_customer_id ? (
+                <>
+                  <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-white/75">
+                    Add, remove, or update payment methods through Stripe. This keeps card data outside app storage.
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="border-white/20 bg-white/5 text-white"
+                    onClick={handleManageSubscription}
+                    disabled={managingSubscription}
+                  >
+                    {managingSubscription ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CreditCard className="mr-2 h-4 w-4" />}
+                    Manage Payment Methods
+                  </Button>
+                </>
+              ) : (
+                <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-white/65">
+                  No Stripe customer record is linked yet. Start or upgrade a subscription to enable payment management.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      <div className="rounded-xl border border-white/10 bg-black/30 p-4">
+        <div className="flex items-center gap-2 text-sm text-white/70">
+          <Clock className="h-4 w-4" />
+          SLA: billing portal actions usually sync within 1-2 minutes.
+        </div>
       </div>
     </div>
   );

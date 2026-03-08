@@ -134,15 +134,23 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const { data: sub } = await serviceClient
+    const { data: ownerSub } = await serviceClient
       .from("subscriptions")
       .select("plan_type")
       .eq("user_id", agency.user_id)
       .maybeSingle();
-    const plan = sub?.plan_type || "free";
-    if (plan === "free") {
+    const { data: inviterSub } = await serviceClient
+      .from("subscriptions")
+      .select("plan_type")
+      .eq("user_id", authUser.user.id)
+      .maybeSingle();
+    const plan = ownerSub?.plan_type ?? inviterSub?.plan_type ?? "free";
+
+    // Product contract: only admin-role invites require Agency Plus.
+    // Member/manager invites are allowed on free/starter/pro and further bounded by team seat limits in UI.
+    if (invite.role === "admin" && plan !== "agency_plus") {
       return new Response(
-        JSON.stringify({ success: false, code: "PLAN_REQUIRED", error: "Upgrade required" }),
+        JSON.stringify({ success: false, code: "PLAN_REQUIRED", error: "Multi-admin requires Agency Plus" }),
         { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } },
       );
     }

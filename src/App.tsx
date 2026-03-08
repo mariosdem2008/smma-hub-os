@@ -2,7 +2,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
+import { lazy, Suspense } from "react";
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useParams } from "react-router-dom";
 
 import { AuthProvider } from "@/lib/auth";
 import { ClientAuthProvider } from "@/lib/client-auth";
@@ -16,55 +17,75 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/AppLayout";
 import { ClientDetailLayout } from "@/components/ClientDetailLayout";
 import { useTimezoneDetection } from "@/hooks/useTimezoneDetection";
-
-import Landing from "./pages/LandingV2";
-import Auth from "./pages/Auth";
-import ForgotPassword from "./pages/ForgotPassword";
-import ResetPassword from "./pages/ResetPassword";
-import Dashboard from "./pages/Dashboard";
-import Clients from "./pages/Clients";
-import ClientDetail from "./pages/ClientDetail";
-import Team from "./pages/Team";
-import Settings from "./pages/Settings";
-import Pricing from "./pages/Pricing";
-import Terms from "./pages/Terms";
-import Privacy from "./pages/Privacy";
-import Billing from "./pages/Billing";
-import BillingOverview from "./pages/BillingOverview";
-import InviteAccept from "./pages/InviteAccept";
-import Messages from "./pages/Messages";
-import NotFound from "./pages/NotFound";
-import AiOnboardingAgency from "./pages/ai/AiOnboardingAgency";
-import AiOnboardingClient from "./pages/ai/AiOnboardingClient";
-import AgencyAiAdmin from "./pages/ai/AgencyAiAdmin";
-import AISetup from "./pages/agency/AISetup";
-import ModuleDetail from "./pages/agency/ModuleDetail";
-import Bootstrap from "./pages/Bootstrap";
-import Welcome from "./pages/Welcome";
-import SelectAgency from "./pages/SelectAgency";
-import CreateAgencyStub from "./pages/CreateAgencyStub";
-import Invitations from "./pages/Invitations";
-
-import { ClientPortalLayout } from "./pages/ClientPortalLayout";
-import ClientLogin from "./pages/client/ClientLogin";
-import ClientAcceptInvite from "./pages/client/ClientAcceptInvite";
-import ClientForgotPassword from "./pages/client/ClientForgotPassword";
-import ClientResetPassword from "./pages/client/ClientResetPassword";
-
-import { PortalOverview } from "./pages/client-portal/PortalOverview";
-import { PortalBranding } from "./pages/client-portal/PortalBranding";
-import { PortalSocial } from "./pages/client-portal/PortalSocial";
-import PortalSocialProfiles from "./pages/client-portal/PortalSocialProfiles";
-import { PortalIdeas } from "./pages/client-portal/PortalIdeas";
-import { PortalAssets } from "./pages/client-portal/PortalAssets";
-import { PortalContentCalendar } from "./pages/client-portal/PortalContentCalendar";
-import PortalUploads from "./pages/client-portal/PortalUploads";
-import PortalApprovals from "./pages/client-portal/PortalApprovals";
-import PortalMessages from "./pages/client-portal/PortalMessages";
-import { PortalPerformance } from "./pages/client-portal/PortalPerformance";
-import ReportDetail from "./components/client-tabs/ReportDetail";
-import { PortalAiAssistant } from "./pages/client-portal/PortalAiAssistant";
 import { isValidBrainModule } from "@/lib/ai/brainModules";
+
+const Landing = lazy(() => import("./pages/LandingV2"));
+const Auth = lazy(() => import("./pages/Auth"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const Pricing = lazy(() => import("./pages/Pricing"));
+const Terms = lazy(() => import("./pages/Terms"));
+const Privacy = lazy(() => import("./pages/Privacy"));
+const InviteAccept = lazy(() => import("./pages/InviteAccept"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const AiOnboardingAgency = lazy(() => import("./pages/ai/AiOnboardingAgency"));
+const Bootstrap = lazy(() => import("./pages/Bootstrap"));
+const Welcome = lazy(() => import("./pages/Welcome"));
+const AgencyWelcomeAI = lazy(() => import("./pages/AgencyWelcomeAI"));
+const SelectAgency = lazy(() => import("./pages/SelectAgency"));
+const CreateAgencyStub = lazy(() => import("./pages/CreateAgencyStub"));
+const Invitations = lazy(() => import("./pages/Invitations"));
+
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Clients = lazy(() => import("./pages/Clients"));
+const ClientDetail = lazy(() => import("./pages/ClientDetail"));
+const Team = lazy(() => import("./pages/Team"));
+const Settings = lazy(() => import("./pages/Settings"));
+const Billing = lazy(() => import("./pages/Billing"));
+const BillingOverview = lazy(() => import("./pages/BillingOverview"));
+const Messages = lazy(() => import("./pages/Messages"));
+const AiOnboardingClient = lazy(() => import("./pages/ai/AiOnboardingClient"));
+const AgencyAiAdmin = lazy(() => import("./pages/ai/AgencyAiAdmin"));
+const AISetup = lazy(() => import("./pages/agency/AISetup"));
+const ModuleDetail = lazy(() => import("./pages/agency/ModuleDetail"));
+
+const ClientPortalLayout = lazy(() =>
+  import("./pages/ClientPortalLayout").then((module) => ({ default: module.ClientPortalLayout })),
+);
+const ClientLogin = lazy(() => import("./pages/client/ClientLogin"));
+const ClientAcceptInvite = lazy(() => import("./pages/client/ClientAcceptInvite"));
+const ClientForgotPassword = lazy(() => import("./pages/client/ClientForgotPassword"));
+const ClientResetPassword = lazy(() => import("./pages/client/ClientResetPassword"));
+
+const PortalOverview = lazy(() =>
+  import("./pages/client-portal/PortalOverview").then((module) => ({ default: module.PortalOverview })),
+);
+const PortalBranding = lazy(() =>
+  import("./pages/client-portal/PortalBranding").then((module) => ({ default: module.PortalBranding })),
+);
+const PortalSocial = lazy(() =>
+  import("./pages/client-portal/PortalSocial").then((module) => ({ default: module.PortalSocial })),
+);
+const PortalSocialProfiles = lazy(() => import("./pages/client-portal/PortalSocialProfiles"));
+const PortalIdeas = lazy(() =>
+  import("./pages/client-portal/PortalIdeas").then((module) => ({ default: module.PortalIdeas })),
+);
+const PortalAssets = lazy(() =>
+  import("./pages/client-portal/PortalAssets").then((module) => ({ default: module.PortalAssets })),
+);
+const PortalContentCalendar = lazy(() =>
+  import("./pages/client-portal/PortalContentCalendar").then((module) => ({ default: module.PortalContentCalendar })),
+);
+const PortalUploads = lazy(() => import("./pages/client-portal/PortalUploads"));
+const PortalApprovals = lazy(() => import("./pages/client-portal/PortalApprovals"));
+const PortalMessages = lazy(() => import("./pages/client-portal/PortalMessages"));
+const PortalPerformance = lazy(() =>
+  import("./pages/client-portal/PortalPerformance").then((module) => ({ default: module.PortalPerformance })),
+);
+const ReportDetail = lazy(() => import("./components/client-tabs/ReportDetail"));
+const PortalAiAssistant = lazy(() =>
+  import("./pages/client-portal/PortalAiAssistant").then((module) => ({ default: module.PortalAiAssistant })),
+);
 
 function LegacyBrainLayerRedirect() {
   const { layer } = useParams<{ layer?: string }>();
@@ -112,10 +133,10 @@ function ProtectedClientDetailShell() {
   );
 }
 
-function ClientPortalShell() {
+function ClientAuthShell() {
   return (
     <ClientAuthProvider>
-      <ClientPortalLayout />
+      <Outlet />
     </ClientAuthProvider>
   );
 }
@@ -131,7 +152,14 @@ const App = () => {
         <BrowserRouter>
           {/* ✅ ONLY auth provider is global */}
           <AuthProvider>
-            <Routes>
+            <Suspense
+              fallback={
+                <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground">
+                  Loading...
+                </div>
+              }
+            >
+              <Routes>
               {/* Public Routes */}
               <Route path="/" element={<Landing />} />
               <Route path="/auth" element={<Auth />} />
@@ -142,68 +170,42 @@ const App = () => {
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/invite/:token" element={<InviteAccept />} />
 
-              {/* Client Portal Auth Routes (public) */}
-              <Route
-                path="/client/login/:portalSlug"
-                element={
-                  <ClientAuthProvider>
-                    <ClientLogin />
-                  </ClientAuthProvider>
-                }
-              />
-              <Route
-                path="/client/accept-invite"
-                element={
-                  <ClientAuthProvider>
-                    <ClientAcceptInvite />
-                  </ClientAuthProvider>
-                }
-              />
-              <Route
-                path="/client/forgot-password/:portalSlug"
-                element={
-                  <ClientAuthProvider>
-                    <ClientForgotPassword />
-                  </ClientAuthProvider>
-                }
-              />
-              <Route
-                path="/client/reset-password"
-                element={
-                  <ClientAuthProvider>
-                    <ClientResetPassword />
-                  </ClientAuthProvider>
-                }
-              />
+              {/* Client portal routes (shared client auth provider scope) */}
+              <Route path="/client" element={<ClientAuthShell />}>
+                <Route path="login" element={<ClientLogin />} />
+                <Route path="login/:portalSlug" element={<ClientLogin />} />
+                <Route path="accept-invite" element={<ClientAcceptInvite />} />
+                <Route path="forgot-password/:portalSlug" element={<ClientForgotPassword />} />
+                <Route path="reset-password" element={<ClientResetPassword />} />
 
-              {/* Client Portal Protected Routes (scoped provider) */}
-              <Route path="/client/portal" element={<ClientPortalShell />}>
-                <Route index element={<PortalOverview />} />
-                <Route path="approvals" element={<PortalApprovals />} />
-                <Route path="content-calendar" element={<PortalContentCalendar />} />
-                <Route path="performance" element={<PortalPerformance />} />
-                <Route path="ideas" element={<PortalIdeas />} />
-                <Route path="assets" element={<PortalAssets />} />
-                <Route path="branding" element={<PortalBranding />} />
-                <Route path="social" element={<PortalSocial />} />
-                <Route path="social-profiles" element={<PortalSocialProfiles />} />
-                <Route path="uploads" element={<PortalUploads />} />
-                <Route path="messages" element={<PortalMessages />} />
-                <Route path="ai-assistant" element={<PortalAiAssistant />} />
-              </Route>
-              <Route path="/client/portal/:portalSlug" element={<ClientPortalShell />}>
-                <Route index element={<PortalOverview />} />
-                <Route path="approvals" element={<PortalApprovals />} />
-                <Route path="content-calendar" element={<PortalContentCalendar />} />
-                <Route path="performance" element={<PortalPerformance />} />
-                <Route path="ideas" element={<PortalIdeas />} />
-                <Route path="assets" element={<PortalAssets />} />
-                <Route path="branding" element={<PortalBranding />} />
-                <Route path="social" element={<PortalSocial />} />
-                <Route path="social-profiles" element={<PortalSocialProfiles />} />
-                <Route path="uploads" element={<PortalUploads />} />
-                <Route path="messages" element={<PortalMessages />} />
-                <Route path="ai-assistant" element={<PortalAiAssistant />} />
+                <Route path="portal" element={<ClientPortalLayout />}>
+                  <Route index element={<PortalOverview />} />
+                  <Route path="approvals" element={<PortalApprovals />} />
+                  <Route path="content-calendar" element={<PortalContentCalendar />} />
+                  <Route path="performance" element={<PortalPerformance />} />
+                  <Route path="ideas" element={<PortalIdeas />} />
+                  <Route path="assets" element={<PortalAssets />} />
+                  <Route path="branding" element={<PortalBranding />} />
+                  <Route path="social" element={<PortalSocial />} />
+                  <Route path="social-profiles" element={<PortalSocialProfiles />} />
+                  <Route path="uploads" element={<PortalUploads />} />
+                  <Route path="messages" element={<PortalMessages />} />
+                  <Route path="ai-assistant" element={<PortalAiAssistant />} />
+                </Route>
+                <Route path="portal/:portalSlug" element={<ClientPortalLayout />}>
+                  <Route index element={<PortalOverview />} />
+                  <Route path="approvals" element={<PortalApprovals />} />
+                  <Route path="content-calendar" element={<PortalContentCalendar />} />
+                  <Route path="performance" element={<PortalPerformance />} />
+                  <Route path="ideas" element={<PortalIdeas />} />
+                  <Route path="assets" element={<PortalAssets />} />
+                  <Route path="branding" element={<PortalBranding />} />
+                  <Route path="social" element={<PortalSocial />} />
+                  <Route path="social-profiles" element={<PortalSocialProfiles />} />
+                  <Route path="uploads" element={<PortalUploads />} />
+                  <Route path="messages" element={<PortalMessages />} />
+                  <Route path="ai-assistant" element={<PortalAiAssistant />} />
+                </Route>
               </Route>
 
               {/* Onboarding */}
@@ -257,6 +259,14 @@ const App = () => {
                   </ProtectedRoute>
                 }
               />
+              <Route
+                path="/agency/welcome-ai"
+                element={
+                  <ProtectedRoute>
+                    <AgencyWelcomeAI />
+                  </ProtectedRoute>
+                }
+              />
 
               {/* Protected App Routes */}
               <Route element={<ProtectedAppShell />}>
@@ -288,8 +298,9 @@ const App = () => {
                 <Route path="/clients/:clientId/reports/:reportId" element={<ReportDetail />} />
               </Route>
 
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>

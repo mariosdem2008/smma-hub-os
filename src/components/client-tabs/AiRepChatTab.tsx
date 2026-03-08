@@ -24,10 +24,28 @@ export default function AiRepChatTab({ clientId }: { clientId: string }) {
     setMessages((prev) => [...prev, { role: "user", content: text }]);
 
     try {
-      const { data, error } = await supabase.functions.invoke("ai-rep-chat", {
-        body: { client_id: clientId, message: text },
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+      };
+      if (session?.access_token) {
+        headers.Authorization = `Bearer ${session.access_token}`;
+      }
+
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-rep-chat`, {
+        method: "POST",
+        headers,
+        credentials: "include",
+        body: JSON.stringify({ client_id: clientId, message: text }),
       });
-      if (error) throw new Error(error.message);
+      const responseText = await response.text();
+      const data = responseText ? JSON.parse(responseText) : {};
+      if (!response.ok) {
+        throw new Error((data?.error as string | undefined) ?? `Request failed (${response.status})`);
+      }
 
       const reply = (data?.assistant_message as string | undefined) ?? "UNKNOWN\n\nWhat should we focus on?";
       setMessages((prev) => [

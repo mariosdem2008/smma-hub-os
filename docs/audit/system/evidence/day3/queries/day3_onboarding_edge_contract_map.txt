@@ -1,0 +1,60 @@
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:31:client_turn_id: z.string().trim().min(1).max(120).optional(),
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:35:skip_optional: z.boolean().optional(),
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:36:skip_all_optional: z.boolean().optional(),
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:37:undo_last: z.boolean().optional(),
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:339:async function runCompletionIngest(params: {
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:1010:async function ensureAgencyMembership(supabase: MinimalSupabase, agencyId: string, userId: string) {
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:1021:async function ensureClientBelongsToAgency(
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:1045:.from("ai_onboarding_status")
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:1060:.from("ai_onboarding_status")
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:1089:.from("ai_onboarding_turn_logs")
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:1102:.from("ai_onboarding_turn_logs")
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:1180:.from("ai_onboarding_turn_logs")
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:1183:.eq("client_turn_id", clientTurnId)
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:1336:observedRequestId = payload.client_turn_id ?? null;
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:1350:request_id: payload.client_turn_id ?? null,
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:1356:ensureAgencyMembership(supabase, agencyId, user.id),
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:1357:ensureClientBelongsToAgency(supabase, agencyId, clientId),
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:1370:stage: "onboarding.auth",
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:1378:request_id: payload.client_turn_id ?? null,
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:1400:const replayPayload = await getReplayByClientTurnId(supabase, onboardingStatus.id, payload.client_turn_id);
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:1449:stage: "onboarding.snapshot.load",
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:1457:request_id: payload.client_turn_id ?? null,
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:1466:await supabase.from("ai_onboarding_turn_logs").delete().eq("onboarding_status_id", onboardingStatus.id);
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:1468:.from("ai_onboarding_status")
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:1497:if (payload.undo_last && lastAnsweredField) {
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:1529:.from("ai_onboarding_status")
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:1552:!payload.skip_optional &&
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:1553:!payload.skip_all_optional &&
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:1554:!payload.undo_last
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:1637:stage: "onboarding.clarify",
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:1645:request_id: payload.client_turn_id ?? null,
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:1700:.from("ai_onboarding_status")
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:1763:.from("ai_onboarding_status")
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:1790:if (payload.skip_optional && currentQuestion.priority !== "P0") {
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:1795:} else if (payload.skip_optional && currentQuestion && currentQuestion.priority !== "P0") {
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:1799:if (payload.skip_all_optional) {
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:1850:.from("ai_onboarding_status")
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:1893:.from("ai_onboarding_status")
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:1985:requestId: payload.client_turn_id ?? null,
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:2051:requestId: payload.client_turn_id ?? null,
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:2120:await supabase.from("ai_onboarding_turn_logs").insert({
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:2141:client_turn_id: payload.client_turn_id ?? null,
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:2145:.from("ai_onboarding_status")
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:2178:stage: "onboarding.resolver",
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:2186:request_id: payload.client_turn_id ?? null,
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:2219:stage: "onboarding.suggestions",
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:2227:request_id: payload.client_turn_id ?? null,
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:2264:await runCompletionIngest({
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:2303:stage: "onboarding.ingest",
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:2311:request_id: payload.client_turn_id ?? null,
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:2386:const insertLog = await supabase.from("ai_onboarding_turn_logs").insert({
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:2407:client_turn_id: payload.client_turn_id ?? null,
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:2410:if (insertLog.error && payload.client_turn_id && insertLog.error.message?.toLowerCase().includes("duplicate")) {
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:2411:const replay = await getReplayByClientTurnId(supabase, onboardingStatus.id, payload.client_turn_id);
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:2420:: (statusMetadata.prompt_cache_version as string | undefined) ?? null;
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:2425:.from("ai_onboarding_status")
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:2434:prompt_cache_version: promptCacheVersion,
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:2435:prompt_cache_invalidated_at: finalStatusValue === "complete" ? new Date().toISOString() : null,
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:2453:stage: "onboarding.persist",
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\supabase\functions\ai-onboarding\index.ts:2461:request_id: payload.client_turn_id ?? null,

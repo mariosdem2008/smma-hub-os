@@ -31,6 +31,10 @@ function createSupabaseMock(opts?: {
           state.filters[col] = val;
           return builder;
         },
+        is: (col: string, val: any) => {
+          state.filters[col] = val;
+          return builder;
+        },
         order: () => builder,
         limit: () => builder,
         maybeSingle: async () => {
@@ -362,8 +366,10 @@ describe("agency admin setup guided", () => {
 
     expect(result.status).toBe(200);
     expect(runAiTaskMock).toHaveBeenCalledTimes(1);
-    const call = runAiTaskMock.mock.calls[0]?.[0] as any;
-    const snapshot = call?.metadata?.contextSnapshot as any;
+    const extractCall = runAiTaskMock.mock.calls
+      .map((entry) => entry?.[0] as any)
+      .find((entry) => entry?.metadata?.contextSnapshot);
+    const snapshot = extractCall?.metadata?.contextSnapshot as any;
     expect(snapshot?.agency?.name).toBe("Rocket Agency");
     expect(snapshot?.agency?.website).toBe("https://rocket.test");
     if ("error" in result.body) throw new Error("Unexpected error response");
@@ -403,8 +409,10 @@ describe("agency admin setup guided", () => {
 
     expect(result.status).toBe(200);
     expect(runAiTaskMock).toHaveBeenCalledTimes(1);
-    const call = runAiTaskMock.mock.calls[0]?.[0] as any;
-    const snapshot = call?.metadata?.contextSnapshot as any;
+    const extractCall = runAiTaskMock.mock.calls
+      .map((entry) => entry?.[0] as any)
+      .find((entry) => entry?.metadata?.contextSnapshot);
+    const snapshot = extractCall?.metadata?.contextSnapshot as any;
     expect(snapshot?.agency?.name ?? null).toBeNull();
     expect(snapshot?.agency?.website ?? null).toBeNull();
     if ("error" in result.body) throw new Error("Unexpected error response");
@@ -446,8 +454,10 @@ describe("agency admin setup guided", () => {
     });
 
     expect(runAiTaskMock).toHaveBeenCalledTimes(1);
-    const call = runAiTaskMock.mock.calls[0]?.[0] as any;
-    const snapshot = call?.metadata?.contextSnapshot as any;
+    const extractCall = runAiTaskMock.mock.calls
+      .map((entry) => entry?.[0] as any)
+      .find((entry) => entry?.metadata?.contextSnapshot);
+    const snapshot = extractCall?.metadata?.contextSnapshot as any;
     expect(snapshot?.agency ?? null).toBeNull();
     if ("error" in result.body) throw new Error("Unexpected error response");
     expect(result.body.assistant_message).toContain(SETUP_QUESTIONS[0].question_text);

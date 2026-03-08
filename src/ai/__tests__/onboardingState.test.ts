@@ -36,8 +36,8 @@ describe("onboarding state helpers", () => {
         offers: ["SMM", "UGC"],
       },
     };
-    expect(resolveSnapshotValue(snapshot, "bootstrap", "agency_name")).toBe("Nexus Media");
-    expect(resolveSnapshotValue(snapshot, "bootstrap", "services")).toEqual(["SMM", "UGC"]);
+    expect(resolveSnapshotValue(snapshot, "agency", "name")).toBe("Nexus Media");
+    expect(resolveSnapshotValue(snapshot, "agency", "service_catalog")).toEqual(["SMM", "UGC"]);
   });
 
   it("returns deterministic 3-4 suggestions", () => {
@@ -79,17 +79,18 @@ describe("onboarding state helpers", () => {
 
   it("updates draft from calibration input and advances progress", () => {
     let snapshot: Record<string, unknown> = {};
-    snapshot = applyCalibrationInput(snapshot, "bootstrap", "agency_name", "Orbit Studio");
-    snapshot = applyCalibrationInput(snapshot, "bootstrap", "locale", "Europe/Athens, English");
-    snapshot = applyCalibrationInput(snapshot, "bootstrap", "team_size", "5");
-    snapshot = applyCalibrationInput(snapshot, "bootstrap", "active_clients", "8");
-    snapshot = applyCalibrationInput(snapshot, "bootstrap", "target_industries", "SaaS");
-    snapshot = applyCalibrationInput(snapshot, "bootstrap", "services", "SMM, Content");
-    snapshot = applyCalibrationInput(snapshot, "positioning", "icp_best", "B2B SaaS, $20k-$100k MRR");
-    snapshot = applyCalibrationInput(snapshot, "positioning", "differentiators", "48h turnaround");
-    snapshot = applyCalibrationInput(snapshot, "offer_stack", "core_offer_high_margin", "Content retainer");
-    snapshot = applyCalibrationInput(snapshot, "offer_stack", "core_offers", "Retainer");
-    snapshot = applyCalibrationInput(snapshot, "offer_stack", "pricing_model", "Fixed retainer");
+    snapshot = applyCalibrationInput(snapshot, "agency", "name", "Orbit Studio");
+    snapshot = applyCalibrationInput(snapshot, "agency", "timezone", "Europe/Athens");
+    snapshot = applyCalibrationInput(snapshot, "agency", "primary_client_languages", "English 80%, Greek 20%");
+    snapshot = applyCalibrationInput(snapshot, "agency", "team_size_total", "5");
+    snapshot = applyCalibrationInput(snapshot, "agency", "active_paying_clients", "8");
+    snapshot = applyCalibrationInput(snapshot, "agency", "top_industries", "SaaS");
+    snapshot = applyCalibrationInput(snapshot, "agency", "best_client_summary", "B2B SaaS founder at $40k MRR focused on qualified demo bookings.");
+    snapshot = applyCalibrationInput(snapshot, "agency", "key_differentiators", "Fast turnarounds, Founder-led strategy, SaaS specialization");
+    snapshot = applyCalibrationInput(snapshot, "agency", "service_catalog", "Paid Ads | Meta and Google campaign management");
+    snapshot = applyCalibrationInput(snapshot, "agency", "top_margin_offers", "Retainer Growth | Weekly strategy; 12 creatives; reporting | 1500-2500 | Reusable workflow");
+    snapshot = applyCalibrationInput(snapshot, "agency", "packaged_offers", "Lead Engine | 40 leads/month | 12 creatives; ad mgmt; reporting | 30 days | 1500-2500");
+    snapshot = applyCalibrationInput(snapshot, "agency", "pricing_model", "Fixed retainer | Predictable monthly workload and scope");
 
     const progress = evaluateOnboardingProgress(snapshot);
     expect(progress.requiredComplete).toBe(true);

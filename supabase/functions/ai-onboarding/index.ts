@@ -9,6 +9,7 @@ import { runAiTask } from "../_shared/ai.ts";
 import {
   applyCalibrationInput,
   mergeDraftSnapshot,
+  normalizeOnboardingSuggestions,
   resolveSnapshotValue,
 } from "../../../src/ai/onboardingState.ts";
 import {
@@ -444,6 +445,21 @@ function isUnknownAnswer(input: string) {
   ].some((phrase) => normalized === phrase || normalized.includes(phrase));
 }
 
+function isLikelyQuestion(input: string) {
+  const normalized = input.trim().toLowerCase();
+  if (!normalized) return false;
+  if (normalized.includes("?")) return true;
+  return /^(what|why|how|when|where|which|who|can|could|should|would|do|does|did|is|are)\b/.test(normalized);
+}
+
+function isLowSignalNoise(input: string) {
+  const normalized = input.trim();
+  if (!normalized) return true;
+  // Reject punctuation-only or symbol-only payloads like ???, ..., !!!.
+  if (/^[\p{P}\p{S}\s]+$/u.test(normalized)) return true;
+  return false;
+}
+
 
 function parseNumbers(input: string) {
   const matches = input.match(/\d+(?:\.\d+)?/g);
@@ -455,31 +471,725 @@ function hasLetters(input: string) {
   return /[a-zA-Z]/.test(input);
 }
 
+function isValidIanaTimezone(input: string) {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: input });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function isLikelyTimezone(input: string) {
-  return /[A-Za-z]+\/[A-Za-z_]+/.test(input) || /\b(UTC|GMT|EST|CST|PST|EET|CET|BST)\b/i.test(input);
+  return isValidIanaTimezone(input.trim());
+}
+
+function toDelimitedLines(input: string) {
+  const normalized = input.trim();
+  if (!normalized) return [];
+  if (/\r?\n/.test(normalized)) {
+    return normalized
+      .split(/\r?\n/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+  // Keep pipe-structured rows intact even when they include semicolons in deliverables.
+  if (normalized.includes("|")) {
+    return [normalized];
+  }
+  return normalized
+    .split(/;/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function toDelimitedCsv(input: string) {
+  return input
+    .split(/\r?\n|;/)
+    .map((line) => line.split(",").map((part) => part.trim()))
+    .filter((parts) => parts.some(Boolean));
+}
+
+function countWords(input: string) {
+  return input.trim().split(/\s+/).filter(Boolean).length;
+}
+
+function isValidUrl(value: string) {
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function validationFollowUp(code: string, help: string, example?: string) {
+  const suffix = example ? ` Example: ${example}` : "";
+  return { decision: "follow_up" as const, message: `${help}${suffix}`, code };
+}
+
+function sanitizeUserFacingAssistantMessage(input: string) {
+  return input
+    .replace(/\bagency_brain_missing\b/gi, "")
+    .replace(/\bERR_[A-Z0-9_]+\s*:\s*/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function countFilledTopLevelKeys(snapshot: Record<string, unknown>) {
+  return Object.values(snapshot).reduce((count, value) => (isPopulated(value) ? count + 1 : count), 0);
+}
+
+function pickQuestionIntentLead(question: QuestionDef, snapshot: Record<string, unknown>) {
+  const leads = [
+    "Context:",
+    "Why it matters:",
+    "Quick note:",
+    "Clarity:",
+    "In short:",
+  ];
+  const seedBase = question.field_path.length + countFilledTopLevelKeys(snapshot);
+  return leads[seedBase % leads.length] ?? "Context:";
+}
+
+function buildQuestionIntentReply(question: QuestionDef, snapshot: Record<string, unknown>) {
+  const fieldWhyMap: Record<string, { why: string; impact: string }> = {
+    "agency.timezone": {
+      why: "timezone controls deadlines and reporting windows",
+      impact: "SLA timing and schedule accuracy",
+    },
+    "agency.primary_client_languages": {
+      why: "language mix sets your default communication language",
+      impact: "message clarity and localization quality",
+    },
+    "agency.team_size_total": {
+      why: "team size helps calibrate delivery capacity",
+      impact: "realistic workload and planning suggestions",
+    },
+    "agency.active_paying_clients": {
+      why: "active client count sets your current operating scale",
+      impact: "better growth and ops recommendations",
+    },
+    "agency.best_client_summary": {
+      why: "this anchors your ideal client profile",
+      impact: "more precise strategy and messaging",
+    },
+    "agency.service_catalog": {
+      why: "it defines what you actually sell and deliver",
+      impact: "more relevant workflows and playbooks",
+    },
+    "agency.top_margin_offers": {
+      why: "margin leaders should drive your growth focus",
+      impact: "higher-quality pricing and offer guidance",
+    },
+    "agency.packaged_offers": {
+      why: "packaging makes delivery and sales repeatable",
+      impact: "faster proposal and execution quality",
+    },
+    "agency.pricing_model": {
+      why: "pricing model shapes sales and forecasting logic",
+      impact: "cleaner recommendations and planning",
+    },
+    "operations.required_client_assets": {
+      why: "kickoff assets prevent delivery delays",
+      impact: "faster onboarding and execution consistency",
+    },
+  };
+  const mapped = fieldWhyMap[question.field_path];
+  const explainer = QUESTION_EXPLAINERS[question.field_path];
+  const why = (mapped?.why ?? explainer?.why_needed ?? "it helps personalize your setup").replace(/[.]+\s*$/, "");
+  const impact = (mapped?.impact ?? explainer?.impact ?? "output quality").replace(/[.]+\s*$/, "");
+  const example = question.examples?.[0];
+  const exampleText = example ? ` Example: ${example}` : "";
+  const impactLine = `Impact: ${impact}.`;
+  const lead = pickQuestionIntentLead(question, snapshot);
+  const intro = `${lead} ${why}.`;
+  return `${intro} ${impactLine} Please share your best answer.${exampleText}`;
+}
+
+function buildHelpDraft(question: QuestionDef, snapshot: Record<string, unknown>) {
+  const industry = firstIndustryLabel(snapshot) || "B2B SaaS";
+  const service = firstServiceLabel(snapshot) || "Paid Ads";
+  const serviceLower = service.toLowerCase();
+  const timezone = firstString(snapshot, ["agency.timezone"]) || "Europe/Athens";
+  const teamSize = Number(firstString(snapshot, ["agency.team_size_total"])?.match(/\d+/)?.[0] ?? "7");
+  const clientCount = Number(firstString(snapshot, ["agency.active_paying_clients"])?.match(/\d+/)?.[0] ?? "12");
+  const monthlyBudget =
+    clientCount >= 25 ? "3000-7000 EUR/mo" : clientCount >= 10 ? "1500-4000 EUR/mo" : "800-2500 EUR/mo";
+  const kpiFocus = serviceLower.includes("ads")
+    ? "qualified leads and CAC efficiency"
+    : serviceLower.includes("social")
+    ? "consistent content output and inbound leads"
+    : "pipeline growth and conversion rate";
+  const pricingModelDraft =
+    teamSize >= 8 || clientCount >= 15
+      ? "Hybrid | Base retainer plus performance upside on agreed KPIs"
+      : "Fixed retainer | Predictable monthly scope and planning";
+
+  switch (question.field_path) {
+    case "agency.timezone":
+      return timezone;
+    case "agency.primary_client_languages":
+      return "English 70%, Greek 30%";
+    case "agency.team_size_total":
+      return String(teamSize);
+    case "agency.active_paying_clients":
+      return String(clientCount);
+    case "agency.top_industries":
+      return `${industry}\nDentists`;
+    case "agency.best_client_summary":
+      return `${industry} founder with a ${teamSize}-person team, targeting ${kpiFocus}, budget ${monthlyBudget}.`;
+    case "agency.key_differentiators":
+      return `Niche focus in ${industry}\nWeekly KPI reporting on ${kpiFocus}\nFast execution with clear ownership`;
+    case "agency.service_catalog":
+      return `${service} | Weekly optimization and transparent reporting`;
+    case "agency.top_margin_offers":
+      return `${service} Growth | Weekly strategy; execution; KPI reporting | ${monthlyBudget} | Reusable delivery system`;
+    case "agency.packaged_offers":
+      return `Lead Engine | Qualified leads/month | strategy; execution; reporting | 30 days | ${monthlyBudget}`;
+    case "agency.pricing_model":
+      return pricingModelDraft;
+    case "operations.required_client_assets":
+      return "Brand guidelines | 5";
+    case "operations.approval_workflow":
+      return "Founder,email,48";
+    case "operations.turnaround_slas":
+      return "drafts:48, edits:24, urgent:6";
+    default:
+      return question.examples?.[0] ?? null;
+  }
+}
+
+function buildQuestionIntentReplyWithDraft(question: QuestionDef, snapshot: Record<string, unknown>) {
+  const base = buildQuestionIntentReply(question, snapshot);
+  const draft = buildHelpDraft(question, snapshot);
+  if (!draft) return base;
+  return `${base} Draft: ${draft}`;
+}
+
+function firstServiceLabel(snapshot: Record<string, unknown>) {
+  const raw = getPathValue(snapshot, "agency.service_catalog");
+  if (Array.isArray(raw) && raw.length > 0) {
+    const first = String(raw[0] ?? "");
+    return first.split("|")[0]?.trim() || null;
+  }
+  if (typeof raw === "string" && raw.trim()) {
+    const firstLine = raw.split(/\r?\n/)[0] ?? raw;
+    return firstLine.split("|")[0]?.trim() || null;
+  }
+  return null;
+}
+
+function firstIndustryLabel(snapshot: Record<string, unknown>) {
+  const raw = getPathValue(snapshot, "agency.top_industries");
+  if (Array.isArray(raw) && raw.length > 0) return String(raw[0] ?? "").trim() || null;
+  if (typeof raw === "string" && raw.trim()) return raw.split(/\r?\n|,/)[0]?.trim() || null;
+  return null;
+}
+
+function buildContextualSuggestions(question: QuestionDef, snapshot: Record<string, unknown>) {
+  const agencyName = firstString(snapshot, ["agency.name"]) || "our agency";
+  const service = firstServiceLabel(snapshot) || "Paid Ads";
+  const industry = firstIndustryLabel(snapshot) || "B2B SaaS";
+
+  switch (question.field_path) {
+    case "agency.best_client_summary":
+      return [
+        `${industry} founder focused on predictable monthly lead flow and better close rates.`,
+        `${industry} owner with a small team aiming for consistent qualified inquiries.`,
+      ];
+    case "agency.key_differentiators":
+      return [
+        "Fast execution\nWeekly KPI reporting\nClear strategic direction",
+        "Founder-led strategy\nTight feedback loops\nPerformance-first delivery",
+      ];
+    case "agency.service_catalog":
+      return [
+        `${service} | Weekly optimization and transparent reporting`,
+        `Social Mgmt | Monthly strategy, posting, and community engagement`,
+      ];
+    case "agency.top_margin_offers":
+      return [
+        `${service} Growth | Weekly strategy; creative testing; reporting | 1500-2500 | Reusable delivery system`,
+        `Lead Engine | ICP targeting; creative iterations; analytics | 1300-2200 | Efficient fulfillment`,
+      ];
+    case "agency.packaged_offers":
+      return [
+        `Lead Engine | 40 leads/month | strategy; creatives; optimization | 30 days | 1500-2500`,
+        `${industry} Accelerator | Qualified appointments/month | targeting; content; follow-up framework | 30 days | 1800-3000`,
+      ];
+    case "agency.pricing_model":
+      return [
+        "Fixed retainer | Predictable scope and stable delivery planning",
+        "Hybrid | Base retainer plus performance upside for growth campaigns",
+      ];
+    case "operations.required_client_assets":
+      return [
+        "Brand guidelines | 5",
+        `${service} account access | 3`,
+        "Offer details + pricing | 4",
+      ];
+    default:
+      return [];
+  }
+}
+
+function strictFieldTemplateSuggestion(question: QuestionDef) {
+  switch (question.field_path) {
+    case "agency.timezone":
+      return "Europe/Athens";
+    case "agency.primary_client_languages":
+      return "English 70%, Greek 30%";
+    case "agency.service_catalog":
+      return "Paid Ads | Meta + Google management and optimization";
+    case "agency.top_margin_offers":
+      return "Retainer Growth | Weekly strategy; 12 creatives; reporting | 1500-2500 | Reusable workflow";
+    case "agency.packaged_offers":
+      return "Lead Engine | 40 leads/month | 12 creatives; ad mgmt; reporting | 30 days | 1500-2500";
+    case "agency.pricing_model":
+      return "Fixed retainer | Predictable monthly scope and planning";
+    case "operations.required_client_assets":
+      return "Brand guidelines | 5";
+    case "operations.approval_workflow":
+      return "Founder,email,48";
+    case "operations.turnaround_slas":
+      return "drafts:48, edits:24, urgent:6";
+    case "agency.role_counts":
+      return "strategist,2";
+    case "agency.price_ranges_by_tier":
+      return "Growth,1000,1800";
+    default:
+      return null;
+  }
+}
+
+function buildFollowUpSuggestions(question: QuestionDef, snapshot: Record<string, unknown>) {
+  const draft = buildHelpDraft(question, snapshot);
+  const template = strictFieldTemplateSuggestion(question);
+  const contextual = buildContextualSuggestions(question, snapshot);
+  const raw = [draft, template, ...contextual, ...question.examples]
+    .map((value) => String(value ?? "").trim())
+    .filter(Boolean);
+  const uniqueRaw: string[] = [];
+  for (const value of raw) {
+    if (!uniqueRaw.includes(value)) uniqueRaw.push(value);
+  }
+  if (uniqueRaw.length >= 3) return uniqueRaw.slice(0, 4);
+  return normalizeOnboardingSuggestions({
+    rawSuggestions: uniqueRaw,
+    module: (question.module as
+      | "bootstrap"
+      | "positioning"
+      | "offer_stack"
+      | "operations"
+      | "ai_persona"
+      | "rep_policy"
+      | "voice"
+      | "persona"),
+    fieldPath: question.field_path,
+    snapshot,
+  }).slice(0, 4);
+}
+
+function buildPrimarySuggestions(question: QuestionDef, snapshot: Record<string, unknown>) {
+  const contextual = buildContextualSuggestions(question, snapshot);
+  const raw = [...contextual, ...question.examples].map((value) => String(value ?? "").trim()).filter(Boolean);
+  const uniqueRaw: string[] = [];
+  for (const value of raw) {
+    if (!uniqueRaw.includes(value)) uniqueRaw.push(value);
+  }
+  if (uniqueRaw.length >= 3) return uniqueRaw.slice(0, 4);
+  return normalizeOnboardingSuggestions({
+    rawSuggestions: uniqueRaw,
+    module: (question.module as
+      | "bootstrap"
+      | "positioning"
+      | "offer_stack"
+      | "operations"
+      | "ai_persona"
+      | "rep_policy"
+      | "voice"
+      | "persona"),
+    fieldPath: question.field_path,
+    snapshot,
+  }).slice(0, 4);
+}
+
+function parseLanguagePercentPairs(input: string) {
+  const pairs: Array<{ label: string; percent: number }> = [];
+  const regex = /([A-Za-z][A-Za-z\s&/ -]*)\s*[:-]?\s*(\d{1,3})\s*%/g;
+  let match: RegExpExecArray | null = regex.exec(input);
+  while (match) {
+    const label = match[1].trim();
+    const percent = Number(match[2]);
+    if (label && Number.isInteger(percent)) {
+      pairs.push({ label, percent });
+    }
+    match = regex.exec(input);
+  }
+  return pairs;
 }
 
 function validateAnswerLocally(question: QuestionDef, input: string) {
   const trimmed = input.trim();
   if (!trimmed) {
-    return { decision: "follow_up" as const, message: "Please share a quick answer so we can move on." };
+    return validationFollowUp(question.error_code ?? "ERR_REQUIRED", question.help_text ?? "Please provide a value.", question.examples?.[0]);
+  }
+
+  if (isLikelyQuestion(trimmed)) {
+    return validationFollowUp(
+      "ERR_EXPECTED_ANSWER",
+      "It looks like you asked a question. Please provide your best answer to the current field.",
+      question.examples?.[0]
+    );
+  }
+
+  if (isLowSignalNoise(trimmed)) {
+    return validationFollowUp(
+      "ERR_LOW_SIGNAL_ANSWER",
+      "Please provide a concrete answer (text, number, list, or structured value) for this field.",
+      question.examples?.[0]
+    );
   }
 
   if (isUnknownAnswer(trimmed)) {
     if (question.priority === "P0") {
-      return {
-        decision: "follow_up" as const,
-        message:
-          "I respect that you do not want to share that information, but the more I know, the better I can help. Can you give a best-effort answer?",
-      };
+      return validationFollowUp(
+        question.error_code ?? "ERR_REQUIRED",
+        "This field is required for activation. Please provide a best-effort value.",
+        question.examples?.[0]
+      );
     }
     return { decision: "accept" as const };
+  }
+
+  switch (question.field_path) {
+    case "agency.name": {
+      if (trimmed.length < 3 || trimmed.length > 80) {
+        return validationFollowUp("ERR_AGENCY_NAME_FORMAT", "Use 3-80 characters.", question.examples?.[0]);
+      }
+      if (/[\u{1F300}-\u{1FAFF}]/u.test(trimmed)) {
+        return validationFollowUp("ERR_AGENCY_NAME_FORMAT", "Do not use emojis in agency name.", question.examples?.[0]);
+      }
+      if (/[`*_#[\]{}<>]/.test(trimmed)) {
+        return validationFollowUp("ERR_AGENCY_NAME_FORMAT", "Do not use markup characters.", question.examples?.[0]);
+      }
+      return { decision: "accept" as const };
+    }
+    case "agency.timezone": {
+      if (!isValidIanaTimezone(trimmed)) {
+        return validationFollowUp("ERR_TIMEZONE_INVALID", "Use a valid IANA timezone.", "Europe/Athens");
+      }
+      return { decision: "accept" as const };
+    }
+    case "bootstrap.locale": {
+      if (!isValidIanaTimezone(trimmed)) {
+        return validationFollowUp("ERR_TIMEZONE_INVALID", "Use a valid IANA timezone.", "Europe/Athens");
+      }
+      return { decision: "accept" as const };
+    }
+    case "agency.primary_client_languages": {
+      const pairs = parseLanguagePercentPairs(trimmed);
+      if (pairs.length === 0) {
+        return validationFollowUp("ERR_LANGUAGE_SPLIT_INVALID", "Provide language + percentage entries.", question.examples?.[0]);
+      }
+      for (const pair of pairs) {
+        if (pair.percent < 0 || pair.percent > 100) {
+          return validationFollowUp("ERR_LANGUAGE_SPLIT_INVALID", "Each language must include an integer percent.", question.examples?.[0]);
+        }
+      }
+      const sum = pairs.reduce((total, pair) => total + pair.percent, 0);
+      if (sum !== 100) {
+        return validationFollowUp("ERR_LANGUAGE_SPLIT_INVALID", "Percentages must sum to exactly 100.", question.examples?.[0]);
+      }
+      return { decision: "accept" as const };
+    }
+    case "agency.team_size_total": {
+      const value = parseNumbers(trimmed)[0];
+      if (value === undefined || !Number.isInteger(value) || value < 0 || value > 500) {
+        return validationFollowUp("ERR_TEAM_SIZE_RANGE", "Use an integer from 0 to 500.", question.examples?.[0]);
+      }
+      return { decision: "accept" as const };
+    }
+    case "agency.active_paying_clients": {
+      const value = parseNumbers(trimmed)[0];
+      if (value === undefined || !Number.isInteger(value) || value < 0 || value > 5000) {
+        return validationFollowUp("ERR_ACTIVE_CLIENTS_RANGE", "Use an integer from 0 to 5000.", question.examples?.[0]);
+      }
+      return { decision: "accept" as const };
+    }
+    case "agency.top_industries": {
+      const rows = toDelimitedLines(trimmed);
+      if (rows.length < 1 || rows.length > 5) {
+        return validationFollowUp("ERR_TOP_INDUSTRIES_INVALID", "Provide between 1 and 5 industries.", question.examples?.[0]);
+      }
+      const hasCustomWithoutProof = rows.some((row) => row.toLowerCase().startsWith("custom:") && !row.toLowerCase().includes("proof:"));
+      if (hasCustomWithoutProof) {
+        return validationFollowUp("ERR_TOP_INDUSTRIES_INVALID", "Custom industries must include 'proof: ...' in the same line.");
+      }
+      return { decision: "accept" as const };
+    }
+    case "agency.best_client_summary": {
+      const words = countWords(trimmed);
+      if (words < 10 || words > 30) {
+        return validationFollowUp("ERR_BEST_CLIENT_SUMMARY_LENGTH", "Use one sentence with 10-30 words.", question.examples?.[0]);
+      }
+      return { decision: "accept" as const };
+    }
+    case "agency.key_differentiators": {
+      const rows = toDelimitedLines(trimmed);
+      if (rows.length !== 3) {
+        return validationFollowUp("ERR_DIFFERENTIATORS_FORMAT", "Provide exactly 3 bullet lines.", question.examples?.[0]);
+      }
+      if (rows.some((row) => countWords(row) > 10)) {
+        return validationFollowUp("ERR_DIFFERENTIATORS_FORMAT", "Each bullet must be 10 words or fewer.", question.examples?.[0]);
+      }
+      return { decision: "accept" as const };
+    }
+    case "agency.service_catalog": {
+      const rows = toDelimitedLines(trimmed);
+      const allowed = new Set(["social mgmt", "content production", "paid ads", "email/sms", "seo"]);
+      if (rows.length < 1) {
+        return validationFollowUp("ERR_SERVICE_CATALOG_FORMAT", "Provide at least one service row.", question.examples?.[0]);
+      }
+      for (const row of rows) {
+        const [serviceRaw, scope] = row.split("|").map((part) => part.trim());
+        if (!serviceRaw || !scope) {
+          return validationFollowUp("ERR_SERVICE_CATALOG_FORMAT", "Each row must use 'Service | scope summary'.", question.examples?.[0]);
+        }
+        if (!allowed.has(serviceRaw.toLowerCase())) {
+          return validationFollowUp("ERR_SERVICE_CATALOG_FORMAT", "Service must be one of Social Mgmt, Content Production, Paid Ads, Email/SMS, SEO.");
+        }
+      }
+      return { decision: "accept" as const };
+    }
+    case "agency.top_margin_offers": {
+      const rows = toDelimitedLines(trimmed);
+      if (rows.length < 1 || rows.length > 2) {
+        return validationFollowUp("ERR_TOP_MARGIN_OFFERS_FORMAT", "Provide 1-2 rows.", question.examples?.[0]);
+      }
+      for (const row of rows) {
+        const parts = row.split("|").map((part) => part.trim());
+        if (parts.length !== 4 || parts.some((part) => part.length === 0)) {
+          return validationFollowUp("ERR_TOP_MARGIN_OFFERS_FORMAT", "Each row must have 4 pipe-separated fields.", question.examples?.[0]);
+        }
+      }
+      return { decision: "accept" as const };
+    }
+    case "agency.packaged_offers": {
+      const rows = toDelimitedLines(trimmed);
+      if (rows.length < 1 || rows.length > 5) {
+        return validationFollowUp("ERR_PACKAGED_OFFERS_FORMAT", "Provide 1-5 rows.", question.examples?.[0]);
+      }
+      for (const row of rows) {
+        const parts = row.split("|").map((part) => part.trim());
+        if (parts.length !== 5 || parts.some((part) => part.length === 0)) {
+          return validationFollowUp("ERR_PACKAGED_OFFERS_FORMAT", "Each row must contain 5 pipe-separated fields.", question.examples?.[0]);
+        }
+      }
+      return { decision: "accept" as const };
+    }
+    case "agency.pricing_model": {
+      const parts = trimmed.split("|").map((part) => part.trim());
+      const allowed = new Set(["fixed retainer", "tiered packages", "performance-based", "hybrid", "project-based"]);
+      if (parts.length !== 2 || !allowed.has(parts[0].toLowerCase()) || countWords(parts[1]) < 3) {
+        return validationFollowUp("ERR_PRICING_MODEL_FORMAT", "Use 'Model | one-line explanation' with an allowed model.", question.examples?.[0]);
+      }
+      return { decision: "accept" as const };
+    }
+    case "agency.website_and_links":
+    case "agency.competitor_urls": {
+      const rows = toDelimitedLines(trimmed);
+      const max = question.field_path === "agency.competitor_urls" ? 3 : 6;
+      if (rows.length < 1 && question.field_path === "agency.website_and_links") {
+        return validationFollowUp("ERR_WEBSITE_LINKS_INVALID", "Provide at least one URL.", question.examples?.[0]);
+      }
+      if (rows.length > max) {
+        return validationFollowUp(question.field_path === "agency.competitor_urls" ? "ERR_COMPETITOR_URLS_INVALID" : "ERR_WEBSITE_LINKS_INVALID", `Provide at most ${max} URLs.`);
+      }
+      if (rows.some((row) => !isValidUrl(row))) {
+        return validationFollowUp(question.field_path === "agency.competitor_urls" ? "ERR_COMPETITOR_URLS_INVALID" : "ERR_WEBSITE_LINKS_INVALID", "All entries must be valid http(s) URLs.");
+      }
+      return { decision: "accept" as const };
+    }
+    case "agency.role_counts": {
+      const rows = toDelimitedCsv(trimmed);
+      if (rows.length < 1) {
+        return validationFollowUp("ERR_ROLE_COUNTS_INVALID", "Provide at least one role,count row.", question.examples?.[0]);
+      }
+      let sum = 0;
+      for (const row of rows) {
+        if (row.length < 2 || !row[0]) {
+          return validationFollowUp("ERR_ROLE_COUNTS_INVALID", "Each row must be role,count.", question.examples?.[0]);
+        }
+        const count = Number(row[1]);
+        if (!Number.isInteger(count) || count < 0) {
+          return validationFollowUp("ERR_ROLE_COUNTS_INVALID", "Count must be a non-negative integer.");
+        }
+        sum += count;
+      }
+      if (sum <= 0) return validationFollowUp("ERR_ROLE_COUNTS_INVALID", "Total headcount must be greater than zero.");
+      return { decision: "accept" as const };
+    }
+    case "agency.client_type_split": {
+      const numbers = parseNumbers(trimmed).map((value) => Math.round(value));
+      if (numbers.length < 3 || numbers[0] + numbers[1] + numbers[2] !== 100) {
+        return validationFollowUp("ERR_CLIENT_TYPE_SPLIT_INVALID", "Provide SMB/Mid/Enterprise percentages summing to 100.", question.examples?.[0]);
+      }
+      return { decision: "accept" as const };
+    }
+    case "agency.who_to_avoid": {
+      const rows = toDelimitedLines(trimmed);
+      if (rows.length < 1 || rows.length > 3) {
+        return validationFollowUp("ERR_WHO_TO_AVOID_INVALID", "Provide 1-3 bullets.", question.examples?.[0]);
+      }
+      return { decision: "accept" as const };
+    }
+    case "agency.proof_metrics": {
+      const rows = toDelimitedLines(trimmed);
+      if (rows.length < 1 || rows.length > 3) {
+        return validationFollowUp("ERR_PROOF_METRICS_INVALID", "Provide 1-3 proof rows.", question.examples?.[0]);
+      }
+      for (const row of rows) {
+        const hasNumber = parseNumbers(row).length > 0;
+        const hasTimeframe = /\b(day|days|week|weeks|month|months|quarter|quarters|year|years)\b/i.test(row);
+        if (!hasNumber || !hasTimeframe) {
+          return validationFollowUp("ERR_PROOF_METRICS_INVALID", "Each row needs a metric number and timeframe.", question.examples?.[0]);
+        }
+      }
+      return { decision: "accept" as const };
+    }
+    case "agency.price_ranges_by_tier": {
+      const rows = toDelimitedCsv(trimmed);
+      if (rows.length < 2 || rows.length > 4) {
+        return validationFollowUp("ERR_PRICE_RANGES_BY_TIER_INVALID", "Provide 2-4 tier rows.", question.examples?.[0]);
+      }
+      for (const row of rows) {
+        if (row.length < 3 || !row[0]) {
+          return validationFollowUp("ERR_PRICE_RANGES_BY_TIER_INVALID", "Each row must be tier,low,high.", question.examples?.[0]);
+        }
+        const low = Number(row[1]);
+        const high = Number(row[2]);
+        if (!Number.isFinite(low) || !Number.isFinite(high) || low < 0 || high < low) {
+          return validationFollowUp("ERR_PRICE_RANGES_BY_TIER_INVALID", "Use valid numeric ranges where low <= high.");
+        }
+      }
+      return { decision: "accept" as const };
+    }
+    case "ai.persona_name": {
+      if (trimmed.length > 20) {
+        return validationFollowUp("ERR_PERSONA_NAME_LENGTH", "Use up to 20 characters.");
+      }
+      return { decision: "accept" as const };
+    }
+    case "ai.role_title": {
+      if (trimmed.length > 30) {
+        return validationFollowUp("ERR_ROLE_TITLE_LENGTH", "Use up to 30 characters.");
+      }
+      return { decision: "accept" as const };
+    }
+    case "ai.personality_traits": {
+      const rows = toDelimitedLines(trimmed);
+      if (rows.length !== 3) {
+        return validationFollowUp("ERR_PERSONALITY_TRAITS_FORMAT", "Provide exactly 3 trait:level entries.", question.examples?.[0]);
+      }
+      const validLevels = new Set(["low", "med", "high"]);
+      for (const row of rows) {
+        const [trait, level] = row.split(":").map((part) => part.trim().toLowerCase());
+        if (!trait || !level || !validLevels.has(level)) {
+          return validationFollowUp("ERR_PERSONALITY_TRAITS_FORMAT", "Each entry must be Trait:Low/Med/High.");
+        }
+      }
+      return { decision: "accept" as const };
+    }
+    case "ai.writing_preferences": {
+      const normalized = trimmed.toLowerCase();
+      const hasTone = /\btone:\s*(formal|neutral|conversational)\b/.test(normalized);
+      const hasLength = /\blength:\s*(short|medium|long)\b/.test(normalized);
+      const hasEmojis = /\bemojis:\s*(0|1-2|3\+)\b/.test(normalized);
+      const hasCta = /\bcta:\s*(yes|no)\b/.test(normalized);
+      if (!hasTone || !hasLength || !hasEmojis || !hasCta) {
+        return validationFollowUp("ERR_WRITING_PREFS_FORMAT", "Use Tone/Length/Emojis/CTA structured format.", question.examples?.[0]);
+      }
+      return { decision: "accept" as const };
+    }
+    case "operations.required_client_assets": {
+      const rows = toDelimitedLines(trimmed);
+      if (rows.length < 1) {
+        return validationFollowUp("ERR_REQUIRED_ASSETS_INVALID", "Provide at least one asset row.", question.examples?.[0]);
+      }
+      for (const row of rows) {
+        const [asset, daysRaw] = row.split("|").map((part) => part.trim());
+        const days = Number(daysRaw);
+        if (!asset || !Number.isInteger(days) || days < 0) {
+          return validationFollowUp("ERR_REQUIRED_ASSETS_INVALID", "Each row must be 'asset | max_delay_days'.", question.examples?.[0]);
+        }
+      }
+      return { decision: "accept" as const };
+    }
+    case "operations.approval_workflow": {
+      const rows = toDelimitedCsv(trimmed);
+      if (rows.length < 1 || rows.length > 3) {
+        return validationFollowUp("ERR_APPROVAL_WORKFLOW_INVALID", "Provide 1-3 workflow rows.", question.examples?.[0]);
+      }
+      for (const row of rows) {
+        const hours = Number(row[2]);
+        if (row.length < 3 || !row[0] || !row[1] || !Number.isFinite(hours) || hours <= 0) {
+          return validationFollowUp("ERR_APPROVAL_WORKFLOW_INVALID", "Each row must be role,method,sla_hours.", question.examples?.[0]);
+        }
+      }
+      return { decision: "accept" as const };
+    }
+    case "operations.turnaround_slas": {
+      const numbers = parseNumbers(trimmed);
+      const hasDrafts = /\bdrafts?\b/i.test(trimmed);
+      const hasEdits = /\bedits?\b/i.test(trimmed);
+      const hasUrgent = /\burgent\b/i.test(trimmed);
+      if (!hasDrafts || !hasEdits || !hasUrgent || numbers.length < 3) {
+        return validationFollowUp("ERR_TURNAROUND_SLAS_INVALID", "Include drafts, edits, and urgent with numeric hours.", question.examples?.[0]);
+      }
+      return { decision: "accept" as const };
+    }
+    case "operations.tools_stack":
+    case "operations.platforms_managed": {
+      const rows = toDelimitedLines(trimmed);
+      if (rows.length < 1 || rows.length > 6) {
+        return validationFollowUp(
+          question.field_path === "operations.tools_stack" ? "ERR_TOOLS_STACK_INVALID" : "ERR_PLATFORMS_MANAGED_INVALID",
+          "Provide 1-6 items.",
+          question.examples?.[0]
+        );
+      }
+      return { decision: "accept" as const };
+    }
+    case "operations.rep_policy_boundaries": {
+      const rows = toDelimitedLines(trimmed);
+      if (rows.length < 1 || rows.length > 5) {
+        return validationFollowUp("ERR_REP_POLICY_BOUNDARIES_INVALID", "Provide 1-5 bullet lines.", question.examples?.[0]);
+      }
+      return { decision: "accept" as const };
+    }
+    case "operations.paid_ads_account_access": {
+      if (countWords(trimmed) < 3) {
+        return validationFollowUp("ERR_PAID_ADS_ACCESS_REQUIRED", "Provide access model and owner contact.", question.examples?.[0]);
+      }
+      return { decision: "accept" as const };
+    }
+    case "operations.paid_ads_spend_bracket": {
+      const numbers = parseNumbers(trimmed);
+      if (numbers.length < 2 || numbers[1] < numbers[0]) {
+        return validationFollowUp("ERR_PAID_ADS_SPEND_BRACKET_REQUIRED", "Use a low-high spend bracket such as 1500-5000.");
+      }
+      return { decision: "accept" as const };
+    }
+    default:
+      break;
   }
 
   if (question.input_type === "numeric") {
     const numbers = parseNumbers(trimmed);
     if (numbers.length === 0) {
-      return { decision: "follow_up" as const, message: "Please reply with a number (e.g., 3)." };
+      return validationFollowUp(question.error_code ?? "ERR_NUMERIC_FORMAT", question.help_text ?? "Please reply with a number.", question.examples?.[0]);
     }
     return { decision: "accept" as const };
   }
@@ -487,30 +1197,18 @@ function validateAnswerLocally(question: QuestionDef, input: string) {
   if (question.input_type === "percent") {
     const numbers = parseNumbers(trimmed);
     if (numbers.length < 2) {
-      return {
-        decision: "follow_up" as const,
-        message: "Please share a % split that totals 100 (e.g., SMB 70 / Mid 30).",
-      };
+      return validationFollowUp(question.error_code ?? "ERR_PERCENT_FORMAT", question.help_text ?? "Please provide a split in percentages.", question.examples?.[0]);
     }
     const sum = numbers.reduce((total, value) => total + value, 0);
     if (sum < 95 || sum > 105) {
-      return {
-        decision: "follow_up" as const,
-        message: "Please make sure the split totals 100 (e.g., 60 / 40).",
-      };
+      return validationFollowUp(question.error_code ?? "ERR_PERCENT_SUM", "Percentages should sum to 100.", question.examples?.[0]);
     }
     return { decision: "accept" as const };
   }
 
   if (question.input_type === "tz_lang") {
-    const parts = trimmed.split(",");
-    const hasTimezone = isLikelyTimezone(trimmed);
-    const hasLang = parts.length >= 2 ? hasLetters(parts[1]) : false;
-    if (!hasTimezone || !hasLang) {
-      return {
-        decision: "follow_up" as const,
-        message: "Please include timezone and language (e.g., Europe/Athens, English).",
-      };
+    if (!isLikelyTimezone(trimmed)) {
+      return validationFollowUp(question.error_code ?? "ERR_TIMEZONE_INVALID", question.help_text ?? "Use a valid timezone.", question.examples?.[0]);
     }
     return { decision: "accept" as const };
   }
@@ -518,14 +1216,17 @@ function validateAnswerLocally(question: QuestionDef, input: string) {
   if (question.input_type === "list") {
     const items = toList(trimmed);
     if (items.length === 0) {
-      return { decision: "follow_up" as const, message: "Please share at least one item." };
+      return validationFollowUp(question.error_code ?? "ERR_LIST_REQUIRED", question.help_text ?? "Please provide at least one item.", question.examples?.[0]);
     }
     return { decision: "accept" as const };
   }
 
   if (question.input_type === "text") {
+    if (!/[a-zA-Z0-9]/.test(trimmed)) {
+      return validationFollowUp(question.error_code ?? "ERR_TEXT_TOO_SHORT", "Please provide a meaningful text answer.", question.examples?.[0]);
+    }
     if (trimmed.length < 2) {
-      return { decision: "follow_up" as const, message: "Please share a brief answer." };
+      return validationFollowUp(question.error_code ?? "ERR_TEXT_TOO_SHORT", question.help_text ?? "Please share a brief answer.", question.examples?.[0]);
     }
   }
 
@@ -607,7 +1308,7 @@ async function runClarifyCheck(params: {
   const clarify =
     typeof payload.clarification_text === "string" && payload.clarification_text.trim().length > 0
       ? payload.clarification_text.trim()
-      : "This helps me personalize your agency brain and recommendations.";
+      : "This helps me tailor your setup and recommendations.";
   return { mode, followUp, clarify };
 }
 
@@ -630,14 +1331,19 @@ function buildDeterministicResponse(params: {
   currentIndex: number;
   totalRequired: number;
   assistantMessage?: string;
+  suggestionsOverride?: string[];
 }) {
+  const mergedSuggestions = params.suggestionsOverride?.length
+    ? params.suggestionsOverride
+    : buildPrimarySuggestions(params.question, params.snapshot);
+
   return {
     v: FN_VERSION,
     trace_id: params.traceId,
     onboarding_status: params.onboardingStatus,
-    assistant_message: params.assistantMessage ?? params.question.question_text,
-    expects: "text",
-    suggestions: params.question.examples.slice(0, 4),
+    assistant_message: sanitizeUserFacingAssistantMessage(params.assistantMessage ?? params.question.question_text),
+    expects: params.question.input_type,
+    suggestions: mergedSuggestions,
     question_id: params.question.id,
     field_path: params.question.field_path,
     priority: params.question.priority,
@@ -1203,6 +1909,7 @@ serve(async (req: Request) => {
         !payload.skip_all_optional &&
         !payload.undo_last
       ) {
+        const userAskedQuestion = isLikelyQuestion(userInput);
         let forceAccept = false;
         if (
           pendingP0Confirm &&
@@ -1256,7 +1963,7 @@ serve(async (req: Request) => {
           !forceAccept &&
           (localCheck.decision === "follow_up" ||
             (allowHybrid && validateAlways && llmDecision === "follow_up") ||
-            userInput.includes("?"));
+            userAskedQuestion);
 
         let allowFollowUp = shouldFollowUp;
         if (shouldFollowUp) {
@@ -1316,13 +2023,17 @@ serve(async (req: Request) => {
             // proceed without follow-up
           } else if (followupCount >= 2) {
             if (currentQuestion.priority === "P0") {
+              if (!unresolvedP0.includes(currentQuestion.field_path)) {
+                unresolvedP0.push(currentQuestion.field_path);
+                observedUnresolvedP0Count = unresolvedP0.length;
+              }
               const progress = countRequiredComplete(draftSnapshot);
-              const followUpMessage =
-                llmFollowUp ??
-                "I can continue without this, but it may reduce accuracy. Reply \"continue\" to move on or share a best-effort answer.";
+              const followUpMessage = userAskedQuestion
+                ? sanitizeUserFacingAssistantMessage(buildQuestionIntentReplyWithDraft(currentQuestion, draftSnapshot))
+                : "If you're unsure, reply \"continue\" to move on, or share a best-effort answer now.";
               const assistantMessage = clarificationText
-                ? `${clarificationText} ${followUpMessage}`
-                : followUpMessage;
+                ? `${sanitizeUserFacingAssistantMessage(clarificationText)} ${sanitizeUserFacingAssistantMessage(followUpMessage)}`
+                : sanitizeUserFacingAssistantMessage(followUpMessage);
               const responsePayload = buildDeterministicResponse({
                 question: currentQuestion,
                 snapshot: draftSnapshot,
@@ -1339,6 +2050,7 @@ serve(async (req: Request) => {
                 currentIndex: Math.min(progress.complete + 1, progress.total),
                 totalRequired: progress.total,
                 assistantMessage,
+                suggestionsOverride: buildFollowUpSuggestions(currentQuestion, draftSnapshot),
               });
 
               const parsedResponse = responseSchema.safeParse(responsePayload);
@@ -1362,7 +2074,7 @@ serve(async (req: Request) => {
                     followup_counts: followupCounts,
                     unresolved_p0: unresolvedP0,
                     pending_p0_confirm: currentQuestion.field_path,
-                    last_clarify_reason: "llm",
+                    last_clarify_reason: "p0_confirm_gate",
                     last_clarify_text: assistantMessage,
                   },
                 })
@@ -1370,22 +2082,18 @@ serve(async (req: Request) => {
 
               return jsonResponse(req, parsedResponse.data, 200);
             }
-
-            if (currentQuestion.priority === "P0" && !unresolvedP0.includes(currentQuestion.field_path)) {
-              unresolvedP0.push(currentQuestion.field_path);
-              observedUnresolvedP0Count = unresolvedP0.length;
-            }
           } else {
             followupCounts[currentQuestion.field_path] = followupCount + 1;
             observedFollowupCount = followupCounts[currentQuestion.field_path] as number;
             const progress = countRequiredComplete(draftSnapshot);
-            const followUpMessage =
-              localCheck.decision === "follow_up"
+            const followUpMessage = userAskedQuestion
+              ? sanitizeUserFacingAssistantMessage(buildQuestionIntentReplyWithDraft(currentQuestion, draftSnapshot))
+              : (localCheck.decision === "follow_up"
                 ? localCheck.message
-                : llmFollowUp ?? "Can you share a bit more detail so I can capture it correctly?";
+                : llmFollowUp ?? "Can you share a bit more detail so I can capture it correctly?");
             const assistantMessage = clarificationText
-              ? `${clarificationText} ${followUpMessage}`
-              : followUpMessage;
+              ? `${sanitizeUserFacingAssistantMessage(clarificationText)} ${sanitizeUserFacingAssistantMessage(followUpMessage)}`
+              : sanitizeUserFacingAssistantMessage(followUpMessage);
             const responsePayload = buildDeterministicResponse({
               question: currentQuestion,
               snapshot: draftSnapshot,
@@ -1402,6 +2110,7 @@ serve(async (req: Request) => {
               currentIndex: Math.min(progress.complete + 1, progress.total),
               totalRequired: progress.total,
               assistantMessage,
+              suggestionsOverride: buildFollowUpSuggestions(currentQuestion, draftSnapshot),
             });
 
             const parsedResponse = responseSchema.safeParse(responsePayload);
@@ -1557,6 +2266,33 @@ serve(async (req: Request) => {
           },
         })
         .eq("id", onboardingStatus.id);
+
+      // Persist turn-level evidence for deterministic branch as well.
+      const nextIndex = await getLatestTurnIndex(supabase, onboardingStatus.id);
+      await supabase.from("ai_onboarding_turn_logs").insert({
+        agency_id: agencyId,
+        client_id: clientId,
+        onboarding_status_id: onboardingStatus.id,
+        scope,
+        turn_index: nextIndex,
+        step_id: nextQuestion.module,
+        user_message: userInput || null,
+        assistant_message: parsedResponse.data.assistant_message,
+        // Deterministic path does not build a chat transcript; persist empty trace bucket.
+        messages_json: [],
+        snapshot_json: {
+          draft_brain_json: draftSnapshot,
+          resolver_state: "ready",
+          classifier: null,
+          planner: null,
+        },
+        response_json: parsedResponse.data,
+        trace_id: traceId,
+        span_id: rootSpanId,
+        source_endpoint: "ai-onboarding",
+        created_by: user.id,
+        client_turn_id: payload.client_turn_id ?? null,
+      });
 
       return jsonResponse(req, parsedResponse.data, 200);
 
@@ -1884,7 +2620,7 @@ serve(async (req: Request) => {
 
       const assistantMessage =
         typeof guidedOutput.assistant_message === "string" && guidedOutput.assistant_message.trim().length > 0
-          ? guidedOutput.assistant_message.trim()
+          ? sanitizeUserFacingAssistantMessage(guidedOutput.assistant_message.trim())
           : sanitizeMessage(guidedRun.text, 2000) || "Please share the next onboarding detail.";
 
       const expects =

@@ -18,6 +18,7 @@ export default function ClientLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [portalSlugInput, setPortalSlugInput] = useState(portalSlug ?? "");
   const [clientId, setClientId] = useState<string | null>(null);
   const [clientName, setClientName] = useState("");
   const [portalLookupComplete, setPortalLookupComplete] = useState(false);
@@ -36,7 +37,7 @@ export default function ClientLogin() {
           .from("clients")
           .select("id, name, portal_slug")
           .eq("portal_user_id", authUser.user.id)
-          .single();
+          .maybeSingle();
 
         if (client) {
           const destination = client.portal_slug ? `/client/portal/${client.portal_slug}` : "/client/portal";
@@ -53,27 +54,13 @@ export default function ClientLogin() {
       }
 
       if (portalSlug) {
-        const { data, error } = await supabase
-          .from("portal_public_clients" as any)
-          .select("id, name, portal_slug")
-          .eq("portal_slug", portalSlug)
-          .maybeSingle();
+        // Avoid unauthenticated table/view lookups that can fail under strict RLS.
+        // The login edge function resolves and validates portal slug server-side.
+        setClientName(portalSlug);
+      }
 
-        if (error) {
-          console.error("[client-login] public portal lookup failed", error);
-        }
-
-        if (data) {
-          setClientId(data.id);
-          setClientName(data.name);
-        } else {
-          toast({
-            title: "Portal Not Found",
-            description: "This client portal does not exist.",
-            variant: "destructive",
-          });
-          setPortalError("Portal Not Found");
-        }
+      if (!portalSlug && !authUser?.user?.id) {
+        setPortalError("Portal link required");
       }
 
       setPortalLookupComplete(true);
@@ -89,10 +76,10 @@ export default function ClientLogin() {
       console.log("[client-login] existing session, using portal_user_id flow");
     }
 
-    if (!clientId && !authUser?.user) {
+    if (!portalSlug && !clientId && !authUser?.user) {
       toast({
         title: "Error",
-        description: "Client portal not found",
+        description: "Client portal slug is required",
         variant: "destructive",
       });
       return;
@@ -101,7 +88,7 @@ export default function ClientLogin() {
     setLoading(true);
 
     try {
-      await login(email, password, clientId || "");
+      await login(email, password, { clientId: clientId ?? undefined, portalSlug: portalSlug ?? undefined });
 
       const { data: userSession } = await supabase.auth.getUser();
       let destination = "/client/portal";
@@ -111,7 +98,7 @@ export default function ClientLogin() {
           .from("clients")
           .select("portal_slug")
           .eq("portal_user_id", userSession.user.id)
-          .single();
+          .maybeSingle();
 
         if (error) {
           console.error("[client-login] portal_user_id lookup after login failed", error);
@@ -137,10 +124,49 @@ export default function ClientLogin() {
     }
   };
 
+  const handlePortalSlugSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const normalized = portalSlugInput.trim().replace(/^\/+|\/+$/g, "");
+    if (!normalized) {
+      toast({
+        title: "Portal slug required",
+        description: "Enter your client portal slug to continue.",
+        variant: "destructive",
+      });
+      return;
+    }
+    navigate(`/client/login/${normalized}`);
+  };
+
   if (!portalLookupComplete && !clientId && !portalError) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (portalError === "Portal link required") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md p-8">
+          <h1 className="text-2xl font-bold mb-2">Client Portal</h1>
+          <p className="text-muted-foreground mb-6">Enter your portal slug from your agency invite link.</p>
+          <form onSubmit={handlePortalSlugSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="portalSlug">Portal slug</Label>
+              <Input
+                id="portalSlug"
+                value={portalSlugInput}
+                onChange={(e) => setPortalSlugInput(e.target.value)}
+                placeholder="your-company"
+                autoComplete="off"
+                required
+              />
+            </div>
+            <Button type="submit" className="w-full">Continue</Button>
+          </form>
+        </Card>
       </div>
     );
   }
@@ -195,12 +221,16 @@ export default function ClientLogin() {
           </Button>
 
           <div className="text-center text-sm">
-            <Link
-              to={`/client/forgot-password/${portalSlug}`}
-              className="text-primary hover:underline"
-            >
-              Forgot password?
-            </Link>
+            {portalSlug ? (
+              <Link
+                to={`/client/forgot-password/${portalSlug}`}
+                className="text-primary hover:underline"
+              >
+                Forgot password?
+              </Link>
+            ) : (
+              <span className="text-muted-foreground">Forgot password is available after portal slug selection.</span>
+            )}
           </div>
         </form>
       </Card>

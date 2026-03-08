@@ -331,7 +331,7 @@ export default function ClientDetail() {
               ? getMissingFieldMeta(canonicalKey)
               : undefined) ?? {
               label: canonicalKey
-                ? canonicalKey.replace(/[_\.]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+                ? canonicalKey.replace(/[_.]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
                 : "Required information",
               reason: "Complete this step to unlock strategy and content tools.",
               ctaLabel: "Fix now",

@@ -13,7 +13,7 @@ export interface ClientUser {
 interface ClientAuthContextType {
   clientUser: ClientUser | null;
   loading: boolean;
-  login: (email: string, password: string, clientId: string) => Promise<void>;
+  login: (email: string, password: string, opts: { clientId?: string; portalSlug?: string }) => Promise<void>;
   signup: (
     token: string,
     password: string,
@@ -24,6 +24,7 @@ interface ClientAuthContextType {
 }
 
 const ClientAuthContext = createContext<ClientAuthContextType | undefined>(undefined);
+const SESSION_MARKER_KEY = "client_portal_session_present";
 
 export function ClientAuthProvider({ children }: { children: React.ReactNode }) {
   const [clientUser, setClientUser] = useState<ClientUser | null>(null);
@@ -42,6 +43,11 @@ export function ClientAuthProvider({ children }: { children: React.ReactNode }) 
     clearRefreshTimeout();
     setClientUser(null);
     setTokenExpiry(null);
+    try {
+      localStorage.removeItem(SESSION_MARKER_KEY);
+    } catch {
+      // ignore storage failures
+    }
   };
 
   const scheduleRefresh = (exp: number) => {
@@ -65,15 +71,16 @@ export function ClientAuthProvider({ children }: { children: React.ReactNode }) 
   const handleAuthResponse = (data: { user: ClientUser; exp: number }) => {
     setClientUser(data.user);
     setTokenExpiry(data.exp);
+    try {
+      localStorage.setItem(SESSION_MARKER_KEY, "1");
+    } catch {
+      // ignore storage failures
+    }
     scheduleRefresh(data.exp);
   };
 
   const refreshSession = useCallback(async () => {
     try {
-      if (typeof document !== "undefined" && !document.cookie.includes("cp_refresh_token=")) {
-        return;
-      }
-
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/client-refresh-token`, {
         method: "POST",
         headers: {
@@ -92,11 +99,17 @@ export function ClientAuthProvider({ children }: { children: React.ReactNode }) 
       }
 
       if (!response.ok || !data.user || !data.exp) {
-        console.error("Failed to refresh client portal session", {
-          status: response.status,
-          bodyText: text,
-          bodyObj: data,
-        });
+        const isMissingRefreshToken =
+          response.status === 401 &&
+          typeof data?.error === "string" &&
+          data.error.toLowerCase().includes("no refresh token");
+        if (!isMissingRefreshToken) {
+          console.error("Failed to refresh client portal session", {
+            status: response.status,
+            bodyText: text,
+            bodyObj: data,
+          });
+        }
         clearSession();
         return;
       }
@@ -111,6 +124,13 @@ export function ClientAuthProvider({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     const init = async () => {
       try {
+        let hasSessionMarker = false;
+        try {
+          hasSessionMarker = localStorage.getItem(SESSION_MARKER_KEY) === "1";
+        } catch {
+          hasSessionMarker = false;
+        }
+        if (!hasSessionMarker) return;
         await refreshSession();
       } finally {
         setLoading(false);
@@ -124,7 +144,7 @@ export function ClientAuthProvider({ children }: { children: React.ReactNode }) 
     };
   }, [refreshSession]);
 
-  const login = async (email: string, password: string, clientId: string) => {
+  const login = async (email: string, password: string, opts: { clientId?: string; portalSlug?: string }) => {
     const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/client-auth-login`, {
       method: "POST",
       headers: {
@@ -132,7 +152,12 @@ export function ClientAuthProvider({ children }: { children: React.ReactNode }) 
         apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
       },
       credentials: "include",
-      body: JSON.stringify({ email, password, client_id: clientId }),
+      body: JSON.stringify({
+        email,
+        password,
+        ...(opts.clientId ? { client_id: opts.clientId } : {}),
+        ...(opts.portalSlug ? { portal_slug: opts.portalSlug } : {}),
+      }),
     });
 
     const bodyText = await response.text();
@@ -151,11 +176,8 @@ export function ClientAuthProvider({ children }: { children: React.ReactNode }) 
 
     handleAuthResponse(bodyObj);
 
-    try {
-      await supabase.auth.signInWithPassword({ email, password });
-    } catch (authErr) {
-      console.error("[client-auth] supabase auth sign-in failed", authErr);
-    }
+    // Client portal auth is cookie/JWT-based through edge functions.
+    // Do not force Supabase auth sign-in here to avoid unrelated token calls/noise.
   };
 
   const signup = async (
@@ -196,13 +218,8 @@ export function ClientAuthProvider({ children }: { children: React.ReactNode }) 
       console.log("[client-auth] signup returned portal_slug:", portalSlug);
     }
 
-    if (bodyObj?.user?.email) {
-      try {
-        await supabase.auth.signInWithPassword({ email: bodyObj.user.email, password });
-      } catch (authErr) {
-        console.error("[client-auth] supabase auth sign-in after signup failed", authErr);
-      }
-    }
+    // Client portal auth is cookie/JWT-based through edge functions.
+    // Do not force Supabase auth sign-in here to avoid unrelated token calls/noise.
 
     return { portalSlug, clientId };
   };

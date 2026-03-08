@@ -1,0 +1,9 @@
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\App.tsx:138:<Route path="/auth" element={<Auth />} />
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\App.tsx:139:<Route path="/forgot-password" element={<ForgotPassword />} />
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\App.tsx:140:<Route path="/reset-password" element={<ResetPassword />} />
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\App.tsx:144:<Route path="/invite/:token" element={<InviteAccept />} />
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\App.tsx:222:path="/bootstrap"
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\App.tsx:230:path="/welcome"
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\App.tsx:238:path="/select-agency"
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\App.tsx:246:path="/create-agency"
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\App.tsx:254:path="/invitations"

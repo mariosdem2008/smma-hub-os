@@ -1,0 +1,24 @@
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ai\AiOnboardingAgency.tsx:11:import { AdaptiveInputField } from "@/components/onboarding-chat/AdaptiveInputField";
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ai\AiOnboardingAgency.tsx:175:const saveSession = () => {
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ai\AiOnboardingAgency.tsx:220:saveSession();
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ai\AiOnboardingAgency.tsx:227:const onBeforeUnload = () => saveSession();
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ai\AiOnboardingAgency.tsx:253:track("onboarding_started", {
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ai\AiOnboardingAgency.tsx:272:track("onboarding_completed_core", {
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ai\AiOnboardingAgency.tsx:313:track("onboarding_abandoned", {
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ai\AiOnboardingAgency.tsx:356:payload.skip_optional = true;
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ai\AiOnboardingAgency.tsx:358:payload.skip_all_optional = true;
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ai\AiOnboardingAgency.tsx:360:payload.undo_last = true;
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ai\AiOnboardingAgency.tsx:410:saveSession();
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ai\AiOnboardingAgency.tsx:413:const requestInitialPrompt = async () => {
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ai\AiOnboardingAgency.tsx:449:saveSession();
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ai\AiOnboardingAgency.tsx:456:void requestInitialPrompt();
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ai\AiOnboardingAgency.tsx:460:const retryLast = async () => {
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ai\AiOnboardingAgency.tsx:487:saveSession();
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ai\AiOnboardingAgency.tsx:506:const handleActivateWorkspace = () => {
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ai\AiOnboardingAgency.tsx:513:track("onboarding_activated_workspace", {
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ai\AiOnboardingAgency.tsx:569:saveSession();
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ai\AiOnboardingAgency.tsx:702:<Button type="button" size="sm" variant="outline" onClick={() => void retryLast()}>
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ai\AiOnboardingAgency.tsx:728:<AdaptiveInputField
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ai\AiOnboardingAgency.tsx:904:<Button onClick={handleActivateWorkspace}>Activate Agency Workspace</Button>
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ai\AiOnboardingAgency.tsx:911:<AdaptiveInputField
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ai\AiOnboardingAgency.tsx:976:onClick={handleActivateWorkspace}

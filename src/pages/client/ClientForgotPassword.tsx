@@ -15,24 +15,37 @@ export default function ClientForgotPassword() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  const [resolvingPortal, setResolvingPortal] = useState(true);
+  const [portalError, setPortalError] = useState<string | null>(null);
   const [clientId, setClientId] = useState<string | null>(null);
   const [clientName, setClientName] = useState("");
 
   useEffect(() => {
     const fetchClient = async () => {
-      if (!portalSlug) return;
+      if (!portalSlug) {
+        setPortalError("Portal link required");
+        setResolvingPortal(false);
+        return;
+      }
       
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("clients")
         .select("id, name")
         .eq("portal_slug", portalSlug)
         .eq("portal_enabled", true)
-        .single();
+        .maybeSingle();
 
       if (data) {
         setClientId(data.id);
         setClientName(data.name);
+        setPortalError(null);
+      } else {
+        if (error) {
+          console.error("[client-forgot-password] portal slug lookup failed", error);
+        }
+        setPortalError("Client portal not found");
       }
+      setResolvingPortal(false);
     };
 
     fetchClient();
@@ -85,10 +98,26 @@ export default function ClientForgotPassword() {
     }
   };
 
-  if (!clientId) {
+  if (resolvingPortal) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (portalError || !clientId) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md p-8 text-center">
+          <h1 className="text-2xl font-bold mb-4">{portalError ?? "Client portal not found"}</h1>
+          <p className="text-muted-foreground mb-6">Please use your agency invite link or contact your agency.</p>
+          {portalSlug ? (
+            <Link to={`/client/login/${portalSlug}`}>
+              <Button variant="outline" className="w-full">Back to Login</Button>
+            </Link>
+          ) : null}
+        </Card>
       </div>
     );
   }

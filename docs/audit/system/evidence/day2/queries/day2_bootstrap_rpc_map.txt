@@ -1,0 +1,4 @@
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\lib\agency-invites.ts:16:const { data, error } = await supabase.rpc("get_my_pending_agency_invites");
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\lib\agency-invites.ts:22:const { data, error } = await supabase.rpc("accept_agency_invite", { _invite_id: inviteId });
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\lib\agency-invites.ts:28:const { data, error } = await supabase.rpc("decline_agency_invite", { _invite_id: inviteId });
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\lib\bootstrap.ts:26:const { data, error } = await supabase.rpc("get_user_agency_bootstrap");

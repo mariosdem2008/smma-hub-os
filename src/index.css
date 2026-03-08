@@ -217,6 +217,57 @@ html {
   background-position: center;
 }
 
+/* SaaS app shell uses the same visual language as AI onboarding */
+.saas-onboarding-theme {
+  position: relative;
+  isolation: isolate;
+  background-color: #070a10;
+  background-image: radial-gradient(circle at 15% -5%, rgba(91, 95, 255, 0.2) 0%, transparent 35%),
+    radial-gradient(circle at 90% 15%, rgba(34, 211, 238, 0.14) 0%, transparent 35%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='900' viewBox='0 0 900 900'%3E%3Cpath d='M0 120c120-60 240-40 360 20s240 80 540 0' stroke='rgba(91,95,255,0.18)' stroke-width='1' fill='none'/%3E%3Cpath d='M0 220c140-70 280-50 420 10s240 90 480 20' stroke='rgba(91,95,255,0.16)' stroke-width='1' fill='none'/%3E%3Cpath d='M0 320c150-80 300-60 450 5s250 85 450 30' stroke='rgba(91,95,255,0.14)' stroke-width='1' fill='none'/%3E%3Cpath d='M0 420c160-90 320-70 480 0s260 80 420 40' stroke='rgba(91,95,255,0.12)' stroke-width='1' fill='none'/%3E%3Cpath d='M0 520c170-100 340-80 510-5s270 75 390 50' stroke='rgba(91,95,255,0.1)' stroke-width='1' fill='none'/%3E%3Cpath d='M0 620c180-110 360-90 540-10s280 70 360 60' stroke='rgba(91,95,255,0.09)' stroke-width='1' fill='none'/%3E%3Cpath d='M0 720c190-120 380-100 570-15s290 65 330 70' stroke='rgba(91,95,255,0.08)' stroke-width='1' fill='none'/%3E%3Cpath d='M0 820c200-130 400-110 600-20s300 60 300 80' stroke='rgba(91,95,255,0.07)' stroke-width='1' fill='none'/%3E%3C/svg%3E");
+  background-size: auto, auto, 900px 900px;
+  background-position: center;
+  --background: 220 39% 5%;
+  --card: 224 42% 9%;
+  --surface: 224 42% 9%;
+  --sidebar-background: 224 42% 8%;
+  --header-bg: 224 42% 8%;
+  --popover: 224 42% 9%;
+  --muted-bg: 224 36% 11%;
+  --border: 223 33% 21%;
+  --primary: 240 100% 68%;
+  --primary-hover: 240 100% 73%;
+  --accent: 188 86% 53%;
+}
+
+.saas-onboarding-theme::before,
+.saas-onboarding-theme::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  border-radius: 9999px;
+  filter: blur(70px);
+  z-index: 0;
+}
+
+.saas-onboarding-theme::before {
+  top: -120px;
+  left: -120px;
+  width: 320px;
+  height: 320px;
+  background: rgba(91, 95, 255, 0.18);
+  animation: saas-orb-drift 14s ease-in-out infinite;
+}
+
+.saas-onboarding-theme::after {
+  right: -120px;
+  bottom: -120px;
+  width: 340px;
+  height: 340px;
+  background: rgba(34, 211, 238, 0.14);
+  animation: saas-orb-drift 18s ease-in-out infinite reverse;
+}
+
 @layer base {
   * {
     @apply border-border;
@@ -664,6 +715,17 @@ html {
     position: relative;
     background: rgba(11, 18, 32, 0.85);
     border-radius: 1rem;
+  }
+
+  @keyframes saas-orb-drift {
+    0%, 100% {
+      transform: translate3d(0, 0, 0) scale(1);
+      opacity: 0.6;
+    }
+    50% {
+      transform: translate3d(14px, -20px, 0) scale(1.08);
+      opacity: 0.9;
+    }
   }
 
   .gradient-border-animated::before {

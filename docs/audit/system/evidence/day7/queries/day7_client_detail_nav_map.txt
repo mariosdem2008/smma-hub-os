@@ -1,0 +1,32 @@
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ClientDetail.tsx:31:import PipelineTab from "@/components/client-tabs/PipelineTab";
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ClientDetail.tsx:32:import CalendarTab from "@/components/client-tabs/CalendarTab";
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ClientDetail.tsx:34:import { ClientPortalTab } from "@/components/client-tabs/ClientPortalTab";
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ClientDetail.tsx:37:import ReportsTab from "@/components/client-tabs/ReportsTab";
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ClientDetail.tsx:39:import StrategyHubTab from "@/components/client-tabs/StrategyHubTab";
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ClientDetail.tsx:51:Calendar as CalendarIcon,
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ClientDetail.tsx:84:{ id: "strategy", label: "Strategy", icon: Lightbulb },
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ClientDetail.tsx:85:{ id: "pipeline", label: "Pipeline", icon: Workflow },
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ClientDetail.tsx:87:{ id: "calendar", label: "Calendar", icon: CalendarIcon },
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ClientDetail.tsx:90:{ id: "portal", label: "Approvals & Access", icon: Users },
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ClientDetail.tsx:97:{ id: "reports", label: "Reports", icon: FileText },
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ClientDetail.tsx:109:const navigate = useNavigate();
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ClientDetail.tsx:122:const [activeTab, setActiveTab] = useState("strategy");
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ClientDetail.tsx:214:const normalizedTab = tab === "planning" ? "strategy" : tab;
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ClientDetail.tsx:220:nextParams.set("tab", "strategy");
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ClientDetail.tsx:270:const nextTab = tabId === "planning" ? "strategy" : tabId;
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ClientDetail.tsx:336:reason: "Complete this step to unlock strategy and content tools.",
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ClientDetail.tsx:364:Complete the client onboarding wizard to set up strategy and content planning.
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ClientDetail.tsx:391:onClick={() => navigate(buildOnboardingHref(item.meta.href))}
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ClientDetail.tsx:402:navigate(
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ClientDetail.tsx:431:case "strategy":
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ClientDetail.tsx:434:<StrategyHubTab
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ClientDetail.tsx:445:case "reports":
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ClientDetail.tsx:446:return <ReportsTab clientId={clientId} agencyId={agencyId} />;
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ClientDetail.tsx:451:case "pipeline":
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ClientDetail.tsx:452:return <PipelineTab clientId={clientId} agencyId={agencyId} />;
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ClientDetail.tsx:455:case "calendar":
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ClientDetail.tsx:456:return <CalendarTab clientId={clientId} />;
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ClientDetail.tsx:463:case "portal":
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ClientDetail.tsx:464:return <ClientPortalTab clientId={clientId} />;
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ClientDetail.tsx:494:onClick={() => navigate("/clients")}
+C:\Users\mario\Desktop\SMMAHUB\smmahub\2\smma-hub-os\src\pages\ClientDetail.tsx:653:onClick={() => navigate("/clients")}
