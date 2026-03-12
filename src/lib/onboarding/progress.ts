@@ -1,15 +1,14 @@
-import type { CadenceMap, OnboardingProfile } from '@/types/onboarding';
-import { sanitizeText } from './sanitize';
+import type { CadenceMap, OnboardingProfile } from "@/types/onboarding";
 
 export type V5SectionId =
-  | 'basics'
-  | 'goal'
-  | 'offers'
-  | 'audience'
-  | 'brand'
-  | 'proof'
-  | 'channels'
-  | 'review';
+  | "basics"
+  | "goal"
+  | "offers"
+  | "audience"
+  | "brand"
+  | "proof"
+  | "channels"
+  | "review";
 
 export interface SectionProgress {
   sectionId: V5SectionId;
@@ -26,38 +25,33 @@ export interface V5ProgressSummary {
 }
 
 const SECTION_REQUIRED_FIELDS: Record<V5SectionId, string[]> = {
-  basics: [
-    'q1_business_name',
-    'industry_niche',
-    'q3_market_scope',
-    'q3_geo',
-    'q2_website_or_socials',
-    'q4_languages',
-  ],
-  goal: ['primary_goal', 'conversion_path', 'conversion_link_required', 'dm_keyword_required'],
-  offers: ['offers'],
-  audience: ['audience_type', 'primary_customer', 'main_objection', 'q9_pain_points'],
-  brand: ['brand_voice', 'content_style', 'on_camera_availability', 'available_assets'],
+  basics: ["q1_business_name", "industry_niche", "q3_market_scope", "q3_geo", "q2_website_or_socials", "q4_languages"],
+  goal: ["primary_goal", "conversion_path", "conversion_link_required", "dm_keyword_required"],
+  offers: ["offers"],
+  audience: ["audience_type", "primary_customer", "main_objection", "q9_pain_points"],
+  brand: ["brand_voice", "content_style", "on_camera_availability", "available_assets"],
   proof: [],
-  channels: ['platforms', 'formats', 'cadence_requirement'],
+  channels: ["platforms", "formats", "cadence_requirement"],
   review: [],
 };
 
 const READINESS_FIELDS = [
-  'q1_business_name',
-  'industry_niche',
-  'primary_goal',
-  'conversion_path',
-  'conversion_link_required',
-  'dm_keyword_required',
-  'offers',
-  'primary_customer',
-  'q9_pain_points',
-  'platforms',
-  'cadence_requirement',
-  'brand_voice',
-  'content_style',
+  "q1_business_name",
+  "industry_niche",
+  "primary_goal",
+  "conversion_path",
+  "conversion_link_required",
+  "dm_keyword_required",
+  "offers",
+  "primary_customer",
+  "q9_pain_points",
+  "platforms",
+  "cadence_requirement",
+  "brand_voice",
+  "content_style",
 ];
+
+export const READINESS_FIELD_TOTAL = READINESS_FIELDS.length;
 
 function hasWebsiteOrSocials(profile: Partial<OnboardingProfile>): boolean {
   const website = profile.q2_website?.trim();
@@ -67,7 +61,7 @@ function hasWebsiteOrSocials(profile: Partial<OnboardingProfile>): boolean {
 
 function hasCadence(profile: Partial<OnboardingProfile>): boolean {
   const preset = profile.cadence_preset;
-  if (preset && preset !== 'custom') return true;
+  if (preset && preset !== "custom") return true;
 
   const cadence = (profile.cadence_per_platform ?? profile.q18_cadence ?? {}) as CadenceMap;
   const platforms = profile.platforms ?? profile.q16_enabled_channels ?? [];
@@ -79,66 +73,65 @@ function isFieldFilled(profile: Partial<OnboardingProfile>, field: string): bool
   const hasAnyText = (value: string | null | undefined) => Boolean(value?.trim());
 
   switch (field) {
-    case 'q2_website_or_socials':
+    case "q2_website_or_socials":
       return hasWebsiteOrSocials(profile);
-    case 'q1_business_name':
-      // Business names can be short and/or single-word. Avoid over-sanitizing required user input.
+    case "q1_business_name":
       return hasAnyText(profile.q1_business_name);
-    case 'industry_niche':
+    case "industry_niche":
       return Boolean(profile.industry_niche);
-    case 'q3_market_scope':
+    case "q3_market_scope":
       return Boolean(profile.q3_market_scope);
-    case 'q3_geo':
-      if (profile.q3_market_scope !== 'local') return true;
+    case "q3_geo":
+      if (profile.q3_market_scope !== "local") return true;
       return hasAnyText(profile.q3_country) && hasAnyText(profile.q3_city);
-    case 'q4_languages':
+    case "q4_languages":
       return (profile.q4_languages ?? []).length > 0;
-    case 'primary_goal':
+    case "primary_goal":
       return Boolean(profile.primary_goal ?? profile.q17_primary_goal);
-    case 'conversion_path':
+    case "conversion_path":
       return Boolean(profile.conversion_path);
-    case 'conversion_link_required': {
+    case "conversion_link_required": {
       const path = profile.conversion_path;
       if (!path) return false;
-      const requiresLink = ['book_call', 'book_appointment', 'website_checkout'].includes(path);
+      const requiresLink = ["book_call", "book_appointment", "website_checkout"].includes(path);
       if (!requiresLink) return true;
       return Boolean(profile.conversion_link?.trim());
     }
-    case 'dm_keyword_required': {
+    case "dm_keyword_required": {
       const path = profile.conversion_path;
       if (!path) return false;
-      if (path !== 'dm_keyword') return true;
+      if (path !== "dm_keyword") return true;
       return hasAnyText(profile.dm_keyword);
     }
-    case 'offers': {
+    case "offers": {
       const offers = profile.offers ?? [];
       return offers.some((offer) => hasAnyText(offer?.name ?? null));
     }
-    case 'audience_type':
+    case "audience_type":
       return Boolean(profile.audience_type);
-    case 'primary_customer':
+    case "primary_customer":
       return hasAnyText(profile.primary_customer) || hasAnyText(profile.q8_ideal_customer);
-    case 'main_objection':
+    case "main_objection":
       return Boolean(profile.main_objection);
-    case 'q9_pain_points':
+    case "q9_pain_points":
       return (profile.q9_pain_points ?? []).filter((point) => hasAnyText(point)).length >= 3;
-    case 'brand_voice':
+    case "brand_voice":
       return (profile.brand_voice ?? []).length >= 2;
-    case 'content_style':
+    case "content_style":
       return (profile.content_style ?? []).length >= 1;
-    case 'on_camera_availability':
+    case "on_camera_availability":
       return Boolean(profile.on_camera_availability);
-    case 'available_assets':
+    case "available_assets":
       return (profile.available_assets ?? []).length > 0;
-    case 'proof_types':
+    case "proof_types":
       return (profile.proof_types ?? []).length > 0;
-    case 'competitor_link':
+    case "competitor_link":
       return hasAnyText(profile.competitor_link);
-    case 'platforms':
+    case "platforms":
       return (profile.platforms ?? profile.q16_enabled_channels ?? []).length > 0;
-    case 'formats':
+    case "formats":
       return (profile.formats ?? []).length > 0;
-    case 'cadence_requirement':
+    case "cadence_requirement":
       return hasCadence(profile);
     default:
       return false;

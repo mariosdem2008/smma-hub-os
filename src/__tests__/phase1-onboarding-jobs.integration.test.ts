@@ -22,10 +22,12 @@ describe("phase 1 onboarding job pipeline", () => {
     expect(worker).toContain("evaluateClientBrainForStrategy");
   });
 
-  it("onboarding UIs no longer call ai-brains-client or ai-brain-ingest directly", () => {
-    const v5 = read("src/components/onboarding-v5/OnboardingV5Wizard.tsx");
-    expect(v5).not.toContain("ai-brains-client");
-    expect(v5).not.toContain("ai-brain-ingest");
-    expect(v5).not.toContain("ai-strategy-generate");
+  it("active onboarding UI does not call legacy brain endpoints directly", () => {
+    const route = read("src/pages/ai/AiOnboardingClient.tsx");
+    const chatShell = read("src/components/onboarding-chat-client/ClientOnboardingChatShell.tsx");
+    expect(route).not.toContain("OnboardingV5Wizard");
+    expect(chatShell).not.toContain("ai-brains-client");
+    expect(chatShell).not.toContain("ai-brain-ingest");
+    expect(chatShell).not.toContain("ai-strategy-generate");
   });
 });

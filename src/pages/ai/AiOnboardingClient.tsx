@@ -6,7 +6,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { OnboardingV5Wizard } from '@/components/onboarding-v5/OnboardingV5Wizard';
+import { ClientOnboardingChatShell } from '@/components/onboarding-chat-client/ClientOnboardingChatShell';
 import { Loader2 } from 'lucide-react';
 
 export default function AiOnboardingClient() {
@@ -21,14 +21,16 @@ export default function AiOnboardingClient() {
 
       const { data, error } = await supabase
         .from('clients')
-        .select('*')
+        .select('id, agency_id')
         .eq('id', clientId)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
       return data;
     },
     enabled: !!clientId,
+    retry: false,
+    refetchOnWindowFocus: false,
   });
 
   // Loading state
@@ -43,7 +45,27 @@ export default function AiOnboardingClient() {
     );
   }
 
-  // Error state
+  // No client selected state
+  if (!clientId) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center space-y-4">
+          <h1 className="text-2xl font-bold">No client selected</h1>
+          <p className="text-muted-foreground">
+            Please select a client to start onboarding.
+          </p>
+          <button
+            onClick={() => navigate('/clients')}
+            className="text-primary underline"
+          >
+            Go to clients
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Error or not-found state
   if (error || !client) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -63,14 +85,14 @@ export default function AiOnboardingClient() {
     );
   }
 
-  // No clientId or agency_id state
-  if (!clientId || !client.agency_id) {
+  // Missing agency ownership metadata
+  if (!client.agency_id) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center space-y-4">
-          <h1 className="text-2xl font-bold">No client selected</h1>
+          <h1 className="text-2xl font-bold text-destructive">Client setup is incomplete</h1>
           <p className="text-muted-foreground">
-            Please select a client to start onboarding.
+            This client is missing agency context. Re-open from Clients or recreate the client.
           </p>
           <button
             onClick={() => navigate('/clients')}
@@ -83,7 +105,5 @@ export default function AiOnboardingClient() {
     );
   }
 
-  return (
-    <OnboardingV5Wizard clientId={clientId} agencyId={client.agency_id} />
-  );
+  return <ClientOnboardingChatShell clientId={clientId} agencyId={client.agency_id} />;
 }
