@@ -245,7 +245,7 @@ serve(async (req) => {
             ...currentCard,
             prefill: workingProfile,
           },
-        }, headers, 409);
+        }, headers);
       }
 
       const validation = validateCardPayload(cardId, body.card_payload ?? {});
@@ -282,7 +282,7 @@ serve(async (req) => {
             id: cardId,
             prefill: body.card_payload ?? {},
           },
-        }, headers, 422);
+        }, headers);
       }
 
       const nextCard = getNextClientOnboardingCard(cardId);
@@ -347,7 +347,7 @@ serve(async (req) => {
             errors: finalProgress.missingFields.map((field) => `${getFieldLabel(field)} is required.`),
             assistant_text: "You still have required fields missing before strategy generation.",
             ui_card: { ...currentCard, prefill: {} },
-          }, headers, 422);
+          }, headers);
         }
         const { error: completeError } = await supabase.rpc("complete_onboarding_profile", {
           p_client_id: clientId,
