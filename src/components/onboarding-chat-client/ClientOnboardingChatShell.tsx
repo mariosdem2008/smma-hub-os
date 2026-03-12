@@ -342,15 +342,15 @@ export function ClientOnboardingChatShell({ agencyId, clientId }: { agencyId: st
   }
 
   return (
-    <div className="onboarding-topo h-[100dvh] overflow-hidden px-3 py-3 text-white md:px-4 md:py-4">
-      <div className="mx-auto h-full w-full max-w-[1080px]">
+    <div className="onboarding-topo h-full min-h-0 overflow-hidden px-3 py-3 text-white md:px-4 md:py-4">
+      <div className="mx-auto h-full min-h-0 w-full max-w-[1080px]">
         <Card className="flex h-full min-h-0 flex-col overflow-hidden border-white/10 bg-black/45 backdrop-blur-sm">
           <CardHeader className="border-b border-white/10 py-3">
             <CardTitle>Client Onboarding Chat</CardTitle>
             <CardDescription className="text-white/70">{progressText}</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="max-h-[48vh] space-y-3 overflow-y-auto rounded-xl border border-white/10 bg-black/25 p-3">
+          <CardContent className="flex min-h-0 flex-1 flex-col gap-3">
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto rounded-xl border border-white/10 bg-black/25 p-3">
               {messages.map((message) => (
                 <div key={message.id} className={message.role === "assistant" ? "text-left" : "text-right"}>
                   <div className={message.role === "assistant" ? "inline-block max-w-[92%] rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/90" : "inline-block max-w-[92%] rounded-2xl border border-primary/40 bg-primary/30 px-3 py-2 text-sm text-white"}>
