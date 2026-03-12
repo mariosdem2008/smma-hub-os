@@ -367,29 +367,11 @@ export function ClientOnboardingChatShell({ agencyId, clientId }: { agencyId: st
                   </div>
                 </div>
               ) : null}
-            </div>
-            <div className="flex gap-2">
-              <Input
-                value={freeform}
-                onChange={(event) => setFreeform(event.target.value)}
-                placeholder="Ask for help at any time..."
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    void submitFreeform();
-                  }
-                }}
-              />
-              <Button type="button" variant="outline" onClick={() => void submitFreeform()} disabled={!freeform.trim()}>
-                Ask AI
-              </Button>
-            </div>
-            <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-              <div className="mb-3">
-                <div className="text-sm font-semibold text-white">{activeCard?.title ?? "No active card"}</div>
-                <div className="text-xs text-white/70">
-                  {activeCard ? "Fill this card, then continue chat." : "Waiting for next step..."}
-                </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+              <div className="text-[10px] uppercase tracking-[0.2em] text-white/50">AI Assistant</div>
+              <div className="mb-1 mt-1 text-sm font-semibold text-white">{activeCard?.title ?? "No active card"}</div>
+              <div className="mb-3 text-xs text-white/70">
+                {activeCard ? "Fill this card, then continue chat." : "Waiting for next step..."}
               </div>
               <div className="space-y-4">
             {error ? <div className="rounded border border-destructive/30 bg-destructive/10 p-2 text-sm text-destructive">{error}</div> : null}
@@ -628,6 +610,23 @@ export function ClientOnboardingChatShell({ agencyId, clientId }: { agencyId: st
                   {submitting ? "Saving..." : activeCard?.submitLabel ?? "Continue"}
                 </Button>
               </div>
+            </div>
+            </div>
+            <div className="flex gap-2">
+              <Input
+                value={freeform}
+                onChange={(event) => setFreeform(event.target.value)}
+                placeholder="Ask for help at any time..."
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    void submitFreeform();
+                  }
+                }}
+              />
+              <Button type="button" variant="outline" onClick={() => void submitFreeform()} disabled={!freeform.trim()}>
+                Ask AI
+              </Button>
             </div>
           </CardContent>
         </Card>
