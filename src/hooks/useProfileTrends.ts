@@ -47,3 +47,41 @@ export function useProfileTrends(clientId: string, days: number = 30) {
     enabled: !!clientId,
   });
 }
+
+export function useProfileTrendsWithGate(clientId: string, days: number = 30, enabled: boolean = true) {
+  return useQuery({
+    queryKey: ["profile-trends", clientId, days],
+    queryFn: async (): Promise<DailyTrend[]> => {
+      const startDate = subDays(new Date(), days);
+
+      const { data, error } = await supabase
+        .from("social_profile_stats")
+        .select("date, followers, impressions, profile_visits")
+        .eq("client_id", clientId)
+        .gte("date", format(startDate, "yyyy-MM-dd"))
+        .order("date", { ascending: true });
+
+      if (error) throw error;
+
+      const aggregated = (data || []).reduce((acc, curr) => {
+        const existing = acc.find((item) => item.date === curr.date);
+        if (existing) {
+          existing.followers += curr.followers || 0;
+          existing.impressions += curr.impressions || 0;
+          existing.profile_visits += curr.profile_visits || 0;
+        } else {
+          acc.push({
+            date: curr.date,
+            followers: curr.followers || 0,
+            impressions: curr.impressions || 0,
+            profile_visits: curr.profile_visits || 0,
+          });
+        }
+        return acc;
+      }, [] as DailyTrend[]);
+
+      return aggregated;
+    },
+    enabled: !!clientId && enabled,
+  });
+}

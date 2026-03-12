@@ -173,7 +173,7 @@ async function main() {
   const env = loadEnv();
   const supabaseUrl = (env.SUPABASE_URL || "").replace(/\/$/, "");
   const serviceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY || "";
-  const baseUrl = env.WF_AGENCY_OPS_BASE_URL || "http://127.0.0.1:4173";
+  const baseUrl = env.WF_AGENCY_OPS_BASE_URL || env.WF_BASE_URL || "http://localhost:8080";
 
   if (!supabaseUrl || !serviceRoleKey) {
     throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in env");
@@ -206,7 +206,9 @@ async function main() {
 
   try {
     await page.goto(`${baseUrl}/auth`, { waitUntil: "networkidle", timeout: 45000 });
-    await page.waitForSelector("body", { timeout: 10000 });
+    await page.waitForTimeout(800);
+    await page.waitForSelector("#email", { timeout: 20000 });
+    await page.waitForSelector("#password", { timeout: 20000 });
     await page.locator("#email").fill(persona.email);
     await page.locator("#password").fill(persona.password);
     await page.getByRole("button", { name: "Login" }).click();
@@ -291,8 +293,18 @@ async function main() {
         : "send-team-invite response missing",
     });
   } catch (error) {
-    const bodyHtml = await page.content();
-    const inputCount = await page.locator("input").count();
+    let bodyHtml = "";
+    let inputCount = -1;
+    try {
+      bodyHtml = await page.content();
+    } catch {
+      bodyHtml = "";
+    }
+    try {
+      inputCount = await page.locator("input").count();
+    } catch {
+      inputCount = -1;
+    }
     steps.push({
       step: "runner_error",
       ok: false,

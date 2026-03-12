@@ -15,6 +15,8 @@ const UI_ENDPOINT_ALLOWLIST = new Set([
   "ai-onboarding",
   "ai-onboarding-scan",
   "ai-onboarding-suggest",
+  "ai-onboarding-copilot",
+  "ai-onboarding-v3",
   "ai-rep-chat",
   "ai-retrieve-context",
   "ai-ask",

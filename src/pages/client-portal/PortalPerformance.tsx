@@ -2,9 +2,10 @@ import { useOutletContext } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { useClientAnalytics } from "@/hooks/useClientAnalytics";
-import { useProfileTrends } from "@/hooks/useProfileTrends";
-import { useTopPosts } from "@/hooks/useTopPosts";
+import { useClientAnalyticsWithGate } from "@/hooks/useClientAnalytics";
+import { useProfileTrendsWithGate } from "@/hooks/useProfileTrends";
+import { useTopPostsWithGate } from "@/hooks/useTopPosts";
+import { useHasSupabaseSession } from "@/hooks/useHasSupabaseSession";
 import { Eye, Users, Heart, TrendingUp, TrendingDown, Instagram, Facebook } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { format } from "date-fns";
@@ -16,9 +17,11 @@ interface OutletContext {
 
 export function PortalPerformance() {
   const { clientId } = useOutletContext<OutletContext>();
-  const { data: analytics, isLoading: analyticsLoading } = useClientAnalytics(clientId);
-  const { data: trends, isLoading: trendsLoading } = useProfileTrends(clientId, 30);
-  const { data: topPosts, isLoading: topPostsLoading } = useTopPosts(clientId, 5);
+  const { hasSession, loading: sessionLoading } = useHasSupabaseSession();
+  const portalQueryEnabled = hasSession && !sessionLoading;
+  const { data: analytics, isLoading: analyticsLoading } = useClientAnalyticsWithGate(clientId, portalQueryEnabled);
+  const { data: trends, isLoading: trendsLoading } = useProfileTrendsWithGate(clientId, 30, portalQueryEnabled);
+  const { data: topPosts, isLoading: topPostsLoading } = useTopPostsWithGate(clientId, 5, portalQueryEnabled);
 
   const getPlatformIcon = (platform: string) => {
     switch (platform.toLowerCase()) {

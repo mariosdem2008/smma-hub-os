@@ -64,3 +64,23 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Onboarding golden quality gate (staging-backed, optional)
+        if: ${{ secrets.SUPABASE_URL != '' && secrets.SUPABASE_ANON_KEY != '' && secrets.SUPABASE_SERVICE_ROLE_KEY != '' }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: npm run quality:onboarding:golden:gate
+
+      - name: Install Playwright Chromium (client-detail gate)
+        if: ${{ secrets.WF_CLIENT_DETAIL_BASE_URL != '' && secrets.SUPABASE_URL != '' && secrets.SUPABASE_SERVICE_ROLE_KEY != '' }}
+        run: npx playwright install --with-deps chromium
+
+      - name: Client-detail deep quality gate (staging-backed, optional)
+        if: ${{ secrets.WF_CLIENT_DETAIL_BASE_URL != '' && secrets.SUPABASE_URL != '' && secrets.SUPABASE_SERVICE_ROLE_KEY != '' }}
+        env:
+          WF_CLIENT_DETAIL_BASE_URL: ${{ secrets.WF_CLIENT_DETAIL_BASE_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: npm run quality:client-detail:deep:gate

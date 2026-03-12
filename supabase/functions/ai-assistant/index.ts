@@ -303,6 +303,61 @@ function pickAllowStrategyProposals(activeTab: unknown) {
   return true;
 }
 
+function userExplicitlyRequestsProposal(message: string) {
+  const text = message.toLowerCase();
+  return [
+    "propose",
+    "proposal",
+    "update",
+    "edit",
+    "rewrite",
+    "improve",
+    "change this module",
+    "apply this",
+  ].some((token) => text.includes(token));
+}
+
+function inferTargetModuleFromMessage(message: string): StrategyModule | "positioning" {
+  const text = message.toLowerCase();
+  if (text.includes("position")) return "positioning";
+  if (text.includes("pillar")) return "pillars";
+  if (text.includes("campaign")) return "campaign_plan";
+  if (text.includes("weekly")) return "weekly_plan";
+  if (text.includes("channel")) return "channel_adaptations";
+  if (text.includes("constraint") || text.includes("rule")) return "rules_constraints";
+  return "positioning";
+}
+
+type StrategyModule =
+  | "positioning"
+  | "pillars"
+  | "campaign_plan"
+  | "weekly_plan"
+  | "channel_adaptations"
+  | "rules_constraints";
+
+function buildFallbackProposal(params: {
+  message: string;
+  modules: Array<{ module: string; content_json: Record<string, unknown> }>;
+}) {
+  const target = inferTargetModuleFromMessage(params.message);
+  const existing = params.modules.find((m) => m.module === target)?.content_json ?? {};
+  const next = {
+    ...existing,
+    ai_assistant_draft_note:
+      "Draft update generated from explicit user request. Review and adjust before final approval.",
+    updated_focus: "Higher conversion clarity and execution specificity",
+  };
+  return {
+    id: crypto.randomUUID(),
+    module: target,
+    title: `Suggested ${target.replace(/_/g, " ")} update`,
+    summary: "Safe draft proposal generated because a direct update request was detected.",
+    proposed_content_json: next,
+    risks: ["Review for brand tone and compliance before approving."],
+  };
+}
+
 async function summarizeThreadIfNeeded(supabase: MinimalSupabase, thread: Thread, messages: ChatMessage[]) {
   // Cheap summarization to keep context small as chats grow.
   // Only runs when we have enough content; keeps cost low by using the router's summarizer.
@@ -601,12 +656,31 @@ serve(async (req: Request) => {
     }
 
     const assistantText = normalizeText(final.assistant_message, 12_000) || "Done.";
+    let normalizedJson = (final.json ?? null) as AiAssistantResponseJson | null;
+    const hasProposals = Array.isArray(normalizedJson?.proposals) && normalizedJson!.proposals.length > 0;
+    const shouldForceProposal = allowStrategyProposals && strategyId && userExplicitlyRequestsProposal(message) && !hasProposals;
+    if (shouldForceProposal) {
+      const mods = await loadStrategyModules(supabase, clientId, strategyId, null, false).catch(() => []);
+      if (Array.isArray(mods) && mods.length > 0) {
+        const fallbackProposal = buildFallbackProposal({
+          message,
+          modules: mods.map((m) => ({ module: m.module, content_json: m.content_json ?? {} })),
+        });
+        normalizedJson = {
+          assistant_message: assistantText,
+          proposals: [fallbackProposal],
+          unknown: false,
+          confidence: 0.72,
+          context_request: normalizedJson?.context_request,
+        };
+      }
+    }
     await insertMessage(
       supabase,
       thread.id,
       "assistant",
       assistantText,
-      json && typeof json === "object" ? { json } : {},
+      normalizedJson && typeof normalizedJson === "object" ? { json: normalizedJson } : {},
     );
 
     // Best-effort summarization (keeps future turns fast + cheap).
@@ -621,7 +695,7 @@ serve(async (req: Request) => {
       {
         thread_id: thread.id,
         assistant_message: assistantText,
-        json: final.json,
+        json: normalizedJson,
         meta: final.meta,
         usage: final.usage,
         schemaOk: final.schemaOk,

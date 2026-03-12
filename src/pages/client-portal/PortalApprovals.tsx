@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { useHasSupabaseSession } from "@/hooks/useHasSupabaseSession";
 import { hapticSelection } from "@/lib/haptics";
 import { Clock, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import ProjectApprovalInterface from "@/components/approval/ProjectApprovalInterface";
@@ -44,6 +45,7 @@ export default function PortalApprovals() {
   const { clientId } = useOutletContext<OutletContext>();
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  const { hasSession, loading: sessionLoading } = useHasSupabaseSession();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -133,6 +135,12 @@ export default function PortalApprovals() {
   });
 
   useEffect(() => {
+    if (sessionLoading) return;
+    if (!hasSession) {
+      setProjects([]);
+      setLoading(false);
+      return;
+    }
     fetchProjectsForApproval();
 
     // Subscribe to real-time changes
@@ -155,7 +163,7 @@ export default function PortalApprovals() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [clientId]);
+  }, [clientId, hasSession, sessionLoading]);
 
   if (loading) {
     return (

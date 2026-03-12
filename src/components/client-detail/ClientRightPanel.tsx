@@ -121,6 +121,7 @@ What would you like help with?`,
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [threadId, setThreadId] = useState<string | null>(null);
+  const [hasLoadedThread, setHasLoadedThread] = useState(false);
   const [lastProposals, setLastProposals] = useState<any[]>([]);
   const [setupRequired, setSetupRequired] = useState<{ missing?: string[] } | null>(null);
   const [pendingApply, setPendingApply] = useState<null | { proposalId: string }>(null);
@@ -190,13 +191,21 @@ What would you like help with?`,
   }, [history]);
 
   useEffect(() => {
+    // Reset chat bootstrap state when panel closes or client changes.
+    if (!open) {
+      setHasLoadedThread(false);
+      return;
+    }
+  }, [open, clientId]);
+
+  useEffect(() => {
     if (!open) return;
     if (panelTab !== 'ai') return;
     if (!clientId) return;
     if (ai.isPending) return;
+    if (hasLoadedThread) return;
 
-    // Load persisted chat when opening AI tab (once per open).
-    if (messages.length > 1) return;
+    // Load persisted chat when opening AI tab (once per open/client).
 
     (async () => {
       try {
@@ -231,9 +240,10 @@ What would you like help with?`,
         }
       } finally {
         setIsLoading(false);
+        setHasLoadedThread(true);
       }
     })();
-  }, [open, panelTab, clientId, strategyId, threadId, ai, messages.length]);
+  }, [open, panelTab, clientId, strategyId, ai, hasLoadedThread, threadId]);
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
@@ -535,17 +545,34 @@ AI isn’t configured yet. Complete AI Setup to enable this assistant.`,
                 <ScrollArea className="flex-1 p-3">
                   <div className="space-y-4">
                     {setupRequired && (
-                      <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
-                        <div className="text-sm font-semibold">AI Assistant setup required</div>
-                        <p className="text-xs text-muted-foreground">
-                          Complete AI Setup to enable this assistant.
-                          {Array.isArray(setupRequired.missing) && setupRequired.missing.length > 0
-                            ? ` Missing: ${setupRequired.missing.join(', ')}.`
-                            : ''}
+                      <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 space-y-3">
+                        <div className="text-sm font-semibold text-amber-100">AI assistant setup required</div>
+                        <p className="text-xs text-amber-100/85">
+                          Complete setup to enable assistant chat, proposal apply/undo, and productivity actions in client tabs.
                         </p>
-                        <Button size="sm" asChild>
-                          <Link to="/agency/ai-setup">Complete AI Setup</Link>
-                        </Button>
+                        {Array.isArray(setupRequired.missing) && setupRequired.missing.length > 0 && (
+                          <p className="text-xs text-amber-100/85">
+                            Missing: {setupRequired.missing.slice(0, 6).join(', ')}
+                          </p>
+                        )}
+                        <div className="flex flex-wrap gap-2">
+                          <Button size="sm" asChild>
+                            <Link to="/ai/setup">Open AI setup</Link>
+                          </Button>
+                          <Button size="sm" variant="outline" asChild>
+                            <Link to={`/onboarding/client/${clientId}`}>Open client onboarding</Link>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              setSetupRequired(null);
+                              setHasLoadedThread(false);
+                            }}
+                          >
+                            Retry assistant
+                          </Button>
+                        </div>
                       </div>
                     )}
                     {messages.map((message) => (
@@ -682,7 +709,7 @@ AI isn’t configured yet. Complete AI Setup to enable this assistant.`,
                       value={input}
                       onChange={(e) => setInput(e.target.value)}
                       onKeyDown={handleKeyDown}
-                      placeholder={setupRequired ? 'Complete AI Setup to enable chat…' : 'Ask about this client, brainstorm, or request Strategy edits…'}
+                      placeholder={setupRequired ? 'Complete AI setup to enable chat...' : 'Ask about this client, brainstorm, or request strategy edits...'}
                       className="min-h-[60px] resize-none text-sm"
                       disabled={isLoading || !!setupRequired}
                     />

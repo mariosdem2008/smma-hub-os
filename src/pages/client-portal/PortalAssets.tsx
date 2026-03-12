@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useOutletContext } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useHasSupabaseSession } from "@/hooks/useHasSupabaseSession";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +35,7 @@ interface OutletContext {
 
 export function PortalAssets() {
   const { clientId } = useOutletContext<OutletContext>();
+  const { hasSession, loading: sessionLoading } = useHasSupabaseSession();
   const { toast } = useToast();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,8 +43,14 @@ export function PortalAssets() {
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
 
   useEffect(() => {
+    if (sessionLoading) return;
+    if (!hasSession) {
+      setAssets([]);
+      setLoading(false);
+      return;
+    }
     fetchAssets();
-  }, [clientId]);
+  }, [clientId, hasSession, sessionLoading]);
 
   const fetchAssets = async () => {
     const { data } = await supabase

@@ -1,0 +1,100 @@
+{
+  "meta": {
+    "version": "2026-03-09",
+    "scope": "agency_and_client_onboarding",
+    "rubric_ref": "docs/audit/system/SMMAHUB_AI_QUALITY_RUBRIC_AND_ACCEPTANCE_GATE.md",
+    "notes": "expected checks are used by scorer against captured outputs"
+  },
+  "cases": [
+    {
+      "id": "GS-AGENCY-001",
+      "workflow": "agency_onboarding",
+      "intent_type": "question",
+      "user_message": "Why do you need our pricing model?",
+      "current_state": { "industry_niche": "b2b_service", "primary_goal": "more_leads" },
+      "expected": {
+        "must_include_any": ["pricing", "recommendations", "realistic"],
+        "must_not_include_any": ["ERR_", "internal token", "stacktrace"],
+        "max_sentences": 4,
+        "should_offer_next_step": true,
+        "intent": "question"
+      }
+    },
+    {
+      "id": "GS-CLIENT-001",
+      "workflow": "client_onboarding",
+      "intent_type": "direct_answer",
+      "user_message": "We target local dentists, budget is 2000 EUR monthly, goal is more booked consultations.",
+      "current_state": {},
+      "expected": {
+        "must_map_fields_any": ["industry_niche", "primary_goal", "offers", "primary_customer"],
+        "min_mapped_fields": 2,
+        "confidence_min": 0.6,
+        "must_offer_contextual_suggestions": true
+      }
+    },
+    {
+      "id": "GS-CLIENT-002",
+      "workflow": "client_onboarding",
+      "intent_type": "help_request",
+      "user_message": "I am not sure. Can you create the ideal client persona for me?",
+      "current_state": { "industry_niche": "gym_fitness_studio", "primary_goal": "more_leads" },
+      "expected": {
+        "must_include_any": ["draft", "persona", "next"],
+        "min_suggestions": 3,
+        "must_not_include_any": ["I cannot help", "no idea"],
+        "should_generate_updates": true
+      }
+    },
+    {
+      "id": "GS-CLIENT-003",
+      "workflow": "client_onboarding",
+      "intent_type": "vague_answer",
+      "user_message": "not sure",
+      "current_state": {},
+      "expected": {
+        "intent": "vague_answer",
+        "confidence_max": 0.6,
+        "must_include_any": ["sharper detail", "example", "niche"],
+        "should_offer_next_step": true
+      }
+    },
+    {
+      "id": "GS-CLIENT-004",
+      "workflow": "client_onboarding",
+      "intent_type": "off_topic",
+      "user_message": "Who won the football game yesterday?",
+      "current_state": {},
+      "expected": {
+        "intent": "off_topic",
+        "must_include_any": ["onboarding", "next", "continue"],
+        "must_not_include_any": ["detailed sports answer"],
+        "should_offer_next_step": true
+      }
+    },
+    {
+      "id": "GS-CLIENT-005",
+      "workflow": "client_onboarding",
+      "intent_type": "direct_answer",
+      "user_message": "Website is https://northwavefitness.com and Instagram is https://instagram.com/northwavefitness",
+      "current_state": { "q1_business_name": "Northwave Fitness" },
+      "expected": {
+        "must_map_fields_any": ["q2_website", "q2_social_links"],
+        "min_mapped_fields": 1,
+        "confidence_min": 0.55
+      }
+    },
+    {
+      "id": "GS-CLIENT-006",
+      "workflow": "client_onboarding",
+      "intent_type": "direct_answer",
+      "user_message": "Nicosia, Cyprus",
+      "current_state": { "q3_market_scope": "local" },
+      "expected": {
+        "must_map_fields_any": ["q3_city", "q3_country"],
+        "min_mapped_fields": 1,
+        "confidence_min": 0.55
+      }
+    }
+  ]
+}

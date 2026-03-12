@@ -58,6 +58,9 @@ import {
   MoreHorizontal,
   ChevronDown,
   ChevronLeft,
+  AlertTriangle,
+  CheckCircle2,
+  Wrench,
 } from "lucide-react";
 
 interface Client {
@@ -277,6 +280,11 @@ export default function ClientDetail() {
 
   const focusParam = searchParams.get("focus");
   const actionParam = searchParams.get("action");
+  const aiStatus = !gateStatus?.usable
+    ? { label: "AI setup required", tone: "warning" as const, detail: "Complete onboarding to unlock all AI tools." }
+    : !showRightPanel
+      ? { label: "AI degraded", tone: "degraded" as const, detail: "Assistant panel is disabled by feature flag." }
+      : { label: "AI ready", tone: "ready" as const, detail: "Client detail AI actions are available." };
 
   if (loading || gateLoading) {
     return (
@@ -570,6 +578,28 @@ export default function ClientDetail() {
               </DropdownMenuContent>
             </DropdownMenu>
           </nav>
+          <div className="px-3 pb-3">
+            <div
+              className={cn(
+                "rounded-md border px-2.5 py-2 text-xs",
+                aiStatus.tone === "ready" && "border-emerald-500/30 bg-emerald-500/10 text-emerald-100",
+                aiStatus.tone === "warning" && "border-amber-500/30 bg-amber-500/10 text-amber-100",
+                aiStatus.tone === "degraded" && "border-orange-500/30 bg-orange-500/10 text-orange-100",
+              )}
+            >
+              <div className="flex items-center gap-1.5 font-medium">
+                {aiStatus.tone === "ready" ? (
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                ) : aiStatus.tone === "warning" ? (
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                ) : (
+                  <Wrench className="h-3.5 w-3.5" />
+                )}
+                <span>{aiStatus.label}</span>
+              </div>
+              <div className="mt-1 opacity-90">{aiStatus.detail}</div>
+            </div>
+          </div>
         </aside>
       )}
 
@@ -676,6 +706,27 @@ export default function ClientDetail() {
             {actionParam && <div className="text-muted-foreground">AI action queued: {actionParam}</div>}
           </div>
         )}
+
+        <div
+          className={cn(
+            "mb-4 rounded-lg border px-3 py-2 text-xs sm:text-sm",
+            aiStatus.tone === "ready" && "border-emerald-500/30 bg-emerald-500/10 text-emerald-100",
+            aiStatus.tone === "warning" && "border-amber-500/30 bg-amber-500/10 text-amber-100",
+            aiStatus.tone === "degraded" && "border-orange-500/30 bg-orange-500/10 text-orange-100",
+          )}
+        >
+          <div className="flex items-center gap-2 font-medium">
+            {aiStatus.tone === "ready" ? (
+              <CheckCircle2 className="h-4 w-4" />
+            ) : aiStatus.tone === "warning" ? (
+              <AlertTriangle className="h-4 w-4" />
+            ) : (
+              <Wrench className="h-4 w-4" />
+            )}
+            <span>{aiStatus.label}</span>
+          </div>
+          <div className="mt-0.5 opacity-90">{aiStatus.detail}</div>
+        </div>
 
         <div className="space-y-4">{renderTabContent()}</div>
       </main>

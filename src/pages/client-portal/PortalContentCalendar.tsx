@@ -11,6 +11,7 @@ import { hapticSelection } from "@/lib/haptics";
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, startOfMonth, endOfMonth, isSameDay } from "date-fns";
 import { Clock, Globe } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useHasSupabaseSession } from "@/hooks/useHasSupabaseSession";
 import { convertToLocal } from "@/lib/utils";
 import ScheduledPostDetailModal from "@/components/pipeline/ScheduledPostDetailModal";
 
@@ -39,6 +40,7 @@ const statusColors: Record<string, string> = {
 
 export function PortalContentCalendar() {
   const { clientId, userTimezone = "UTC" } = useOutletContext<OutletContext>();
+  const { hasSession, loading: sessionLoading } = useHasSupabaseSession();
   const [posts, setPosts] = useState<ScheduledPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<"week" | "month">("week");
@@ -92,6 +94,12 @@ export function PortalContentCalendar() {
   });
 
   useEffect(() => {
+    if (sessionLoading) return;
+    if (!hasSession) {
+      setPosts([]);
+      setLoading(false);
+      return;
+    }
     fetchPosts();
 
     // Subscribe to real-time changes
@@ -114,7 +122,7 @@ export function PortalContentCalendar() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [clientId]);
+  }, [clientId, hasSession, sessionLoading]);
 
   const getWeekDays = () => {
     const start = startOfWeek(selectedDate, { weekStartsOn: 1 });

@@ -1,0 +1,753 @@
+{
+  "meta": {
+    "generated_at": "2026-03-09T12:40:09.053Z",
+    "source": "run_golden_set_collect.mjs",
+    "agency_id": "df7d1e0f-cb64-468c-8994-df3a1452927c",
+    "client_id": "5133f061-206e-4b0d-9e47-15f088c5ee0a"
+  },
+  "results": [
+    {
+      "id": "GS-AGENCY-001",
+      "status_code": 200,
+      "assistant_message": "Pricing helps keep recommendations realistic and matched to budget. Next: What conversion path should campaigns push to?",
+      "intent": "question",
+      "confidence": 0.62,
+      "suggestions": [
+        {
+          "id": "q1",
+          "label": "Draft the minimum high-quality answer for conversion path",
+          "confidence": 80
+        },
+        {
+          "id": "q2",
+          "label": "Explain why this field matters for strategy quality",
+          "confidence": 72
+        },
+        {
+          "id": "q3",
+          "label": "Use best-practice defaults, then I will edit",
+          "confidence": 64
+        },
+        {
+          "id": "q4",
+          "label": "Give 3 strong options and I will choose one",
+          "confidence": 56
+        }
+      ],
+      "updates": {
+        "q1_business_name": "Starter Client Profile"
+      },
+      "raw": {
+        "version": "v2",
+        "status": "in_progress",
+        "assistant_message": "Pricing helps keep recommendations realistic and matched to budget. Next: What conversion path should campaigns push to?",
+        "intent": "question",
+        "expects": "textarea",
+        "constraints": {
+          "required": true,
+          "min": 3,
+          "max": 1200,
+          "pattern": null
+        },
+        "suggestions": [
+          {
+            "id": "q1",
+            "label": "Draft the minimum high-quality answer for conversion path",
+            "confidence": 80
+          },
+          {
+            "id": "q2",
+            "label": "Explain why this field matters for strategy quality",
+            "confidence": 72
+          },
+          {
+            "id": "q3",
+            "label": "Use best-practice defaults, then I will edit",
+            "confidence": 64
+          },
+          {
+            "id": "q4",
+            "label": "Give 3 strong options and I will choose one",
+            "confidence": 56
+          }
+        ],
+        "updates": {
+          "q1_business_name": "Starter Client Profile"
+        },
+        "confidence": 0.62,
+        "follow_up": "Next: share one concrete niche, budget, and outcome target so I can increase confidence. Locking this detail improves targeting accuracy for b2b_service and strengthens your plan toward more_leads.",
+        "current_state_json": {
+          "id": "18970e0e-9610-45d7-9877-6d3cb332f723",
+          "client_id": "5133f061-206e-4b0d-9e47-15f088c5ee0a",
+          "agency_id": "df7d1e0f-cb64-468c-8994-df3a1452927c",
+          "flow_type": "agency_led",
+          "current_step": 1,
+          "q1_business_name": "Starter Client Profile",
+          "ai_scan_accepted": false,
+          "readiness_score": 0,
+          "blockers": [],
+          "created_at": "2026-03-09T12:39:59.482855+00:00",
+          "updated_at": "2026-03-09T12:39:58.596+00:00",
+          "meta_json": {},
+          "v5_meta": {},
+          "industry_niche": "b2b_service",
+          "primary_goal": "more_leads"
+        },
+        "current_state_version": "b31fa7934f71903853b5304cbf2505ea7083798b4ea78e171cb9834caa112419",
+        "errors": []
+      }
+    },
+    {
+      "id": "GS-CLIENT-001",
+      "status_code": 200,
+      "assistant_message": "Captured. We are building a complete profile. Next: What is the exact client business name (as shown publicly)?",
+      "intent": "direct_answer",
+      "confidence": 0.9,
+      "suggestions": [
+        {
+          "id": "d1",
+          "label": "Fill missing: business name",
+          "confidence": 88
+        },
+        {
+          "id": "d2",
+          "label": "Also fill: conversion path",
+          "confidence": 79
+        },
+        {
+          "id": "d3",
+          "label": "Apply mapped draft and continue",
+          "confidence": 70
+        },
+        {
+          "id": "d4",
+          "label": "Refine this draft before applying",
+          "confidence": 61
+        }
+      ],
+      "updates": {
+        "industry_niche": "clinic_medical",
+        "primary_goal": "more_bookings",
+        "q3_market_scope": "local",
+        "q3_country": "budget is",
+        "q3_city": "We target local dentists",
+        "offers": [
+          {
+            "type": "best_seller",
+            "name": "Signature Service",
+            "promise": "results_focused",
+            "price_min": 1600,
+            "price_max": 2400
+          }
+        ],
+        "q6_offer_name": "Signature Service",
+        "primary_customer": "local dentists, budget is 2000 EUR monthly, goal is more booked consultations",
+        "audience_type": "local_consumers"
+      },
+      "raw": {
+        "version": "v2",
+        "status": "in_progress",
+        "assistant_message": "Captured. We are building a complete profile. Next: What is the exact client business name (as shown publicly)?",
+        "intent": "direct_answer",
+        "expects": "textarea",
+        "constraints": {
+          "required": true,
+          "min": 3,
+          "max": 1200,
+          "pattern": null
+        },
+        "suggestions": [
+          {
+            "id": "d1",
+            "label": "Fill missing: business name",
+            "confidence": 88
+          },
+          {
+            "id": "d2",
+            "label": "Also fill: conversion path",
+            "confidence": 79
+          },
+          {
+            "id": "d3",
+            "label": "Apply mapped draft and continue",
+            "confidence": 70
+          },
+          {
+            "id": "d4",
+            "label": "Refine this draft before applying",
+            "confidence": 61
+          }
+        ],
+        "updates": {
+          "industry_niche": "clinic_medical",
+          "primary_goal": "more_bookings",
+          "q3_market_scope": "local",
+          "q3_country": "budget is",
+          "q3_city": "We target local dentists",
+          "offers": [
+            {
+              "type": "best_seller",
+              "name": "Signature Service",
+              "promise": "results_focused",
+              "price_min": 1600,
+              "price_max": 2400
+            }
+          ],
+          "q6_offer_name": "Signature Service",
+          "primary_customer": "local dentists, budget is 2000 EUR monthly, goal is more booked consultations",
+          "audience_type": "local_consumers"
+        },
+        "confidence": 0.9,
+        "follow_up": "Northwave Fitness Locking this detail improves targeting accuracy for clinic_medical and strengthens your plan toward more_bookings.",
+        "current_state_json": {
+          "id": "18970e0e-9610-45d7-9877-6d3cb332f723",
+          "client_id": "5133f061-206e-4b0d-9e47-15f088c5ee0a",
+          "agency_id": "df7d1e0f-cb64-468c-8994-df3a1452927c",
+          "flow_type": "agency_led",
+          "current_step": 1,
+          "q3_market_scope": "local",
+          "q3_country": "budget is",
+          "q3_city": "We target local dentists",
+          "q6_offer_name": "Signature Service",
+          "ai_scan_accepted": false,
+          "readiness_score": 0,
+          "blockers": [],
+          "created_at": "2026-03-09T12:39:59.482855+00:00",
+          "updated_at": "2026-03-09T12:40:02.472399+00:00",
+          "meta_json": {},
+          "v5_meta": {},
+          "industry_niche": "clinic_medical",
+          "primary_goal": "more_bookings",
+          "offers": [
+            {
+              "type": "best_seller",
+              "name": "Signature Service",
+              "promise": "results_focused",
+              "price_min": 1600,
+              "price_max": 2400
+            }
+          ],
+          "audience_type": "local_consumers",
+          "primary_customer": "local dentists, budget is 2000 EUR monthly, goal is more booked consultations"
+        },
+        "current_state_version": "feb4a0970f3ca8dc99db3746dd9d748eea793ed83a173b6eab7e5b03213a70e3",
+        "errors": []
+      }
+    },
+    {
+      "id": "GS-CLIENT-002",
+      "status_code": 200,
+      "assistant_message": "Draft ready. We are building a complete profile. Next: What is the exact client business name (as shown publicly)?",
+      "intent": "help_request",
+      "confidence": 0.56,
+      "suggestions": [
+        {
+          "id": "h1",
+          "label": "Create a concrete draft answer for business name",
+          "confidence": 82
+        },
+        {
+          "id": "h2",
+          "label": "Give 3 strong persona examples I can choose from",
+          "confidence": 74
+        },
+        {
+          "id": "h3",
+          "label": "Recommend a realistic first 30-day goal",
+          "confidence": 66
+        },
+        {
+          "id": "h4",
+          "label": "Use this format: Northwave Fitness",
+          "confidence": 58
+        }
+      ],
+      "updates": {
+        "primary_customer": "for me?"
+      },
+      "raw": {
+        "version": "v2",
+        "status": "calibration_needed",
+        "assistant_message": "Draft ready. We are building a complete profile. Next: What is the exact client business name (as shown publicly)?",
+        "intent": "help_request",
+        "expects": "textarea",
+        "constraints": {
+          "required": true,
+          "min": 3,
+          "max": 1200,
+          "pattern": null
+        },
+        "suggestions": [
+          {
+            "id": "h1",
+            "label": "Create a concrete draft answer for business name",
+            "confidence": 82
+          },
+          {
+            "id": "h2",
+            "label": "Give 3 strong persona examples I can choose from",
+            "confidence": 74
+          },
+          {
+            "id": "h3",
+            "label": "Recommend a realistic first 30-day goal",
+            "confidence": 66
+          },
+          {
+            "id": "h4",
+            "label": "Use this format: Northwave Fitness",
+            "confidence": 58
+          }
+        ],
+        "updates": {
+          "primary_customer": "for me?"
+        },
+        "confidence": 0.56,
+        "follow_up": "Next: share one concrete niche, budget, and outcome target so I can increase confidence. Locking this detail improves targeting accuracy for gym_fitness_studio and strengthens your plan toward more_leads.",
+        "current_state_json": {
+          "id": "18970e0e-9610-45d7-9877-6d3cb332f723",
+          "client_id": "5133f061-206e-4b0d-9e47-15f088c5ee0a",
+          "agency_id": "df7d1e0f-cb64-468c-8994-df3a1452927c",
+          "flow_type": "agency_led",
+          "current_step": 1,
+          "ai_scan_accepted": false,
+          "readiness_score": 0,
+          "blockers": [],
+          "created_at": "2026-03-09T12:39:59.482855+00:00",
+          "updated_at": "2026-03-09T12:40:03.723238+00:00",
+          "meta_json": {},
+          "v5_meta": {},
+          "industry_niche": "gym_fitness_studio",
+          "primary_goal": "more_leads",
+          "primary_customer": "for me?"
+        },
+        "current_state_version": "976772c672e1976e9654bbf3206a9d9a0be32fc6b39cdb19aa2eba480920fa30",
+        "errors": []
+      }
+    },
+    {
+      "id": "GS-CLIENT-003",
+      "status_code": 200,
+      "assistant_message": "Need one specific niche detail. We are building a complete profile. Next: What is the exact client business name (as shown publicly)?",
+      "intent": "vague_answer",
+      "confidence": 0.5,
+      "suggestions": [
+        {
+          "id": "v1",
+          "label": "Here is a complete answer for business name: Northwave Fitness",
+          "confidence": 74
+        },
+        {
+          "id": "v2",
+          "label": "Niche: dentists | Budget: 2000 EUR/mo | Goal: more booked consults",
+          "confidence": 68
+        },
+        {
+          "id": "v3",
+          "label": "Niche: B2B SaaS | Budget: 3000 EUR/mo | Goal: more demos",
+          "confidence": 62
+        },
+        {
+          "id": "v4",
+          "label": "Use a starter draft and I will edit",
+          "confidence": 56
+        }
+      ],
+      "updates": {},
+      "raw": {
+        "version": "v2",
+        "status": "calibration_needed",
+        "assistant_message": "Need one specific niche detail. We are building a complete profile. Next: What is the exact client business name (as shown publicly)?",
+        "intent": "vague_answer",
+        "expects": "textarea",
+        "constraints": {
+          "required": true,
+          "min": 3,
+          "max": 1200,
+          "pattern": null
+        },
+        "suggestions": [
+          {
+            "id": "v1",
+            "label": "Here is a complete answer for business name: Northwave Fitness",
+            "confidence": 74
+          },
+          {
+            "id": "v2",
+            "label": "Niche: dentists | Budget: 2000 EUR/mo | Goal: more booked consults",
+            "confidence": 68
+          },
+          {
+            "id": "v3",
+            "label": "Niche: B2B SaaS | Budget: 3000 EUR/mo | Goal: more demos",
+            "confidence": 62
+          },
+          {
+            "id": "v4",
+            "label": "Use a starter draft and I will edit",
+            "confidence": 56
+          }
+        ],
+        "updates": {},
+        "confidence": 0.5,
+        "follow_up": "Next: share one concrete niche, budget, and outcome target so I can increase confidence. Locking this detail improves targeting accuracy for gym_fitness_studio and strengthens your plan toward more_leads.",
+        "current_state_json": {
+          "id": "18970e0e-9610-45d7-9877-6d3cb332f723",
+          "client_id": "5133f061-206e-4b0d-9e47-15f088c5ee0a",
+          "agency_id": "df7d1e0f-cb64-468c-8994-df3a1452927c",
+          "flow_type": "agency_led",
+          "current_step": 1,
+          "ai_scan_accepted": false,
+          "readiness_score": 0,
+          "blockers": [],
+          "created_at": "2026-03-09T12:39:59.482855+00:00",
+          "updated_at": "2026-03-09T12:40:07.108953+00:00",
+          "meta_json": {},
+          "v5_meta": {},
+          "industry_niche": "gym_fitness_studio",
+          "primary_goal": "more_leads"
+        },
+        "current_state_version": "6cb39f256a98567bb4f643673340d572a2b1bcb59891eb5a296b659a25545690",
+        "errors": []
+      }
+    },
+    {
+      "id": "GS-CLIENT-004",
+      "status_code": 200,
+      "assistant_message": "Back on onboarding. We are building a complete profile. Next: What is the exact client business name (as shown publicly)?",
+      "intent": "off_topic",
+      "confidence": 0.5,
+      "suggestions": [
+        {
+          "id": "o1",
+          "label": "Let's continue onboarding with a quick draft",
+          "confidence": 70
+        },
+        {
+          "id": "o2",
+          "label": "Set business name first",
+          "confidence": 65
+        },
+        {
+          "id": "o3",
+          "label": "Use defaults for missing required fields",
+          "confidence": 60
+        },
+        {
+          "id": "o4",
+          "label": "Show me what is blocking completion now",
+          "confidence": 55
+        }
+      ],
+      "updates": {},
+      "raw": {
+        "version": "v2",
+        "status": "calibration_needed",
+        "assistant_message": "Back on onboarding. We are building a complete profile. Next: What is the exact client business name (as shown publicly)?",
+        "intent": "off_topic",
+        "expects": "textarea",
+        "constraints": {
+          "required": true,
+          "min": 3,
+          "max": 1200,
+          "pattern": null
+        },
+        "suggestions": [
+          {
+            "id": "o1",
+            "label": "Let's continue onboarding with a quick draft",
+            "confidence": 70
+          },
+          {
+            "id": "o2",
+            "label": "Set business name first",
+            "confidence": 65
+          },
+          {
+            "id": "o3",
+            "label": "Use defaults for missing required fields",
+            "confidence": 60
+          },
+          {
+            "id": "o4",
+            "label": "Show me what is blocking completion now",
+            "confidence": 55
+          }
+        ],
+        "updates": {},
+        "confidence": 0.5,
+        "follow_up": "Next: share one concrete niche, budget, and outcome target so I can increase confidence. Locking this detail improves targeting accuracy for gym_fitness_studio and strengthens your plan toward more_leads.",
+        "current_state_json": {
+          "id": "18970e0e-9610-45d7-9877-6d3cb332f723",
+          "client_id": "5133f061-206e-4b0d-9e47-15f088c5ee0a",
+          "agency_id": "df7d1e0f-cb64-468c-8994-df3a1452927c",
+          "flow_type": "agency_led",
+          "current_step": 1,
+          "ai_scan_accepted": false,
+          "readiness_score": 0,
+          "blockers": [],
+          "created_at": "2026-03-09T12:39:59.482855+00:00",
+          "updated_at": "2026-03-09T12:40:07.89939+00:00",
+          "meta_json": {},
+          "v5_meta": {},
+          "industry_niche": "gym_fitness_studio",
+          "primary_goal": "more_leads"
+        },
+        "current_state_version": "b0d9af754bac0116e661af0144cc5afdcff463a80536f2b7cfc121339c8912fc",
+        "errors": []
+      }
+    },
+    {
+      "id": "GS-CLIENT-005",
+      "status_code": 200,
+      "assistant_message": "Captured. We are building a complete profile. Next: What conversion path should campaigns push to?",
+      "intent": "direct_answer",
+      "confidence": 0.6799999999999999,
+      "suggestions": [
+        {
+          "id": "d1",
+          "label": "Fill missing: conversion path",
+          "confidence": 88
+        },
+        {
+          "id": "d2",
+          "label": "Also fill: conversion link",
+          "confidence": 79
+        },
+        {
+          "id": "d3",
+          "label": "Apply mapped draft and continue",
+          "confidence": 70
+        },
+        {
+          "id": "d4",
+          "label": "Refine this draft before applying",
+          "confidence": 61
+        }
+      ],
+      "updates": {
+        "q2_website": "https://northwavefitness.com",
+        "q2_social_links": [
+          "https://instagram.com/northwavefitness"
+        ],
+        "industry_niche": "gym_fitness_studio",
+        "platforms": [
+          "instagram"
+        ],
+        "q16_enabled_channels": [
+          "instagram"
+        ],
+        "formats": [
+          "short_video",
+          "carousels"
+        ],
+        "cadence_preset": "standard",
+        "cadence_per_platform": {
+          "instagram": 5
+        },
+        "q18_cadence": {
+          "instagram": 5
+        }
+      },
+      "raw": {
+        "version": "v2",
+        "status": "in_progress",
+        "assistant_message": "Captured. We are building a complete profile. Next: What conversion path should campaigns push to?",
+        "intent": "direct_answer",
+        "expects": "textarea",
+        "constraints": {
+          "required": true,
+          "min": 3,
+          "max": 1200,
+          "pattern": null
+        },
+        "suggestions": [
+          {
+            "id": "d1",
+            "label": "Fill missing: conversion path",
+            "confidence": 88
+          },
+          {
+            "id": "d2",
+            "label": "Also fill: conversion link",
+            "confidence": 79
+          },
+          {
+            "id": "d3",
+            "label": "Apply mapped draft and continue",
+            "confidence": 70
+          },
+          {
+            "id": "d4",
+            "label": "Refine this draft before applying",
+            "confidence": 61
+          }
+        ],
+        "updates": {
+          "q2_website": "https://northwavefitness.com",
+          "q2_social_links": [
+            "https://instagram.com/northwavefitness"
+          ],
+          "industry_niche": "gym_fitness_studio",
+          "platforms": [
+            "instagram"
+          ],
+          "q16_enabled_channels": [
+            "instagram"
+          ],
+          "formats": [
+            "short_video",
+            "carousels"
+          ],
+          "cadence_preset": "standard",
+          "cadence_per_platform": {
+            "instagram": 5
+          },
+          "q18_cadence": {
+            "instagram": 5
+          }
+        },
+        "confidence": 0.6799999999999999,
+        "follow_up": "book_call or dm_keyword Locking this detail improves targeting accuracy for gym_fitness_studio and strengthens your plan toward more_leads.",
+        "current_state_json": {
+          "id": "18970e0e-9610-45d7-9877-6d3cb332f723",
+          "client_id": "5133f061-206e-4b0d-9e47-15f088c5ee0a",
+          "agency_id": "df7d1e0f-cb64-468c-8994-df3a1452927c",
+          "flow_type": "agency_led",
+          "current_step": 1,
+          "q1_business_name": "Northwave Fitness",
+          "q2_website": "https://northwavefitness.com",
+          "q2_social_links": [
+            "https://instagram.com/northwavefitness"
+          ],
+          "q16_enabled_channels": [
+            "instagram"
+          ],
+          "q18_cadence": {
+            "instagram": 5
+          },
+          "ai_scan_accepted": false,
+          "readiness_score": 0,
+          "blockers": [],
+          "created_at": "2026-03-09T12:39:59.482855+00:00",
+          "updated_at": "2026-03-09T12:40:08.720352+00:00",
+          "meta_json": {},
+          "v5_meta": {},
+          "industry_niche": "gym_fitness_studio",
+          "primary_goal": "more_leads",
+          "platforms": [
+            "instagram"
+          ],
+          "formats": [
+            "short_video",
+            "carousels"
+          ],
+          "cadence_preset": "standard",
+          "cadence_per_platform": {
+            "instagram": 5
+          }
+        },
+        "current_state_version": "6dc0385e276210df5886609873960cf88f1c84de603aff8593176525210dc391",
+        "errors": []
+      }
+    },
+    {
+      "id": "GS-CLIENT-006",
+      "status_code": 200,
+      "assistant_message": "Captured. We are building a complete profile. Next: What conversion path should campaigns push to?",
+      "intent": "direct_answer",
+      "confidence": 0.56,
+      "suggestions": [
+        {
+          "id": "d1",
+          "label": "Fill missing: conversion path",
+          "confidence": 88
+        },
+        {
+          "id": "d2",
+          "label": "Also fill: conversion link",
+          "confidence": 79
+        },
+        {
+          "id": "d3",
+          "label": "Apply mapped draft and continue",
+          "confidence": 70
+        },
+        {
+          "id": "d4",
+          "label": "Refine this draft before applying",
+          "confidence": 61
+        }
+      ],
+      "updates": {
+        "q3_city": "Nicosia",
+        "q3_country": "Cyprus",
+        "q3_market_scope": "local"
+      },
+      "raw": {
+        "version": "v2",
+        "status": "calibration_needed",
+        "assistant_message": "Captured. We are building a complete profile. Next: What conversion path should campaigns push to?",
+        "intent": "direct_answer",
+        "expects": "textarea",
+        "constraints": {
+          "required": true,
+          "min": 3,
+          "max": 1200,
+          "pattern": null
+        },
+        "suggestions": [
+          {
+            "id": "d1",
+            "label": "Fill missing: conversion path",
+            "confidence": 88
+          },
+          {
+            "id": "d2",
+            "label": "Also fill: conversion link",
+            "confidence": 79
+          },
+          {
+            "id": "d3",
+            "label": "Apply mapped draft and continue",
+            "confidence": 70
+          },
+          {
+            "id": "d4",
+            "label": "Refine this draft before applying",
+            "confidence": 61
+          }
+        ],
+        "updates": {
+          "q3_city": "Nicosia",
+          "q3_country": "Cyprus",
+          "q3_market_scope": "local"
+        },
+        "confidence": 0.56,
+        "follow_up": "Next: share one concrete niche, budget, and outcome target so I can increase confidence. Locking this detail improves targeting accuracy for gym_fitness_studio and strengthens your plan toward more_leads.",
+        "current_state_json": {
+          "id": "18970e0e-9610-45d7-9877-6d3cb332f723",
+          "client_id": "5133f061-206e-4b0d-9e47-15f088c5ee0a",
+          "agency_id": "df7d1e0f-cb64-468c-8994-df3a1452927c",
+          "flow_type": "agency_led",
+          "current_step": 1,
+          "q1_business_name": "Northwave Fitness",
+          "q3_market_scope": "local",
+          "q3_country": "Cyprus",
+          "q3_city": "Nicosia",
+          "ai_scan_accepted": false,
+          "readiness_score": 0,
+          "blockers": [],
+          "created_at": "2026-03-09T12:39:59.482855+00:00",
+          "updated_at": "2026-03-09T12:40:09.339809+00:00",
+          "meta_json": {},
+          "v5_meta": {},
+          "industry_niche": "gym_fitness_studio",
+          "primary_goal": "more_leads"
+        },
+        "current_state_version": "222c296e7d4c1da5dbe3bb87e1620805c5a0de79b01859f3762b6643641ae2f2",
+        "errors": []
+      }
+    }
+  ]
+}

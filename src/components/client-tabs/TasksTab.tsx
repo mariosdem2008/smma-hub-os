@@ -33,7 +33,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import { getDisplayName } from "@/lib/displayName";
 import { useRole } from "@/hooks/useRole";
-import { Plus, Pencil, Trash2, CalendarIcon, Clock, Filter, ArrowUpDown, BookTemplate } from "lucide-react";
+import { useAiAssistant, AiAssistantError } from "@/hooks/useAiAssistant";
+import { Plus, Pencil, Trash2, CalendarIcon, Clock, Filter, ArrowUpDown, BookTemplate, Copy } from "lucide-react";
 import { format, isPast } from "date-fns";
 import { cn } from "@/lib/utils";
 import ClientTabEmptyState from "./shared/ClientTabEmptyState";
@@ -62,6 +63,7 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
   const { user } = useAuth();
   const { canCreateContent } = useRole();
   const { toast } = useToast();
+  const aiAssistant = useAiAssistant();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [showTaskDialog, setShowTaskDialog] = useState(false);
@@ -71,6 +73,7 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
   const [submitting, setSubmitting] = useState(false);
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [templates, setTemplates] = useState<any[]>([]);
+  const [aiOutput, setAiOutput] = useState<{ body: string; updatedAt: string } | null>(null);
 
   // Filter & Sort state
   const [filterStatus, setFilterStatus] = useState<string>("all");
@@ -291,6 +294,54 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
     }
   };
 
+  const handleAiPrioritizeTasks = async () => {
+    try {
+      const response = await aiAssistant.mutateAsync({
+        action: "send",
+        clientId,
+        strategyId: null,
+        activeTab: "tasks",
+        message:
+          "Prioritize current tasks by business impact and urgency, then propose the top 5 execution order with short rationale.",
+      });
+      const assistantMessage =
+        "assistant_message" in response ? String(response.assistant_message ?? "") : "";
+      setAiOutput({
+        body: assistantMessage || "No prioritization text returned from AI assistant.",
+        updatedAt: new Date().toLocaleTimeString(),
+      });
+      toast({
+        title: "AI task prioritization ready",
+        description: assistantMessage.slice(0, 180) || "Prioritization generated.",
+      });
+    } catch (error) {
+      if (error instanceof AiAssistantError && error.code === "AI_SETUP_REQUIRED") {
+        toast({
+          title: "AI setup required",
+          description: "Complete AI Setup to use tasks AI quick actions.",
+          variant: "destructive",
+        });
+        return;
+      }
+      const message = error instanceof Error ? error.message : "Failed to prioritize tasks with AI";
+      toast({
+        title: "AI action failed",
+        description: message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCopyAiOutput = async () => {
+    if (!aiOutput?.body) return;
+    try {
+      await navigator.clipboard.writeText(aiOutput.body);
+      toast({ title: "Copied", description: "Tasks AI output copied to clipboard." });
+    } catch {
+      toast({ title: "Copy failed", description: "Clipboard is unavailable in this context.", variant: "destructive" });
+    }
+  };
+
   const getPriorityBadgeVariant = (priority: string) => {
     switch (priority) {
       case "urgent":
@@ -384,6 +435,10 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
           <CardTitle>Tasks</CardTitle>
           {canCreateContent && (
             <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={handleAiPrioritizeTasks} disabled={aiAssistant.isPending}>
+                <ArrowUpDown className="mr-2 h-4 w-4" />
+                AI Prioritize Tasks
+              </Button>
               <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
                 <DialogTrigger asChild>
                   <Button size="sm" variant="outline">
@@ -565,6 +620,22 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
           )}
         </CardHeader>
         <CardContent>
+          {aiOutput && (
+            <div className="mb-4 rounded-lg border border-primary/30 bg-primary/5 p-3">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <div className="text-sm font-semibold">Tasks AI Output</div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Updated {aiOutput.updatedAt}</span>
+                  <Button size="sm" variant="outline" onClick={handleCopyAiOutput}>
+                    <Copy className="mr-2 h-4 w-4" />
+                    Copy
+                  </Button>
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground whitespace-pre-wrap">{aiOutput.body}</p>
+            </div>
+          )}
+
           {/* Filters and Sorting */}
           <div className="mb-4 flex flex-wrap gap-2 items-center">
             <div className="flex items-center gap-2">

@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Loader2, Globe, CheckCheck, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, Loader2, Globe, CheckCheck, ChevronDown, ChevronRight, Copy } from "lucide-react";
 import ProjectCard from "@/components/pipeline/ProjectCard";
 import ProjectEditor from "@/components/pipeline/ProjectEditor";
 import BulkUploadModal from "@/components/pipeline/BulkUploadModal";
@@ -12,6 +12,7 @@ import SchedulingModal from "@/components/pipeline/SchedulingModal";
 import { useRole } from "@/hooks/useRole";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { logActivity } from "@/hooks/useActivityLog";
+import { useAiAssistant, AiAssistantError } from "@/hooks/useAiAssistant";
 
 interface PipelineTabProps {
   clientId: string;
@@ -69,6 +70,56 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
   const [bulkApproving, setBulkApproving] = useState(false);
   const { toast } = useToast();
   const { isOwner, isAdmin, isManager } = useRole();
+  const aiAssistant = useAiAssistant();
+  const [aiOutput, setAiOutput] = useState<{ body: string; updatedAt: string } | null>(null);
+
+  const handleAiBottleneckSummary = async () => {
+    try {
+      const response = await aiAssistant.mutateAsync({
+        action: "send",
+        clientId,
+        strategyId: null,
+        activeTab: "pipeline",
+        message:
+          "Summarize current pipeline bottlenecks from this client context and suggest the top 3 operator actions for this week.",
+      });
+      const assistantMessage =
+        "assistant_message" in response ? String(response.assistant_message ?? "") : "";
+      setAiOutput({
+        body: assistantMessage || "No summary text returned from AI assistant.",
+        updatedAt: new Date().toLocaleTimeString(),
+      });
+      toast({
+        title: "AI bottleneck summary ready",
+        description: assistantMessage.slice(0, 180) || "Summary generated.",
+      });
+    } catch (error) {
+      if (error instanceof AiAssistantError && error.code === "AI_SETUP_REQUIRED") {
+        toast({
+          title: "AI setup required",
+          description: "Complete AI Setup to use pipeline AI quick actions.",
+          variant: "destructive",
+        });
+        return;
+      }
+      const message = error instanceof Error ? error.message : "Failed to generate AI bottleneck summary";
+      toast({
+        title: "AI action failed",
+        description: message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCopyAiOutput = async () => {
+    if (!aiOutput?.body) return;
+    try {
+      await navigator.clipboard.writeText(aiOutput.body);
+      toast({ title: "Copied", description: "Pipeline AI output copied to clipboard." });
+    } catch {
+      toast({ title: "Copy failed", description: "Clipboard is unavailable in this context.", variant: "destructive" });
+    }
+  };
 
   const fetchProjects = async () => {
     try {
@@ -409,6 +460,18 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={handleAiBottleneckSummary}
+            disabled={aiAssistant.isPending}
+          >
+            {aiAssistant.isPending ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <ChevronRight className="h-4 w-4 mr-2" />
+            )}
+            AI Bottleneck Summary
+          </Button>
           {canBulkApprove && (
             <Button 
               variant="outline" 
@@ -425,6 +488,22 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
           </Button>
         </div>
       </div>
+
+      {aiOutput && (
+        <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <div className="text-sm font-semibold">Pipeline AI Output</div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Updated {aiOutput.updatedAt}</span>
+              <Button size="sm" variant="outline" onClick={handleCopyAiOutput}>
+                <Copy className="h-4 w-4 mr-2" />
+                Copy
+              </Button>
+            </div>
+          </div>
+          <p className="text-sm text-muted-foreground whitespace-pre-wrap">{aiOutput.body}</p>
+        </div>
+      )}
 
       {/* Pipeline Board - Horizontal Stages */}
       <DragDropContext onDragEnd={handleDragEnd}>

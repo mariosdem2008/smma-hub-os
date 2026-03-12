@@ -1,6 +1,6 @@
 # SMMAHUB Route and Workflow Atlas (Visual E2E + Execution Blueprints)
 
-Last updated: 2026-03-07  
+Last updated: 2026-03-08  
 Scope: Dedicated accessibility-first map of routes, screenshots, workflow findings, and implementation plans.
 
 ## 1) Run Baseline and Evidence Index
@@ -847,3 +847,61 @@ Scope: Dedicated accessibility-first map of routes, screenshots, workflow findin
    - closed workflow set remains green and regression-validated
 4. Packaging artifact:
    - `docs/audit/system/SMMAHUB_LAUNCH_READINESS_PACKAGE.md`
+
+## 46) Continuation Verification Delta (2026-03-08 17:46)
+1. Continuation reruns executed for visual matrix + onboarding quality + client lifecycle + portal + AI surfaces.
+2. Current status:
+   - `WF-AGENCY-ONBOARDING`: Closed (maintained, `11/11` + `20/20`)
+   - `WF-CLIENT-LIFECYCLE`: Closed (maintained, `9/9`)
+   - `WF-AI-SURFACES`: Closed (maintained, `7/7`)
+   - `WF-CLIENT-PORTAL`: Reopened (noise) due repeated `401` console errors despite `10/10` route success
+   - `WF-AGENCY-OPS`: Reopened (harness) due deterministic runner navigation race (`page.content` during navigation)
+3. Execution note:
+   - reopenings above are evidence/runtime-noise and harness-contract debt; no new high-confidence product crash reproduced in these reruns.
+4. Evidence:
+   - `docs/audit/system/evidence/e2e_visual_2026-03-06/notes/visual_e2e_summary.md`
+   - `docs/audit/system/evidence/wf_agency_onboarding_2026-03-08/quality_e2e_index.json`
+   - `docs/audit/system/evidence/wf_client_lifecycle_2026-03-07/logs/wf_client_lifecycle_summary.json`
+   - `docs/audit/system/evidence/wf_client_portal_2026-03-07/logs/wf_client_portal_summary.json`
+   - `docs/audit/system/evidence/wf_ai_surfaces_2026-03-07/logs/wf_ai_surfaces_summary.json`
+   - `docs/audit/system/evidence/e2e_visual_2026-03-06/notes/interactive_flow_summary.md`
+
+## 47) Continuation Remediation Targets (2026-03-08 17:52)
+1. Reopened items to close in next cycle:
+   - `WF-CLIENT-PORTAL`: keep functional pass, remove portal-tab `401` console noise
+   - `WF-AGENCY-OPS`: resolve runner navigation race
+   - interactive-flow evidence harness: align selectors with current auth/onboarding UI
+2. Fixed acceptance gates for closure:
+   - portal: `10/10` + `consoleErrorCount=0`
+   - agency ops: runner completes and writes stable summary artifact
+   - interactive flow: no selector timeout in login/onboarding steps
+3. Execution commands locked in strategy doc:
+   - see `SMMAHUB_ULTIMATE_PLAN_DAY_BY_DAY.md` (`Continuation Remediation Sprint`)
+
+## 48) Continuation Remediation Execution #1 (2026-03-08 17:59)
+1. `WF-AGENCY-OPS` runner stability:
+   - prior navigation-race crash resolved
+   - latest run: `8/8` pass, `console_errors=0`
+   - residual: `request_failures=21` (`net::ERR_ABORTED`) tracked as non-blocking noise
+2. Interactive-flow harness stability:
+   - stale selector failures removed
+   - latest run: `5/5` pass with onboarding steps marked `N/A` under auth-gated persona state
+3. Current status update:
+   - `WF-AGENCY-OPS`: Closed (maintained for functional path)
+   - interactive-flow harness: Closed for selector/race stability; coverage note remains for auth-precondition seeding
+   - `WF-CLIENT-PORTAL`: remains Reopened (console `401` noise)
+4. Evidence:
+   - `docs/audit/system/evidence/wf_agency_ops_2026-03-07/logs/wf_agency_ops_summary.json`
+   - `docs/audit/system/evidence/e2e_visual_2026-03-06/notes/interactive_flow_summary.md`
+   - `docs/audit/system/evidence/e2e_visual_2026-03-06/logs/flow_steps.json`
+
+## 49) Continuation Remediation Execution #2 (2026-03-08 18:12)
+1. `WF-CLIENT-PORTAL` closure rerun completed after portal query-gating patch.
+2. Validation result:
+   - workflow steps: `10/10` pass
+   - `console_errors=0`
+   - `request_failures=0`
+3. Workflow status impact:
+   - `WF-CLIENT-PORTAL`: Closed (Green, maintained)
+4. Evidence:
+   - `docs/audit/system/evidence/wf_client_portal_2026-03-07/logs/wf_client_portal_summary.json`

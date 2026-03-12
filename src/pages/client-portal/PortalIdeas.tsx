@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useHasSupabaseSession } from "@/hooks/useHasSupabaseSession";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -54,6 +55,7 @@ interface OutletContext {
 export function PortalIdeas() {
   const { clientId } = useOutletContext<OutletContext>();
   const { toast } = useToast();
+  const { hasSession, loading: sessionLoading } = useHasSupabaseSession();
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -66,6 +68,12 @@ export function PortalIdeas() {
   const [reviewIdeaTitle, setReviewIdeaTitle] = useState<string>('');
 
   useEffect(() => {
+    if (sessionLoading) return;
+    if (!hasSession) {
+      setIdeas([]);
+      setLoading(false);
+      return;
+    }
     fetchIdeas();
 
     // Subscribe to real-time updates
@@ -88,7 +96,7 @@ export function PortalIdeas() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [clientId]);
+  }, [clientId, hasSession, sessionLoading]);
 
   const fetchIdeas = async () => {
     const { data } = await supabase

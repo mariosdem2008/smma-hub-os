@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -7,8 +8,9 @@ import { useTopPosts } from "@/hooks/useTopPosts";
 import { useWorstPosts } from "@/hooks/useWorstPosts";
 import { useProfileTrends } from "@/hooks/useProfileTrends";
 import { useSyncSocialMetrics } from "@/hooks/useSyncSocialMetrics";
+import { useAiAssistant, AiAssistantError } from "@/hooks/useAiAssistant";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, Users, Heart, TrendingUp, TrendingDown, Instagram, Facebook, RefreshCw } from "lucide-react";
+import { Eye, Users, Heart, TrendingUp, TrendingDown, Instagram, Facebook, RefreshCw, Wand2, Copy } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { format } from "date-fns";
 
@@ -18,6 +20,8 @@ interface AnalyticsTabProps {
 
 export default function AnalyticsTab({ clientId }: AnalyticsTabProps) {
   const { toast } = useToast();
+  const aiAssistant = useAiAssistant();
+  const [aiOutput, setAiOutput] = useState<{ body: string; updatedAt: string } | null>(null);
   const { data: analytics, isLoading: analyticsLoading, error: analyticsError } = useClientAnalytics(clientId);
   const { data: topPosts, isLoading: topPostsLoading } = useTopPosts(clientId, 5);
   const { data: worstPosts, isLoading: worstPostsLoading } = useWorstPosts(clientId, 5);
@@ -56,6 +60,54 @@ export default function AnalyticsTab({ clientId }: AnalyticsTabProps) {
     });
   };
 
+  const handleAiAnomalySummary = async () => {
+    try {
+      const response = await aiAssistant.mutateAsync({
+        action: "send",
+        clientId,
+        strategyId: null,
+        activeTab: "analytics",
+        message:
+          "Summarize anomalies and opportunities from recent performance data and propose the top 3 next actions.",
+      });
+      const assistantMessage =
+        "assistant_message" in response ? String(response.assistant_message ?? "") : "";
+      setAiOutput({
+        body: assistantMessage || "No anomaly summary text returned from AI assistant.",
+        updatedAt: new Date().toLocaleTimeString(),
+      });
+      toast({
+        title: "AI anomaly summary ready",
+        description: assistantMessage.slice(0, 180) || "Anomaly summary generated.",
+      });
+    } catch (error) {
+      if (error instanceof AiAssistantError && error.code === "AI_SETUP_REQUIRED") {
+        toast({
+          title: "AI setup required",
+          description: "Complete AI Setup to use analytics AI quick actions.",
+          variant: "destructive",
+        });
+        return;
+      }
+      const message = error instanceof Error ? error.message : "Failed to generate anomaly summary";
+      toast({
+        title: "AI action failed",
+        description: message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCopyAiOutput = async () => {
+    if (!aiOutput?.body) return;
+    try {
+      await navigator.clipboard.writeText(aiOutput.body);
+      toast({ title: "Copied", description: "Analytics AI output copied to clipboard." });
+    } catch {
+      toast({ title: "Copy failed", description: "Clipboard is unavailable in this context.", variant: "destructive" });
+    }
+  };
+
   const getPlatformIcon = (platform: string) => {
     switch (platform.toLowerCase()) {
       case "instagram":
@@ -88,10 +140,31 @@ export default function AnalyticsTab({ clientId }: AnalyticsTabProps) {
           <p className="text-sm text-muted-foreground mb-6">
             Connect social profiles and publish content to see insights. Metrics sync runs every 6 hours.
           </p>
-          <Button onClick={handleSync} disabled={syncMutation.isPending} variant="outline">
-            <RefreshCw className={`h-4 w-4 mr-2 ${syncMutation.isPending ? "animate-spin" : ""}`} />
-            {syncMutation.isPending ? "Syncing..." : "Sync Now"}
-          </Button>
+          <div className="flex items-center justify-center gap-2">
+            <Button onClick={handleAiAnomalySummary} disabled={aiAssistant.isPending} variant="outline">
+              <Wand2 className={`h-4 w-4 mr-2 ${aiAssistant.isPending ? "animate-pulse" : ""}`} />
+              {aiAssistant.isPending ? "Analyzing..." : "AI Anomaly Summary"}
+            </Button>
+            <Button onClick={handleSync} disabled={syncMutation.isPending} variant="outline">
+              <RefreshCw className={`h-4 w-4 mr-2 ${syncMutation.isPending ? "animate-spin" : ""}`} />
+              {syncMutation.isPending ? "Syncing..." : "Sync Now"}
+            </Button>
+          </div>
+          {aiOutput && (
+            <div className="mt-4 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-left">
+              <div className="mb-1 flex items-center justify-between gap-2">
+                <div className="text-sm font-semibold">Analytics AI Output</div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Updated {aiOutput.updatedAt}</span>
+                  <Button size="sm" variant="outline" onClick={handleCopyAiOutput}>
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copy
+                  </Button>
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground whitespace-pre-wrap">{aiOutput.body}</p>
+            </div>
+          )}
         </CardContent>
       </Card>
     );
@@ -105,11 +178,32 @@ export default function AnalyticsTab({ clientId }: AnalyticsTabProps) {
           <h2 className="text-xl font-semibold">Performance Analytics</h2>
           <p className="text-sm text-muted-foreground">Last 30 days</p>
         </div>
-        <Button onClick={handleSync} disabled={syncMutation.isPending} variant="outline" size="sm">
-          <RefreshCw className={`h-4 w-4 mr-2 ${syncMutation.isPending ? "animate-spin" : ""}`} />
-          {syncMutation.isPending ? "Syncing..." : "Sync Metrics"}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button onClick={handleAiAnomalySummary} disabled={aiAssistant.isPending} variant="outline" size="sm">
+            <Wand2 className={`h-4 w-4 mr-2 ${aiAssistant.isPending ? "animate-pulse" : ""}`} />
+            {aiAssistant.isPending ? "Analyzing..." : "AI Anomaly Summary"}
+          </Button>
+          <Button onClick={handleSync} disabled={syncMutation.isPending} variant="outline" size="sm">
+            <RefreshCw className={`h-4 w-4 mr-2 ${syncMutation.isPending ? "animate-spin" : ""}`} />
+            {syncMutation.isPending ? "Syncing..." : "Sync Metrics"}
+          </Button>
+        </div>
       </div>
+      {aiOutput && (
+        <div className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-2">
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <div className="text-sm font-semibold">Analytics AI Output</div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Updated {aiOutput.updatedAt}</span>
+              <Button size="sm" variant="outline" onClick={handleCopyAiOutput}>
+                <Copy className="h-4 w-4 mr-2" />
+                Copy
+              </Button>
+            </div>
+          </div>
+          <p className="text-sm text-muted-foreground whitespace-pre-wrap">{aiOutput.body}</p>
+        </div>
+      )}
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardContent className="pt-6">

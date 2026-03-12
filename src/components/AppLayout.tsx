@@ -37,11 +37,15 @@ export function AppLayout() {
   const upgradeBadgeText = getUpgradeBadgeText();
 
   const isOnboarding = location.pathname.startsWith("/ai/onboarding/agency");
+  const isClientOnboarding =
+    location.pathname.startsWith("/onboarding/client/") ||
+    location.pathname.startsWith("/ai/onboarding/client/") ||
+    location.pathname.startsWith("/onboarding/ai/client/");
 
   if (isOnboarding) {
     return (
-      <div className="min-h-screen w-full">
-        <main className="min-h-screen p-0">
+      <div className="h-[100dvh] w-full overflow-x-hidden overflow-y-hidden">
+        <main className="h-full min-h-0 overflow-x-hidden overflow-y-hidden p-0">
           <Outlet />
         </main>
       </div>
@@ -50,9 +54,9 @@ export function AppLayout() {
 
   return (
     <SidebarProvider>
-      <div className="saas-onboarding-theme flex min-h-screen w-full">
+      <div className="saas-onboarding-theme flex h-[100dvh] w-full overflow-x-hidden overflow-y-hidden">
         {!isMobile && <AppSidebar />}
-        <div className="relative z-10 flex flex-1 flex-col">
+        <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-hidden">
           <header className="sticky top-0 z-20 flex h-14 items-center gap-4 border-b border-white/10 bg-black/45 px-4 backdrop-blur-md">
             {!isMobile && <SidebarTrigger className="icon-hover" />}
             <div className="flex-1">
@@ -83,13 +87,23 @@ export function AppLayout() {
               {!isMobile && <span className="text-sm text-muted-foreground hidden md:inline">{user?.email}</span>}
             </div>
           </header>
-          <main className={isMobile ? "flex-1 p-4 pb-20" : "flex-1 p-6"}>
+          <main
+            className={
+              isClientOnboarding
+                ? isMobile
+                  ? "flex-1 min-h-0 overflow-x-hidden overflow-y-auto p-2 pb-2"
+                  : "flex-1 min-h-0 overflow-x-hidden overflow-y-auto p-3"
+                : isMobile
+                  ? "flex-1 min-h-0 overflow-x-hidden overflow-y-auto p-4 pb-20"
+                  : "flex-1 min-h-0 overflow-x-hidden overflow-y-auto p-6"
+            }
+          >
             <Outlet />
           </main>
         </div>
       </div>
 
-      {isMobile && <MobileBottomNav />}
+      {isMobile && !isClientOnboarding && <MobileBottomNav />}
 
       <InviteTeamMemberDialog
         open={showInviteDialog}

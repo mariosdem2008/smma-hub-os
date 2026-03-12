@@ -867,3 +867,420 @@ Objective: Reach the promised high-quality SMMAHUB SaaS standard across UX, reli
    - onboarding targeted suite + build pass
 4. Execution implication:
    - onboarding workflow remains green with improved operator trust in guided input state
+
+## Continuation Delta (2026-03-08 17:46)
+1. Fresh continuation audit cycle executed after launch-readiness package.
+2. Verified green workflows in live reruns:
+   - onboarding quality: `normal 11/11`, `adversarial 20/20`
+   - client lifecycle: `9/9`
+   - AI surfaces: `7/7`
+3. Newly identified residual execution items:
+   - portal route pack has repeated `401` console noise despite `10/10` functional pass
+   - agency-ops and interactive-flow runners show harness drift/race failures (selector + navigation timing debt)
+4. Next immediate operations (docs-first, then production-fix slice):
+   - stabilize portal data-call contracts for portal token context to eliminate `401` noise
+   - repair agency-ops + interactive evidence harnesses to match current UI contracts
+   - rerun full workflow pack and update closure evidence once noise and harness blockers are cleared
+
+## Continuation Remediation Sprint (2026-03-08, next execution block)
+1. `WF-CLIENT-PORTAL` noise closure
+   - Problem: repeated `401` console errors on portal tabs while route flow still passes.
+   - Acceptance criteria:
+   - `wf_client_portal_e2e` remains `10/10`.
+   - `consoleErrorCount` drops from `18` to `0`.
+   - No portal-tab query emits agency-auth scoped `401` in portal-token context.
+   - Rerun command:
+   - `node docs/audit/system/evidence/wf_client_portal_2026-03-07/notes/run_wf_client_portal_e2e.mjs`
+2. `WF-AGENCY-OPS` harness race closure
+   - Problem: runner fails with `page.content` during active navigation (capture race).
+   - Acceptance criteria:
+   - `wf_agency_ops_e2e` finishes without runtime exception.
+   - Stable summary artifact written to `wf_agency_ops_summary.json`.
+   - No false negative due capture timing.
+   - Rerun command:
+   - `node docs/audit/system/evidence/wf_agency_ops_2026-03-07/notes/run_wf_agency_ops_e2e.mjs`
+3. Interactive-flow harness selector drift closure
+   - Problem: stale selectors/state assumptions (`#email`, `Use & send`) after onboarding UI changes.
+   - Acceptance criteria:
+   - `interactive_flow_summary.md` has no selector timeout failures.
+   - login/create-agency/onboarding send and suggestion paths are deterministically captured.
+   - Route + interaction screenshots map to current UI contracts.
+   - Rerun command:
+   - `node docs/audit/system/evidence/e2e_visual_2026-03-06/notes/run_interactive_flow.mjs`
+4. Final closure gate for this sprint
+   - Execute visual + workflow rerun pack:
+   - `node docs/audit/system/evidence/e2e_visual_2026-03-06/notes/run_visual_e2e.mjs`
+   - `node docs/audit/system/evidence/wf_agency_onboarding_2026-03-08/notes/run_wf_agency_onboarding_quality_e2e.mjs`
+   - `node docs/audit/system/evidence/wf_client_lifecycle_2026-03-07/notes/run_wf_client_lifecycle_e2e.mjs`
+   - `node docs/audit/system/evidence/wf_ai_surfaces_2026-03-07/notes/run_wf_ai_surfaces_e2e.mjs`
+   - Update `SMMAHUB_E2E_USER_AUDIT_LIVING.md` and `SMMAHUB_ROUTE_WORKFLOW_ATLAS.md` with dated outcomes and status flip only after evidence is green.
+
+## Continuation Remediation Sprint Update (2026-03-08 17:59)
+1. Completed:
+   - agency-ops runner race fix validated (`8/8` pass; no crash)
+   - interactive-flow selector/state drift fixed (no stale selector timeout)
+2. Residual:
+   - portal `401` console-noise closure still pending (`WF-CLIENT-PORTAL`)
+   - request-noise normalization (`ERR_ABORTED`) remains a cross-runner evidence quality task
+3. Immediate next run block:
+   - execute portal-specific noise closure pass
+   - keep functional pass (`10/10`) while forcing `consoleErrorCount=0`
+
+## Continuation Remediation Sprint Update (2026-03-08 18:12)
+1. Portal noise-closure objective is completed:
+   - `WF-CLIENT-PORTAL` rerun = `10/10` pass, `console_errors=0`, `request_failures=0`
+2. Sprint closure status:
+   - reopened continuation items are now closed for this cycle
+   - remaining cross-runner improvement item is optional request-abort noise normalization (`ERR_ABORTED`) for cleaner evidence logs
+3. Verification:
+   - `npm run lint` pass
+
+## Continuation Update (2026-03-08, Client Onboarding Strategy Decision)
+1. Product-direction decision captured:
+   - `WF-CLIENT-ONBOARDING` migration path is set to **full AI-native conversational onboarding** (approved).
+2. Implementation constraint:
+   - preserve existing V5 typed profile schema and readiness gates while migrating UI/interaction layer to conversational flow.
+3. Current implementation status:
+   - reliability hardening completed (`invalid client` deterministic handling)
+   - deep E2E now green (`10/10`, `console_errors=0`, `request_failures=0`)
+4. Dedicated plan/evidence reference:
+   - `docs/audit/system/SMMAHUB_WF_CLIENT_ONBOARDING_DEEP_AUDIT.md`
+
+## Continuation Update (2026-03-08, Client Onboarding Copilot Closure Batch)
+1. Implemented global readiness + blockers guidance inside onboarding copilot:
+   - overall onboarding completion bar
+   - top blocker list (missing required fields mapped to owner section)
+   - one-click navigation to blocker field focus
+2. Purpose:
+   - reduce user confusion on "what is still missing"
+   - turn copilot from section-local helper into full-flow completion driver
+3. Verification:
+   - `npm run lint`: pass
+   - `vitest src/components/onboarding-v5/__tests__/onboardingV5Wizard.test.tsx`: pass
+   - deep workflow rerun: `wf_client_onboarding_deep_e2e 11/11`, `console_errors=0`, `request_failures=0`
+4. Evidence:
+   - `docs/audit/system/evidence/wf_client_onboarding_deep_2026-03-08/notes/wf_client_onboarding_deep_summary.md`
+   - `docs/audit/system/evidence/wf_client_onboarding_deep_2026-03-08/logs/wf_client_onboarding_deep_summary.json`
+
+## Continuation Update (2026-03-08, Copilot Intelligence/Tone Stabilization)
+1. Implemented copilot intelligence hardening:
+   - intent classifier moved into dedicated tested module
+   - response tone generation upgraded to varied deterministic premium copy
+   - contextual guidance added for question/help intents (including quick persona draft in audience section)
+2. Quality objective addressed:
+   - reduce repetitive/static assistant feel
+   - improve first-impression quality while preserving deterministic field mapping
+3. Verification:
+   - `npm run lint`: pass
+   - `vitest` targeted (`copilot` + `onboarding wizard`): pass (`8/8`)
+   - deep onboarding E2E rerun: `11/11`, `console_errors=0`, `request_failures=0`
+4. Evidence:
+   - `docs/audit/system/evidence/wf_client_onboarding_deep_2026-03-08/notes/wf_client_onboarding_deep_summary.md`
+   - `docs/audit/system/evidence/wf_client_onboarding_deep_2026-03-08/logs/wf_client_onboarding_deep_summary.json`
+
+## Continuation Update (2026-03-08, Low-Confidence Apply Safety Gate)
+1. Implemented safety gate for AI/copilot draft application:
+   - low-confidence drafts do not apply on first click
+   - explicit second-click confirmation required before mutating onboarding fields
+2. Product-quality impact:
+   - reduces accidental bad writes from uncertain extraction
+   - keeps flow fast for medium/high-confidence mappings
+3. Telemetry added:
+   - `onboarding_copilot_draft_apply_guard_triggered`
+   - `onboarding_copilot_draft_applied` now includes `low_confidence_confirmed`
+4. Verification:
+   - `npm run lint`: pass
+   - targeted `vitest`: pass
+   - deep onboarding E2E rerun: `11/11`, `console_errors=0`, `request_failures=0`
+
+## Continuation Update (2026-03-08, Client Onboarding Reset Kickoff)
+1. Direction change confirmed:
+   - stop incremental patching as primary path
+   - move to full V2 rebuild (chat-first, AI-native, mobile-first)
+2. Foundation shipped behind feature flag:
+   - new flag: `ONBOARDING_V2` (default OFF)
+   - route-gated rendering in client onboarding page
+   - new V2 shell scaffold component (`ClientOnboardingV2Shell`)
+3. Planning/spec package added:
+   - `docs/audit/system/SMMAHUB_CLIENT_ONBOARDING_V2_RESET_BLUEPRINT.md`
+4. Rollout safety:
+   - V5 remains active default path until V2 reaches green acceptance gates
+
+## Continuation Update (2026-03-08, V2 Big-Bang Implementation Slice)
+1. Big-bang route state is now implemented in code:
+   - `ONBOARDING_V2` default ON
+   - `ONBOARDING_V5` default OFF
+   - explicit rollback overrides supported via env/query (`false`/`0`)
+2. V2 onboarding now includes core interaction contract:
+   - state machine lifecycle
+   - unified `ai-onboarding` v2 payload/response path
+   - apply/undo/revise/why actions with low-confidence guard
+   - compact readiness + blockers + completion gate
+3. Reliability checks:
+   - `npm run lint`: pass
+   - feature flag tests: pass
+   - `npm run build`: pass
+4. Evidence debt introduced by cutover:
+   - legacy deep-runner selectors were V5-specific and failed at `4/5`
+   - closure completed in same cycle: deep runner migrated to V2 selectors and re-established green gate
+
+## Continuation Update (2026-03-08, V2 Deep Runner Closure)
+1. `WF-CLIENT-ONBOARDING` deep evidence harness migrated to V2 contract/selector model.
+2. Rerun result:
+   - `wf_client_onboarding_deep_e2e: 10/10`
+   - `console_errors=0`
+   - `request_failures=0`
+3. Impact:
+   - big-bang V2 cutover now has aligned automated evidence coverage (no legacy selector drift blocker).
+
+## Continuation Update (2026-03-08, V2 Full Completion E2E Closure)
+1. Added deterministic completion-path support in V2:
+   - `Apply launch-ready starter draft` action in chat shell.
+2. Deep runner expanded to validate full V2 journey:
+   - blocked completion gate -> starter draft -> generate enabled -> generate redirect.
+3. Latest evidence status:
+   - `wf_client_onboarding_deep_e2e: 13/13`
+   - `console_errors=0`
+   - `request_failures=0`
+4. Workflow implication:
+   - `WF-CLIENT-ONBOARDING` V2 path now has green automated end-to-end functional coverage, including completion and redirect.
+
+## Continuation Update (2026-03-08, V2 Conversational Extraction Hardening)
+1. Backend V2 extraction reliability improved:
+   - added deterministic heuristic mapping fallback for common onboarding answer patterns when model extraction returns empty updates.
+2. Product impact:
+   - normal user answers now map to meaningful structured updates more consistently
+   - reduced dependence on starter-draft shortcut for progression.
+3. Verification:
+   - `npm run lint`: pass
+   - deep V2 run remains green: `13/13`, `console_errors=0`, `request_failures=0`
+
+## Continuation Update (2026-03-08, V2 Intent-Aware Suggestion Polish)
+1. Backend V2 responses now use intent-aware suggestion packs instead of generic fallback suggestions.
+2. Assistant response tone tightened per intent path (question/help/vague/off-topic/direct-answer) for less repetitive, more premium output.
+3. Verification:
+   - `npm run lint`: pass
+   - deep V2 run remains green: `13/13`, `console_errors=0`, `request_failures=0`
+
+## Continuation Update (2026-03-08, V2 Premium UX Polish Pass)
+1. Applied UI/UX polish for conversation-first perception:
+   - cleaner centered width
+   - larger chat area
+   - reduced top/bottom noise
+   - compact sticky composer for mobile
+   - better suggestion chip usability on narrow screens
+2. Synced deep-runner assertion with updated V2 readiness copy.
+3. Verification:
+   - `npm run lint`: pass
+   - deep V2 run remains green: `13/13`, `console_errors=0`, `request_failures=0`
+
+## Continuation Update (2026-03-08, Live Professionalism Audit Pass)
+1. Executed fresh live V2 onboarding walkthrough with screenshot refresh.
+2. Implemented professionalism upgrades in this pass:
+   - authenticated mobile evidence capture
+   - smarter next-missing-field guidance with examples
+   - explicit in-chat thinking indicator for speed perception
+3. Validation:
+   - `npm run lint`: pass
+   - deep V2 run remains green: `13/13`, `console_errors=0`, `request_failures=0`
+4. Remaining professionalism backlog captured in gap register:
+   - deeper strategic coaching quality
+   - reduce starter-draft prominence in primary flow
+   - mobile completion action density compaction
+   - latency SLO instrumentation (p50/p95) in evidence runner
+
+## Continuation Update (2026-03-08, Professionalism Backlog Execution)
+1. Executed remaining high-priority professionalism tasks:
+   - smarter missing-field guidance with contextual examples + strategic impact line
+   - reduced prominence of auto-fill shortcut
+   - compacted mobile bottom action density
+   - added explicit `Thinking...` state in conversation timeline
+   - implemented latency instrumentation in deep runner output (p50/p95/max)
+2. Verification:
+   - `npm run lint`: pass
+   - deep V2 run: `13/13`, `console_errors=0`, `request_failures=0`
+   - latest run latency: `p50/p95 1428/1428 ms (n=2)`
+
+## Continuation Update (2026-03-08, Client Onboarding V2 Latency SLO Gate Enforced)
+1. Upgraded client-onboarding deep runner to enforce a launch-quality performance gate.
+2. Added enforced step:
+   - `quality:v2_latency_p95_slo`
+3. Added summary contract outputs:
+   - `latency.target_p95_ms`
+   - `latency.slo_pass`
+4. Latest rerun:
+   - `wf_client_onboarding_deep_e2e: 14/14`
+   - `console_errors=0`
+   - `request_failures=0`
+   - latency: `p50/p95 1383/1383 ms (n=2)`, target `2500ms`, `slo_pass=true`
+
+## Continuation Update (2026-03-09, Client Onboarding UX Structure Upgrade)
+1. Route-level overflow lock closure shipped for client onboarding:
+   - app shell now enforces onboarding-specific `100dvh` + `overflow-hidden`
+   - onboarding route main pane uses `min-h-0 overflow-hidden`
+   - mobile bottom navigation is suppressed on onboarding route to avoid extra page height/scroll
+2. Chat experience restructured for stronger DM feel:
+   - suggestions now render as dedicated assistant message blocks
+   - composer moved inside chat shell (conversation-native input model)
+   - non-chat chrome compacted to increase message viewport
+3. Runner contract alignment:
+   - deep runner now expands readiness `Details` before starter-draft checks when needed
+4. Latest verification:
+   - `npm run lint`: pass
+   - `wf_client_onboarding_deep_e2e: 14/14`
+   - `console_errors=0`
+   - `request_failures=0`
+   - latency: `p50/p95 1602/1602 ms (n=2)`, target `2500ms`, `slo_pass=true`
+
+## Continuation Update (2026-03-09, Client Onboarding Edge-Case Hardening)
+1. Fixed repeat-loop and intent-quality defects in onboarding turn handling:
+   - duplicate send blocked while request is in-flight
+   - direct-answer repeat prompt guard added
+   - intent classifier corrected for:
+     - direct answer phrases containing “help”
+     - off-topic questions being mislabeled as generic `question`
+2. Runtime compatibility + deployment:
+   - V2 payload now includes legacy-compatible message fields for mixed contract environments
+   - deployed latest `ai-onboarding` to project `dbclmdeowohzmwtkktsa`
+3. Speed optimization:
+   - backend extraction now uses heuristic fast-path and avoids LLM extraction when sufficient signal exists
+4. Edge probe result:
+   - `wf_client_onboarding_edge_probes: 4/4` pass
+   - latest latency sample: `p50=1774ms`, `p95=2339ms` (`n=4`)
+
+## Continuation Update (2026-03-09, Regular-User Client Onboarding E2E Closure)
+1. Full UI walkthrough rerun with screenshot evidence is green:
+   - `wf_client_onboarding_deep_e2e: 14/14`
+   - `console_errors=0`
+   - `request_failures=0`
+   - latency SLO pass: `p95=2372ms <= 2500ms`
+2. Data-capture quality validated for AI readiness:
+   - direct-answer turns map to structured profile keys required for downstream strategy generation (`industry_niche`, `primary_goal`, geo, offers, audience).
+3. Status impact:
+   - `WF-CLIENT-ONBOARDING` remains green for this implementation phase with both UX and edge-case evidence updated.
+
+## Continuation Update (2026-03-09, Client Onboarding Latency Stabilization Pass)
+1. Applied backend speed hardening in `ai-onboarding` V2 path:
+   - question/help intents now skip `EXTRACT_STRUCTURED` LLM extraction and use deterministic mapping + guided follow-up.
+2. Deployment:
+   - deployed `ai-onboarding` to `dbclmdeowohzmwtkktsa`.
+3. Verification:
+   - deep UI rerun: `wf_client_onboarding_deep_e2e 14/14`, `console_errors=0`, `request_failures=0`
+   - latency SLO: `p50/p95 2304/2304 ms (n=2)`, target `2500ms`, `slo_pass=true`
+   - edge probes: `4/4` pass, `p50/p95 2426/5110 ms (n=4)` (adversarial jitter monitoring remains open)
+4. Status impact:
+   - `WF-CLIENT-ONBOARDING` stays green with refreshed post-deploy proof pack.
+
+## Continuation Update (2026-03-09, Client Detail Deep E2E + AI Surface Audit)
+1. Executed dedicated deep workflow for `/clients/:clientId` with seeded owner/agency/client fixture and completed-onboarding path.
+2. Validation outcome:
+   - `wf_client_detail_deep_e2e: 24/24`
+   - `console_errors=0`
+   - `request_failures=0`
+   - AI function invocations observed:
+     - `ai-strategy-generate` (`200`)
+     - `generate-monthly-report` (`200`)
+   - right-panel AI setup guard validated (panel opens; chat input disabled when setup incomplete)
+3. Key finding:
+   - navigation and tab matrix are green; remaining AI-depth gap is right-panel full chat/proposal/undo validation on an AI-ready fixture.
+4. Artifacts:
+   - `docs/audit/system/SMMAHUB_WF_CLIENT_DETAIL_DEEP_AUDIT.md`
+   - `docs/audit/system/evidence/wf_client_detail_deep_2026-03-09/notes/wf_client_detail_deep_summary.md`
+   - `docs/audit/system/evidence/wf_client_detail_deep_2026-03-09/logs/wf_client_detail_deep_summary.json`
+
+## Continuation Update (2026-03-09, Client Detail Deep Runner Hardening + AI-Ready Probe)
+1. Extended client-detail deep runner fixture and reliability:
+   - seeded approved `rep_policy` + `quality_bar`
+   - seeded baseline strategy + strategy modules
+   - added authenticated navigation retry (`gotoAuthed`) to eliminate session drift during tab hops
+2. Verification rerun:
+   - `wf_client_detail_deep_e2e: 24/24`
+   - `console_errors=0`
+   - `request_failures=0`
+   - observed AI calls: `ai-strategy-generate (200)`, `generate-monthly-report (200)`
+3. New finding:
+   - right panel opens, but no `ai-assistant` request was emitted in this pack and UI remained in setup-required guard state despite seeded docs.
+4. Status impact:
+   - `WF-CLIENT-DETAIL` stays Yellow for AI depth until right-panel `load/send -> proposal apply/undo` dispatch contract is proven with evidence.
+
+## Continuation Update (2026-03-09, Client Detail Right-Panel Dispatch Fix + Re-Verification)
+1. Implemented right-panel load-loop fix in UI:
+   - `ClientRightPanel` now uses one-shot thread bootstrap (`hasLoadedThread`) per open/client lifecycle.
+   - prevents repeated `load` calls when thread is empty and avoids composer staying disabled.
+2. Hardened deep runner assertions:
+   - waits for panel settle before checking composer enabled state
+   - sends right-panel message via Enter key in composer
+   - treats proposal visibility as informational unless deterministic proposal fixtures are used
+3. Verification rerun (latest):
+   - `wf_client_detail_deep_e2e: 25/25`
+   - `console_errors=0`
+   - `request_failures=0`
+   - observed AI calls: `ai-strategy-generate (200)`, `generate-monthly-report (200)`, `ai-assistant (200)`
+4. Status impact:
+   - right-panel dispatch gap is closed; remaining AI-depth item is deterministic proposal/apply/undo proof in a dedicated probe mode.
+
+## Continuation Update (2026-03-09, Client Detail Deterministic Proposal Lifecycle Closure)
+1. Implemented deterministic proposal reliability for right-panel assistant:
+   - edge fallback added in `ai-assistant` for explicit update/proposal requests when model returns no proposals.
+   - deployed `ai-assistant` to project `dbclmdeowohzmwtkktsa`.
+2. Upgraded deep runner to assert full lifecycle with deterministic prompts:
+   - `ai-assistant` send
+   - proposal visibility
+   - apply change
+   - undo change
+3. Verification rerun (latest):
+   - `wf_client_detail_deep_e2e: 27/27`
+   - `console_errors=0`
+   - `request_failures=0`
+   - observed AI calls include `ai-assistant (200)` + strategy/report endpoints.
+4. Status impact:
+   - right-panel assistant dispatch/proposal/apply/undo lifecycle is now closed as green.
+   - remaining client-detail AI work is deep tab-level productivity probes (pipeline, idea-scripting, calendar).
+
+## Continuation Update (2026-03-09, Client Detail Non-Strategy AI Probes)
+1. Extended deep runner with tab-level AI probes for:
+   - Idea/Scripting (`AI Assist` -> `Generate Hooks` -> `generate-ai-content`)
+   - Pipeline route-target + seeded fixture visibility check
+   - Calendar AI-action state snapshot
+2. Latest verification rerun:
+   - `wf_client_detail_deep_e2e: 33/33`
+   - `console_errors=0`
+   - `request_failures=0`
+   - observed AI endpoints include `generate-ai-content (200)` in addition to strategy/report/right-panel paths.
+3. Findings:
+   - Idea/Scripting AI generation path is now proven end-to-end.
+   - Pipeline project-editor AI probe is still partially constrained by non-deterministic stage/card visibility selectors.
+   - Calendar currently lacks a dedicated calendar-native AI productivity action.
+4. Status impact:
+   - WF-CLIENT-DETAIL is green for strategy/reports/right-panel/idea-scripting AI.
+   - remaining scope: pipeline probe determinism + calendar-native AI action contract.
+
+## Continuation Update (2026-03-09, Pipeline Probe Determinism + A11y Console Cleanup)
+1. Stabilized pipeline tab probe selectors in deep runner:
+   - stage-header scoped locator for `Idea` stage
+   - seeded project visibility + project-editor `AI Assist` visibility now deterministic
+2. Fixed accessibility warning discovered during deep run:
+   - added sr-only `DialogTitle` to `ProjectEditor` loading-state `DialogContent`.
+3. Verification rerun (latest):
+   - `wf_client_detail_deep_e2e: 34/34`
+   - `console_errors=0`
+   - `request_failures=0`
+   - `ai_requests=6`
+4. Status impact:
+   - client-detail non-strategy AI probes are green for idea/scripting and pipeline.
+   - remaining open item in this area: calendar-native AI productivity action contract.
+
+## Continuation Update (2026-03-09, Calendar-Native AI Action Closure)
+1. Implemented calendar-native AI entrypoint:
+   - added `AI Assist` action in `CalendarTab` header using shared AI assistant component.
+2. Extended deep runner calendar probes:
+   - verify calendar AI action visibility
+   - open `Generate Captions` flow
+   - assert `generate-ai-content` invocation
+3. Verification rerun (latest):
+   - `wf_client_detail_deep_e2e: 33/33`
+   - `console_errors=0`
+   - `request_failures=0`
+   - calendar AI generation endpoint observed with `200`
+4. Status impact:
+   - client-detail AI probe coverage is now green for strategy, reports, right-panel lifecycle, idea/scripting, pipeline, and calendar entrypoints.

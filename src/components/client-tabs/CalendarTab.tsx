@@ -11,6 +11,7 @@ import { convertToLocal } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import ScheduledPostDetailModal from "@/components/pipeline/ScheduledPostDetailModal";
 import ClientTabEmptyState from "./shared/ClientTabEmptyState";
+import { AIAssistant } from "@/components/pipeline/AIAssistant";
 import { useNavigate } from "react-router-dom";
 
 interface CalendarTabProps {
@@ -204,6 +205,46 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
             Manage your scheduled and published content
           </p>
         </div>
+        <AIAssistant
+          projectId=""
+          clientId={clientId}
+          onGenerateIdea={() => {
+            toast({
+              title: "Idea generated",
+              description: "Use it in Ideas or Pipeline for execution.",
+            });
+          }}
+          onGenerateHook={() => {
+            toast({
+              title: "Hooks generated",
+              description: "Review and use in script workflows.",
+            });
+          }}
+          onGenerateScript={() => {
+            toast({
+              title: "Script generated",
+              description: "Open Idea/Scripting to apply the draft.",
+            });
+          }}
+          onImproveScript={() => {
+            toast({
+              title: "Script improvements generated",
+              description: "Open Idea/Scripting to apply updates.",
+            });
+          }}
+          onGenerateCaption={() => {
+            toast({
+              title: "Captions generated",
+              description: "Use results for scheduled posts in Calendar.",
+            });
+          }}
+          onImproveCaption={() => {
+            toast({
+              title: "Caption improvements generated",
+              description: "Apply refined copy before publish.",
+            });
+          }}
+        />
       </div>
 
       {/* Status Legend */}

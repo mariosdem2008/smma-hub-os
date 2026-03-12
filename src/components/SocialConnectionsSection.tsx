@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/hooks/useRole";
+import { useHasSupabaseSession } from "@/hooks/useHasSupabaseSession";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -93,6 +94,7 @@ const PLATFORMS = [
 export default function SocialConnectionsSection({ clientId, isClientPortal = false }: SocialConnectionsSectionProps) {
   const { toast } = useToast();
   const { role, isOwner, isAdmin, isManager } = useRole();
+  const { hasSession, loading: sessionLoading } = useHasSupabaseSession();
   const [connections, setConnections] = useState<SocialConnection[]>([]);
   const [loading, setLoading] = useState(true);
   const [connectingPlatform, setConnectingPlatform] = useState<string | null>(null);
@@ -112,12 +114,18 @@ export default function SocialConnectionsSection({ clientId, isClientPortal = fa
   // Determine if user can manage connections
   // In client portal: all users can manage
   // In main app: only owners and managers
-  const canManageConnections = isClientPortal || isOwner || isAdmin || isManager;
+  const canManageConnections = isClientPortal ? hasSession : isOwner || isAdmin || isManager;
   const pollIntervalRef = useRef<number | null>(null);
 
   useEffect(() => {
+    if (sessionLoading) return;
+    if (isClientPortal && !hasSession) {
+      setConnections([]);
+      setLoading(false);
+      return;
+    }
     fetchConnections();
-  }, [clientId]);
+  }, [clientId, isClientPortal, hasSession, sessionLoading]);
 
   useEffect(() => {
     return () => {

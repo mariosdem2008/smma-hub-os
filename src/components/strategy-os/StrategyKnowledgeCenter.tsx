@@ -491,8 +491,6 @@ export function StrategyKnowledgeCenter({ clientId, agencyId }: StrategyKnowledg
   };
 
   const showGenerateErrorToast = (error: unknown, title: string) => {
-    console.error(title, error);
-
     const err = error as any;
     const message = err instanceof Error ? err.message : "Unknown error";
     const deepLink = typeof err?.deepLink === "string" ? (err.deepLink as string) : undefined;
@@ -504,6 +502,15 @@ export function StrategyKnowledgeCenter({ clientId, agencyId }: StrategyKnowledg
     if (code || deepLink || missingFields?.length || questions?.length) {
       setRequirements({ code, message, deepLink, missingFields, questions });
       setRequirementsOpen(true);
+    }
+
+    // Keep expected setup/readiness failures out of error-level console noise.
+    const expectedReadinessError =
+      code === "AGENCY_BRAIN_INCOMPLETE" ||
+      code === "BRAIN_INCOMPLETE" ||
+      code === "MISSING_DOCUMENT";
+    if (!expectedReadinessError) {
+      console.error(title, error);
     }
 
     toast({

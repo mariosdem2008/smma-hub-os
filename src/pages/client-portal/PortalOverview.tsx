@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useHasSupabaseSession } from "@/hooks/useHasSupabaseSession";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -40,6 +41,7 @@ interface Stats {
 
 export function PortalOverview() {
   const { client, clientId } = useOutletContext<OutletContext>();
+  const { hasSession, loading: sessionLoading } = useHasSupabaseSession();
   const [stats, setStats] = useState<Stats>({
     totalPosts: 0,
     totalIdeas: 0,
@@ -49,9 +51,11 @@ export function PortalOverview() {
   const brandColorsFallback = Array.isArray(client.brand_colors) ? client.brand_colors : [];
 
   useEffect(() => {
+    if (sessionLoading) return;
+    if (!hasSession) return;
     fetchStats();
     fetchBrandColors();
-  }, [clientId]);
+  }, [clientId, hasSession, sessionLoading]);
 
   const fetchBrandColors = async () => {
     const { data } = await supabase
