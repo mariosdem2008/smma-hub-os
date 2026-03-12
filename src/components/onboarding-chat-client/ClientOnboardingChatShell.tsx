@@ -384,14 +384,14 @@ export function ClientOnboardingChatShell({ agencyId, clientId }: { agencyId: st
                 Ask AI
               </Button>
             </div>
-          </CardContent>
-        </Card>
-        <Card className="mt-3 border-white/10 bg-black/45 text-white">
-          <CardHeader className="border-b border-white/10 py-3">
-            <CardTitle>{activeCard?.title ?? "No active card"}</CardTitle>
-            <CardDescription className="text-white/70">Fill this card, then continue chat.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4 pt-4">
+            <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+              <div className="mb-3">
+                <div className="text-sm font-semibold text-white">{activeCard?.title ?? "No active card"}</div>
+                <div className="text-xs text-white/70">
+                  {activeCard ? "Fill this card, then continue chat." : "Waiting for next step..."}
+                </div>
+              </div>
+              <div className="space-y-4">
             {error ? <div className="rounded border border-destructive/30 bg-destructive/10 p-2 text-sm text-destructive">{error}</div> : null}
 
             {activeCard?.id === "business_essentials_card" && (
@@ -624,9 +624,11 @@ export function ClientOnboardingChatShell({ agencyId, clientId }: { agencyId: st
               </div>
             )}
 
-            <Button type="button" onClick={() => void handleCardSubmit()} disabled={!activeCard || submitting} className="w-full">
-              {submitting ? "Saving..." : activeCard?.submitLabel ?? "Continue"}
-            </Button>
+                <Button type="button" onClick={() => void handleCardSubmit()} disabled={!activeCard || submitting} className="w-full">
+                  {submitting ? "Saving..." : activeCard?.submitLabel ?? "Continue"}
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
