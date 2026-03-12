@@ -59,14 +59,14 @@ function detectFreeformIntent(input: string): "help" | "continue" | "question" |
 function getError(status: number, message: string) {
   return new Response(JSON.stringify({ error: message }), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json" },
   });
 }
 
-function response(body: unknown, status = 200) {
+function response(body: unknown, headers: Record<string, string>, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...headers, "Content-Type": "application/json" },
   });
 }
 
@@ -174,34 +174,36 @@ async function ensureProfile(
 }
 
 serve(async (req) => {
+  const headers = corsHeaders(req);
+
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response(null, { status: 204, headers });
   }
 
   try {
-    const guard = getEndpointGuardResponse("ai-onboarding-client-chat", corsHeaders);
+    const guard = getEndpointGuardResponse("ai-onboarding-client-chat", headers);
     if (guard) return guard;
 
     const authHeader = req.headers.get("authorization");
-    if (!authHeader) return getError(401, "Missing Authorization header");
+    if (!authHeader) return response({ error: "Missing Authorization header" }, headers, 401);
 
     const body = (await req.json()) as ChatRequest;
     const agencyId = body.agency_id;
     const clientId = body.client_id;
     const mode = body.mode ?? "start";
 
-    if (!agencyId || !clientId) return getError(400, "agency_id and client_id are required");
+    if (!agencyId || !clientId) return response({ error: "agency_id and client_id are required" }, headers, 400);
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    if (!supabaseUrl || !serviceRoleKey) return getError(500, "Missing Supabase environment variables");
+    if (!supabaseUrl || !serviceRoleKey) return response({ error: "Missing Supabase environment variables" }, headers, 500);
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     const token = authHeader.replace("Bearer ", "");
     const {
       data: { user },
     } = await supabase.auth.getUser(token);
-    if (!user) return getError(401, "Unauthorized");
+    if (!user) return response({ error: "Unauthorized" }, headers, 401);
 
     const { data: member } = await supabase
       .from("agency_members")
@@ -209,10 +211,10 @@ serve(async (req) => {
       .eq("agency_id", agencyId)
       .eq("user_id", user.id)
       .maybeSingle();
-    if (!member) return getError(403, "Unauthorized for agency");
+    if (!member) return response({ error: "Unauthorized for agency" }, headers, 403);
 
     const profile = await ensureProfile(supabase, clientId, agencyId);
-    if (!profile) return getError(500, "Failed to initialize onboarding profile");
+    if (!profile) return response({ error: "Failed to initialize onboarding profile" }, headers, 500);
 
     let workingProfile = profile;
     const v5Meta = asRecord(workingProfile.v5_meta);
@@ -233,7 +235,7 @@ serve(async (req) => {
     if (mode === "card_submit") {
       lastSubmittedCardTitle = currentCard.title;
       const cardId = body.card_id;
-      if (!cardId) return getError(400, "card_id is required for card_submit");
+      if (!cardId) return response({ error: "card_id is required for card_submit" }, headers, 400);
       if (cardId !== currentCard.id) {
         return response({
           ok: false,
@@ -243,7 +245,7 @@ serve(async (req) => {
             ...currentCard,
             prefill: workingProfile,
           },
-        }, 409);
+        }, headers, 409);
       }
 
       const validation = validateCardPayload(cardId, body.card_payload ?? {});
@@ -280,7 +282,7 @@ serve(async (req) => {
             id: cardId,
             prefill: body.card_payload ?? {},
           },
-        }, 422);
+        }, headers, 422);
       }
 
       const nextCard = getNextClientOnboardingCard(cardId);
@@ -324,7 +326,7 @@ serve(async (req) => {
         .update(updatePayload)
         .eq("client_id", clientId)
         .eq("agency_id", agencyId);
-      if (updateError) return getError(500, "Failed to save onboarding card");
+      if (updateError) return response({ error: "Failed to save onboarding card" }, headers, 500);
 
       saveResult = "saved";
       const { data: reloaded } = await supabase
@@ -333,7 +335,7 @@ serve(async (req) => {
         .eq("client_id", clientId)
         .eq("agency_id", agencyId)
         .maybeSingle();
-      if (!reloaded) return getError(500, "Failed to reload onboarding profile");
+      if (!reloaded) return response({ error: "Failed to reload onboarding profile" }, headers, 500);
       workingProfile = reloaded as ProfileRow;
       currentCard = nextCard;
 
@@ -345,12 +347,12 @@ serve(async (req) => {
             errors: finalProgress.missingFields.map((field) => `${getFieldLabel(field)} is required.`),
             assistant_text: "You still have required fields missing before strategy generation.",
             ui_card: { ...currentCard, prefill: {} },
-          }, 422);
+          }, headers, 422);
         }
         const { error: completeError } = await supabase.rpc("complete_onboarding_profile", {
           p_client_id: clientId,
         });
-        if (completeError) return getError(500, "Failed to complete onboarding");
+        if (completeError) return response({ error: "Failed to complete onboarding" }, headers, 500);
 
         await appendTurnLog(supabase, {
           agency_id: agencyId,
@@ -386,7 +388,7 @@ serve(async (req) => {
           },
           blockers: [],
           next_path: `/clients/${clientId}`,
-        });
+        }, headers);
       }
     } else if (mode === "freeform" && body.message?.trim()) {
       intent = detectFreeformIntent(body.message.trim());
@@ -458,9 +460,9 @@ serve(async (req) => {
       },
       blockers,
       trace_id: crypto.randomUUID(),
-    });
+    }, headers);
   } catch (error) {
     console.error("ai-onboarding-client-chat error:", error);
-    return getError(500, error instanceof Error ? error.message : "Unknown error");
+    return response({ error: error instanceof Error ? error.message : "Unknown error" }, headers, 500);
   }
 });
