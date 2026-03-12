@@ -342,22 +342,31 @@ export function ClientOnboardingChatShell({ agencyId, clientId }: { agencyId: st
   }
 
   return (
-    <div className="h-[calc(100vh-1rem)] overflow-y-auto bg-background p-4 md:p-6">
-      <div className="mx-auto grid w-full max-w-6xl gap-4 lg:grid-cols-[1.05fr_1fr]">
-        <Card className="min-h-[70vh]">
-          <CardHeader>
-            <CardTitle>Client onboarding chat</CardTitle>
-            <CardDescription>{progressText}</CardDescription>
+    <div className="onboarding-topo h-[100dvh] overflow-hidden px-3 py-3 text-white md:px-4 md:py-4">
+      <div className="mx-auto h-full w-full max-w-[1080px]">
+        <Card className="flex h-full min-h-0 flex-col overflow-hidden border-white/10 bg-black/45 backdrop-blur-sm">
+          <CardHeader className="border-b border-white/10 py-3">
+            <CardTitle>Client Onboarding Chat</CardTitle>
+            <CardDescription className="text-white/70">{progressText}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="max-h-[56vh] space-y-3 overflow-y-auto rounded-md border p-3">
+            <div className="max-h-[48vh] space-y-3 overflow-y-auto rounded-xl border border-white/10 bg-black/25 p-3">
               {messages.map((message) => (
                 <div key={message.id} className={message.role === "assistant" ? "text-left" : "text-right"}>
-                  <div className={message.role === "assistant" ? "inline-block rounded-lg bg-muted px-3 py-2 text-sm" : "inline-block rounded-lg bg-primary/15 px-3 py-2 text-sm"}>
+                  <div className={message.role === "assistant" ? "inline-block max-w-[92%] rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/90" : "inline-block max-w-[92%] rounded-2xl border border-primary/40 bg-primary/30 px-3 py-2 text-sm text-white"}>
                     {message.text}
                   </div>
                 </div>
               ))}
+              {activeCard ? (
+                <div className="text-left">
+                  <div className="inline-block max-w-[92%] rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/90">
+                    <div className="text-[10px] uppercase tracking-[0.2em] text-white/50">AI Assistant</div>
+                    <div className="mt-1 font-semibold text-white">{activeCard.title}</div>
+                    <div className="text-white/70">{activeCard.description}</div>
+                  </div>
+                </div>
+              ) : null}
             </div>
             <div className="flex gap-2">
               <Input
@@ -371,19 +380,18 @@ export function ClientOnboardingChatShell({ agencyId, clientId }: { agencyId: st
                   }
                 }}
               />
-              <Button type="button" variant="outline" onClick={() => void submitFreeform()}>
+              <Button type="button" variant="outline" onClick={() => void submitFreeform()} disabled={!freeform.trim()}>
                 Ask AI
               </Button>
             </div>
           </CardContent>
         </Card>
-
-        <Card>
-          <CardHeader>
+        <Card className="mt-3 border-white/10 bg-black/45 text-white">
+          <CardHeader className="border-b border-white/10 py-3">
             <CardTitle>{activeCard?.title ?? "No active card"}</CardTitle>
-            <CardDescription>{activeCard?.description ?? "Waiting for next step..."}</CardDescription>
+            <CardDescription className="text-white/70">Fill this card, then continue chat.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 pt-4">
             {error ? <div className="rounded border border-destructive/30 bg-destructive/10 p-2 text-sm text-destructive">{error}</div> : null}
 
             {activeCard?.id === "business_essentials_card" && (
