@@ -59,7 +59,7 @@ CRON_SECRET | yes (cron) | `long-random` | supabase/functions/_shared/cron.ts:1-
 - Cron setup guidance exists for scheduled functions (evidence: supabase/functions/CRON_SETUP.md:7-103)
 
 ## Deployment notes
-- Publish flow is documented via Lovable checklist steps (evidence: PRODUCTION_CHECKLIST.md:141-147)
+- Publish flow is documented via the production checklist steps (evidence: PRODUCTION_CHECKLIST.md:141-147)
 - Edge function redeploys happen on code change (evidence: PRODUCTION_CHECKLIST.md:21-22)
 
 ## Cron security
@@ -118,7 +118,7 @@ Evidence: .github/workflows/ci.yml:1-32
 - P2: Reduce bundle size via code splitting (evidence: audit-pack/outputs/build_safe_to_sell.txt:10-12)
 
 ## Definition of Done (production)
-- 100% of required secrets configured in Supabase/Lovable (evidence: PRODUCTION_CHECKLIST.md:5-23, supabase/functions/_shared/env.ts:12-23)
+- 100% of required secrets configured in Supabase/deployment secrets (evidence: PRODUCTION_CHECKLIST.md:5-23, supabase/functions/_shared/env.ts:12-23)
 - 100% edge functions either verify_jwt or implement explicit auth checks (evidence: supabase/config.toml:3-96, supabase/functions/_shared/cron.ts:1-16)
 - 1 CI pipeline running lint + typecheck + build on PRs (evidence: .github/workflows/ci.yml:1-32)
 - 1 staging run of cron jobs with logs reviewed (evidence: supabase/functions/CRON_SETUP.md:7-103)

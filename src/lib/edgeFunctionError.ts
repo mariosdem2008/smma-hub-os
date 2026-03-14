@@ -6,6 +6,10 @@ export interface EdgeFunctionError {
   code: string;
   message: string;
   deepLink?: string;
+  requiredMode?: string;
+  unlockState?: string;
+  activationMode?: string;
+  missingCertificationScenarios?: string[];
   missingFields?: string[];
   questions?: string[];
 }
@@ -19,6 +23,8 @@ export interface ParsedResponse<T = unknown> {
 const ERROR_MESSAGES: Record<string, string> = {
   BRAIN_INCOMPLETE: "Please complete your client profile before generating a strategy.",
   AGENCY_BRAIN_INCOMPLETE: "Please complete your AI Setup before generating strategies.",
+  READINESS_SCOPE_INCOMPLETE: "More client context is needed before the system can move from diagnosis into a recommended strategy.",
+  AGENT_ACTIVATION_REQUIRED: "This AI workflow is blocked until the required agent class is activated at the required rollout mode in Agency AI Setup.",
   MISSING_API_KEY: "AI service not configured. Please contact your administrator.",
   RAG_FAILURE: "Failed to retrieve context. Please try again.",
   GENERATION_TIMEOUT: "Strategy generation timed out. Please try again.",
@@ -84,9 +90,16 @@ export function parseEdgeFunctionResponse<T = unknown>(data: unknown): ParsedRes
         code,
         message:
           (response.message as string) ||
-          ERROR_MESSAGES[code] ||
           (response.error as string) ||
+          ERROR_MESSAGES[code] ||
           "An error occurred.",
+        deepLink: response.deep_link as string | undefined,
+        requiredMode: response.required_mode as string | undefined,
+        unlockState: response.unlock_state as string | undefined,
+        activationMode: response.activation_mode as string | undefined,
+        missingCertificationScenarios: Array.isArray(response.missing_certification_scenarios)
+          ? (response.missing_certification_scenarios as string[])
+          : undefined,
       },
     };
   }

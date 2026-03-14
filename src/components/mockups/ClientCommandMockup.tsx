@@ -5,8 +5,6 @@ export default function ClientCommandMockup() {
   return (
     <motion.div 
       className="rounded-xl border-2 border-border bg-surface shadow-xl overflow-hidden"
-      whileHover={{ y: -4, scale: 1.02 }}
-      transition={{ duration: 0.2 }}
     >
       <div className="p-6 space-y-6">
         {/* Branding Colors Section */}

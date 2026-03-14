@@ -48,7 +48,7 @@ const REJECTION_CATEGORY_LABELS: Record<string, string> = {
 
 const ACTION_CONFIG: Record<string, { icon: React.ComponentType<any>; label: string; color: string }> = {
   stage_changed: { icon: ArrowRight, label: 'Stage Changed', color: 'text-blue-500' },
-  assigned_to_changed: { icon: UserCheck, label: 'Assignment Changed', color: 'text-purple-500' },
+  assigned_to_changed: { icon: UserCheck, label: 'Assignment Changed', color: 'text-primary' },
   rejection_added: { icon: AlertCircle, label: 'Rejection Added', color: 'text-amber-500' },
   rejection_cleared: { icon: CheckCircle, label: 'Rejection Cleared', color: 'text-green-500' },
   comment_added: { icon: MessageSquare, label: 'Comment Added', color: 'text-blue-400' },

@@ -84,3 +84,15 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: npm run quality:client-detail:deep:gate
+
+      - name: Install Playwright Chromium (client-onboarding chat gate)
+        if: ${{ secrets.WF_CLIENT_ONBOARDING_BASE_URL != '' && secrets.SUPABASE_URL != '' && secrets.SUPABASE_SERVICE_ROLE_KEY != '' }}
+        run: npx playwright install --with-deps chromium
+
+      - name: Client-onboarding chat quality gate (staging-backed, optional)
+        if: ${{ secrets.WF_CLIENT_ONBOARDING_BASE_URL != '' && secrets.SUPABASE_URL != '' && secrets.SUPABASE_SERVICE_ROLE_KEY != '' }}
+        env:
+          WF_CLIENT_ONBOARDING_BASE_URL: ${{ secrets.WF_CLIENT_ONBOARDING_BASE_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: npm run quality:client-onboarding:chat:gate

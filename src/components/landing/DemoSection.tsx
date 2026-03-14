@@ -28,7 +28,7 @@ export function DemoSection() {
       ref={sectionRef}
       initial={{ opacity: 0 }}
       animate={isInView ? { opacity: 1 } : {}}
-      transition={{ duration: 0.4 }}
+      transition={{ duration: 0.75 }}
       className="section-md lp-section"
     >
       <LandingContainer className="relative z-10">
@@ -116,4 +116,3 @@ export function DemoSection() {
     </motion.section>
   );
 }
-

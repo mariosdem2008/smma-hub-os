@@ -88,6 +88,8 @@ function getTimeoutMs(taskType: TaskType) {
     case TaskType.EMBED_TEXT:
       return 10_000;
     case TaskType.STRATEGY_PLAN:
+    case TaskType.STRATEGY_DIAGNOSIS:
+    case TaskType.STRATEGY_RECOMMENDATION:
     case TaskType.CLIENT_PORTAL_QA:
       return 180_000;
     case TaskType.SUMMARIZE:

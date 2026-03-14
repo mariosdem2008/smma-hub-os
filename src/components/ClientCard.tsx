@@ -32,7 +32,7 @@ export function ClientCard({ client, onClick }: ClientCardProps) {
               className="h-12 w-12 rounded-xl object-cover shadow-sm group-hover:shadow-md transition-shadow"
             />
           ) : (
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary/5 to-accent-purple/5 text-lg font-bold text-primary group-hover:scale-105 transition-transform">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary/10 to-accent/10 text-lg font-bold text-primary group-hover:scale-105 transition-transform">
               {client.name.charAt(0)}
             </div>
           )}
@@ -58,9 +58,9 @@ export function ClientCard({ client, onClick }: ClientCardProps) {
           <Skeleton className="h-16 w-full" />
         ) : metrics && metrics.postsPublished > 0 ? (
           <div className="grid grid-cols-2 gap-2 pt-2 border-t">
-            <div className="bg-gradient-to-br from-accent-purple/5 to-accent-purple/10 rounded-lg p-2 border border-accent-purple/10">
+            <div className="bg-gradient-to-br from-primary/5 to-accent/10 rounded-lg p-2 border border-primary/10">
               <div className="flex items-center gap-1.5">
-                <Eye className="h-3 w-3 text-accent-purple" />
+                <Eye className="h-3 w-3 text-primary" />
                 <p className="text-xs text-muted-foreground">Impressions</p>
               </div>
               <p className="text-sm font-bold mt-1">{metrics.totalImpressions.toLocaleString()}</p>

@@ -255,6 +255,52 @@ export interface OnboardingV5Meta {
     percent_complete?: number;
     updated_at?: string;
   };
+  staged_readiness?: {
+    state?: "draft_started" | "setup_usable" | "execution_ready" | "strategy_enriched";
+    essential_intake?: {
+      completed?: number;
+      total?: number;
+      percent?: number;
+      missing?: string[];
+    };
+    operations_setup?: {
+      completed?: number;
+      total?: number;
+      percent?: number;
+      missing?: string[];
+    };
+    progressive_enrichment?: {
+      completed?: number;
+      total?: number;
+      percent?: number;
+      missing?: string[];
+    };
+    updated_at?: string;
+  };
+  chat_onboarding?: {
+    current_card_id?: string;
+    previous_card_id?: string;
+    active_stage?: "essential_intake" | "operations_setup" | "progressive_enrichment";
+    last_freeform_message?: string;
+    last_freeform_intent?: string;
+    turn_id?: string;
+    ui_contract_version?: string;
+    updated_at?: string;
+  };
+  operations_setup?: {
+    primary_contact_name?: string;
+    primary_contact_role?: string;
+    primary_contact_email?: string;
+    main_approver_name?: string;
+    main_approver_role?: string;
+    approval_sla?: string;
+    preferred_comms_channel?: string;
+    launch_window?: string;
+    required_access_status?: string[];
+    missing_assets?: string[];
+    escalation_contact?: string;
+    updated_at?: string;
+  };
   icp_secondary?: string;
   last_scan?: {
     timestamp?: string;

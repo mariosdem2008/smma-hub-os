@@ -116,7 +116,7 @@ function ExampleCard(props: {
   const tint = props.tone === "accent" ? "bg-accent/15 text-accent" : "bg-brand-primary/15 text-brand-primary";
 
   return (
-    <motion.div whileHover={{ y: -2, transition: { duration: 0.18 } }}>
+    <div>
       <LandingCard className="glass-card-hover card-lift p-[18px] md:p-[20px] h-full">
         <div className="flex items-center gap-[12px] mb-[14px]">
           <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${tint}`}>
@@ -129,7 +129,6 @@ function ExampleCard(props: {
         </div>
         {props.children}
       </LandingCard>
-    </motion.div>
+    </div>
   );
 }
-

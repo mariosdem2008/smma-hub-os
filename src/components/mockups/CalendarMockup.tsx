@@ -33,8 +33,6 @@ export default function CalendarMockup() {
   return (
     <motion.div 
       className="rounded-xl border-2 border-border bg-surface shadow-xl overflow-hidden"
-      whileHover={{ y: -4, scale: 1.02 }}
-      transition={{ duration: 0.2 }}
     >
       <div className="p-6">
         {/* Calendar Header */}
@@ -77,7 +75,6 @@ export default function CalendarMockup() {
                       ? 'bg-primary/10 border-primary'
                       : 'bg-card border-border hover:border-primary/50'
                   } transition-colors cursor-pointer flex flex-col items-center justify-center relative`}
-                  whileHover={day ? { scale: 1.05 } : {}}
                 >
                   {day && (
                     <>

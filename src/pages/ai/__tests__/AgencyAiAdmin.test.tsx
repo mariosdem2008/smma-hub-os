@@ -157,4 +157,45 @@ describe("AgencyAiAdmin", () => {
       expect(lastCall?.[1]?.body?.message).toBe("Audit client onboarding and highlight friction.");
     });
   });
+
+  it("renders the shared workflow blocker when agency AI activation is required", async () => {
+    const user = userEvent.setup();
+    invokeMock.mockResolvedValueOnce({
+      data: null,
+      error: {
+        message: "Blocked",
+        context: {
+          json: async () => ({
+            code: "AGENT_ACTIVATION_REQUIRED",
+            error: "Agency admin AI requires internal assist rollout.",
+            deep_link: "/agency/ai-setup/readiness/preview/operator",
+            required_mode: "internal_assist_only",
+            unlock_state: "ready",
+            activation_mode: "preview_only",
+            missing_certification_scenarios: ["workflow_execution_certification"],
+          }),
+        },
+      },
+    });
+
+    render(
+      <MemoryRouter>
+        <AgencyAiAdmin />
+      </MemoryRouter>,
+    );
+
+    await user.click(await screen.findByRole("button", { name: "New chat" }));
+    await user.type(screen.getByPlaceholderText("Message the agency AI"), "Help me review ops blockers");
+    await user.click(screen.getByRole("button", { name: "Send" }));
+
+    expect(await screen.findByText("Certification required")).toBeInTheDocument();
+    expect(
+      screen.getByText("This AI workflow cannot be used live until the agency certifies this agent behavior."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open AI Setup" })).toHaveAttribute(
+      "href",
+      "/agency/ai-setup/readiness/preview/operator",
+    );
+    expect(screen.getByText("Required rollout mode:")).toBeInTheDocument();
+  });
 });

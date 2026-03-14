@@ -6,6 +6,8 @@ import ROICalculatorModal from "@/components/modals/ROICalculator";
 import { useSectionTracking } from "@/hooks/useSectionTracking";
 import { LandingCard, LandingContainer, Pill, SectionHeader } from "./LandingPrimitives";
 
+const smoothEase = [0.22, 1, 0.36, 1] as const;
+
 const LEVERS = [
   {
     icon: Clock,
@@ -34,7 +36,7 @@ export default function ROI() {
       ref={sectionRef}
       initial={{ opacity: 0 }}
       animate={isInView ? { opacity: 1 } : {}}
-      transition={{ duration: 0.4 }}
+      transition={{ duration: 0.75, ease: smoothEase }}
       className="section-md lp-section"
     >
       <LandingContainer className="relative z-10">
@@ -55,7 +57,7 @@ export default function ROI() {
               key={lever.title}
               initial={{ opacity: 0 }}
               animate={isInView ? { opacity: 1 } : {}}
-              transition={{ duration: 0.35, delay: 0.08 + idx * 0.05 }}
+              transition={{ duration: 0.65, delay: 0.12 + idx * 0.08, ease: smoothEase }}
             >
               <LandingCard className="glass-card-hover card-lift p-[22px] md:p-[26px] h-full">
                 <div className="flex items-start gap-[12px]">
@@ -77,7 +79,7 @@ export default function ROI() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={isInView ? { opacity: 1 } : {}}
-          transition={{ duration: 0.35, delay: 0.26 }}
+          transition={{ duration: 0.7, delay: 0.34, ease: smoothEase }}
           className="mt-[22px] mx-auto max-w-3xl"
         >
           <LandingCard className="gradient-border-animated p-[22px] md:p-[26px] flex flex-col md:flex-row md:items-center md:justify-between gap-[14px]">

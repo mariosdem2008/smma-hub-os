@@ -19,7 +19,7 @@ export function Pill(props: {
         props.className
       )}
     >
-      {Icon ? <Icon className="h-4 w-4 text-brand-primary icon-glow" /> : null}
+      {Icon ? <Icon className="h-4 w-4 text-brand-primary" /> : null}
       <span>{props.children}</span>
     </span>
   );
@@ -57,4 +57,3 @@ export function SectionHeader(props: {
 export function LandingCard(props: { className?: string; children: React.ReactNode }) {
   return <div className={cn("glass-card rounded-md", props.className)}>{props.children}</div>;
 }
-

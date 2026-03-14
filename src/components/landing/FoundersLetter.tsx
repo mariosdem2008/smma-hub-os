@@ -14,11 +14,7 @@ export function FoundersLetter() {
         <AnimatedSection className="mx-auto max-w-6xl">
           <div className="grid gap-10 lg:grid-cols-12 lg:items-center">
             <div className="lg:col-span-5">
-                <motion.div 
-                    className="w-full aspect-[4/5] rounded-lg bg-card border border-border overflow-hidden"
-                    whileHover={{ scale: 1.02 }}
-                    transition={{ duration: 0.3 }}
-                >
+                <motion.div className="w-full aspect-[4/5] rounded-lg bg-card border border-border overflow-hidden">
                     {/* Placeholder for a high-quality photo of the founder(s) */}
                     <img src="/placeholder.svg" alt="Founder of SMMAHUB" className="w-full h-full object-cover opacity-20" />
                 </motion.div>

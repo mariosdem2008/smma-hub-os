@@ -10,6 +10,7 @@ import { generateSpanId, generateTraceId, logOtelSpan } from "../../../src/ai/ot
 import { TaskType } from "../../../src/ai/taskTypes.ts";
 import { isEpisodicMemoryEnabled, isPhase2EnabledForAgency } from "../../../src/ai/flags.ts";
 import { ai } from "../../../src/ai/router.ts";
+import { enforceAgencyAgentActivation } from "../_shared/agency-ai-setup.ts";
 
 const CLIENT_PORTAL_JWT_SECRET = Deno.env.get("CLIENT_PORTAL_JWT_SECRET");
 
@@ -27,6 +28,71 @@ function jsonResponse(body: unknown, status = 200, headers: Record<string, strin
     status,
     headers: { "Content-Type": "application/json", ...headers },
   });
+}
+
+async function enforceClientFacingCertification(args: {
+  supabase: ReturnType<typeof createClient>;
+  agencyId: string;
+  cors: Record<string, string>;
+}) {
+  const { data, error } = await args.supabase
+    .from("agency_ai_certifications_v2")
+    .select("scenario_key, certified_at")
+    .eq("agency_id", args.agencyId)
+    .eq("agent_class", "client_facing")
+    .eq("certification_state", "certified");
+
+  if (error) throw error;
+
+  const certifiedRows = (data ?? []) as Array<{ scenario_key: string; certified_at: string | null }>;
+  const certifiedScenarioKeys = new Set(certifiedRows.map((row) => row.scenario_key));
+  const { data: setupStatus, error: setupStatusError } = await args.supabase
+    .from("agency_ai_setup_status_v2")
+    .select("meta_json")
+    .eq("agency_id", args.agencyId)
+    .maybeSingle();
+
+  if (setupStatusError) throw setupStatusError;
+
+  const evidenceTimestamps = [
+    setupStatus?.meta_json?.foundations?.updated_at,
+    setupStatus?.meta_json?.guardrails?.updated_at,
+    setupStatus?.meta_json?.workflow?.updated_at,
+  ]
+    .filter((item): item is string => typeof item === "string" && item.length > 0)
+    .map((item) => Date.parse(item))
+    .filter((item) => Number.isFinite(item));
+
+  const staleScenarioKeys = certifiedRows
+    .filter((row) => {
+      const certifiedAt = Date.parse(row.certified_at ?? "");
+      if (!Number.isFinite(certifiedAt)) return false;
+      return evidenceTimestamps.some((timestamp) => timestamp > certifiedAt);
+    })
+    .map((row) => row.scenario_key)
+    .filter((item) => item === "client_response_certification");
+
+  if (certifiedScenarioKeys.has("client_response_certification") && staleScenarioKeys.length === 0) {
+    return null;
+  }
+
+  return jsonResponse(
+    {
+      success: false,
+      code: "AGENT_ACTIVATION_REQUIRED",
+      error:
+        staleScenarioKeys.length > 0
+          ? "client facing agent needs certification revalidation before operational usage."
+          : "client facing agent requires certification before operational usage.",
+      deep_link: "/agency/ai-setup/readiness/preview/client_facing",
+      agent_class: "client_facing",
+      required_mode: "operational",
+      missing_certification_scenarios: staleScenarioKeys.length > 0 ? [] : ["client_response_certification"],
+      stale_certification_scenarios: staleScenarioKeys,
+    },
+    412,
+    args.cors,
+  );
 }
 
 function getCookie(header: string | null, name: string): string | null {
@@ -198,6 +264,28 @@ serve(async (req: Request) => {
         return jsonResponse({ error: "Forbidden" }, 403, corsHeaders(req));
       }
     }
+  }
+
+  const activationResponse = await enforceAgencyAgentActivation({
+    supabaseClient: supabase,
+    agencyId: clientRow.agency_id,
+    agentClass: "client_facing",
+    requiredMode: "operational",
+    corsHeaders: corsHeaders(req),
+  });
+  if (activationResponse) {
+    return activationResponse;
+  }
+
+  // Keep the operational-only client-facing surface explicitly certification-gated
+  // even if a stale shared helper is ever deployed on this function revision.
+  const certificationResponse = await enforceClientFacingCertification({
+    supabase,
+    agencyId: clientRow.agency_id,
+    cors: corsHeaders(req),
+  });
+  if (certificationResponse) {
+    return certificationResponse;
   }
 
   const { data: brainRow } = await supabase

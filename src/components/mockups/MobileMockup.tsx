@@ -7,8 +7,7 @@ export default function MobileMockup() {
       className="mx-auto w-[280px]"
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.8, delay: 0.5 }}
-      whileHover={{ y: -2 }}
+      transition={{ duration: 1.05, delay: 0.55, ease: [0.22, 1, 0.36, 1] }}
     >
       {/* iPhone Frame */}
       <div className="relative">
@@ -44,10 +43,10 @@ export default function MobileMockup() {
               ].map((client, index) => (
                 <motion.div
                   key={index}
-                  className="bg-card border border-border rounded-xl p-3 active:scale-95 transition-transform"
+                  className="bg-card border border-border rounded-xl p-3"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.6 + index * 0.1 }}
+                  transition={{ duration: 0.6, delay: 0.68 + index * 0.12, ease: [0.22, 1, 0.36, 1] }}
                 >
                   <div className="flex items-center gap-3 mb-3">
                     <div className={`w-10 h-10 ${client.color} rounded-lg flex items-center justify-center`}>

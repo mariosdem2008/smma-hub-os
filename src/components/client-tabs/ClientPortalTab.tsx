@@ -15,6 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
+import { useClientExecutionTasks } from "@/hooks/useClientOperations";
 import { Copy, Trash2, Mail } from "lucide-react";
 import {
   AlertDialog,
@@ -53,6 +54,7 @@ interface PortalInvite {
 
 export function ClientPortalTab({ clientId }: ClientPortalTabProps) {
   const { toast } = useToast();
+  const { data: executionTasks = [] } = useClientExecutionTasks(clientId);
   const [portalEnabled, setPortalEnabled] = useState(false);
   const [portalSlug, setPortalSlug] = useState<string | null>(null);
   const [clientName, setClientName] = useState("");
@@ -214,8 +216,48 @@ export function ClientPortalTab({ clientId }: ClientPortalTabProps) {
     return <div className="p-6">Loading...</div>;
   }
 
+  const clientActionItems = executionTasks.filter(
+    (task) => ["waiting_on_client", "blocked"].includes(task.status) && (task.owner === "client" || task.owner === "shared"),
+  );
+
   return (
     <div className="space-y-6">
+      {clientActionItems.length > 0 && (
+        <Card className="p-6">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="text-base font-semibold">Client action items</h3>
+              <p className="text-sm text-muted-foreground">
+                Work that is currently waiting on client access, input, approvals, or assets.
+              </p>
+            </div>
+            <Badge variant="outline">{clientActionItems.length} active</Badge>
+          </div>
+
+          <div className="space-y-3">
+            {clientActionItems.slice(0, 5).map((task) => (
+              <div key={task.id} className="rounded-lg border border-border/60 bg-background/40 px-4 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="text-sm font-medium">{task.title}</div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={task.priority === "urgent" ? "destructive" : "secondary"}>
+                      {task.priority}
+                    </Badge>
+                    <Badge variant="outline">{task.status.replace(/_/g, " ")}</Badge>
+                  </div>
+                </div>
+                <div className="mt-1 text-sm text-muted-foreground">
+                  {task.description || "Client input is required before this work can continue."}
+                </div>
+                {task.resolution_note && (
+                  <div className="mt-1 text-xs text-muted-foreground">Latest note: {task.resolution_note}</div>
+                )}
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
       {/* Portal Status Section */}
       <Card className="p-6">
         <div className="space-y-4">

@@ -10,6 +10,8 @@ import { useProfileTrends } from "@/hooks/useProfileTrends";
 import { useSyncSocialMetrics } from "@/hooks/useSyncSocialMetrics";
 import { useAiAssistant, AiAssistantError } from "@/hooks/useAiAssistant";
 import { useToast } from "@/hooks/use-toast";
+import { AiWorkflowBlockNotice } from "@/components/ai/AiWorkflowBlockNotice";
+import { buildAssistantBlockStateFromError, type AiWorkflowBlockState } from "@/lib/aiWorkflowBlock";
 import { Eye, Users, Heart, TrendingUp, TrendingDown, Instagram, Facebook, RefreshCw, Wand2, Copy } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { format } from "date-fns";
@@ -22,6 +24,7 @@ export default function AnalyticsTab({ clientId }: AnalyticsTabProps) {
   const { toast } = useToast();
   const aiAssistant = useAiAssistant();
   const [aiOutput, setAiOutput] = useState<{ body: string; updatedAt: string } | null>(null);
+  const [aiBlock, setAiBlock] = useState<AiWorkflowBlockState | null>(null);
   const { data: analytics, isLoading: analyticsLoading, error: analyticsError } = useClientAnalytics(clientId);
   const { data: topPosts, isLoading: topPostsLoading } = useTopPosts(clientId, 5);
   const { data: worstPosts, isLoading: worstPostsLoading } = useWorstPosts(clientId, 5);
@@ -72,6 +75,7 @@ export default function AnalyticsTab({ clientId }: AnalyticsTabProps) {
       });
       const assistantMessage =
         "assistant_message" in response ? String(response.assistant_message ?? "") : "";
+      setAiBlock(null);
       setAiOutput({
         body: assistantMessage || "No anomaly summary text returned from AI assistant.",
         updatedAt: new Date().toLocaleTimeString(),
@@ -82,9 +86,19 @@ export default function AnalyticsTab({ clientId }: AnalyticsTabProps) {
       });
     } catch (error) {
       if (error instanceof AiAssistantError && error.code === "AI_SETUP_REQUIRED") {
+        setAiBlock(buildAssistantBlockStateFromError(error, true));
         toast({
           title: "AI setup required",
           description: "Complete AI Setup to use analytics AI quick actions.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (error instanceof AiAssistantError && error.code === "AGENT_ACTIVATION_REQUIRED") {
+        setAiBlock(buildAssistantBlockStateFromError(error, true));
+        toast({
+          title: "Analyst activation required",
+          description: error.message,
           variant: "destructive",
         });
         return;
@@ -133,7 +147,7 @@ export default function AnalyticsTab({ clientId }: AnalyticsTabProps) {
     return (
       <Card className="text-center py-12">
         <CardContent>
-          <div className="w-16 h-16 bg-gradient-to-br from-primary/5 to-accent-purple/5 rounded-full flex items-center justify-center mx-auto mb-4 border border-primary/10">
+          <div className="w-16 h-16 bg-gradient-to-br from-primary/10 to-accent/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-primary/10">
             <Eye className="h-8 w-8 text-primary" />
           </div>
           <p className="text-muted-foreground font-medium mb-2">No Analytics Data Yet</p>
@@ -150,6 +164,11 @@ export default function AnalyticsTab({ clientId }: AnalyticsTabProps) {
               {syncMutation.isPending ? "Syncing..." : "Sync Now"}
             </Button>
           </div>
+          {aiBlock ? (
+            <div className="mt-4">
+              <AiWorkflowBlockNotice block={aiBlock} fallbackLink="/agency/ai-setup/activation" />
+            </div>
+          ) : null}
           {aiOutput && (
             <div className="mt-4 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-left">
               <div className="mb-1 flex items-center justify-between gap-2">
@@ -189,6 +208,9 @@ export default function AnalyticsTab({ clientId }: AnalyticsTabProps) {
           </Button>
         </div>
       </div>
+      {aiBlock ? (
+        <AiWorkflowBlockNotice block={aiBlock} fallbackLink="/agency/ai-setup/activation" />
+      ) : null}
       {aiOutput && (
         <div className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-2">
           <div className="mb-1 flex items-center justify-between gap-2">
@@ -222,7 +244,7 @@ export default function AnalyticsTab({ clientId }: AnalyticsTabProps) {
                   </span>
                 </div>
               </div>
-              <div className="rounded-lg p-2 bg-gradient-to-br from-accent-purple to-accent-purple/80 shadow-lg">
+              <div className="rounded-lg p-2 bg-gradient-to-br from-primary to-accent shadow-lg">
                 <Eye className="h-5 w-5 text-white" />
               </div>
             </div>
@@ -319,7 +341,7 @@ export default function AnalyticsTab({ clientId }: AnalyticsTabProps) {
                   <Line
                     type="monotone"
                     dataKey="impressions"
-                    stroke="hsl(270, 75%, 65%)"
+                    stroke="hsl(var(--primary))"
                     strokeWidth={2}
                     dot={{ r: 3 }}
                     name="Impressions"

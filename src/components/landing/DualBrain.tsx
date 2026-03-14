@@ -32,7 +32,7 @@ export default function DualBrain() {
       ref={sectionRef}
       initial={{ opacity: 0 }}
       animate={isInView ? { opacity: 1 } : {}}
-      transition={{ duration: 0.4 }}
+      transition={{ duration: 0.75 }}
       className="section-md lp-section"
     >
       <LandingContainer className="relative z-10">
@@ -52,7 +52,7 @@ export default function DualBrain() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={isInView ? { opacity: 1 } : {}}
-            transition={{ duration: 0.45, delay: 0.12 }}
+            transition={{ duration: 0.75, delay: 0.14, ease: [0.22, 1, 0.36, 1] }}
           >
             <LandingCard className="glass-card-hover card-lift p-[28px] md:p-[34px] relative overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-br from-brand-primary/10 to-transparent opacity-70" />
@@ -89,7 +89,7 @@ export default function DualBrain() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={isInView ? { opacity: 1 } : {}}
-            transition={{ duration: 0.45, delay: 0.18 }}
+            transition={{ duration: 0.75, delay: 0.22, ease: [0.22, 1, 0.36, 1] }}
           >
             <LandingCard className="glass-card-hover card-lift p-[28px] md:p-[34px] relative overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-br from-accent/10 to-transparent opacity-70" />
@@ -127,7 +127,7 @@ export default function DualBrain() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={isInView ? { opacity: 1 } : {}}
-          transition={{ duration: 0.45, delay: 0.28 }}
+          transition={{ duration: 0.8, delay: 0.32, ease: [0.22, 1, 0.36, 1] }}
           className="mt-[44px] text-center"
         >
           <LandingCard className="gradient-border-animated inline-block p-[26px] md:p-[32px]">

@@ -8,28 +8,28 @@ import { LandingCard, LandingContainer, Pill, SectionHeader } from "./LandingPri
 
 const FAQS = [
   {
-    q: "How long does setup take?",
-    a: "It depends on your workflow and how much you want to systemize. Most teams get useful drafts quickly, then refine standards over the following weeks.",
+    q: "Is this just another AI assistant for agencies?",
+    a: "No. SMMAHUB is designed as an operating system where AI works from persistent agency rules, client context, workflow state, and approvals.",
   },
   {
-    q: "What if our process is unique?",
-    a: "That is the point. SMMAHUB is designed to encode your SOPs and standards so outputs match how your agency actually works.",
+    q: "What makes this different from ChatGPT?",
+    a: "ChatGPT is not your system of record. SMMAHUB stores client truth, workflow state, approvals, and operating context so AI can work inside the agency's real process instead of starting from scratch every time.",
   },
   {
-    q: "Does SMMAHUB replace my team?",
-    a: "No. SMMAHUB drafts and systemizes repetitive work. Your team stays in control of quality, approvals, and client communication.",
+    q: "Is this mainly an onboarding product?",
+    a: "No. Onboarding is one part of the system. The value comes from carrying context into strategy, delivery, approvals, reporting, and client collaboration.",
   },
   {
-    q: "How accurate are the outputs?",
-    a: "They improve as you review and refine. SMMAHUB is built to generate strong first drafts from approved inputs, with your team as the final quality gate.",
+    q: "Does the AI act autonomously?",
+    a: "Not in the autopilot sense. Capabilities are governed, approval-aware, role-specific, and constrained by readiness and policy.",
   },
   {
-    q: "Is client data secure?",
-    a: "We use encryption in transit and at rest and enforce tenant isolation. We do not train models on your proprietary data.",
+    q: "Who is this best for?",
+    a: "Agencies with multiple active clients, recurring delivery work, and enough workflow complexity that scattered context and approvals create weekly drag.",
   },
   {
-    q: "Can I export data?",
-    a: "Yes. You own your strategies and drafts. Export anytime.",
+    q: "Why book a strategy audit instead of starting a free trial immediately?",
+    a: "Because this product is operationally serious. The audit helps determine fit, map the workflow, and define where the AI employee layer should safely support the agency first.",
   },
 ];
 
@@ -49,7 +49,7 @@ export default function FAQ() {
       ref={sectionRef}
       initial={{ opacity: 0 }}
       animate={isInView ? { opacity: 1 } : {}}
-      transition={{ duration: 0.4 }}
+      transition={{ duration: 0.75 }}
       className="section-md lp-section"
     >
       <LandingContainer className="relative z-10">
@@ -58,36 +58,29 @@ export default function FAQ() {
           title={
             <>
               Common questions,
-              <span className="block text-gradient-premium">clear answers.</span>
+              <span className="block text-gradient-premium">clear operating answers.</span>
             </>
           }
-          lede="Setup varies by agency. Your team stays in control. You own your data."
+          lede="This product is built to be ambitious but controlled. The right questions are about trust, fit, and operating value."
         />
 
         <motion.div
           initial={{ opacity: 0 }}
           animate={isInView ? { opacity: 1 } : {}}
-          transition={{ duration: 0.4, delay: 0.12 }}
-          className="mt-[44px] mx-auto max-w-3xl"
+          transition={{ duration: 0.7, delay: 0.16, ease: [0.22, 1, 0.36, 1] }}
+          className="mx-auto mt-[44px] max-w-3xl"
         >
           <LandingCard className="p-[10px] md:p-[12px]">
             <Accordion type="single" collapsible className="w-full" onValueChange={handleAccordionChange}>
               {FAQS.map((faq, i) => (
-                <AccordionItem
-                  value={`item-${i}`}
-                  key={faq.q}
-                  className="border-0 rounded-md px-[14px] md:px-[18px] py-[6px]"
-                >
+                <AccordionItem value={`item-${i}`} key={faq.q} className="rounded-md border-0 px-[14px] py-[6px] md:px-[18px]">
                   <AccordionTrigger
                     aria-controls={`faq-content-${i}`}
-                    className="text-left text-foreground hover:text-brand-primary hover:no-underline text-body-mobile md:text-body-desktop font-medium focus-ring rounded-md py-[14px]"
+                    className="rounded-md py-[14px] text-left text-body-mobile font-medium text-foreground hover:text-brand-primary hover:no-underline focus-ring md:text-body-desktop"
                   >
                     {faq.q}
                   </AccordionTrigger>
-                  <AccordionContent
-                    id={`faq-content-${i}`}
-                    className="text-body-mobile md:text-body-desktop text-text-secondary leading-body pb-[14px]"
-                  >
+                  <AccordionContent id={`faq-content-${i}`} className="pb-[14px] text-body-mobile leading-body text-text-secondary md:text-body-desktop">
                     {faq.a}
                   </AccordionContent>
                 </AccordionItem>

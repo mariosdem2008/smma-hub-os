@@ -41,6 +41,7 @@ import { logActivity } from "@/hooks/useActivityLog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AIGenerateModal } from "./AIGenerateModal";
+import { useNavigate } from "react-router-dom";
 
 interface Project {
   id: string;
@@ -84,6 +85,7 @@ interface ProjectFinalContentTabProps {
 
 export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFinalContentTabProps) {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [finalAssets, setFinalAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
@@ -102,6 +104,17 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
   const [aiVariants, setAiVariants] = useState<Array<{ caption: string; length: string; platform?: string }>>([]);
   const [showVariants, setShowVariants] = useState(false);
   const [generatingAI, setGeneratingAI] = useState<Record<string, boolean>>({});
+
+  const readFunctionErrorPayload = async (error: unknown): Promise<{ code?: string; error?: string; deep_link?: string } | null> => {
+    if (!error || typeof error !== "object") return null;
+    const context = (error as { context?: Response }).context;
+    if (!context || typeof (context as any).json !== "function") return null;
+    try {
+      return await (context as any).json();
+    } catch {
+      return null;
+    }
+  };
 
   useEffect(() => {
     fetchFinalAssets();
@@ -122,7 +135,23 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
     try {
       const { data, error } = await supabase.from("profiles").select("timezone").eq("id", user.id).single();
 
-      if (error) throw error;
+      if (error) {
+        const payload = await readFunctionErrorPayload(error);
+        if (payload?.code === "STRATEGY_APPROVAL_REQUIRED" || payload?.code === "AGENT_ACTIVATION_REQUIRED") {
+          toast({
+            title: payload.code === "AGENT_ACTIVATION_REQUIRED" ? "Creator activation required" : "Strategy approval required",
+            description:
+              payload.error ||
+              (payload.code === "AGENT_ACTIVATION_REQUIRED"
+                ? "Activate the creator agent in AI Setup before generating captions."
+                : "Approve the current recommendation and strategy plan before generating captions."),
+            variant: "destructive",
+          });
+          if (payload.deep_link) navigate(payload.deep_link);
+          return;
+        }
+        throw error;
+      }
       if (data?.timezone) {
         setUserTimezone(data.timezone);
       }
@@ -567,7 +596,7 @@ export default function ProjectFinalContentTab({ project, onUpdate }: ProjectFin
       label: "Generate Hooks",
       icon: PenTool,
       description: "Create attention-grabbing opening hooks",
-      color: "text-purple-500",
+      color: "text-primary",
     },
     {
       id: "script",

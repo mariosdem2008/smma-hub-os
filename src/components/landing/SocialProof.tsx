@@ -31,7 +31,7 @@ export default function SocialProof() {
       ref={sectionRef}
       initial={{ opacity: 0 }}
       animate={isInView ? { opacity: 1 } : {}}
-      transition={{ duration: 0.4 }}
+      transition={{ duration: 0.7 }}
       className="section-sm lp-section"
     >
       <div className="absolute top-0 left-0 right-0 section-divider" />
@@ -43,7 +43,7 @@ export default function SocialProof() {
                 key={item.title}
                 initial={{ opacity: 0 }}
                 animate={isInView ? { opacity: 1 } : {}}
-                transition={{ duration: 0.35, delay: 0.08 + idx * 0.06 }}
+                transition={{ duration: 0.6, delay: 0.1 + idx * 0.07, ease: [0.22, 1, 0.36, 1] }}
               >
                 <LandingCard className="glass-card-hover card-lift p-[18px] md:p-[20px] h-full">
                   <div className="flex items-start gap-[12px]">

@@ -34,6 +34,8 @@ import { useAuth } from "@/lib/auth";
 import { getDisplayName } from "@/lib/displayName";
 import { useRole } from "@/hooks/useRole";
 import { useAiAssistant, AiAssistantError } from "@/hooks/useAiAssistant";
+import { AiWorkflowBlockNotice } from "@/components/ai/AiWorkflowBlockNotice";
+import { buildAssistantBlockStateFromError, type AiWorkflowBlockState } from "@/lib/aiWorkflowBlock";
 import { Plus, Pencil, Trash2, CalendarIcon, Clock, Filter, ArrowUpDown, BookTemplate, Copy } from "lucide-react";
 import { format, isPast } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -74,6 +76,7 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [templates, setTemplates] = useState<any[]>([]);
   const [aiOutput, setAiOutput] = useState<{ body: string; updatedAt: string } | null>(null);
+  const [aiBlock, setAiBlock] = useState<AiWorkflowBlockState | null>(null);
 
   // Filter & Sort state
   const [filterStatus, setFilterStatus] = useState<string>("all");
@@ -306,6 +309,7 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
       });
       const assistantMessage =
         "assistant_message" in response ? String(response.assistant_message ?? "") : "";
+      setAiBlock(null);
       setAiOutput({
         body: assistantMessage || "No prioritization text returned from AI assistant.",
         updatedAt: new Date().toLocaleTimeString(),
@@ -316,9 +320,19 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
       });
     } catch (error) {
       if (error instanceof AiAssistantError && error.code === "AI_SETUP_REQUIRED") {
+        setAiBlock(buildAssistantBlockStateFromError(error, true));
         toast({
           title: "AI setup required",
           description: "Complete AI Setup to use tasks AI quick actions.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (error instanceof AiAssistantError && error.code === "AGENT_ACTIVATION_REQUIRED") {
+        setAiBlock(buildAssistantBlockStateFromError(error, true));
+        toast({
+          title: "Operator activation required",
+          description: error.message,
           variant: "destructive",
         });
         return;
@@ -430,6 +444,9 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
 
   return (
     <div className="space-y-4">
+      {aiBlock ? (
+        <AiWorkflowBlockNotice block={aiBlock} fallbackLink="/agency/ai-setup/activation" />
+      ) : null}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
           <CardTitle>Tasks</CardTitle>

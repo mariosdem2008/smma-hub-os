@@ -7,8 +7,7 @@ export default function HeroMockup() {
       className="relative"
       initial={{ opacity: 0, y: 40 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.8, delay: 0.3 }}
-      whileHover={{ y: -2 }}
+      transition={{ duration: 1.05, delay: 0.38, ease: [0.22, 1, 0.36, 1] }}
     >
       <div className="mockup-window rounded-xl overflow-hidden">
         <div className="mockup-window-header flex items-center gap-2 px-4 py-3">
@@ -72,7 +71,7 @@ export default function HeroMockup() {
                     className="bg-card border border-border rounded-lg p-3 hover:border-primary/40 transition-colors cursor-pointer"
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.7 + i * 0.1 }}
+                    transition={{ duration: 0.6, delay: 0.75 + i * 0.12, ease: [0.22, 1, 0.36, 1] }}
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -103,7 +102,7 @@ function StatCard(props: { title: string; icon: typeof Users; delay: number }) {
       className="bg-card border border-border rounded-lg p-4"
       initial={{ opacity: 0, scale: 0.96 }}
       animate={{ opacity: 1, scale: 1 }}
-      transition={{ delay: props.delay }}
+      transition={{ duration: 0.6, delay: props.delay, ease: [0.22, 1, 0.36, 1] }}
     >
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs text-muted-foreground">{props.title}</span>

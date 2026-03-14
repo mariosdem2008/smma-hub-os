@@ -48,6 +48,19 @@ const AiOnboardingClient = lazy(() => import("./pages/ai/AiOnboardingClient"));
 const AgencyAiAdmin = lazy(() => import("./pages/ai/AgencyAiAdmin"));
 const AISetup = lazy(() => import("./pages/agency/AISetup"));
 const ModuleDetail = lazy(() => import("./pages/agency/ModuleDetail"));
+const AgencyAiSetupV2Layout = lazy(() => import("./pages/agency/AgencyAiSetupV2Layout"));
+const AgencyAiSetupV2Overview = lazy(() => import("./pages/agency/AgencyAiSetupV2Overview"));
+const AgencyAiSetupV2Section = lazy(() => import("./pages/agency/AgencyAiSetupV2Section"));
+const AgencyAiSetupV2Imports = lazy(() => import("./pages/agency/AgencyAiSetupV2Imports"));
+const AgencyAiSetupV2Foundations = lazy(() => import("./pages/agency/AgencyAiSetupV2Foundations"));
+const AgencyAiSetupV2Modules = lazy(() => import("./pages/agency/AgencyAiSetupV2Modules"));
+const AgencyAiSetupV2ModuleDetail = lazy(() => import("./pages/agency/AgencyAiSetupV2ModuleDetail"));
+const AgencyAiSetupV2Guardrails = lazy(() => import("./pages/agency/AgencyAiSetupV2Guardrails"));
+const AgencyAiSetupV2Workflow = lazy(() => import("./pages/agency/AgencyAiSetupV2Workflow"));
+const AgencyAiSetupV2Readiness = lazy(() => import("./pages/agency/AgencyAiSetupV2Readiness"));
+const AgencyAiSetupV2ReadinessPreview = lazy(() => import("./pages/agency/AgencyAiSetupV2ReadinessPreview"));
+const AgencyAiSetupV2Activation = lazy(() => import("./pages/agency/AgencyAiSetupV2Activation"));
+const AgencyAiSetupV2ControlCenter = lazy(() => import("./pages/agency/AgencyAiSetupV2ControlCenter"));
 
 const ClientPortalLayout = lazy(() =>
   import("./pages/ClientPortalLayout").then((module) => ({ default: module.ClientPortalLayout })),
@@ -277,7 +290,20 @@ const App = () => {
                 <Route path="/billing" element={<Billing />} />
                 <Route path="/billing/overview" element={<BillingOverview />} />
                 <Route path="/settings" element={<Settings />} />
-                <Route path="/agency/ai-setup" element={<AISetup />} />
+                <Route path="/agency/ai-setup" element={<AgencyAiSetupV2Layout />}>
+                  <Route index element={<AgencyAiSetupV2Overview />} />
+                  <Route path="imports" element={<AgencyAiSetupV2Imports />} />
+                  <Route path="foundations" element={<AgencyAiSetupV2Foundations />} />
+                  <Route path="modules" element={<AgencyAiSetupV2Modules />} />
+                  <Route path="modules/:moduleKey" element={<AgencyAiSetupV2ModuleDetail />} />
+                  <Route path="guardrails" element={<AgencyAiSetupV2Guardrails />} />
+                  <Route path="workflow" element={<AgencyAiSetupV2Workflow />} />
+                  <Route path="readiness" element={<AgencyAiSetupV2Readiness />} />
+                  <Route path="readiness/preview/:agentClass" element={<AgencyAiSetupV2ReadinessPreview />} />
+                  <Route path="activation" element={<AgencyAiSetupV2Activation />} />
+                  <Route path="control-center" element={<AgencyAiSetupV2ControlCenter />} />
+                  <Route path="legacy" element={<AISetup />} />
+                </Route>
                 <Route path="/agency/ai-setup/:moduleKey" element={<ModuleDetail />} />
 
                 {/* Legacy Agency Brain redirects */}

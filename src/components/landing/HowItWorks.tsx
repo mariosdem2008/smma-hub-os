@@ -7,6 +7,7 @@ import { marketing } from '@/lib/marketing';
 import { track } from '@/lib/analytics';
 
 const CAL_LINK = marketing.calUrl;
+const smoothEase = [0.22, 1, 0.36, 1] as const;
 
 const COLOR_STYLES: Record<string, { bg: string; text: string }> = {
   "brand-primary": { bg: "bg-brand-primary/20", text: "text-brand-primary" },
@@ -48,7 +49,7 @@ const HowItWorks = () => {
       ref={sectionRef}
       initial={{ opacity: 0 }}
       animate={isInView ? { opacity: 1 } : {}}
-      transition={{ duration: 0.4 }}
+      transition={{ duration: 0.75, ease: smoothEase }}
       className="section-md relative overflow-hidden"
     >
       {/* Background gradient */}
@@ -60,7 +61,7 @@ const HowItWorks = () => {
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={isInView ? { opacity: 1, scale: 1 } : {}}
-            transition={{ duration: 0.4 }}
+            transition={{ duration: 0.6, ease: smoothEase }}
             className="inline-flex items-center gap-2 badge-gradient-border mb-[24px]"
           >
             <Cog className="w-4 h-4 text-brand-primary icon-glow" />
@@ -85,7 +86,8 @@ const HowItWorks = () => {
           variants={{
             visible: {
               transition: {
-                staggerChildren: 0.2,
+                staggerChildren: 0.24,
+                delayChildren: 0.08,
               },
             },
             hidden: { opacity: 0 }
@@ -97,7 +99,7 @@ const HowItWorks = () => {
               key={step.step}
               variants={{
                 hidden: { opacity: 0, y: 30 },
-                visible: { opacity: 1, y: 0, transition: { duration: 0.4 } },
+                visible: { opacity: 1, y: 0, transition: { duration: 0.68, ease: smoothEase } },
               }}
               className="relative group"
             >
@@ -116,7 +118,7 @@ const HowItWorks = () => {
 
                 <div className="flex items-center gap-[16px] mb-[24px]">
                   <div
-                    className={`w-12 h-12 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform ${
+                    className={`w-12 h-12 rounded-lg flex items-center justify-center ${
                       COLOR_STYLES[step.color]?.bg ?? "bg-white/10"
                     }`}
                   >
@@ -135,7 +137,7 @@ const HowItWorks = () => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.5, delay: 0.8 }}
+          transition={{ duration: 0.75, delay: 0.94, ease: smoothEase }}
           className="mt-[64px] text-center"
         >
           <Button

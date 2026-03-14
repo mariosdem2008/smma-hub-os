@@ -5,6 +5,8 @@ import { useSectionTracking } from "@/hooks/useSectionTracking";
 import { BeforeAfterToggle } from "./BeforeAfterToggle";
 import { LandingCard, LandingContainer, Pill, SectionHeader } from "./LandingPrimitives";
 
+const smoothEase = [0.22, 1, 0.36, 1] as const;
+
 const COMPARISON_ITEMS = [
   {
     before: "Every new client adds more training, handoffs, and inconsistency.",
@@ -34,7 +36,7 @@ export function BeforeAfterSection() {
       ref={sectionRef}
       initial={{ opacity: 0 }}
       animate={isInView ? { opacity: 1 } : {}}
-      transition={{ duration: 0.4 }}
+      transition={{ duration: 0.75, ease: smoothEase }}
       className="section-md lp-section"
     >
       <LandingContainer className="relative z-10">
@@ -58,4 +60,3 @@ export function BeforeAfterSection() {
     </motion.section>
   );
 }
-

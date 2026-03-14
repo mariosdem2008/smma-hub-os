@@ -182,7 +182,7 @@ VITE_PUBLIC_URL=https://smmahub.net
 # ============================================
 # SUPABASE CONFIGURATION
 # ============================================
-# These are automatically set by Lovable Cloud
+# These are automatically set by your deployment platform
 # For local development, use your local Supabase values
 
 VITE_SUPABASE_PROJECT_ID="your-project-id"
@@ -201,7 +201,7 @@ VITE_SUPABASE_PUBLISHABLE_KEY="your-anon-key" # fallback if ANON not provided
 # NOTES
 # ============================================
 # - All secrets (STRIPE_SECRET_KEY, OPENAI_API_KEY, etc.)
-#   are stored in Supabase/Lovable Cloud secrets
+#   are stored in Supabase/deployment platform secrets
 # - Do NOT commit actual keys to version control
 # - The frontend only needs VITE_* prefixed variables
 

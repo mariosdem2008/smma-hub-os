@@ -13,6 +13,8 @@ import { useRole } from "@/hooks/useRole";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { logActivity } from "@/hooks/useActivityLog";
 import { useAiAssistant, AiAssistantError } from "@/hooks/useAiAssistant";
+import { AiWorkflowBlockNotice } from "@/components/ai/AiWorkflowBlockNotice";
+import { buildAssistantBlockStateFromError, type AiWorkflowBlockState } from "@/lib/aiWorkflowBlock";
 
 interface PipelineTabProps {
   clientId: string;
@@ -72,6 +74,7 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
   const { isOwner, isAdmin, isManager } = useRole();
   const aiAssistant = useAiAssistant();
   const [aiOutput, setAiOutput] = useState<{ body: string; updatedAt: string } | null>(null);
+  const [aiBlock, setAiBlock] = useState<AiWorkflowBlockState | null>(null);
 
   const handleAiBottleneckSummary = async () => {
     try {
@@ -85,6 +88,7 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
       });
       const assistantMessage =
         "assistant_message" in response ? String(response.assistant_message ?? "") : "";
+      setAiBlock(null);
       setAiOutput({
         body: assistantMessage || "No summary text returned from AI assistant.",
         updatedAt: new Date().toLocaleTimeString(),
@@ -95,9 +99,19 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
       });
     } catch (error) {
       if (error instanceof AiAssistantError && error.code === "AI_SETUP_REQUIRED") {
+        setAiBlock(buildAssistantBlockStateFromError(error, true));
         toast({
           title: "AI setup required",
           description: "Complete AI Setup to use pipeline AI quick actions.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (error instanceof AiAssistantError && error.code === "AGENT_ACTIVATION_REQUIRED") {
+        setAiBlock(buildAssistantBlockStateFromError(error, true));
+        toast({
+          title: "Operator activation required",
+          description: error.message,
           variant: "destructive",
         });
         return;
@@ -445,6 +459,9 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
 
   return (
     <div className="space-y-6">
+      {aiBlock ? (
+        <AiWorkflowBlockNotice block={aiBlock} fallbackLink="/agency/ai-setup/activation" />
+      ) : null}
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>

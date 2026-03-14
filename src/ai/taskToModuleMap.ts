@@ -176,6 +176,52 @@ export const TASK_MODULE_MAP: Record<TaskType, ModuleRequirement[]> = {
     },
   ],
 
+  [TaskType.STRATEGY_DIAGNOSIS]: [
+    {
+      module: "bootstrap",
+      required: true,
+      fieldPaths: ["agency_name", "services", "target_industries"],
+    },
+    {
+      module: "tone_voice",
+      required: true,
+      fieldPaths: ["voice_attributes"],
+    },
+    {
+      module: "sop_strategy",
+      required: true,
+      fieldPaths: ["content_pillars"],
+    },
+    {
+      module: "offer_stack",
+      required: false,
+      fieldPaths: [],
+    },
+  ],
+
+  [TaskType.STRATEGY_RECOMMENDATION]: [
+    {
+      module: "bootstrap",
+      required: true,
+      fieldPaths: ["agency_name", "services", "target_industries"],
+    },
+    {
+      module: "tone_voice",
+      required: true,
+      fieldPaths: ["voice_attributes"],
+    },
+    {
+      module: "sop_strategy",
+      required: true,
+      fieldPaths: ["content_pillars"],
+    },
+    {
+      module: "offer_stack",
+      required: false,
+      fieldPaths: [],
+    },
+  ],
+
   // Content ideas - needs voice and strategy
   [TaskType.CONTENT_IDEAS]: [
     {
@@ -219,6 +265,10 @@ export const TASK_MODULE_MAP: Record<TaskType, ModuleRequirement[]> = {
 
   // Embedding - no brain needed
   [TaskType.EMBED_TEXT]: [],
+
+  [TaskType.ONBOARDING_ANSWER_CHECK]: [],
+
+  [TaskType.ONBOARDING_CLARIFY]: [],
 };
 
 /**

@@ -111,6 +111,23 @@ serve(async (req: Request) => {
       return jsonResponse({ error: error.message }, 400, corsHeaders(req));
     }
 
+    try {
+      await supabase.rpc("refresh_client_enrichment_queue", {
+        p_client_id: clientId,
+        p_reason: "client_brain_update",
+      });
+      await supabase.rpc("refresh_client_execution_tasks", {
+        p_client_id: clientId,
+        p_reason: "client_brain_update",
+      });
+    } catch (refreshError) {
+      console.error("client_brain_update_refresh_failed", {
+        agencyId,
+        clientId,
+        error: refreshError instanceof Error ? refreshError.message : String(refreshError),
+      });
+    }
+
     return jsonResponse({ success: true, brain: data }, 200, corsHeaders(req));
   }
 

@@ -46,7 +46,7 @@ export function NotificationCenter() {
       case 'comment_added':
         return <MessageSquare className="h-4 w-4 text-blue-500" />;
       case 'final_asset_uploaded':
-        return <Bell className="h-4 w-4 text-purple-500" />;
+        return <Bell className="h-4 w-4 text-primary" />;
       case 'publish_success':
         return <Check className="h-4 w-4 text-green-500" />;
       default:

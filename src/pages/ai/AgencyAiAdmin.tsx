@@ -5,11 +5,13 @@ import { useRole } from "@/hooks/useRole";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { AiWorkflowBlockNotice } from "@/components/ai/AiWorkflowBlockNotice";
 import { cn } from "@/lib/utils";
 import { getActiveAgencyId } from "@/lib/active-agency";
 import { MultiSelect, type MultiSelectOption } from "@/components/ai/MultiSelect";
 import { TagSelector, type TagOption } from "@/components/ai/TagSelector";
 import { validateValue, validateTextLength, type ValidationRule } from "@/lib/validation";
+import { buildActivationBlockState, buildAiSetupRequiredBlockState, type AiWorkflowBlockState } from "@/lib/aiWorkflowBlock";
 
 type ThreadRow = { id: string; title: string; created_at: string; kind?: string | null };
 type Suggestion = { id: string; label: string; user_message: string };
@@ -47,6 +49,35 @@ type SetupMeta = {
   choices?: Array<{ id: string; label: string }>;
   questionMeta?: SetupQuestionMetadata;
 };
+
+async function readEdgeErrorPayload(error: unknown): Promise<{
+  error?: string;
+  code?: string;
+  deep_link?: string;
+  required_mode?: string;
+  unlock_state?: string;
+  activation_mode?: string;
+  missing?: string[];
+  missing_certification_scenarios?: string[];
+} | null> {
+  if (!error || typeof error !== "object") return null;
+  const context = (error as { context?: Response }).context;
+  if (!context || typeof (context as any).json !== "function") return null;
+  try {
+    return (await (context as any).json()) as {
+      error?: string;
+      code?: string;
+      deep_link?: string;
+      required_mode?: string;
+      unlock_state?: string;
+      activation_mode?: string;
+      missing?: string[];
+      missing_certification_scenarios?: string[];
+    };
+  } catch {
+    return null;
+  }
+}
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -162,6 +193,7 @@ export default function AgencyAiAdmin() {
 
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [workflowBlock, setWorkflowBlock] = useState<AiWorkflowBlockState | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const streamingAbortRef = useRef<AbortController | null>(null);
 
@@ -523,6 +555,7 @@ export default function AgencyAiAdmin() {
       }
 
       try {
+        setWorkflowBlock(null);
         const next = await streamAgencyAdminChat({
           payload: { thread_id: activeThreadId ?? undefined, message: messageToSend },
           onStart: (assistantId) => {
@@ -591,6 +624,28 @@ export default function AgencyAiAdmin() {
 
         if (!next) throw new Error("Streaming failed");
       } catch (err: any) {
+        const payload = err?.payload as Awaited<ReturnType<typeof readEdgeErrorPayload>> | undefined;
+        if (payload?.code === "AGENT_ACTIVATION_REQUIRED") {
+          setWorkflowBlock(
+            buildActivationBlockState({
+              message: payload.error ?? err?.message ?? "Agency AI activation required.",
+              deepLink: payload.deep_link,
+              requiredMode: payload.required_mode,
+              unlockState: payload.unlock_state,
+              activationMode: payload.activation_mode,
+              missingCertificationScenarios: payload.missing_certification_scenarios,
+              hasAgencySession: true,
+            }),
+          );
+        } else if (payload?.code === "AI_SETUP_REQUIRED") {
+          setWorkflowBlock(
+            buildAiSetupRequiredBlockState({
+              missing: payload.missing,
+              deepLink: payload.deep_link ?? "/agency/ai-setup",
+              hasAgencySession: true,
+            }),
+          );
+        }
         toast({
           title: "Agency AI error",
           description: err?.message ?? "Failed to send message",
@@ -627,7 +682,12 @@ export default function AgencyAiAdmin() {
       const { data, error } = await supabase.functions.invoke("ai-agency-admin-chat", {
         body: payload,
       });
-      if (error) throw new Error(error.message);
+      if (error) {
+        const payload = await readEdgeErrorPayload(error);
+        const edgeError = new Error(payload?.error ?? error.message) as Error & { payload?: typeof payload };
+        edgeError.payload = payload;
+        throw edgeError;
+      }
       const assistantId = `tmp-assistant-${Date.now()}`;
       onStart(assistantId);
       onDone(assistantId, data ?? {});
@@ -655,7 +715,14 @@ export default function AgencyAiAdmin() {
 
     if (!response.ok || !response.body) {
       const text = await response.text().catch(() => "");
-      throw new Error(text || `HTTP ${response.status}`);
+      try {
+        const parsed = text ? JSON.parse(text) : null;
+        const edgeError = new Error(parsed?.error ?? `HTTP ${response.status}`) as Error & { payload?: typeof parsed };
+        edgeError.payload = parsed;
+        throw edgeError;
+      } catch {
+        throw new Error(text || `HTTP ${response.status}`);
+      }
     }
 
     const assistantId = `tmp-assistant-${Date.now()}`;
@@ -1010,7 +1077,7 @@ export default function AgencyAiAdmin() {
               </div>
               <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-700">
                 <div
-                  className="h-full bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] transition-all duration-500"
+                  className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-500"
                   style={{ width: `${setupMeta.progressPercent}%` }}
                 />
               </div>
@@ -1162,6 +1229,16 @@ export default function AgencyAiAdmin() {
                   {choice.label}
                 </Button>
               ))}
+            </div>
+          ) : null}
+
+          {workflowBlock ? (
+            <div className="mt-3">
+              <AiWorkflowBlockNotice
+                block={workflowBlock}
+                fallbackLink="/agency/ai-setup/activation"
+                onRetry={() => setWorkflowBlock(null)}
+              />
             </div>
           ) : null}
 

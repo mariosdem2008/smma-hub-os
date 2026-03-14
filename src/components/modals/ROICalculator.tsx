@@ -78,7 +78,6 @@ function Slider({ label, value, min, max, step = 1, unit = "", prefix = "", onCh
         <motion.div
           className="absolute top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-foreground shadow-lg pointer-events-none"
           style={{ left: `calc(${percentage}% - 10px)` }}
-          whileHover={{ scale: 1.1 }}
         >
           <div className="absolute inset-1 rounded-full bg-brand-primary" />
         </motion.div>
@@ -401,4 +400,3 @@ export default function ROICalculatorModal({ isOpen, onClose }: ROICalculatorMod
     </AnimatePresence>
   );
 }
-

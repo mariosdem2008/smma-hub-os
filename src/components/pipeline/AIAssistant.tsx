@@ -40,7 +40,7 @@ export function AIAssistant({
       label: "Generate Hooks",
       icon: PenTool,
       description: "Create attention-grabbing opening hooks",
-      color: "text-purple-500",
+      color: "text-primary",
     },
     {
       id: "script",

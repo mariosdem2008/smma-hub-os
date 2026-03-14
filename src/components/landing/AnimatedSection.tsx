@@ -49,7 +49,7 @@ export function AnimatedSection({
       animate={isInView ? "visible" : "hidden"}
       variants={variants}
       transition={{
-        duration: 0.6,
+        duration: 0.9,
         delay,
         ease: [0.25, 0.46, 0.45, 0.94],
       }}
@@ -87,7 +87,7 @@ export function StaggerContainer({
         visible: {
           opacity: 1,
           transition: {
-            staggerChildren: staggerDelay,
+            staggerChildren: Math.max(staggerDelay, 0.14),
             delayChildren,
           },
         },
@@ -113,7 +113,7 @@ export function StaggerItem({ children, className = "" }: StaggerItemProps) {
         visible: {
           opacity: 1,
           y: 0,
-          transition: { duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] },
+          transition: { duration: 0.8, ease: [0.25, 0.46, 0.45, 0.94] },
         },
       }}
       className={className}

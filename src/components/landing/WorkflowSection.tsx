@@ -32,7 +32,7 @@ export function WorkflowSection() {
       ref={sectionRef}
       initial={{ opacity: 0 }}
       animate={isInView ? { opacity: 1 } : {}}
-      transition={{ duration: 0.4 }}
+      transition={{ duration: 0.75 }}
       className="section-md lp-section"
     >
       <LandingContainer className="relative z-10">
@@ -53,7 +53,7 @@ export function WorkflowSection() {
               key={step.title}
               initial={{ opacity: 0 }}
               animate={isInView ? { opacity: 1 } : {}}
-              transition={{ duration: 0.35, delay: 0.08 + idx * 0.06 }}
+              transition={{ duration: 0.65, delay: 0.12 + idx * 0.08, ease: [0.22, 1, 0.36, 1] }}
             >
               <LandingCard className="glass-card-hover card-lift p-[22px] md:p-[26px] h-full">
                 <div className="flex items-start justify-between gap-[12px]">

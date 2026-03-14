@@ -112,18 +112,18 @@ export function MultiSelect({
               className={cn(
                 "group relative flex flex-col items-start gap-2 rounded-xl border-2 p-3 text-left transition-all",
                 isSelected
-                  ? "border-[#4E5DFF] bg-[#4E5DFF]/10 shadow-md shadow-blue-500/20"
+                  ? "border-primary bg-primary/10 shadow-md shadow-primary/20"
                   : "border-slate-700 hover:border-slate-500 hover:bg-slate-800/50",
                 disabled && "cursor-not-allowed opacity-50",
               )}
             >
               <div className="flex w-full items-center justify-between gap-2">
-                <span className={cn("font-medium", isSelected && "text-[#4E5DFF]")}>{option.label}</span>
+                <span className={cn("font-medium", isSelected && "text-primary")}>{option.label}</span>
                 <div
                   className={cn(
                     "flex h-5 w-5 items-center justify-center rounded border-2 transition-all",
                     isSelected
-                      ? "border-[#4E5DFF] bg-[#4E5DFF] text-white"
+                      ? "border-primary bg-primary text-primary-foreground"
                       : "border-slate-600 group-hover:border-slate-500",
                   )}
                 >

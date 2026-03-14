@@ -177,7 +177,7 @@ const SolutionTable = () => {
             className="inline-flex items-center gap-[8px] text-brand-primary font-semibold hover:text-brand-primary/80 transition-colors group focus-ring"
           >
             See How It Works
-            <ArrowDown className="w-4 h-4 group-hover:translate-y-1 transition-transform" />
+            <ArrowDown className="w-4 h-4" />
           </a>
         </motion.div>
       </div>

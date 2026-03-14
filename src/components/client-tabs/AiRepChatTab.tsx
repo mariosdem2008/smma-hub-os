@@ -3,6 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { parseEdgeFunctionResponse } from "@/lib/edgeFunctionError";
+import { AiWorkflowBlockNotice } from "@/components/ai/AiWorkflowBlockNotice";
+import { buildActivationBlockState, type AiWorkflowBlockState } from "@/lib/aiWorkflowBlock";
 
 type Suggestion = { id: string; label: string; user_message: string };
 type ChatMessage = { role: "user" | "assistant"; content: string; suggestions?: Suggestion[] };
@@ -14,6 +17,7 @@ export default function AiRepChatTab({ clientId }: { clientId: string }) {
   ]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [blocker, setBlocker] = useState<AiWorkflowBlockState | null>(null);
 
   async function send(nextMessage?: string) {
     const text = (nextMessage ?? input).trim();
@@ -43,10 +47,25 @@ export default function AiRepChatTab({ clientId }: { clientId: string }) {
       });
       const responseText = await response.text();
       const data = responseText ? JSON.parse(responseText) : {};
+
       if (!response.ok) {
+        const parsed = parseEdgeFunctionResponse(data);
+        if (!parsed.success && parsed.error?.code === "AGENT_ACTIVATION_REQUIRED") {
+          setBlocker(buildActivationBlockState({
+            message: parsed.error.message,
+            deepLink: parsed.error.deepLink,
+            requiredMode: parsed.error.requiredMode,
+            unlockState: parsed.error.unlockState,
+            activationMode: parsed.error.activationMode,
+            missingCertificationScenarios: parsed.error.missingCertificationScenarios,
+            hasAgencySession: !!session?.access_token,
+          }));
+          throw new Error(parsed.error.message);
+        }
         throw new Error((data?.error as string | undefined) ?? `Request failed (${response.status})`);
       }
 
+      setBlocker(null);
       const reply = (data?.assistant_message as string | undefined) ?? "UNKNOWN\n\nWhat should we focus on?";
       setMessages((prev) => [
         ...prev,
@@ -73,6 +92,10 @@ export default function AiRepChatTab({ clientId }: { clientId: string }) {
 
   return (
     <div className="space-y-4">
+      {blocker ? (
+        <AiWorkflowBlockNotice block={blocker} fallbackLabel="Open AI Setup" />
+      ) : null}
+
       <Card className="p-4">
         <div className="space-y-3 max-h-[55vh] overflow-auto">
           {messages.map((m, idx) => (
@@ -110,7 +133,7 @@ export default function AiRepChatTab({ clientId }: { clientId: string }) {
           className="min-h-[44px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Message the AI Representative…"
+          placeholder="Message the AI Representative..."
         />
         <Button onClick={() => send()} disabled={sending || input.trim().length === 0}>
           Send

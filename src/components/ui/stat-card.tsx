@@ -13,10 +13,10 @@ interface StatCardProps {
 }
 
 const variantStyles = {
-  default: "from-[#4E5DFF] to-[#6A73FF]",
+  default: "from-[hsl(172,72%,44%)] to-[hsl(196,92%,58%)]",
   orange: "from-[hsl(25,95%,60%)] to-[hsl(35,95%,65%)]",
   teal: "from-[hsl(180,85%,55%)] to-[hsl(190,85%,60%)]",
-  purple: "from-[hsl(270,75%,65%)] to-[hsl(280,75%,70%)]",
+  purple: "from-[hsl(172,72%,44%)] to-[hsl(196,92%,58%)]",
   green: "from-[hsl(150,70%,55%)] to-[hsl(160,70%,60%)]",
 };
 

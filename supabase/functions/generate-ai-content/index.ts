@@ -7,6 +7,9 @@ import { TaskType } from "../../../src/ai/taskTypes.ts";
 import { logUsage } from "../../../src/ai/logging.ts";
 import { calculateCost, incrementBudget } from "../_shared/budgets.ts";
 import { getEndpointGuardResponse } from "../_shared/endpoint-guard.ts";
+import { enforceAgencyAgentActivation } from "../_shared/agency-ai-setup.ts";
+import { buildCreatorBriefArtifact, evaluateCreatorBriefArtifact, renderCreatorBriefPromptContext } from "../../../src/lib/strategy/v2/creatorBrief.ts";
+import { createAgentRunV2, createArtifactEvaluationV2, createStrategyArtifactV2, finalizeAgentRunV2 } from "../_shared/strategy-v2.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -23,6 +26,217 @@ const PLAN_QUOTAS: Record<string, number> = {
 
 function estimateTokensForCost(text: string) {
   return Math.ceil(text.length / 3);
+}
+
+async function getLatestApprovedArtifact(
+  supabaseClient: ReturnType<typeof createClient>,
+  clientId: string,
+  artifactType: "strategy_recommendation" | "strategy_plan_v2" | "creator_brief",
+) {
+  const { data, error } = await supabaseClient
+    .from("strategy_artifacts_v2")
+    .select("id, status, updated_at, version, content_json, assumptions, open_questions, confidence, citations, source_brief_id, source_agency_module_version_map")
+    .eq("client_id", clientId)
+    .eq("artifact_type", artifactType)
+    .eq("status", "approved")
+    .order("version", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+async function getLatestBrief(
+  supabaseClient: ReturnType<typeof createClient>,
+  clientId: string,
+) {
+  const { data, error } = await supabaseClient
+    .from("client_operating_briefs_v2")
+    .select("id, version, content_json")
+    .eq("client_id", clientId)
+    .order("version", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+async function ensureCreatorBrief(args: {
+  supabaseClient: ReturnType<typeof createClient>;
+  agencyId: string;
+  clientId: string;
+  userId: string;
+  mode: "ideas" | "hook" | "caption" | "script" | "rewrite";
+  platform?: string | null;
+}) {
+  const { supabaseClient, agencyId, clientId, userId, mode, platform } = args;
+  const [briefRecord, approvedRecommendation, approvedPlan, latestCreatorBrief] = await Promise.all([
+    getLatestBrief(supabaseClient, clientId),
+    getLatestApprovedArtifact(supabaseClient, clientId, "strategy_recommendation"),
+    getLatestApprovedArtifact(supabaseClient, clientId, "strategy_plan_v2"),
+    getLatestApprovedArtifact(supabaseClient, clientId, "creator_brief"),
+  ]);
+
+  if (!briefRecord || !approvedRecommendation || !approvedPlan) {
+    return { creatorBriefArtifact: null as any, creatorBriefContext: null as string | null };
+  }
+
+  const latestBody = latestCreatorBrief?.content_json?.body as Record<string, unknown> | undefined;
+  const latestMode = typeof latestBody?.requested_output === "object" && latestBody?.requested_output && typeof (latestBody.requested_output as Record<string, unknown>).mode === "string"
+    ? String((latestBody.requested_output as Record<string, unknown>).mode)
+    : null;
+  const latestPlatform = typeof latestBody?.requested_output === "object" && latestBody?.requested_output && typeof (latestBody.requested_output as Record<string, unknown>).platform === "string"
+    ? String((latestBody.requested_output as Record<string, unknown>).platform)
+    : null;
+  const briefMatches =
+    latestCreatorBrief &&
+    latestCreatorBrief.source_brief_id === briefRecord.id &&
+    latestMode === mode &&
+    latestPlatform === (platform?.trim() || latestPlatform);
+
+  if (briefMatches) {
+    return {
+      creatorBriefArtifact: latestCreatorBrief,
+      creatorBriefContext: renderCreatorBriefPromptContext(latestCreatorBrief.content_json as any),
+    };
+  }
+
+  const run = await createAgentRunV2({
+    supabase: supabaseClient,
+    agencyId,
+    clientId,
+    agentKey: "creator_brief_agent",
+    lifecycleState: "production_active",
+    startedByUserId: userId,
+    inputRefs: {
+      source_brief_id: briefRecord.id,
+      recommendation_artifact_id: approvedRecommendation.id,
+      strategy_plan_artifact_id: approvedPlan.id,
+      requested_mode: mode,
+      requested_platform: platform ?? null,
+    },
+  });
+
+  try {
+    const creatorBrief = buildCreatorBriefArtifact({
+      briefVersion: Number(briefRecord.version ?? 1),
+      agencyModuleVersions: (approvedPlan.source_agency_module_version_map as Record<string, number>) ?? {},
+      brief: briefRecord.content_json as any,
+      recommendationArtifact: approvedRecommendation.content_json as any,
+      strategyPlanArtifact: approvedPlan.content_json as any,
+      mode,
+      platform,
+    });
+
+    const artifact = await createStrategyArtifactV2({
+      supabase: supabaseClient,
+      agencyId,
+      clientId,
+      artifactType: "creator_brief",
+      status: "approved",
+      sourceBriefId: briefRecord.id,
+      agencyModuleVersionMap: (approvedPlan.source_agency_module_version_map as Record<string, number>) ?? {},
+      contentJson: creatorBrief as unknown as Record<string, unknown>,
+      assumptions: creatorBrief.assumptions,
+      openQuestions: creatorBrief.open_questions,
+      citations: creatorBrief.citations,
+      confidence: creatorBrief.confidence,
+      generatedByRunId: run.id,
+      createdBy: userId,
+    });
+
+    const evaluation = evaluateCreatorBriefArtifact(creatorBrief);
+    await createArtifactEvaluationV2({
+      supabase: supabaseClient,
+      artifactId: artifact.id,
+      agencyId,
+      clientId,
+      evaluatorKey: "creator_brief_gate_v2",
+      result: evaluation.result,
+      score: evaluation.score,
+      findings: evaluation.findings,
+      metadata: {
+        requested_mode: mode,
+        requested_platform: platform ?? null,
+        source_recommendation_artifact_id: approvedRecommendation.id,
+        source_strategy_plan_artifact_id: approvedPlan.id,
+      },
+    });
+
+    await finalizeAgentRunV2({
+      supabase: supabaseClient,
+      runId: run.id,
+      status: "completed",
+      outputArtifactId: artifact.id,
+      traceJson: {
+        derived_from_approved_strategy: true,
+        requested_mode: mode,
+        requested_platform: platform ?? null,
+      },
+    });
+
+    return {
+      creatorBriefArtifact: artifact,
+      creatorBriefContext: renderCreatorBriefPromptContext(creatorBrief),
+    };
+  } catch (error) {
+    await finalizeAgentRunV2({
+      supabase: supabaseClient,
+      runId: run.id,
+      status: "failed",
+      failureReason: error instanceof Error ? error.message : "creator_brief_generation_failed",
+    });
+    throw error;
+  }
+}
+
+async function enforceApprovedStrategyGate(
+  supabaseClient: ReturnType<typeof createClient>,
+  clientId: string,
+  agencyId: string,
+) {
+  const { data: clientRecord, error: clientError } = await supabaseClient
+    .from("clients")
+    .select("id, agency_id")
+    .eq("id", clientId)
+    .eq("agency_id", agencyId)
+    .maybeSingle();
+
+  if (clientError) throw clientError;
+  if (!clientRecord) {
+    return new Response(JSON.stringify({
+      success: false,
+      code: "CLIENT_NOT_FOUND",
+      error: "Client not found",
+    }), {
+      status: 404,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const [approvedRecommendation, approvedPlan] = await Promise.all([
+    getLatestApprovedArtifact(supabaseClient, clientId, "strategy_recommendation"),
+    getLatestApprovedArtifact(supabaseClient, clientId, "strategy_plan_v2"),
+  ]);
+
+  const missingApprovals = [
+    approvedRecommendation ? null : "strategy_recommendation",
+    approvedPlan ? null : "strategy_plan_v2",
+  ].filter(Boolean);
+
+  if (missingApprovals.length === 0) return null;
+
+  return new Response(JSON.stringify({
+    success: false,
+    code: "STRATEGY_APPROVAL_REQUIRED",
+    error: "Approved strategy recommendation and plan are required before AI content generation can run.",
+    deep_link: `/clients/${clientId}?tab=strategy`,
+    missing_approvals: missingApprovals,
+  }), {
+    status: 412,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
 }
 
 function extractUsageFromRaw(raw: unknown) {
@@ -95,7 +309,7 @@ serve(async (req: { method: string; headers: { get: (arg0: string) => any; }; js
     console.log('[AI-CONTENT] User authenticated:', user.id);
 
     // Parse request body
-    const { 
+    const {
       mode, 
       project_id, 
       client_id, 
@@ -147,6 +361,33 @@ serve(async (req: { method: string; headers: { get: (arg0: string) => any; }; js
     const agency_id = agencyMember.agency_id;
     console.log('[AI-CONTENT] Agency found:', agency_id);
 
+    const activationGateResponse = await enforceAgencyAgentActivation({
+      supabaseClient,
+      agencyId: agency_id,
+      agentClass: "creator",
+      requiredMode: "internal_assist_only",
+      corsHeaders,
+    });
+    if (activationGateResponse) {
+      console.warn("[AI-CONTENT] Creator activation gate blocked generation", { agency_id, client_id });
+      return activationGateResponse;
+    }
+
+    const approvalGateResponse = await enforceApprovedStrategyGate(supabaseClient, client_id, agency_id);
+    if (approvalGateResponse) {
+      console.warn("[AI-CONTENT] Strategy approval gate blocked generation", { agency_id, client_id });
+      return approvalGateResponse;
+    }
+
+    const { creatorBriefArtifact, creatorBriefContext } = await ensureCreatorBrief({
+      supabaseClient,
+      agencyId: agency_id,
+      clientId: client_id,
+      userId: user.id,
+      mode,
+      platform,
+    });
+
     // Check subscription and quota
     const { data: agency } = await supabaseClient
       .from('agencies')
@@ -182,6 +423,10 @@ serve(async (req: { method: string; headers: { get: (arg0: string) => any; }; js
       );
     }
 
+    const canonicalBrandContext = creatorBriefArtifact
+      ? renderCreatorBriefPromptContext(creatorBriefArtifact.content_json as any, brand_context || creatorBriefContext || undefined)
+      : [creatorBriefContext, brand_context].filter((value): value is string => typeof value === "string" && value.trim().length > 0).join("\n\n");
+
     console.log('[AI-CONTENT] Calling AI router...');
     const startTime = Date.now();
     let suggestions;
@@ -194,7 +439,7 @@ serve(async (req: { method: string; headers: { get: (arg0: string) => any; }; js
         metadata: {
           mode,
           platform,
-          brand_context,
+          brand_context: canonicalBrandContext,
           input_text,
         },
       });
@@ -214,7 +459,7 @@ serve(async (req: { method: string; headers: { get: (arg0: string) => any; }; js
     const usage = extractUsageFromRaw(aiResult?.raw);
     const runtimeModel =
       aiResult?.meta?.model ?? (aiResult?.meta?.provider === "gemini" ? "gemini-flash-latest" : "gpt-4o-mini");
-    const inputText = `${input_text ?? ""}\n\n${brand_context ?? ""}`;
+    const inputText = `${input_text ?? ""}\n\n${canonicalBrandContext ?? ""}`;
     const outputText = JSON.stringify(suggestions ?? []);
     const tokensIn = usage?.inputTokens ?? estimateTokensForCost(inputText);
     const tokensOut = usage?.outputTokens ?? estimateTokensForCost(outputText);
@@ -258,6 +503,7 @@ serve(async (req: { method: string; headers: { get: (arg0: string) => any; }; js
         cost_estimation_method: costEstimationMethod,
         mode,
         project_id: project_id ?? null,
+        creator_brief_artifact_id: creatorBriefArtifact?.id ?? null,
         input_hash: inputHash,
         output_hash: outputHash,
         input_chars: inputText.length,
@@ -364,6 +610,7 @@ serve(async (req: { method: string; headers: { get: (arg0: string) => any; }; js
         success: true,
         mode,
         suggestions,
+        creator_brief_artifact_id: creatorBriefArtifact?.id ?? null,
         usage: {
           used: (usageCount || 0) + 1,
           quota: monthlyQuota,

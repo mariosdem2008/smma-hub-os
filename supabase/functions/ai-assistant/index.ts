@@ -9,6 +9,7 @@ import { fetchBrainDocument } from "../_shared/brain-documents.ts";
 import { embedQueryForRag, getMatchRpcName } from "../_shared/rag-index.ts";
 import { generateSpanId, generateTraceId, logOtelSpan } from "../../../src/ai/otel.ts";
 import { resolvePersonaPromptContext, type PersonaPromptContext } from "../_shared/persona-prompt-context.ts";
+import { enforceAgencyAgentActivation } from "../_shared/agency-ai-setup.ts";
 
 type MinimalSupabase = ReturnType<typeof createClient>;
 
@@ -98,6 +99,12 @@ async function getClientAndAgency(supabase: MinimalSupabase, clientId: string) {
   return data as
     | { id: string; agency_id: string; name: string; niche: string | null; website: string | null; status: string | null }
     | null;
+}
+
+function getAssistantAgentClass(activeTab: unknown): "strategy" | "operator" | "analyst" {
+  if (activeTab === "tasks" || activeTab === "pipeline") return "operator";
+  if (activeTab === "analytics") return "analyst";
+  return "strategy";
 }
 
 async function getOrCreateThread(supabase: MinimalSupabase, agencyId: string, clientId: string, userId: string) {
@@ -457,6 +464,17 @@ serve(async (req: Request) => {
       if (!membership) {
         return jsonResponse({ error: "Forbidden" }, 403, corsHeaders(req));
       }
+
+    const activationResponse = await enforceAgencyAgentActivation({
+      supabaseClient: supabase,
+      agencyId: client.agency_id,
+      agentClass: getAssistantAgentClass(activeTab),
+      requiredMode: "internal_assist_only",
+      corsHeaders: corsHeaders(req),
+    });
+    if (activationResponse) {
+      return activationResponse;
+    }
 
     const profile = await loadProfile(supabase, user.id);
     const userName = profile?.full_name?.trim() || profile?.email || "Team member";

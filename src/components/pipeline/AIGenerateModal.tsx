@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Sparkles, Check } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { useNavigate } from "react-router-dom";
 
 interface AIGenerateModalProps {
   open: boolean;
@@ -21,6 +22,7 @@ interface AIGenerateModalProps {
 
 export function AIGenerateModal({ open, onOpenChange, type, clientId, projectId, onUse }: AIGenerateModalProps) {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<any[]>([]);
 
@@ -32,6 +34,17 @@ export function AIGenerateModal({ open, onOpenChange, type, clientId, projectId,
   const [pillars, setPillars] = useState("");
   const [trends, setTrends] = useState("");
   const [currentText, setCurrentText] = useState("");
+
+  const readFunctionErrorPayload = async (error: unknown): Promise<{ code?: string; error?: string; deep_link?: string } | null> => {
+    if (!error || typeof error !== "object") return null;
+    const context = (error as { context?: Response }).context;
+    if (!context || typeof (context as any).json !== "function") return null;
+    try {
+      return await (context as any).json();
+    } catch {
+      return null;
+    }
+  };
 
   const handleGenerate = async () => {
     setLoading(true);
@@ -101,7 +114,23 @@ export function AIGenerateModal({ open, onOpenChange, type, clientId, projectId,
         body: requestBody,
       });
 
-      if (error) throw error;
+      if (error) {
+        const payload = await readFunctionErrorPayload(error);
+        if (payload?.code === "STRATEGY_APPROVAL_REQUIRED" || payload?.code === "AGENT_ACTIVATION_REQUIRED") {
+          toast({
+            title: payload.code === "AGENT_ACTIVATION_REQUIRED" ? "Creator activation required" : "Strategy approval required",
+            description:
+              payload.error ||
+              (payload.code === "AGENT_ACTIVATION_REQUIRED"
+                ? "Activate the creator agent in AI Setup before generating AI content."
+                : "Approve the current recommendation and strategy plan before generating AI content."),
+            variant: "destructive",
+          });
+          if (payload.deep_link) navigate(payload.deep_link);
+          return;
+        }
+        throw error;
+      }
 
       if (!data.success) {
         toast({

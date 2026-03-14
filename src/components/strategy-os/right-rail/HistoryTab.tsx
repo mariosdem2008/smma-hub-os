@@ -80,7 +80,7 @@ export function HistoryTab() {
                     <div
                       className={cn(
                         'rounded-full p-1.5 flex-shrink-0',
-                        eventType === 'seeded' && 'bg-purple-500/10 text-purple-400',
+                        eventType === 'seeded' && 'bg-primary/10 text-primary',
                         eventType === 'locked' && 'bg-red-500/10 text-red-400',
                         eventType === 'unlocked' && 'bg-green-500/10 text-green-400',
                         eventType === 'approved' && 'bg-green-500/10 text-green-400',

@@ -7,6 +7,7 @@ import { useAddHistoryEvent } from '@/hooks/useStrategyHistory';
 import { STRATEGY_MODULES } from '@/lib/strategy/constants';
 import { Sparkles, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 
 interface GenerateStrategyButtonProps {
   size?: 'default' | 'sm' | 'lg';
@@ -22,6 +23,7 @@ export function GenerateStrategyButton({
   const { clientId, agencyId, strategyId } = useStrategyOS();
   const generateStrategy = useGenerateStrategy();
   const addHistoryEvent = useAddHistoryEvent();
+  const navigate = useNavigate();
 
   const handleGenerate = async () => {
     try {
@@ -47,9 +49,15 @@ export function GenerateStrategyButton({
 
       if (result?.mode === 'unknown') {
         const fallbackMessage =
-          result.questions?.[0] ?? 'Strategy Builder is blocked. Resolve missing requirements and retry.';
+          result.message ?? result.questions?.[0] ?? 'Strategy Builder is blocked. Resolve missing requirements and retry.';
         toast.error('Strategy Builder blocked', {
           description: fallbackMessage,
+          action: result.deepLink
+            ? {
+                label: 'Fix now',
+                onClick: () => navigate(result.deepLink!),
+              }
+            : undefined,
         });
         return;
       }

@@ -17,5 +17,9 @@ describe("client onboarding chat strategy wiring", () => {
     expect(chatShell).not.toContain("ai-brain-ingest");
     expect(chatShell).not.toContain("ai-strategy-generate");
     expect(edge).toContain("complete_onboarding_profile");
+    expect(edge).toContain("saved_summary");
+    expect(edge).toContain("handoff_state");
+    expect(chatShell).toContain("saveState");
+    expect(chatShell).toContain("handoffMessage");
   });
 });

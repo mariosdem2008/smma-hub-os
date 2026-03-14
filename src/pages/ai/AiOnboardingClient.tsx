@@ -3,7 +3,7 @@
 // Routes to OnboardingWizard with client context
 // ============================================================================
 
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { ClientOnboardingChatShell } from '@/components/onboarding-chat-client/ClientOnboardingChatShell';
@@ -12,6 +12,12 @@ import { Loader2 } from 'lucide-react';
 export default function AiOnboardingClient() {
   const { clientId } = useParams<{ clientId: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const targetStageParam = searchParams.get('stage');
+  const targetStage =
+    targetStageParam === 'operations_setup' || targetStageParam === 'progressive_enrichment'
+      ? targetStageParam
+      : 'essential_intake';
 
   // Fetch client data (includes agency_id)
   const { data: client, isLoading, error } = useQuery({
@@ -105,5 +111,5 @@ export default function AiOnboardingClient() {
     );
   }
 
-  return <ClientOnboardingChatShell clientId={clientId} agencyId={client.agency_id} />;
+  return <ClientOnboardingChatShell clientId={clientId} agencyId={client.agency_id} targetStage={targetStage} />;
 }

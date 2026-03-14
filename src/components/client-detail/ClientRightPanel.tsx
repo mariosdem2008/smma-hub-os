@@ -17,6 +17,8 @@ import { useStrategyTasks, getTaskCounts, useUpdateTaskStatus } from '@/hooks/us
 import { useStrategyModules, useUpdateModuleContent } from '@/hooks/useStrategyModules';
 import { useAddHistoryEvent } from '@/hooks/useStrategyHistory';
 import { useAiAssistant, AiAssistantError } from '@/hooks/useAiAssistant';
+import { AiWorkflowBlockNotice } from '@/components/ai/AiWorkflowBlockNotice';
+import { buildAssistantBlockStateFromError, buildAiSetupRequiredBlockState, type AiWorkflowBlockState } from '@/lib/aiWorkflowBlock';
 import { HISTORY_EVENT_LABELS, getModuleDefinition, TASK_PRIORITY_CONFIG } from '@/lib/strategy/constants';
 import type { HistoryEventType, TaskStatus, TaskPriority, StrategyModule } from '@/lib/strategy/types';
 import { toast } from 'sonner';
@@ -123,7 +125,7 @@ What would you like help with?`,
   const [threadId, setThreadId] = useState<string | null>(null);
   const [hasLoadedThread, setHasLoadedThread] = useState(false);
   const [lastProposals, setLastProposals] = useState<any[]>([]);
-  const [setupRequired, setSetupRequired] = useState<{ missing?: string[] } | null>(null);
+  const [setupRequired, setSetupRequired] = useState<AiWorkflowBlockState | null>(null);
   const [pendingApply, setPendingApply] = useState<null | { proposalId: string }>(null);
   const [pendingUndo, setPendingUndo] = useState<null | { changeId: string }>(null);
   const [appliedChange, setAppliedChange] = useState<AppliedChange | null>(null);
@@ -233,7 +235,13 @@ What would you like help with?`,
         );
       } catch (error) {
         if (error instanceof AiAssistantError && error.code === 'AI_SETUP_REQUIRED') {
-          setSetupRequired({ missing: error.missing });
+          setSetupRequired(buildAiSetupRequiredBlockState({
+            missing: error.missing,
+            deepLink: "/agency/ai-setup",
+            hasAgencySession: true,
+          }));
+        } else if (error instanceof AiAssistantError && error.code === 'AGENT_ACTIVATION_REQUIRED') {
+          setSetupRequired(buildAssistantBlockStateFromError(error, true));
         } else {
           const message = error instanceof Error ? error.message : 'Failed to load chat';
           toast.error(message);
@@ -291,7 +299,13 @@ What would you like help with?`,
       ]);
     } catch (error) {
       if (error instanceof AiAssistantError && error.code === 'AI_SETUP_REQUIRED') {
-        setSetupRequired({ missing: error.missing });
+        setSetupRequired(buildAiSetupRequiredBlockState({
+          missing: error.missing,
+          deepLink: "/agency/ai-setup",
+          hasAgencySession: true,
+        }));
+      } else if (error instanceof AiAssistantError && error.code === 'AGENT_ACTIVATION_REQUIRED') {
+        setSetupRequired(buildAssistantBlockStateFromError(error, true));
       } else {
         const message = error instanceof Error ? error.message : 'AI request failed';
         setMessages((prev) => [
@@ -545,35 +559,17 @@ AI isn’t configured yet. Complete AI Setup to enable this assistant.`,
                 <ScrollArea className="flex-1 p-3">
                   <div className="space-y-4">
                     {setupRequired && (
-                      <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 space-y-3">
-                        <div className="text-sm font-semibold text-amber-100">AI assistant setup required</div>
-                        <p className="text-xs text-amber-100/85">
-                          Complete setup to enable assistant chat, proposal apply/undo, and productivity actions in client tabs.
-                        </p>
-                        {Array.isArray(setupRequired.missing) && setupRequired.missing.length > 0 && (
-                          <p className="text-xs text-amber-100/85">
-                            Missing: {setupRequired.missing.slice(0, 6).join(', ')}
-                          </p>
-                        )}
-                        <div className="flex flex-wrap gap-2">
-                          <Button size="sm" asChild>
-                            <Link to="/ai/setup">Open AI setup</Link>
-                          </Button>
-                          <Button size="sm" variant="outline" asChild>
-                            <Link to={`/onboarding/client/${clientId}`}>Open client onboarding</Link>
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => {
-                              setSetupRequired(null);
-                              setHasLoadedThread(false);
-                            }}
-                          >
-                            Retry assistant
-                          </Button>
-                        </div>
-                      </div>
+                      <AiWorkflowBlockNotice
+                        block={setupRequired}
+                        fallbackLink="/agency/ai-setup/activation"
+                        fallbackLabel="Open AI Setup"
+                        secondaryLink={`/onboarding/client/${clientId}`}
+                        secondaryLabel="Open client onboarding"
+                        onRetry={() => {
+                          setSetupRequired(null);
+                          setHasLoadedThread(false);
+                        }}
+                      />
                     )}
                     {messages.map((message) => (
                       <div
@@ -765,7 +761,7 @@ AI isn’t configured yet. Complete AI Setup to enable this assistant.`,
                                   <div
                                     className={cn(
                                       'rounded-full p-1.5 flex-shrink-0',
-                                      eventType === 'seeded' && 'bg-purple-500/10 text-purple-400',
+                                      eventType === 'seeded' && 'bg-primary/10 text-primary',
                                       eventType === 'locked' && 'bg-red-500/10 text-red-400',
                                       eventType === 'unlocked' && 'bg-green-500/10 text-green-400',
                                       eventType === 'approved' && 'bg-green-500/10 text-green-400',

@@ -5,6 +5,8 @@ import { useSectionTracking } from "@/hooks/useSectionTracking";
 import { OutputExamples } from "./OutputExamples";
 import { LandingContainer, Pill, SectionHeader } from "./LandingPrimitives";
 
+const smoothEase = [0.22, 1, 0.36, 1] as const;
+
 export function OutputExamplesSection() {
   const sectionRef = useSectionTracking("Output Examples");
   const isInView = useInView(sectionRef, { once: true, amount: 0.25 });
@@ -15,7 +17,7 @@ export function OutputExamplesSection() {
       ref={sectionRef}
       initial={{ opacity: 0 }}
       animate={isInView ? { opacity: 1 } : {}}
-      transition={{ duration: 0.4 }}
+      transition={{ duration: 0.75, ease: smoothEase }}
       className="section-md lp-section"
     >
       <LandingContainer className="relative z-10">
@@ -37,4 +39,3 @@ export function OutputExamplesSection() {
     </motion.section>
   );
 }
-

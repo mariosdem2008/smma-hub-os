@@ -15,8 +15,8 @@
    - `customer.subscription.deleted`
    - `invoice.payment_failed`
 4. Click "Reveal signing secret" and copy the value
-5. Add to Lovable Cloud:
-   - Open project settings → Lovable Cloud → Secrets
+5. Add to your deployment platform secrets:
+   - Open project settings → Secrets
    - Add new secret: `STRIPE_WEBHOOK_SECRET` with the copied value
 6. Redeploy edge functions (automatic on next code change)
 
@@ -132,14 +132,14 @@
 
 ### Pre-Deploy
 - [x] Remove debug routes from production code
-- [ ] Add `STRIPE_WEBHOOK_SECRET` to Lovable Cloud
+- [ ] Add `STRIPE_WEBHOOK_SECRET` to deployment platform secrets
 - [ ] Configure Stripe webhook endpoint
 - [ ] Test all cron jobs running (check Supabase Functions logs)
 - [ ] Verify Meta app is in Live mode (not Development)
 - [ ] Test OAuth redirects on production domain
 
 ### Deploy
-- [ ] Click "Publish" in Lovable
+- [ ] Publish the latest production build
 - [ ] Wait for build to complete
 - [ ] Verify all edge functions deployed (20 total)
 - [ ] Test landing page loads
@@ -175,7 +175,7 @@
 
 ### Troubleshooting Resources
 - **Logs Tab:** Settings → Logs (post attempts, token refreshes, failures)
-- **Supabase Logs:** Lovable Cloud → Functions → View logs
+- **Supabase Logs:** deployment platform → Functions → View logs
 - **Stripe Dashboard:** Payments, subscriptions, webhooks
 - **Meta Events Manager:** Failed API calls, rate limits
 
@@ -186,7 +186,7 @@
 **Current Status:** 🟡 90% Ready - Awaiting Stripe Webhook Secret
 
 **Next Steps:**
-1. Add `STRIPE_WEBHOOK_SECRET` to Lovable Cloud (5 min)
+1. Add `STRIPE_WEBHOOK_SECRET` to deployment platform secrets (5 min)
 2. Configure Stripe webhook endpoint (5 min)
 3. Run final testing protocol (1-2 hours)
 4. Deploy to production 🚀

@@ -1,6 +1,6 @@
 # SAFE-TO-SELL ACTIVATION RUNBOOK
 
-## 1) Set required secrets (Supabase/Lovable)
+## 1) Set required secrets (Supabase/deployment platform)
 Set these secrets before any verification:
 - `CRON_SECRET` (required for cron/privileged functions)
 - `STRIPE_SECRET_KEY`

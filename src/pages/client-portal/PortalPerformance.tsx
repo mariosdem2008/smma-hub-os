@@ -47,7 +47,7 @@ export function PortalPerformance() {
     return (
       <Card className="text-center py-12">
         <CardContent>
-          <div className="w-16 h-16 bg-gradient-to-br from-primary/5 to-accent-purple/5 rounded-full flex items-center justify-center mx-auto mb-4 border border-primary/10">
+          <div className="w-16 h-16 bg-gradient-to-br from-primary/10 to-accent/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-primary/10">
             <Eye className="h-8 w-8 text-primary" />
           </div>
           <p className="text-muted-foreground font-medium mb-2">No Performance Data Yet</p>
@@ -71,7 +71,7 @@ export function PortalPerformance() {
                 <p className="text-2xl font-bold">{analytics.totalReach.toLocaleString()}</p>
                 <p className="text-xs text-muted-foreground">{analytics.postsThisMonth} posts</p>
               </div>
-              <div className="rounded-lg p-2 bg-gradient-to-br from-accent-purple to-accent-purple/80 shadow-lg">
+              <div className="rounded-lg p-2 bg-gradient-to-br from-primary to-accent shadow-lg">
                 <Eye className="h-5 w-5 text-white" />
               </div>
             </div>

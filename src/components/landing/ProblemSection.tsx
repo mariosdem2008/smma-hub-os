@@ -3,6 +3,8 @@ import { motion, useInView } from 'framer-motion';
 import { TrendingUp, TrendingDown, Users, DollarSign, Clock, AlertTriangle } from 'lucide-react';
 import { useSectionTracking } from '@/hooks/useSectionTracking';
 
+const smoothEase = [0.22, 1, 0.36, 1] as const;
+
 const ProblemSection = () => {
   const sectionRef = useSectionTracking('Problem Section');
   const isInView = useInView(sectionRef, { once: true, amount: 0.3 });
@@ -12,7 +14,7 @@ const ProblemSection = () => {
       ref={sectionRef}
       initial={{ opacity: 0 }}
       animate={isInView ? { opacity: 1 } : {}}
-      transition={{ duration: 0.4 }}
+      transition={{ duration: 0.75, ease: smoothEase }}
       className="section-md relative overflow-hidden"
     >
       {/* Subtle background gradient */}
@@ -24,7 +26,7 @@ const ProblemSection = () => {
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={isInView ? { opacity: 1, scale: 1 } : {}}
-            transition={{ duration: 0.4 }}
+            transition={{ duration: 0.6, ease: smoothEase }}
             className="inline-flex items-center gap-2 px-[4px] py-2 rounded-full bg-red-500/10 border border-red-500/20 mb-[24px]"
           >
             <AlertTriangle className="w-4 h-4 text-red-400" />
@@ -57,7 +59,7 @@ const ProblemSection = () => {
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={isInView ? { opacity: 1, x: 0 } : {}}
-            transition={{ duration: 0.5, delay: 0.2 }}
+            transition={{ duration: 0.75, delay: 0.24, ease: smoothEase }}
             className="glass-card glass-card-hover rounded-md p-[32px] md:p-[40px] group graph-card-hiring"
           >
             <div className="flex items-center gap-[12px] mb-[24px]">
@@ -75,7 +77,7 @@ const ProblemSection = () => {
                     key={i}
                     initial={{ scaleY: 0 }}
                     animate={isInView ? { scaleY: 1 } : {}}
-                    transition={{ duration: 0.5, delay: 0.3 + i * 0.1 }}
+                    transition={{ duration: 0.7, delay: 0.34 + i * 0.08, ease: smoothEase }}
                     className="flex-1 bg-gradient-to-t from-red-500/40 to-red-500/20 rounded-t bar-animated origin-bottom"
                     style={{ height: `${height}%` }}
                   />
@@ -122,7 +124,7 @@ const ProblemSection = () => {
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={isInView ? { opacity: 1, x: 0 } : {}}
-            transition={{ duration: 0.5, delay: 0.4 }}
+            transition={{ duration: 0.75, delay: 0.38, ease: smoothEase }}
             className="glass-card glass-card-hover rounded-md p-[32px] md:p-[40px] gradient-border-animated group graph-card-scaling"
           >
             <div className="flex items-center gap-[12px] mb-[24px]">
@@ -140,7 +142,7 @@ const ProblemSection = () => {
                     key={i}
                     initial={{ scaleY: 0 }}
                     animate={isInView ? { scaleY: 1 } : {}}
-                    transition={{ duration: 0.5, delay: 0.4 + i * 0.1 }}
+                    transition={{ duration: 0.7, delay: 0.46 + i * 0.08, ease: smoothEase }}
                     className="flex-1 bg-gradient-to-t from-success/40 to-success/20 rounded-t bar-animated origin-bottom"
                     style={{ height: `${height}%` }}
                   />
@@ -150,7 +152,7 @@ const ProblemSection = () => {
               <motion.div
                 initial={{ scaleX: 0 }}
                 animate={isInView ? { scaleX: 1 } : {}}
-                transition={{ duration: 1, delay: 0.8 }}
+                transition={{ duration: 1.2, delay: 0.86, ease: smoothEase }}
                 className="absolute left-0 right-0 h-0.5 bg-gradient-to-r from-brand-primary to-accent origin-left"
                 style={{ bottom: '70%' }}
               />

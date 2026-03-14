@@ -1,10 +1,12 @@
 import type { CadenceMap, OnboardingOffer, OnboardingProfile, SocialChannel } from "@/types/onboarding";
+import type { OnboardingCollectionStage } from "./progress";
 
 export type ClientOnboardingCardId =
   | "business_essentials_card"
   | "market_scope_card"
   | "goal_conversion_card"
   | "offers_card"
+  | "operations_setup_card"
   | "audience_card"
   | "brand_card"
   | "proof_card"
@@ -15,71 +17,128 @@ export interface ClientOnboardingCardSpec {
   id: ClientOnboardingCardId;
   title: string;
   description: string;
+  stage: OnboardingCollectionStage;
+  stageLabel: string;
+  completionMode: "blocking_now" | "required_before_execution" | "collect_later";
   submitLabel: string;
   fields: string[];
+}
+
+export interface ClientOnboardingSavedSummary {
+  savedFields: string[];
+  summary: string;
 }
 
 const CARD_SEQUENCE: ClientOnboardingCardSpec[] = [
   {
     id: "business_essentials_card",
-    title: "Business essentials",
-    description: "Capture core business identity and online presence.",
+    title: "Business snapshot",
+    description: "Start with the basics: what the business is, where it lives online, and how we should frame it.",
+    stage: "essential_intake",
+    stageLabel: "Essential intake",
+    completionMode: "blocking_now",
     submitLabel: "Save and continue",
     fields: ["q1_business_name", "industry_niche", "q2_website", "q2_social_links"],
   },
   {
     id: "market_scope_card",
-    title: "Market scope",
-    description: "Define geography and language context for planning.",
+    title: "Market focus",
+    description: "Confirm where the business is selling and the market context we should plan around.",
+    stage: "essential_intake",
+    stageLabel: "Essential intake",
+    completionMode: "blocking_now",
     submitLabel: "Save and continue",
     fields: ["q3_market_scope", "q3_country", "q3_city", "q4_languages"],
   },
   {
     id: "goal_conversion_card",
-    title: "Goal + conversion",
-    description: "Set growth objective and exact conversion destination.",
+    title: "Business goal",
+    description: "Set the main result the client wants and the exact action marketing should drive.",
+    stage: "essential_intake",
+    stageLabel: "Essential intake",
+    completionMode: "blocking_now",
     submitLabel: "Save and continue",
     fields: ["primary_goal", "conversion_path", "conversion_link", "dm_keyword"],
   },
   {
     id: "offers_card",
-    title: "Offers",
-    description: "Define the core offers this strategy should push.",
+    title: "Priority offer",
+    description: "Lock the offer we should prioritize first so the workspace starts with a clear commercial focus.",
+    stage: "essential_intake",
+    stageLabel: "Essential intake",
+    completionMode: "blocking_now",
     submitLabel: "Save and continue",
     fields: ["offers", "q6_offer_name", "q6_price_min", "q6_price_max"],
   },
   {
+    id: "operations_setup_card",
+    title: "Operating setup",
+    description: "Capture the day-to-day contact, approver, timing, and setup blockers so delivery can run without chaos.",
+    stage: "operations_setup",
+    stageLabel: "Operations setup",
+    completionMode: "required_before_execution",
+    submitLabel: "Save and continue",
+    fields: [
+      "primary_contact_name",
+      "primary_contact_role",
+      "primary_contact_email",
+      "main_approver_name",
+      "main_approver_role",
+      "approval_sla",
+      "preferred_comms_channel",
+      "launch_window",
+      "required_access_status",
+      "missing_assets",
+      "escalation_contact",
+    ],
+  },
+  {
     id: "audience_card",
-    title: "Audience",
-    description: "Define who this client serves and what blocks conversion.",
+    title: "Audience context",
+    description: "Add the main buyer and the friction points that matter most. This improves strategy quality but can be refined later.",
+    stage: "progressive_enrichment",
+    stageLabel: "Progressive enrichment",
+    completionMode: "collect_later",
     submitLabel: "Save and continue",
     fields: ["audience_type", "primary_customer", "main_objection", "q9_pain_points"],
   },
   {
     id: "brand_card",
-    title: "Brand + content",
-    description: "Capture voice, style, camera constraints, and available assets.",
+    title: "Brand direction",
+    description: "Capture creative direction and production constraints. Keep this practical rather than overly abstract.",
+    stage: "operations_setup",
+    stageLabel: "Operations setup",
+    completionMode: "required_before_execution",
     submitLabel: "Save and continue",
     fields: ["brand_voice", "content_style", "on_camera_availability", "available_assets"],
   },
   {
     id: "proof_card",
-    title: "Proof + competitor",
-    description: "Capture trust proof and benchmark references.",
+    title: "Proof and references",
+    description: "Add proof, competitor context, and differentiators to strengthen recommendations over time.",
+    stage: "progressive_enrichment",
+    stageLabel: "Progressive enrichment",
+    completionMode: "collect_later",
     submitLabel: "Save and continue",
     fields: ["proof_types", "competitor_link", "q13_differentiators"],
   },
   {
     id: "channels_card",
-    title: "Channels + cadence",
-    description: "Set channels, format mix, and posting rhythm.",
+    title: "Channels and delivery",
+    description: "Set the active channels, content mix, and operating rhythm required for execution readiness.",
+    stage: "operations_setup",
+    stageLabel: "Operations setup",
+    completionMode: "required_before_execution",
     submitLabel: "Save and continue",
     fields: ["platforms", "formats", "cadence_preset", "cadence_per_platform", "response_handling"],
   },
   {
     id: "review_card",
-    title: "Review and finalize",
-    description: "Confirm required fields are complete and generate strategy.",
+    title: "Workspace review",
+    description: "Review the essentials, confirm the workspace is usable, and continue into strategy generation.",
+    stage: "essential_intake",
+    stageLabel: "Essential intake",
+    completionMode: "blocking_now",
     submitLabel: "Generate strategy",
     fields: [],
   },
@@ -124,6 +183,39 @@ function asNumber(value: unknown): number | null {
 
 export function getClientOnboardingCards() {
   return CARD_SEQUENCE;
+}
+
+export function getEssentialIntakeCards() {
+  return CARD_SEQUENCE.filter((card) => card.stage === "essential_intake");
+}
+
+export function getOperationsSetupCards() {
+  return CARD_SEQUENCE.filter((card) => card.stage === "operations_setup");
+}
+
+export function getCollectLaterCards() {
+  return CARD_SEQUENCE.filter((card) => card.stage === "progressive_enrichment");
+}
+
+export function getCardsForStage(stage: OnboardingCollectionStage) {
+  if (stage === "essential_intake") return getEssentialIntakeCards();
+  if (stage === "operations_setup") return getOperationsSetupCards();
+  return getCollectLaterCards();
+}
+
+export function getFirstCardForStage(stage: OnboardingCollectionStage) {
+  return getCardsForStage(stage)[0] ?? CARD_SEQUENCE[0];
+}
+
+export function getNextCardForStage(cardId: ClientOnboardingCardId, stage: OnboardingCollectionStage) {
+  const stageCards = getCardsForStage(stage);
+  const idx = stageCards.findIndex((card) => card.id === cardId);
+  if (idx < 0 || idx >= stageCards.length - 1) return null;
+  return stageCards[idx + 1];
+}
+
+export function getClientOnboardingCardTotal() {
+  return CARD_SEQUENCE.length;
 }
 
 export function getClientOnboardingCardByStep(step: number) {
@@ -263,6 +355,50 @@ function validateOffers(payload: Record<string, unknown>): CardValidationResult 
   };
 }
 
+function validateOperationsSetup(payload: Record<string, unknown>): CardValidationResult {
+  const errors: string[] = [];
+  const primary_contact_name = asString(payload.primary_contact_name);
+  const primary_contact_role = asString(payload.primary_contact_role);
+  const primary_contact_email = asString(payload.primary_contact_email);
+  const main_approver_name = asString(payload.main_approver_name);
+  const main_approver_role = asString(payload.main_approver_role);
+  const approval_sla = asString(payload.approval_sla);
+  const preferred_comms_channel = asString(payload.preferred_comms_channel);
+  const launch_window = asString(payload.launch_window);
+  const escalation_contact = asString(payload.escalation_contact);
+  const required_access_status = asStringArray(payload.required_access_status);
+  const missing_assets = asStringArray(payload.missing_assets);
+
+  if (!primary_contact_name) errors.push("Primary contact is required.");
+  if (!main_approver_name) errors.push("Main approver is required.");
+  if (!preferred_comms_channel) errors.push("Preferred communication channel is required.");
+  if (!launch_window) errors.push("Launch window or timing note is required.");
+  if (required_access_status.length === 0) errors.push("At least one access status is required.");
+
+  return {
+    ok: errors.length === 0,
+    errors,
+    updates: {
+      v5_meta: {
+        operations_setup: {
+          primary_contact_name,
+          primary_contact_role,
+          primary_contact_email,
+          main_approver_name,
+          main_approver_role,
+          approval_sla,
+          preferred_comms_channel,
+          launch_window,
+          required_access_status,
+          missing_assets,
+          escalation_contact,
+          updated_at: new Date().toISOString(),
+        },
+      } as OnboardingProfile["v5_meta"],
+    },
+  };
+}
+
 function validateAudience(payload: Record<string, unknown>): CardValidationResult {
   const errors: string[] = [];
   const audience_type = asString(payload.audience_type);
@@ -390,6 +526,8 @@ export function validateCardPayload(cardId: ClientOnboardingCardId, payload: unk
       return validateGoalConversion(record);
     case "offers_card":
       return validateOffers(record);
+    case "operations_setup_card":
+      return validateOperationsSetup(record);
     case "audience_card":
       return validateAudience(record);
     case "brand_card":
@@ -402,5 +540,83 @@ export function validateCardPayload(cardId: ClientOnboardingCardId, payload: unk
       return { ok: true, errors: [], updates: {} };
     default:
       return { ok: false, errors: ["Unsupported card."], updates: {} };
+  }
+}
+
+export function buildSavedSummary(
+  cardId: ClientOnboardingCardId,
+  updates: Partial<OnboardingProfile>,
+): ClientOnboardingSavedSummary {
+  switch (cardId) {
+    case "business_essentials_card": {
+      const parts: string[] = [];
+      if (updates.q1_business_name) parts.push(`Saved business name as "${updates.q1_business_name}".`);
+      if (updates.industry_niche) parts.push(`Locked in the niche and online presence basics.`);
+      return {
+        savedFields: ["q1_business_name", "industry_niche", "q2_website", "q2_social_links"],
+        summary: parts.join(" ") || "Saved the business essentials.",
+      };
+    }
+    case "market_scope_card":
+      return {
+        savedFields: ["q3_market_scope", "q3_country", "q3_city", "q4_languages"],
+        summary: "Saved market scope, location, and language context.",
+      };
+    case "goal_conversion_card":
+      return {
+        savedFields: ["primary_goal", "conversion_path", "conversion_link", "dm_keyword"],
+        summary: "Saved the primary goal and the exact conversion path we should optimize for.",
+      };
+    case "offers_card": {
+      const offerName = typeof updates.q6_offer_name === "string" ? updates.q6_offer_name : null;
+      return {
+        savedFields: ["offers", "q6_offer_name", "q6_price_min", "q6_price_max"],
+        summary: offerName
+          ? `Saved the core offer around "${offerName}".`
+          : "Saved the core offer details.",
+        };
+      }
+    case "operations_setup_card":
+      return {
+        savedFields: [
+          "primary_contact_name",
+          "main_approver_name",
+          "preferred_comms_channel",
+          "launch_window",
+          "required_access_status",
+          "missing_assets",
+        ],
+        summary: "Saved the operating setup: contacts, approvals, timing, and readiness blockers.",
+      };
+    case "audience_card":
+      return {
+        savedFields: ["audience_type", "primary_customer", "main_objection", "q9_pain_points"],
+        summary: "Saved who the client serves, the main objection, and the biggest pain points.",
+      };
+    case "brand_card":
+      return {
+        savedFields: ["brand_voice", "content_style", "on_camera_availability", "available_assets"],
+        summary: "Saved voice, content style, on-camera constraints, and available assets.",
+      };
+    case "proof_card":
+      return {
+        savedFields: ["proof_types", "competitor_link", "q13_differentiators"],
+        summary: "Saved proof points, competitor context, and differentiators.",
+      };
+    case "channels_card":
+      return {
+        savedFields: ["platforms", "formats", "cadence_preset", "cadence_per_platform", "response_handling"],
+        summary: "Saved platforms, formats, cadence, and response handling preferences.",
+      };
+    case "review_card":
+      return {
+        savedFields: [],
+        summary: "Final review confirmed. Preparing the client workspace now.",
+      };
+    default:
+      return {
+        savedFields: [],
+        summary: "Saved the latest onboarding details.",
+      };
   }
 }

@@ -12,10 +12,11 @@ import { getDefaultModuleContent } from '@/lib/strategy/defaults';
 import { STRATEGY_MODULES } from '@/lib/strategy/constants';
 import { evaluateStrategyModule } from '@/lib/strategy/rulesEngine';
 import { strategyDocumentsKeys } from '@/hooks/useStrategyDocuments';
+import { parseEdgeFunctionResponse } from '@/lib/edgeFunctionError';
 
 type StrategyGenerateResult =
   | { mode: 'ai'; documentId?: string | null }
-  | { mode: 'unknown'; missing_fields?: string[]; questions?: string[] };
+  | { mode: 'unknown'; code?: string; deepLink?: string; missing_fields?: string[]; questions?: string[]; message?: string };
 
 async function readFunctionErrorPayload(error: unknown): Promise<{ code?: string; error?: string } | null> {
   if (!error || typeof error !== 'object') return null;
@@ -275,15 +276,24 @@ export function useGenerateStrategy() {
         throw error;
       }
 
-      if (data?.unknown === true) {
+      const parsed = parseEdgeFunctionResponse<{
+        document?: { document_id?: string | null } | null;
+        unknown?: boolean;
+        [key: string]: unknown;
+      }>(data);
+
+      if (!parsed.success && parsed.error) {
         return {
           mode: 'unknown',
-          missing_fields: Array.isArray(data?.missing_fields) ? data.missing_fields : undefined,
-          questions: Array.isArray(data?.questions) ? data.questions : undefined,
+          code: parsed.error.code,
+          deepLink: parsed.error.deepLink,
+          message: parsed.error.message,
+          missing_fields: parsed.error.missingFields,
+          questions: parsed.error.questions,
         } as StrategyGenerateResult;
       }
 
-      const documentId = data?.document?.document_id ?? null;
+      const documentId = parsed.result?.document?.document_id ?? null;
       return { mode: 'ai', documentId } as StrategyGenerateResult;
     },
     onSuccess: (data, variables) => {

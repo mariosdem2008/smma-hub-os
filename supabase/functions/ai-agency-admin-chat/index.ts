@@ -3,6 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
 import { handleAgencyAdminChat, handleAgencyAdminChatStream } from "../_shared/agency-admin-chat.ts";
+import { enforceAgencyAgentActivation } from "../_shared/agency-ai-setup.ts";
 import { getEndpointGuardResponse } from "../_shared/endpoint-guard.ts";
 import { generateSpanId, generateTraceId, logOtelSpan } from "../../../src/ai/otel.ts";
 import { TaskType } from "../../../src/ai/taskTypes.ts";
@@ -45,6 +46,27 @@ function buildSseStreamFromGenerator(generator: AsyncGenerator<{ event: string; 
   });
 }
 
+async function resolveAgencyIdForAdminChat(supabase: ReturnType<typeof createClient>, userId: string, body: Record<string, unknown>) {
+  const threadId = typeof body.thread_id === "string" ? body.thread_id.trim() : "";
+  if (threadId) {
+    const { data } = await supabase
+      .from("agency_ai_chat_threads")
+      .select("agency_id")
+      .eq("id", threadId)
+      .maybeSingle();
+    if (data?.agency_id) return data.agency_id as string;
+  }
+
+  const { data } = await supabase
+    .from("agency_members")
+    .select("agency_id")
+    .eq("user_id", userId)
+    .eq("role", "admin")
+    .limit(1)
+    .maybeSingle();
+  return (data?.agency_id as string | undefined) ?? undefined;
+}
+
 serve(async (req: Request) => {
   const traceId = generateTraceId();
   const spanId = generateSpanId();
@@ -85,7 +107,18 @@ serve(async (req: Request) => {
 
       userId = user.id;
       const body = await req.json().catch(() => ({}));
-      agencyId = (body as any)?.agency_id as string | undefined;
+      agencyId = await resolveAgencyIdForAdminChat(supabase, user.id, (body ?? {}) as Record<string, unknown>);
+
+      if (agencyId) {
+        const activationResponse = await enforceAgencyAgentActivation({
+          supabaseClient: supabase,
+          agencyId,
+          agentClass: "operator",
+          requiredMode: "internal_assist_only",
+          corsHeaders: corsHeaders(req),
+        });
+        if (activationResponse) return activationResponse;
+      }
 
       const url = new URL(req.url);
       const streamEnabled = url.searchParams.get("stream") === "1";

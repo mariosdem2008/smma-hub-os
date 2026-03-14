@@ -34,6 +34,7 @@ type ChatCardId =
   | "market_scope_card"
   | "goal_conversion_card"
   | "offers_card"
+  | "operations_setup_card"
   | "audience_card"
   | "brand_card"
   | "proof_card"
@@ -44,6 +45,9 @@ type ChatCard = {
   id: ChatCardId;
   title: string;
   description: string;
+  stage?: "essential_intake" | "operations_setup" | "progressive_enrichment";
+  stageLabel?: string;
+  completionMode?: "blocking_now" | "required_before_execution" | "collect_later";
   submitLabel: string;
   fields: string[];
   prefill?: Partial<OnboardingProfile>;
@@ -53,8 +57,14 @@ type ChatResponse = {
   ok: boolean;
   done: boolean;
   assistant_text: string;
+  show_assistant_message?: boolean;
   ui_card?: ChatCard;
   progress?: { required_complete: boolean; current_index: number; total_required: number; percent_complete: number };
+  save_result?: "noop" | "saved";
+  saved_fields?: string[];
+  saved_summary?: string | null;
+  handoff_state?: "none" | "generating_strategy" | "completed";
+  handoff_message?: string | null;
   errors?: string[];
   next_path?: string;
 };
@@ -115,6 +125,23 @@ function buildInitialFormData(card: ChatCard | null): Record<string, unknown> {
       q9_pain_points: asTextArray(p.q9_pain_points),
     };
   }
+  if (card.id === "operations_setup_card") {
+    const ops = asRecord(asRecord(card.prefill ?? {}).v5_meta).operations_setup;
+    const opsRecord = asRecord(ops);
+    return {
+      primary_contact_name: opsRecord.primary_contact_name ?? "",
+      primary_contact_role: opsRecord.primary_contact_role ?? "",
+      primary_contact_email: opsRecord.primary_contact_email ?? "",
+      main_approver_name: opsRecord.main_approver_name ?? "",
+      main_approver_role: opsRecord.main_approver_role ?? "",
+      approval_sla: opsRecord.approval_sla ?? "",
+      preferred_comms_channel: opsRecord.preferred_comms_channel ?? "",
+      launch_window: opsRecord.launch_window ?? "",
+      required_access_status: asTextArray(opsRecord.required_access_status),
+      missing_assets: asTextArray(opsRecord.missing_assets),
+      escalation_contact: opsRecord.escalation_contact ?? "",
+    };
+  }
   if (card.id === "brand_card") {
     return {
       brand_voice: asTextArray(p.brand_voice),
@@ -169,6 +196,21 @@ function buildCardPayload(card: ChatCard | null, form: Record<string, unknown>):
     };
   }
   if (card.id === "offers_card") return { offers: Array.isArray(form.offers) ? form.offers : [] };
+  if (card.id === "operations_setup_card") {
+    return {
+      primary_contact_name: form.primary_contact_name,
+      primary_contact_role: form.primary_contact_role,
+      primary_contact_email: form.primary_contact_email,
+      main_approver_name: form.main_approver_name,
+      main_approver_role: form.main_approver_role,
+      approval_sla: form.approval_sla,
+      preferred_comms_channel: form.preferred_comms_channel,
+      launch_window: form.launch_window,
+      required_access_status: asTextArray(form.required_access_status),
+      missing_assets: asTextArray(form.missing_assets),
+      escalation_contact: form.escalation_contact,
+    };
+  }
   if (card.id === "audience_card") {
     return {
       audience_type: form.audience_type,
@@ -204,7 +246,15 @@ function buildCardPayload(card: ChatCard | null, form: Record<string, unknown>):
   return {};
 }
 
-export function ClientOnboardingChatShell({ agencyId, clientId }: { agencyId: string; clientId: string }) {
+export function ClientOnboardingChatShell({
+  agencyId,
+  clientId,
+  targetStage = "essential_intake",
+}: {
+  agencyId: string;
+  clientId: string;
+  targetStage?: "essential_intake" | "operations_setup" | "progressive_enrichment";
+}) {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -214,6 +264,11 @@ export function ClientOnboardingChatShell({ agencyId, clientId }: { agencyId: st
   const [progressText, setProgressText] = useState("0%");
   const [error, setError] = useState<string | null>(null);
   const [freeform, setFreeform] = useState("");
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "failed">("idle");
+  const [handoffMessage, setHandoffMessage] = useState<string | null>(null);
+
+  const saveStateLabel =
+    saveState === "saving" ? "Saving..." : saveState === "saved" ? "Saved" : saveState === "failed" ? "Failed to save" : null;
 
   const addAssistantMessage = (text: string) => {
     setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "assistant", text }]);
@@ -233,12 +288,17 @@ export function ClientOnboardingChatShell({ agencyId, clientId }: { agencyId: st
     let mounted = true;
     const start = async () => {
       try {
-        const data = await callChat({ agency_id: agencyId, client_id: clientId, mode: "resume", turn_id: crypto.randomUUID() });
+        const data = await callChat({ agency_id: agencyId, client_id: clientId, mode: "resume", target_stage: targetStage, turn_id: crypto.randomUUID() });
         if (!mounted) return;
-        setMessages([{ id: crypto.randomUUID(), role: "assistant", text: data.assistant_text }]);
+        setMessages(
+          data.show_assistant_message === false
+            ? []
+            : [{ id: crypto.randomUUID(), role: "assistant", text: data.assistant_text }],
+        );
         setActiveCard(data.ui_card ?? null);
         setFormData(buildInitialFormData(data.ui_card ?? null));
         if (data.progress) setProgressText(`${data.progress.percent_complete}% complete`);
+        setHandoffMessage(data.handoff_message ?? null);
       } catch (err) {
         if (mounted) setError(err instanceof Error ? err.message : "Failed to start onboarding");
       } finally {
@@ -249,27 +309,41 @@ export function ClientOnboardingChatShell({ agencyId, clientId }: { agencyId: st
     return () => {
       mounted = false;
     };
-  }, [agencyId, clientId]);
+  }, [agencyId, clientId, targetStage]);
 
   const handleCardSubmit = async () => {
     if (!activeCard) return;
     setSubmitting(true);
     setError(null);
+    setSaveState("saving");
     try {
-      addUserMessage(`Submitted: ${activeCard.title}`);
       const data = await callChat({
         agency_id: agencyId,
         client_id: clientId,
         mode: "card_submit",
+        target_stage: targetStage,
         card_id: activeCard.id,
         card_payload: buildCardPayload(activeCard, formData),
         turn_id: crypto.randomUUID(),
       });
       if (!data.ok && data.errors?.length) {
         setError(data.errors.join(" "));
+        setSaveState("failed");
+        return;
       }
-      addAssistantMessage(data.assistant_text);
+      if (data.saved_summary) {
+        addAssistantMessage(data.saved_summary);
+      } else if (data.show_assistant_message !== false) {
+        addAssistantMessage(data.assistant_text);
+      }
+      if (data.handoff_message) {
+        setHandoffMessage(data.handoff_message);
+      }
+      setSaveState("saved");
       if (data.done) {
+        if (data.handoff_message) {
+          addAssistantMessage(data.handoff_message);
+        }
         navigate(data.next_path || `/clients/${clientId}`);
         return;
       }
@@ -278,6 +352,7 @@ export function ClientOnboardingChatShell({ agencyId, clientId }: { agencyId: st
       if (data.progress) setProgressText(`${data.progress.percent_complete}% complete`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to submit card");
+      setSaveState("failed");
     } finally {
       setSubmitting(false);
     }
@@ -293,15 +368,19 @@ export function ClientOnboardingChatShell({ agencyId, clientId }: { agencyId: st
         agency_id: agencyId,
         client_id: clientId,
         mode: "freeform",
+        target_stage: targetStage,
         message: text,
         turn_id: crypto.randomUUID(),
       });
-      addAssistantMessage(data.assistant_text);
+      if (data.show_assistant_message !== false) {
+        addAssistantMessage(data.assistant_text);
+      }
       if (data.progress) setProgressText(`${data.progress.percent_complete}% complete`);
       if (data.ui_card) {
         setActiveCard(data.ui_card);
         setFormData((current) => (Object.keys(current).length ? current : buildInitialFormData(data.ui_card!)));
       }
+      setHandoffMessage(data.handoff_message ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send message");
     }
@@ -353,70 +432,91 @@ export function ClientOnboardingChatShell({ agencyId, clientId }: { agencyId: st
             <div className="min-h-0 flex-1 space-y-3 overflow-y-auto rounded-xl border border-white/10 bg-black/25 p-3">
               {messages.map((message) => (
                 <div key={message.id} className={message.role === "assistant" ? "text-left" : "text-right"}>
-                  <div className={message.role === "assistant" ? "inline-block max-w-[92%] rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/90" : "inline-block max-w-[92%] rounded-2xl border border-primary/40 bg-primary/30 px-3 py-2 text-sm text-white"}>
+                  <div
+                    className={
+                      message.role === "assistant"
+                        ? "inline-block max-w-[92%] rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/90"
+                        : "inline-block max-w-[92%] rounded-2xl border border-primary/40 bg-primary/30 px-3 py-2 text-sm text-white"
+                    }
+                  >
                     {message.text}
                   </div>
                 </div>
               ))}
-              {activeCard ? (
-                <div className="text-left">
-                  <div className="inline-block max-w-[92%] rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/90">
-                    <div className="text-[10px] uppercase tracking-[0.2em] text-white/50">AI Assistant</div>
-                    <div className="mt-1 font-semibold text-white">{activeCard.title}</div>
-                    <div className="text-white/70">{activeCard.description}</div>
-                  </div>
-                </div>
-              ) : null}
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
-              <div className="text-[10px] uppercase tracking-[0.2em] text-white/50">AI Assistant</div>
-              <div className="mb-1 mt-1 text-sm font-semibold text-white">{activeCard?.title ?? "No active card"}</div>
-              <div className="mb-3 text-xs text-white/70">
-                {activeCard ? "Fill this card, then continue chat." : "Waiting for next step..."}
-              </div>
-              <div className="space-y-4">
-            {error ? <div className="rounded border border-destructive/30 bg-destructive/10 p-2 text-sm text-destructive">{error}</div> : null}
-
-            {activeCard?.id === "business_essentials_card" && (
-              <div className="space-y-3">
-                <div className="space-y-1">
-                  <Label>Business name</Label>
-                  <Input value={(formData.q1_business_name as string) ?? ""} onChange={(e) => setFormData((p) => ({ ...p, q1_business_name: e.target.value }))} />
-                </div>
-                <div className="space-y-1">
-                  <Label>Industry / niche</Label>
-                  <Select value={(formData.industry_niche as string) ?? ""} onValueChange={(value) => setFormData((p) => ({ ...p, industry_niche: value }))}>
-                    <SelectTrigger><SelectValue placeholder="Select industry" /></SelectTrigger>
-                    <SelectContent>
-                      {INDUSTRY_NICHE_OPTIONS.map((opt) => <SelectItem key={opt.id} value={opt.id}>{opt.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <Label>Website URL (optional)</Label>
-                  <Input value={(formData.q2_website as string) ?? ""} onChange={(e) => setFormData((p) => ({ ...p, q2_website: e.target.value }))} />
-                </div>
-                <div className="space-y-1">
-                  <Label>Main social profile (required if no website)</Label>
-                  <Input value={socialLinks[0] ?? ""} onChange={(e) => setSocialLinkAt(0, e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Additional social profiles (optional)</Label>
-                  {socialLinks.slice(1).map((value, index) => (
-                    <div key={`social-link-${index + 1}`} className="flex gap-2">
-                      <Input value={value} onChange={(e) => setSocialLinkAt(index + 1, e.target.value)} />
-                      <Button type="button" variant="outline" onClick={() => removeSocialLink(index + 1)}>
-                        Remove
-                      </Button>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-3 shadow-[0_0_0_1px_rgba(255,255,255,0.03)]">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-[10px] uppercase tracking-[0.2em] text-white/50">
+                      {activeCard?.stageLabel ?? "Active step"}
                     </div>
-                  ))}
-                  <Button type="button" variant="outline" onClick={addSocialLink}>
-                    Add social profile
-                  </Button>
+                    <div className="mb-1 mt-1 text-sm font-semibold text-white">{activeCard?.title ?? "No active card"}</div>
+                  </div>
+                  {saveStateLabel ? (
+                    <div
+                      className={`rounded-full border px-2 py-1 text-[11px] font-medium ${
+                        saveState === "saved"
+                          ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-200"
+                          : saveState === "failed"
+                            ? "border-destructive/40 bg-destructive/10 text-destructive"
+                            : "border-white/15 bg-white/5 text-white/70"
+                      }`}
+                    >
+                      {saveStateLabel}
+                    </div>
+                  ) : null}
                 </div>
-              </div>
-            )}
+                <div className="mb-3 text-xs text-white/70">
+                  {activeCard?.description ?? "Waiting for next step..."}
+                </div>
+                {handoffMessage ? (
+                  <div className="mb-3 rounded-xl border border-sky-400/20 bg-sky-400/10 px-3 py-2 text-xs text-sky-100">
+                    {handoffMessage}
+                  </div>
+                ) : null}
+                <div className="space-y-4">
+                  {error ? <div className="rounded border border-destructive/30 bg-destructive/10 p-2 text-sm text-destructive">{error}</div> : null}
 
-            {activeCard?.id === "market_scope_card" && (
+                  {activeCard?.id === "business_essentials_card" && (
+                    <div className="space-y-3">
+                      <div className="space-y-1">
+                        <Label>Business name</Label>
+                        <Input value={(formData.q1_business_name as string) ?? ""} onChange={(e) => setFormData((p) => ({ ...p, q1_business_name: e.target.value }))} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Industry / niche</Label>
+                        <Select value={(formData.industry_niche as string) ?? ""} onValueChange={(value) => setFormData((p) => ({ ...p, industry_niche: value }))}>
+                          <SelectTrigger><SelectValue placeholder="Select industry" /></SelectTrigger>
+                          <SelectContent>
+                            {INDUSTRY_NICHE_OPTIONS.map((opt) => <SelectItem key={opt.id} value={opt.id}>{opt.label}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Website URL (optional)</Label>
+                        <Input value={(formData.q2_website as string) ?? ""} onChange={(e) => setFormData((p) => ({ ...p, q2_website: e.target.value }))} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Main social profile (required if no website)</Label>
+                        <Input value={socialLinks[0] ?? ""} onChange={(e) => setSocialLinkAt(0, e.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Additional social profiles (optional)</Label>
+                        {socialLinks.slice(1).map((value, index) => (
+                          <div key={`social-link-${index + 1}`} className="flex gap-2">
+                            <Input value={value} onChange={(e) => setSocialLinkAt(index + 1, e.target.value)} />
+                            <Button type="button" variant="outline" onClick={() => removeSocialLink(index + 1)}>
+                              Remove
+                            </Button>
+                          </div>
+                        ))}
+                        <Button type="button" variant="outline" onClick={addSocialLink}>
+                          Add social profile
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {activeCard?.id === "market_scope_card" && (
               <div className="space-y-3">
                 <div className="space-y-1">
                   <Label>Scope</Label>
@@ -444,7 +544,7 @@ export function ClientOnboardingChatShell({ agencyId, clientId }: { agencyId: st
               </div>
             )}
 
-            {activeCard?.id === "goal_conversion_card" && (
+                  {activeCard?.id === "goal_conversion_card" && (
               <div className="space-y-3">
                 <div className="space-y-1">
                   <Label>Primary goal</Label>
@@ -465,8 +565,8 @@ export function ClientOnboardingChatShell({ agencyId, clientId }: { agencyId: st
               </div>
             )}
 
-            {activeCard?.id === "offers_card" && (
-              <div className="space-y-3">
+                  {activeCard?.id === "offers_card" && (
+                    <div className="space-y-3">
                 {offerRows.map((offer, index) => (
                   <div key={index} className="rounded border p-3">
                     <div className="grid gap-2 md:grid-cols-2">
@@ -487,10 +587,89 @@ export function ClientOnboardingChatShell({ agencyId, clientId }: { agencyId: st
                   </div>
                 ))}
                 {offerRows.length < 3 && <Button type="button" variant="outline" onClick={() => setFormData((p) => ({ ...p, offers: [...offerRows, { type: "starter_offer", name: "", price_min: null, price_max: null, promise: "results_focused" }] }))}>Add offer</Button>}
-              </div>
-            )}
+                    </div>
+                  )}
 
-            {activeCard?.id === "audience_card" && (
+                  {activeCard?.id === "operations_setup_card" && (
+                    <div className="space-y-3">
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <div className="space-y-1">
+                          <Label>Primary contact</Label>
+                          <Input value={(formData.primary_contact_name as string) ?? ""} onChange={(e) => setFormData((p) => ({ ...p, primary_contact_name: e.target.value }))} />
+                        </div>
+                        <div className="space-y-1">
+                          <Label>Primary contact role</Label>
+                          <Input value={(formData.primary_contact_role as string) ?? ""} onChange={(e) => setFormData((p) => ({ ...p, primary_contact_role: e.target.value }))} />
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Primary contact email</Label>
+                        <Input value={(formData.primary_contact_email as string) ?? ""} onChange={(e) => setFormData((p) => ({ ...p, primary_contact_email: e.target.value }))} />
+                      </div>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <div className="space-y-1">
+                          <Label>Main approver</Label>
+                          <Input value={(formData.main_approver_name as string) ?? ""} onChange={(e) => setFormData((p) => ({ ...p, main_approver_name: e.target.value }))} />
+                        </div>
+                        <div className="space-y-1">
+                          <Label>Approver role</Label>
+                          <Input value={(formData.main_approver_role as string) ?? ""} onChange={(e) => setFormData((p) => ({ ...p, main_approver_role: e.target.value }))} />
+                        </div>
+                      </div>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <div className="space-y-1">
+                          <Label>Approval turnaround</Label>
+                          <Input placeholder="e.g. within 24 hours" value={(formData.approval_sla as string) ?? ""} onChange={(e) => setFormData((p) => ({ ...p, approval_sla: e.target.value }))} />
+                        </div>
+                        <div className="space-y-1">
+                          <Label>Preferred communication</Label>
+                          <Input placeholder="e.g. email, WhatsApp, Slack" value={(formData.preferred_comms_channel as string) ?? ""} onChange={(e) => setFormData((p) => ({ ...p, preferred_comms_channel: e.target.value }))} />
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Launch window / urgency</Label>
+                        <Input placeholder="e.g. launch in 2 weeks" value={(formData.launch_window as string) ?? ""} onChange={(e) => setFormData((p) => ({ ...p, launch_window: e.target.value }))} />
+                      </div>
+                      <div>
+                        <Label>Access status</Label>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {["website_access", "meta_ads_access", "analytics_access", "social_login_access", "drive_assets_access"].map((item) => (
+                            <Button
+                              key={item}
+                              type="button"
+                              size="sm"
+                              variant={asTextArray(formData.required_access_status).includes(item) ? "default" : "outline"}
+                              onClick={() => setFormData((p) => ({ ...p, required_access_status: toggleArrayValue(asTextArray(p.required_access_status), item) }))}
+                            >
+                              {item.replace(/_/g, " ")}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <Label>Missing assets</Label>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {["brand_photos", "product_photos", "logos", "testimonials", "brand_guidelines", "offer_docs"].map((item) => (
+                            <Button
+                              key={item}
+                              type="button"
+                              size="sm"
+                              variant={asTextArray(formData.missing_assets).includes(item) ? "default" : "outline"}
+                              onClick={() => setFormData((p) => ({ ...p, missing_assets: toggleArrayValue(asTextArray(p.missing_assets), item) }))}
+                            >
+                              {item.replace(/_/g, " ")}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Escalation contact (optional)</Label>
+                        <Input value={(formData.escalation_contact as string) ?? ""} onChange={(e) => setFormData((p) => ({ ...p, escalation_contact: e.target.value }))} />
+                      </div>
+                    </div>
+                  )}
+
+                  {activeCard?.id === "audience_card" && (
               <div className="space-y-3">
                 <Select value={(formData.audience_type as string) ?? ""} onValueChange={(value) => setFormData((p) => ({ ...p, audience_type: value }))}>
                   <SelectTrigger><SelectValue placeholder="Audience type" /></SelectTrigger>
@@ -514,7 +693,7 @@ export function ClientOnboardingChatShell({ agencyId, clientId }: { agencyId: st
               </div>
             )}
 
-            {activeCard?.id === "brand_card" && (
+                  {activeCard?.id === "brand_card" && (
               <div className="space-y-3">
                 <div>
                   <Label>Brand voice</Label>
@@ -541,7 +720,7 @@ export function ClientOnboardingChatShell({ agencyId, clientId }: { agencyId: st
               </div>
             )}
 
-            {activeCard?.id === "proof_card" && (
+                  {activeCard?.id === "proof_card" && (
               <div className="space-y-3">
                 <div>
                   <Label>Proof types</Label>
@@ -557,7 +736,7 @@ export function ClientOnboardingChatShell({ agencyId, clientId }: { agencyId: st
               </div>
             )}
 
-            {activeCard?.id === "channels_card" && (
+                  {activeCard?.id === "channels_card" && (
               <div className="space-y-3">
                 <div>
                   <Label>Platforms</Label>
@@ -600,17 +779,17 @@ export function ClientOnboardingChatShell({ agencyId, clientId }: { agencyId: st
               </div>
             )}
 
-            {activeCard?.id === "review_card" && (
-              <div className="rounded border bg-muted/20 p-3 text-sm">
-                Review all captured onboarding data, then generate strategy.
-              </div>
-            )}
+                  {activeCard?.id === "review_card" && (
+                    <div className="rounded border bg-muted/20 p-3 text-sm">
+                      Review all captured onboarding data, then generate strategy.
+                    </div>
+                  )}
 
-                <Button type="button" onClick={() => void handleCardSubmit()} disabled={!activeCard || submitting} className="w-full">
-                  {submitting ? "Saving..." : activeCard?.submitLabel ?? "Continue"}
-                </Button>
+                  <Button type="button" onClick={() => void handleCardSubmit()} disabled={!activeCard || submitting} className="w-full">
+                    {submitting ? "Saving..." : activeCard?.submitLabel ?? "Continue"}
+                  </Button>
+                </div>
               </div>
-            </div>
             </div>
             <div className="flex gap-2">
               <Input

@@ -162,6 +162,16 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+function isBenignRequestFailure(entry) {
+  const failure = String(entry?.failure || "").toLowerCase();
+  const url = String(entry?.url || "").toLowerCase();
+  return (
+    failure.includes("err_aborted") ||
+    failure.includes("net::err_aborted") ||
+    (url.includes("/clients/") && failure.includes("aborted"))
+  );
+}
+
 async function main() {
   const env = loadEnv();
   const supabaseUrl = (env.SUPABASE_URL || "").replace(/\/$/, "");
@@ -207,7 +217,7 @@ async function main() {
     await page.goto(`${baseUrl}/onboarding/client/${persona.clientId}`, { waitUntil: "networkidle", timeout: 45000 });
     await page.waitForTimeout(1500);
 
-    const formCard = page.locator("div.rounded-2xl:has-text('Fill this card, then continue chat.')").first();
+    const formCard = page.locator("div.rounded-2xl:has-text('Active step')").first();
 
     const entryShot = path.join(shotsRoot, "01_entry.png");
     await page.screenshot({ path: entryShot, fullPage: true });
@@ -220,6 +230,15 @@ async function main() {
       await formCard.getByRole("button", { name: /Save and continue|Generate strategy/i }).first().click();
       await page.waitForTimeout(1300);
       steps.push({ step: name, ok: true, screenshot: shot, at: nowIso() });
+      const saveIndicatorVisible = await page.getByText(/^Saved$/i).first().isVisible().catch(() => false);
+      const summaryVisible = await page
+        .locator("div.inline-block")
+        .filter({ hasText: /Saved|Captured|Locked in|Added|Ready/i })
+        .first()
+        .isVisible()
+        .catch(() => false);
+      steps.push({ step: `${name}:save_indicator`, ok: saveIndicatorVisible, at: nowIso() });
+      steps.push({ step: `${name}:saved_summary`, ok: summaryVisible, at: nowIso() });
     };
 
     await fillAndContinue("business_essentials", async () => {
@@ -288,6 +307,11 @@ async function main() {
     await page.waitForTimeout(1500);
     const handoffShot = path.join(shotsRoot, "11_post_submit.png");
     await page.screenshot({ path: handoffShot, fullPage: true });
+    const handoffMessageVisible = await page
+      .getByText(/strategy generation is in progress|strategy generation is still running/i)
+      .first()
+      .isVisible()
+      .catch(() => false);
     steps.push({
       step: "handoff",
       ok: new URL(page.url()).pathname.startsWith(`/clients/${persona.clientId}`),
@@ -295,6 +319,7 @@ async function main() {
       at: nowIso(),
       note: page.url(),
     });
+    steps.push({ step: "handoff:message_visible", ok: handoffMessageVisible, screenshot: handoffShot, at: nowIso() });
 
     await page.goto(`${baseUrl}/onboarding/client/${persona.clientId}`, { waitUntil: "networkidle", timeout: 45000 });
     const uiChecks = await page.evaluate(() => {
@@ -306,10 +331,15 @@ async function main() {
     });
 
     const titleCount = await page.getByText(/Business essentials/i).count();
+    const benignRequestFailures = requestFailures.filter(isBenignRequestFailure);
+    const actionableRequestFailures = requestFailures.filter((entry) => !isBenignRequestFailure(entry));
     if (titleCount > 1) findings.push({ severity: "medium", area: "UX clarity", issue: `Business essentials appears ${titleCount} times in active viewport.` });
     if (uiChecks.pageScrollable) findings.push({ severity: "medium", area: "Layout", issue: "Main page scroll detected; should be non-scrolling shell." });
     if (consoleErrors.length > 0) findings.push({ severity: "high", area: "Reliability", issue: `${consoleErrors.length} console errors observed.` });
-    if (requestFailures.length > 0 || non2xxApiResponses.length > 0) findings.push({ severity: "high", area: "Network", issue: `${requestFailures.length} request failures, ${non2xxApiResponses.length} non-2xx edge responses.` });
+    if (actionableRequestFailures.length > 0 || non2xxApiResponses.length > 0) findings.push({ severity: "high", area: "Network", issue: `${actionableRequestFailures.length} actionable request failures, ${non2xxApiResponses.length} non-2xx edge responses.` });
+    if (!steps.every((step) => !step.step.includes(":save_indicator") || step.ok)) findings.push({ severity: "high", area: "Save confidence", issue: "One or more steps did not show the Saved confirmation indicator." });
+    if (!steps.every((step) => !step.step.includes(":saved_summary") || step.ok)) findings.push({ severity: "high", area: "Save confidence", issue: "One or more steps did not render a saved-summary confirmation bubble." });
+    if (!handoffMessageVisible) findings.push({ severity: "high", area: "Handoff", issue: "Strategy generation handoff message was not visible after completion." });
 
     const summary = {
       runAt: nowIso(),
@@ -320,6 +350,8 @@ async function main() {
       totalSteps: steps.length,
       consoleErrors,
       requestFailures,
+      benignRequestFailures,
+      actionableRequestFailures,
       non2xxApiResponses,
       uiChecks,
       findings,
@@ -332,7 +364,7 @@ async function main() {
       ? findings.map((f, idx) => `${idx + 1}. [${f.severity.toUpperCase()}] ${f.area}: ${f.issue}`).join("\n")
       : "1. No critical UX/professionalism defects found in this run.";
 
-    const md = `# WF Client Onboarding Chat UX Audit Summary (2026-03-12)\n\nRun at: ${summary.runAt}\nBase URL: ${baseUrl}\nPass: ${summary.passCount}/${summary.totalSteps}\nConsole errors: ${consoleErrors.length}\nRequest failures: ${requestFailures.length}\nNon-2xx onboarding responses: ${non2xxApiResponses.length}\nMain page scrollable: ${uiChecks.pageScrollable}\n\n## Findings\n${findingsMd}\n\n## Screenshots\n${shotsRoot}\n\n## Improvement Notes\n1. Collapse duplicate AI step intro and active card header into one card to reduce noise.\n2. Add read-only summary bubbles after each submit (what was saved) to feel more premium and explicit.\n3. Add sticky autosave status (Saving/Saved) near the submit button.\n4. Add stronger hierarchy spacing between chat history and active-card form bubble.\n`;
+    const md = `# WF Client Onboarding Chat UX Audit Summary (2026-03-12)\n\nRun at: ${summary.runAt}\nBase URL: ${baseUrl}\nPass: ${summary.passCount}/${summary.totalSteps}\nConsole errors: ${consoleErrors.length}\nRequest failures: ${requestFailures.length}\nActionable request failures: ${actionableRequestFailures.length}\nBenign request failures: ${benignRequestFailures.length}\nNon-2xx onboarding responses: ${non2xxApiResponses.length}\nMain page scrollable: ${uiChecks.pageScrollable}\n\n## Findings\n${findingsMd}\n\n## Screenshots\n${shotsRoot}\n\n## Improvement Notes\n1. Keep save confirmation and post-submit summary bubbles covered in this audit path.\n2. Maintain explicit strategy handoff messaging on the client detail landing state.\n3. Continue filtering benign navigation aborts out of actionable reliability scoring.\n4. Preserve the single active-step framing to avoid duplicate onboarding prompts.\n`;
     fs.writeFileSync(path.join(notesRoot, "wf_client_onboarding_chat_audit_summary.md"), md);
 
     console.log(`wf_client_onboarding_chat_audit: ${summary.passCount}/${summary.totalSteps} steps passed, findings=${findings.length}`);

@@ -14,7 +14,16 @@ import { useToast } from "@/hooks/use-toast";
 import { useClientFonts } from "@/hooks/useClientFonts";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { useAgencyMemberOptions, useClientEnrichmentQueue, useClientExecutionTasks, useClientOperationEvents, useClientOperationsChecklist, useClientOperationsSetup } from "@/hooks/useClientOperations";
+import { useOnboardingProfile } from "@/hooks/useOnboardingProfile";
 import { hapticSelection } from "@/lib/haptics";
+import { buildOperationsChecklist } from "@/lib/onboarding/operationsChecklist";
+import {
+  buildWorkspaceStatusBadge,
+  formatOnboardingFieldLabel,
+  getOpenItemCount,
+  type StagedReadinessSnapshot,
+} from "@/lib/onboarding/stagedReadiness";
 import {
   getClientBrainStatus,
   getClientById,
@@ -112,6 +121,8 @@ export default function ClientDetail() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  // FIX: Clean the client ID by removing query parameters
+  const clientId = rawClientId?.split("?")[0] || "";
   const [client, setClient] = useState<Client | null>(null);
   const [primaryColor, setPrimaryColor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -128,14 +139,18 @@ export default function ClientDetail() {
   const lastActionRef = useRef<string | null>(null);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
+  const { data: onboardingProfile } = useOnboardingProfile(clientId || undefined);
+  const { data: operationsSetupRecord } = useClientOperationsSetup(clientId || undefined);
+  const { data: operationsChecklistItems = [] } = useClientOperationsChecklist(clientId || undefined);
+  const { data: executionTasks = [] } = useClientExecutionTasks(clientId || undefined);
+  const { data: operationEvents = [] } = useClientOperationEvents(clientId || undefined);
+  const { data: enrichmentQueue = [] } = useClientEnrichmentQueue(clientId || undefined);
+  const { data: agencyMembers = [] } = useAgencyMemberOptions(agencyId || undefined);
 
   // Tab notification badges (behind feature flag)
   const [tabBadgeCounts, setTabBadgeCounts] = useState<Record<string, number>>({});
   const showTabBadges = isFeatureEnabled("CLIENTDETAIL_TAB_BADGES");
   const showRightPanel = isFeatureEnabled("CLIENTDETAIL_RIGHT_PANEL");
-
-  // FIX: Clean the client ID by removing query parameters
-  const clientId = rawClientId?.split("?")[0] || "";
 
   // Pull-to-refresh for mobile
   const { isRefreshing, pullDistance } = usePullToRefresh({
@@ -280,11 +295,22 @@ export default function ClientDetail() {
 
   const focusParam = searchParams.get("focus");
   const actionParam = searchParams.get("action");
+  const handoffParam = searchParams.get("handoff");
+  const strategyGenerating = handoffParam === "strategy_generating";
+  const stagedReadiness = ((onboardingProfile?.v5_meta as Record<string, unknown> | null)?.staged_readiness ?? null) as StagedReadinessSnapshot | null;
+  const opsMissing = stagedReadiness?.operations_setup?.missing ?? [];
+  const enrichmentMissing = stagedReadiness?.progressive_enrichment?.missing ?? [];
+  const operationsChecklist = buildOperationsChecklist(onboardingProfile ?? null);
+  const blockingChecklistItems = operationsChecklist.sections.flatMap((section) => section.items).filter((item) => item.status === "blocked");
+  const activeExecutionTasks = executionTasks.filter((task) => ["todo", "waiting_on_client", "in_progress", "blocked"].includes(task.status));
+  const urgentExecutionTasks = activeExecutionTasks.filter((task) => task.priority === "urgent");
+  const recentOperationEvents = operationEvents.slice(0, 3);
+  const assigneeLabelByUserId = new Map(
+    agencyMembers.map((member) => [member.user_id, member.profile?.full_name || member.profile?.email || member.user_id]),
+  );
   const aiStatus = !gateStatus?.usable
-    ? { label: "AI setup required", tone: "warning" as const, detail: "Complete onboarding to unlock all AI tools." }
-    : !showRightPanel
-      ? { label: "AI degraded", tone: "degraded" as const, detail: "Assistant panel is disabled by feature flag." }
-      : { label: "AI ready", tone: "ready" as const, detail: "Client detail AI actions are available." };
+    ? { label: "Initial setup required", tone: "warning" as const, detail: "Complete onboarding to unlock strategy and execution workflows." }
+    : buildWorkspaceStatusBadge({ stagedReadiness, strategyGenerating, showRightPanel });
 
   if (loading || gateLoading) {
     return (
@@ -367,13 +393,13 @@ export default function ClientDetail() {
         <Card className="w-full max-w-xl">
           <CardContent className="space-y-5 py-10 text-center">
             <div className="space-y-2">
-              <h1 className="text-2xl font-semibold">Client Onboarding Required</h1>
+              <h1 className="text-2xl font-semibold">Client Setup Incomplete</h1>
               <p className="text-sm text-muted-foreground">
-                Complete the client onboarding wizard to set up strategy and content planning.
+                Complete the onboarding workflow to unlock strategy generation, planning, and AI-assisted execution for this client.
               </p>
               {typeof missingCount === "number" && (
                 <p className="text-xs text-muted-foreground">
-                  Missing fields: {missingCount}
+                  Open requirements: {missingCount}
                 </p>
               )}
             </div>
@@ -412,7 +438,7 @@ export default function ClientDetail() {
                   )
                 }
               >
-                Start Client Onboarding
+                Continue Setup
               </Button>
               {client.email && (
                 <Button
@@ -420,11 +446,11 @@ export default function ClientDetail() {
                   onClick={() => {
                     const link = `${window.location.origin}${onboardingUrl}?returnTo=${encodeURIComponent(returnTo)}`;
                     window.location.href = `mailto:${client.email}?subject=Complete AI onboarding&body=${encodeURIComponent(
-                      `Please complete AI onboarding here: ${link}`,
+                      `Please complete your client setup here: ${link}`,
                     )}`;
                   }}
                 >
-                  Send to client
+                  Request Client Input
                 </Button>
               )}
             </div>
@@ -704,6 +730,237 @@ export default function ClientDetail() {
           <div className="mb-4 rounded-lg border border-border/70 bg-card/40 p-3 text-sm">
             {focusParam && <div className="text-muted-foreground">Focused: {focusParam}</div>}
             {actionParam && <div className="text-muted-foreground">AI action queued: {actionParam}</div>}
+          </div>
+        )}
+
+        {strategyGenerating && (
+          <div className="mb-4 rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-2 text-sm text-sky-100">
+            Strategy generation is in progress. You can stay here while the system finishes building the first strategy document.
+          </div>
+        )}
+
+        {gateStatus?.usable && stagedReadiness && (
+          <div className="mb-4 rounded-lg border border-border/70 bg-card/40 p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold text-foreground">Client setup journey</div>
+                <div className="mt-1 text-sm text-muted-foreground">
+                  {stagedReadiness.state === "setup_usable" &&
+                    "Essential intake is complete. Finish operations setup before the team treats this client as execution-ready."}
+                  {stagedReadiness.state === "execution_ready" &&
+                    "Operations setup is complete. Use enrichment to strengthen strategy quality and AI output."}
+                  {stagedReadiness.state === "strategy_enriched" &&
+                    "Setup, execution readiness, and strategy context are aligned."}
+                </div>
+              </div>
+              <div className="grid min-w-[220px] gap-2 text-xs sm:grid-cols-3 sm:text-right">
+                <div>
+                  <div className="font-medium text-foreground">{stagedReadiness.essential_intake?.percent ?? 0}%</div>
+                  <div className="text-muted-foreground">Essential intake</div>
+                </div>
+                <div>
+                  <div className="font-medium text-foreground">{stagedReadiness.operations_setup?.percent ?? 0}%</div>
+                  <div className="text-muted-foreground">Operations setup</div>
+                </div>
+                <div>
+                  <div className="font-medium text-foreground">{stagedReadiness.progressive_enrichment?.percent ?? 0}%</div>
+                  <div className="text-muted-foreground">Profile enrichment</div>
+                </div>
+              </div>
+            </div>
+
+            {(operationsSetupRecord?.setup_status || enrichmentQueue.length > 0 || activeExecutionTasks.length > 0) && (
+              <div className="flex flex-wrap gap-2 pt-1 text-xs">
+                {operationsSetupRecord?.setup_status && (
+                  <Badge variant="outline">
+                    Ops record: {operationsSetupRecord.setup_status.replace(/_/g, " ")}
+                  </Badge>
+                )}
+                {operationsChecklistItems.length > 0 && (
+                  <Badge variant="outline">
+                    Checklist: {operationsChecklistItems.filter((item) => item.status === "done").length}/{operationsChecklistItems.length}
+                  </Badge>
+                )}
+                {enrichmentQueue.length > 0 && (
+                  <Badge variant="outline">
+                    Enrichment queue: {enrichmentQueue.length} active
+                  </Badge>
+                )}
+                {activeExecutionTasks.length > 0 && (
+                  <Badge variant="outline">
+                    Execution tasks: {activeExecutionTasks.length} active
+                  </Badge>
+                )}
+                {urgentExecutionTasks.length > 0 && (
+                  <Badge variant="destructive">
+                    {urgentExecutionTasks.length} urgent
+                  </Badge>
+                )}
+              </div>
+            )}
+
+            {(getOpenItemCount(opsMissing) > 0 || getOpenItemCount(enrichmentMissing) > 0) && (
+              <div className="mt-4 grid gap-3 xl:grid-cols-[1.3fr_1fr]">
+                {getOpenItemCount(opsMissing) > 0 && (
+                  <div className="rounded-lg border border-border/60 bg-background/30 p-3">
+                    <div className="text-sm font-medium text-foreground">Still blocking execution</div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {opsMissing.map((field) => (
+                        <Badge key={`ops-${field}`} variant="secondary">
+                          {formatOnboardingFieldLabel(field)}
+                        </Badge>
+                      ))}
+                    </div>
+                    <div className="mt-3">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => navigate(`/onboarding/client/${clientId}?stage=operations_setup&returnTo=${encodeURIComponent(`${location.pathname}${location.search}`)}`)}
+                      >
+                        Finish operations setup
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="rounded-lg border border-border/60 bg-background/30 p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-medium text-foreground">Execution checklist</div>
+                      <div className="text-xs text-muted-foreground">
+                        {operationsChecklist.summary.complete}/{operationsChecklist.summary.total} items covered
+                      </div>
+                    </div>
+                    {blockingChecklistItems.length > 0 && (
+                      <Badge variant="outline">{blockingChecklistItems.length} blocker{blockingChecklistItems.length === 1 ? "" : "s"}</Badge>
+                    )}
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    {blockingChecklistItems.slice(0, 4).map((item) => (
+                      <div key={item.id} className="rounded-md border border-border/60 bg-background/40 px-3 py-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="text-sm font-medium text-foreground">{item.title}</div>
+                          <Badge variant="secondary">{item.owner}</Badge>
+                        </div>
+                        <div className="mt-1 text-xs text-muted-foreground">{item.nextAction}</div>
+                      </div>
+                    ))}
+                    {blockingChecklistItems.length === 0 && (
+                      <div className="rounded-md border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-100">
+                        No blocking execution items remain.
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {activeExecutionTasks.length > 0 && (
+                  <div className="rounded-lg border border-border/60 bg-background/30 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-medium text-foreground">Active execution tasks</div>
+                        <div className="text-xs text-muted-foreground">
+                          Combined work from setup blockers and enrichment signals
+                        </div>
+                      </div>
+                      {urgentExecutionTasks.length > 0 && (
+                        <Badge variant="destructive">{urgentExecutionTasks.length} urgent</Badge>
+                      )}
+                    </div>
+                    <div className="mt-3 space-y-2">
+                      {activeExecutionTasks.slice(0, 4).map((task) => (
+                        <div key={task.id} className="rounded-md border border-border/60 bg-background/40 px-3 py-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="text-sm font-medium text-foreground">{task.title}</div>
+                            <div className="flex items-center gap-2">
+                              <Badge variant={task.priority === "urgent" ? "destructive" : "secondary"}>
+                                {task.priority}
+                              </Badge>
+                              <Badge variant="outline">{task.owner}</Badge>
+                            </div>
+                          </div>
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            {task.description || task.source_kind.replace(/_/g, " ")}
+                          </div>
+                          {(task.assignee_user_id || task.resolution_note) && (
+                            <div className="mt-1 text-xs text-muted-foreground">
+                              {task.assignee_user_id ? `Assigned to ${assigneeLabelByUserId.get(task.assignee_user_id) || task.assignee_user_id}` : "No assignee"}
+                              {task.resolution_note ? ` • Note: ${task.resolution_note}` : ""}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {recentOperationEvents.length > 0 && (
+                  <div className="rounded-lg border border-border/60 bg-background/30 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-medium text-foreground">Recent operational activity</div>
+                        <div className="text-xs text-muted-foreground">
+                          Latest drift, queue, and task lifecycle updates
+                        </div>
+                      </div>
+                      <Badge variant="outline">{recentOperationEvents.length} recent</Badge>
+                    </div>
+                    <div className="mt-3 space-y-2">
+                      {recentOperationEvents.map((event) => (
+                        <div key={event.id} className="rounded-md border border-border/60 bg-background/40 px-3 py-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="text-sm font-medium text-foreground">{event.event_kind.replace(/_/g, " ")}</div>
+                            <Badge variant="outline">{event.actor_kind}</Badge>
+                          </div>
+                          {typeof event.payload?.title === "string" && (
+                            <div className="mt-1 text-xs text-muted-foreground">{String(event.payload.title)}</div>
+                          )}
+                          {(typeof event.payload?.next_assignee_user_id === "string" ||
+                            typeof event.payload?.previous_assignee_user_id === "string") && (
+                            <div className="mt-1 text-xs text-muted-foreground">
+                              Assignee:{" "}
+                              {typeof event.payload?.previous_assignee_user_id === "string"
+                                ? assigneeLabelByUserId.get(String(event.payload.previous_assignee_user_id)) ||
+                                  String(event.payload.previous_assignee_user_id)
+                                : "Unassigned"}{" "}
+                              to{" "}
+                              {typeof event.payload?.next_assignee_user_id === "string"
+                                ? assigneeLabelByUserId.get(String(event.payload.next_assignee_user_id)) ||
+                                  String(event.payload.next_assignee_user_id)
+                                : "Unassigned"}
+                            </div>
+                          )}
+                          {typeof event.payload?.resolution_note === "string" && String(event.payload.resolution_note).trim().length > 0 && (
+                            <div className="mt-1 text-xs text-muted-foreground">Note: {String(event.payload.resolution_note)}</div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {getOpenItemCount(enrichmentMissing) > 0 && (
+                  <div className="rounded-lg border border-border/60 bg-background/30 p-3">
+                    <div className="text-sm font-medium text-foreground">Recommended profile improvements</div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {enrichmentMissing.map((field) => (
+                        <Badge key={`enrichment-${field}`} variant="secondary">
+                          {formatOnboardingFieldLabel(field)}
+                        </Badge>
+                      ))}
+                    </div>
+                    <div className="mt-3">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => navigate(`/onboarding/client/${clientId}?stage=progressive_enrichment&returnTo=${encodeURIComponent(`${location.pathname}${location.search}`)}`)}
+                      >
+                        Improve client profile
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 

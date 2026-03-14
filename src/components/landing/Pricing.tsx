@@ -10,12 +10,12 @@ import { LandingCard, LandingContainer, Pill, SectionHeader } from "./LandingPri
 const CAL_LINK = marketing.calUrl;
 
 const WHATS_INCLUDED = [
-  "Agency standards (SOPs, templates, quality checks)",
-  "Client context hub (voice, goals, constraints, history)",
-  "Strategy briefs + angles generation",
-  "Approval workflows + feedback loop",
-  "Exports (strategies + drafts)",
-  "Guided onboarding (scoped to your workflow)",
+  "Agency playbooks, quality rules, and approval logic",
+  "Client context hub with goals, constraints, and operating history",
+  "Strategy, creation, and workflow support from specialist AI roles",
+  "Approval workflows and client collaboration surfaces",
+  "Reporting, exports, and operating visibility",
+  "Guided rollout scoped to your workflow reality",
 ];
 
 export default function Pricing() {
@@ -28,7 +28,7 @@ export default function Pricing() {
       ref={sectionRef}
       initial={{ opacity: 0 }}
       animate={isInView ? { opacity: 1 } : {}}
-      transition={{ duration: 0.4 }}
+      transition={{ duration: 0.75 }}
       className="section-md lp-section"
     >
       <LandingContainer className="relative z-10">
@@ -36,18 +36,18 @@ export default function Pricing() {
           eyebrow={<Pill icon={CreditCard}>Pricing</Pill>}
           title={
             <>
-              Start with clarity.
-              <span className="block text-gradient-premium">Then pick a plan.</span>
+              Start with fit.
+              <span className="block text-gradient-premium">Then scope the rollout.</span>
             </>
           }
-          lede="Most agencies begin with a Strategy Audit so we can map your workflow, define what to systemize first, and estimate ROI."
+          lede="Most agencies begin with a Strategy Audit so we can map the operating model, define what to systemize first, and scope the right rollout path."
         />
 
         <div className="mt-[44px] mx-auto max-w-6xl grid gap-[12px] lg:grid-cols-2 lg:items-start">
           <motion.div
             initial={{ opacity: 0 }}
             animate={isInView ? { opacity: 1 } : {}}
-            transition={{ duration: 0.35, delay: 0.08 }}
+            transition={{ duration: 0.65, delay: 0.12, ease: [0.22, 1, 0.36, 1] }}
           >
             <LandingCard className="p-[22px] md:p-[26px]">
               <div className="text-sm font-semibold tracking-tight text-foreground">What's included</div>
@@ -71,7 +71,7 @@ export default function Pricing() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={isInView ? { opacity: 1 } : {}}
-            transition={{ duration: 0.35, delay: 0.12 }}
+            transition={{ duration: 0.65, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
           >
             <LandingCard className="gradient-border-animated p-[22px] md:p-[26px]">
               <div className="flex items-start gap-[12px]">
@@ -87,7 +87,7 @@ export default function Pricing() {
               </div>
 
               <div className="mt-[18px] flex flex-col gap-[12px]">
-                <Button asChild size="lg" className="w-full btn-glow btn-shimmer btn-press btn-primary-enhanced tracking-cta-text">
+                <Button asChild size="lg" className="w-full btn-primary-enhanced tracking-cta-text">
                   <a
                     href={CAL_LINK}
                     target="_blank"

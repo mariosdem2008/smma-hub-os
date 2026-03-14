@@ -6,8 +6,7 @@ const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:3000",
   "https://smmahub.net",
-  "https://73a2983b-0136-47d2-9a1f-01fe580ac593.lovableproject.com",
-  "https://id-preview--73a2983b-0136-47d2-9a1f-01fe580ac593.lovable.app",
+  "https://www.smmahub.net",
 ];
 
 function corsHeaders(request: Request): Record<string, string> {

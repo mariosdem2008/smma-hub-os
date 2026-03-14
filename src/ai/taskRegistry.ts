@@ -10,13 +10,16 @@ import { buildOnboardingAnswerCheckPrompt } from "./prompts/onboardingAnswerChec
 import { buildOnboardingClarifyPrompt } from "./prompts/onboardingClarify.ts"
 import { buildOnboardingAudiencePrompt, buildOnboardingDifferentiatorsPrompt, buildOnboardingOffersPrompt } from "./prompts/onboardingGuide.ts"
 import { buildPlannerPrompt } from "./prompts/planner.ts"
+import { buildStrategyDiagnosisPrompt } from "./prompts/strategyDiagnosis.ts"
 import { buildStrategyPlanPrompt } from "./prompts/strategyPlan.ts"
+import { buildStrategyRecommendationPrompt } from "./prompts/strategyRecommendation.ts"
 import { buildSummarizePrompt } from "./prompts/summarize.ts"
 import { buildToolExecutionPrompt } from "./prompts/toolExecution.ts"
 import { resolveModelPolicy } from "./modelPolicy.ts"
 import { adminChatSchema, adminChatStrategicSchema, aiAssistantSchema, arraySchema, intentResultSchema, objectSchema, onboardingAnswerCheckSchema, onboardingClarifySchema, planSchemaV1, OutputSchema } from "./schema.ts"
 import { TaskType } from "./taskTypes.ts"
 import type { ChatMessage } from "./providers/types.ts"
+import { strategyDiagnosisSchema, strategyRecommendationSchema } from "../lib/strategy/v2/contracts.ts"
 
 export type SafetyMode = "strict_unknown" | "normal";
 export type OutputMode = "freeform" | "json_schema" | "embedding";
@@ -313,6 +316,40 @@ export const TASK_REGISTRY: Record<TaskType, TaskConfig> = {
       missing_fields: [],
       questions: ["What additional context is required?"],
       escalation: false,
+    }),
+  },
+  [TaskType.STRATEGY_DIAGNOSIS]: {
+    taskType: TaskType.STRATEGY_DIAGNOSIS,
+    outputMode: "json_schema",
+    safetyMode: "strict_unknown",
+    promptBuilder: (args) =>
+      buildStrategyDiagnosisPrompt({
+        context: (args.metadata?.context as string) ?? "",
+      }),
+    requires: { agency: false, client: false },
+    usageEndpoint: "ai-strategy-generate",
+    schema: strategyDiagnosisSchema(),
+    buildUnknown: ({ reason }) => ({
+      unknown: true,
+      reason,
+      questions: ["What additional client context is required before diagnosis can continue?"],
+    }),
+  },
+  [TaskType.STRATEGY_RECOMMENDATION]: {
+    taskType: TaskType.STRATEGY_RECOMMENDATION,
+    outputMode: "json_schema",
+    safetyMode: "strict_unknown",
+    promptBuilder: (args) =>
+      buildStrategyRecommendationPrompt({
+        context: (args.metadata?.context as string) ?? "",
+      }),
+    requires: { agency: false, client: false },
+    usageEndpoint: "ai-strategy-generate",
+    schema: strategyRecommendationSchema(),
+    buildUnknown: ({ reason }) => ({
+      unknown: true,
+      reason,
+      questions: ["What additional client or agency context is required before recommendation can continue?"],
     }),
   },
   [TaskType.AI_ASSISTANT]: {

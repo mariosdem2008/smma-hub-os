@@ -112,7 +112,7 @@ export function TagSelector({
             return (
               <div
                 key={val}
-                className="flex items-center gap-1 rounded-full bg-[#4E5DFF] px-3 py-1 text-sm font-medium text-white shadow-md shadow-blue-500/30"
+                className="flex items-center gap-1 rounded-full bg-primary px-3 py-1 text-sm font-medium text-primary-foreground shadow-md shadow-primary/30"
               >
                 <span>{option?.label ?? val}</span>
                 <button
@@ -143,7 +143,7 @@ export function TagSelector({
               onClick={() => handleSelect(option.value)}
               disabled={disabled}
               className={cn(
-                "group flex items-center gap-2 rounded-full border-2 border-slate-700 bg-slate-800/50 px-3 py-1 text-sm transition-all hover:border-[#4E5DFF] hover:bg-[#4E5DFF]/10 hover:shadow-md hover:shadow-blue-500/20",
+                "group flex items-center gap-2 rounded-full border-2 border-slate-700 bg-slate-800/50 px-3 py-1 text-sm transition-all hover:border-primary hover:bg-primary/10 hover:shadow-md hover:shadow-primary/20",
                 disabled && "cursor-not-allowed opacity-50",
               )}
               title={option.description}

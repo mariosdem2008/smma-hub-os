@@ -93,6 +93,18 @@ const DEFAULT_POLICIES: Record<TaskType, TaskModelPolicy> = {
     legacyModelEnv: "STRATEGY_MODEL_ID",
   },
 
+  [TaskType.STRATEGY_DIAGNOSIS]: {
+    dev: { provider: "gemini", model: DEFAULT_STRATEGY_MODEL, params: { temperature: 0.15 } },
+    prod: { provider: "gemini", model: DEFAULT_STRATEGY_MODEL, params: { temperature: 0.15 } },
+    legacyModelEnv: "STRATEGY_MODEL_ID",
+  },
+
+  [TaskType.STRATEGY_RECOMMENDATION]: {
+    dev: { provider: "gemini", model: DEFAULT_STRATEGY_MODEL, params: { temperature: 0.2 } },
+    prod: { provider: "gemini", model: DEFAULT_STRATEGY_MODEL, params: { temperature: 0.2 } },
+    legacyModelEnv: "STRATEGY_MODEL_ID",
+  },
+
   [TaskType.AI_ASSISTANT]: {
     dev: { provider: "gemini", model: DEFAULT_STRATEGY_MODEL, params: { temperature: 0.3 } },
     prod: { provider: "gemini", model: DEFAULT_STRATEGY_MODEL, params: { temperature: 0.3 } },
@@ -158,6 +170,8 @@ function resolveProviderOverride(taskType: TaskType, mode: EnvMode): Provider | 
   // If you need to override these, use per-task env vars (AI_PROVIDER__TASKTYPE...).
   if (
     taskType === TaskType.STRATEGY_PLAN ||
+    taskType === TaskType.STRATEGY_DIAGNOSIS ||
+    taskType === TaskType.STRATEGY_RECOMMENDATION ||
     taskType === TaskType.AI_ASSISTANT
   ) {
     return perTask as Provider | undefined;
@@ -173,6 +187,8 @@ function resolveModelOverride(taskType: TaskType, mode: EnvMode, legacyModelEnv?
   // Same pinning rule as provider: avoid global text model overrides impacting strategy tasks.
   if (
     taskType === TaskType.STRATEGY_PLAN ||
+    taskType === TaskType.STRATEGY_DIAGNOSIS ||
+    taskType === TaskType.STRATEGY_RECOMMENDATION ||
     taskType === TaskType.AI_ASSISTANT
   ) {
     return perTask ?? legacy;

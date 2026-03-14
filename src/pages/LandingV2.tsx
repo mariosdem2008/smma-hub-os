@@ -3,24 +3,27 @@ import React, { useEffect } from "react";
 import { motion, useScroll, useSpring } from "framer-motion";
 
 import Hero from "../components/landing/Hero.tsx";
-import DualBrain from "../components/landing/DualBrain.tsx";
 import FAQ from "../components/landing/FAQ.tsx";
-import Features from "../components/landing/Features.tsx";
 import FinalCTA from "../components/landing/FinalCTA.tsx";
-import ROI from "../components/landing/ROI.tsx";
-import SocialProof from "../components/landing/SocialProof.tsx";
 import LandingPricing from "../components/landing/Pricing.tsx";
 import { marketing } from "@/lib/marketing";
 import { track } from "@/lib/analytics";
-import { BeforeAfterSection } from "@/components/landing/BeforeAfterSection";
-import { WorkflowSection } from "@/components/landing/WorkflowSection";
-import { OutputExamplesSection } from "@/components/landing/OutputExamplesSection";
-import { TrustSection } from "@/components/landing/TrustSection";
-import { DemoSection } from "@/components/landing/DemoSection";
 import { getVideoEmbed } from "@/lib/videoEmbed";
 import { LandingNav } from "@/components/landing/LandingNav";
 import { LandingStickyBar } from "@/components/landing/LandingStickyBar";
 import { LandingFooter } from "@/components/landing/LandingFooter";
+import {
+  LandingAiLayerSection,
+  LandingFitSection,
+  LandingHonestPromiseSection,
+  LandingOperatingModelSection,
+  LandingProblemSection,
+  LandingProofSection,
+  LandingReframeSection,
+  LandingSurfaceMapSection,
+  LandingTrustStrip,
+  LandingValueSection,
+} from "@/components/landing/OperatingSystemSections";
 
 const CAL_LINK = marketing.calUrl;
 const DEMO_LINK = marketing.demoUrl;
@@ -29,8 +32,8 @@ const DEMO_EMBED = getVideoEmbed(DEMO_LINK).embedUrl;
 function ScrollProgressIndicator() {
   const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, {
-    stiffness: 100,
-    damping: 30,
+    stiffness: 65,
+    damping: 24,
     restDelta: 0.001,
   });
 
@@ -76,17 +79,16 @@ export default function LandingV2() {
 
       <main>
         <Hero />
-        <SocialProof />
-        <BeforeAfterSection />
-        <div id="mechanism">
-          <DualBrain />
-        </div>
-        <WorkflowSection />
-        <DemoSection />
-        <Features />
-        <OutputExamplesSection />
-        <TrustSection />
-        <ROI />
+        <LandingTrustStrip />
+        <LandingProblemSection />
+        <LandingReframeSection />
+        <LandingOperatingModelSection />
+        <LandingAiLayerSection />
+        <LandingValueSection />
+        <LandingSurfaceMapSection />
+        <LandingProofSection />
+        <LandingHonestPromiseSection />
+        <LandingFitSection />
         <LandingPricing />
         <FAQ />
         <FinalCTA />
@@ -96,4 +98,3 @@ export default function LandingV2() {
     </div>
   );
 }
-

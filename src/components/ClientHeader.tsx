@@ -303,7 +303,7 @@ export default function ClientHeader({
             }}
           >
             <AvatarImage src={currentLogoUrl || undefined} alt={name} />
-            <AvatarFallback className="text-sm font-semibold bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] text-white">
+            <AvatarFallback className="text-sm font-semibold bg-gradient-to-r from-primary to-accent text-white">
               {getInitials(name)}
             </AvatarFallback>
           </Avatar>
@@ -335,8 +335,8 @@ export default function ClientHeader({
           />
           <Avatar
             className={cn(
-              "h-16 w-16 sm:h-20 sm:w-20 ring-2 ring-[#4E5DFF]/20",
-              canManageClient && "cursor-pointer hover:ring-4 hover:ring-[#4E5DFF]/40 transition-all",
+              "h-16 w-16 sm:h-20 sm:w-20 ring-2 ring-primary/20",
+              canManageClient && "cursor-pointer hover:ring-4 hover:ring-primary/40 transition-all",
             )}
             onClick={() => {
               if (canManageClient) {
@@ -345,7 +345,7 @@ export default function ClientHeader({
             }}
           >
             <AvatarImage src={currentLogoUrl || undefined} alt={name} />
-            <AvatarFallback className="text-xl sm:text-2xl font-semibold bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] text-white">
+            <AvatarFallback className="text-xl sm:text-2xl font-semibold bg-gradient-to-r from-primary to-accent text-white">
               {getInitials(name)}
             </AvatarFallback>
           </Avatar>
@@ -360,7 +360,7 @@ export default function ClientHeader({
           <div className="flex flex-col gap-3">
             <div className="flex flex-col sm:flex-row sm:items-center gap-2">
               <div className="flex items-center gap-3">
-                <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-[#4E5DFF] to-[#6A73FF] bg-clip-text text-transparent">
+                <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
                   {name}
                 </h1>
                 <TooltipProvider>
@@ -419,7 +419,7 @@ export default function ClientHeader({
 
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             {niche && (
-              <Badge variant="secondary" className="text-xs sm:text-sm border border-[#4E5DFF]/20">
+              <Badge variant="secondary" className="text-xs sm:text-sm border border-primary/20">
                 {niche}
               </Badge>
             )}
@@ -429,7 +429,7 @@ export default function ClientHeader({
                 href={website}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1 text-xs sm:text-sm text-[#4E5DFF] hover:text-[#6A73FF] transition-colors"
+                className="flex items-center gap-1 text-xs sm:text-sm text-primary hover:text-accent transition-colors"
               >
                 <span className="truncate max-w-[150px] sm:max-w-none">{website.replace(/^https?:\/\//, "")}</span>
                 <ExternalLink className="h-3 w-3 flex-shrink-0" />
@@ -437,7 +437,7 @@ export default function ClientHeader({
             )}
 
             {primaryColor && (
-              <Badge variant="outline" className="flex items-center gap-1.5 sm:gap-2 border-[#4E5DFF]/20">
+              <Badge variant="outline" className="flex items-center gap-1.5 sm:gap-2 border-primary/20">
                 <div className="h-3 w-3 rounded-full ring-1 ring-white/20" style={{ backgroundColor: primaryColor }} />
                 <span className="text-xs font-mono hidden sm:inline">{primaryColor}</span>
               </Badge>

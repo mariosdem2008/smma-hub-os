@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Wand2, Loader2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import {
   Select,
   SelectContent,
@@ -31,9 +32,21 @@ const PLATFORM_LIMITS = {
 
 export function CaptionEditor({ caption, onCaptionChange, selectedPlatforms, clientId }: CaptionEditorProps) {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [generatingAI, setGeneratingAI] = useState(false);
   const [aiVariants, setAiVariants] = useState<Array<{ caption: string; length: string }>>([]);
   const [showVariants, setShowVariants] = useState(false);
+
+  const readFunctionErrorPayload = async (error: unknown): Promise<{ code?: string; error?: string; deep_link?: string } | null> => {
+    if (!error || typeof error !== "object") return null;
+    const context = (error as { context?: Response }).context;
+    if (!context || typeof (context as any).json !== "function") return null;
+    try {
+      return await (context as any).json();
+    } catch {
+      return null;
+    }
+  };
 
   const generateCaptionVariants = async () => {
     if (selectedPlatforms.length === 0) {
@@ -55,7 +68,23 @@ export function CaptionEditor({ caption, onCaptionChange, selectedPlatforms, cli
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        const payload = await readFunctionErrorPayload(error);
+        if (payload?.code === "STRATEGY_APPROVAL_REQUIRED" || payload?.code === "AGENT_ACTIVATION_REQUIRED") {
+          toast({
+            title: payload.code === "AGENT_ACTIVATION_REQUIRED" ? "Creator activation required" : "Strategy approval required",
+            description:
+              payload.error ||
+              (payload.code === "AGENT_ACTIVATION_REQUIRED"
+                ? "Activate the creator agent in AI Setup before generating captions."
+                : "Approve the current recommendation and strategy plan before generating captions."),
+            variant: "destructive"
+          });
+          if (payload.deep_link) navigate(payload.deep_link);
+          return;
+        }
+        throw error;
+      }
 
       setAiVariants(data.content);
       setShowVariants(true);

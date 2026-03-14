@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildSavedSummary,
+  getCollectLaterCards,
   getClientOnboardingCardByStep,
+  getClientOnboardingCardTotal,
   getClientOnboardingCardStep,
   getNextClientOnboardingCard,
+  getOperationsSetupCards,
+  getEssentialIntakeCards,
   validateCardPayload,
 } from "../clientChatContract";
 
@@ -12,7 +17,8 @@ describe("clientChatContract", () => {
     const last = getClientOnboardingCardByStep(999);
     expect(first.id).toBe("business_essentials_card");
     expect(last.id).toBe("review_card");
-    expect(getClientOnboardingCardStep("channels_card")).toBe(8);
+    expect(getClientOnboardingCardStep("channels_card")).toBe(9);
+    expect(getClientOnboardingCardTotal()).toBe(10);
     expect(getNextClientOnboardingCard("channels_card").id).toBe("review_card");
   });
 
@@ -72,5 +78,35 @@ describe("clientChatContract", () => {
     expect(result.updates.q16_enabled_channels).toEqual(["instagram", "tiktok"]);
     expect(result.updates.q18_cadence).toEqual({ instagram: 5, tiktok: 5 });
   });
-});
 
+  it("builds user-facing saved summaries for cards", () => {
+    const summary = buildSavedSummary("business_essentials_card", {
+      q1_business_name: "Northwave Fitness",
+      industry_niche: "gym_fitness_studio",
+    });
+
+    expect(summary.savedFields).toContain("q1_business_name");
+    expect(summary.savedFields).toContain("industry_niche");
+    expect(summary.summary).toContain("Saved");
+    expect(summary.summary).toContain("Northwave Fitness");
+  });
+
+  it("classifies cards into essential intake, operations setup, and collect-later groups", () => {
+    expect(getEssentialIntakeCards().map((card) => card.id)).toEqual([
+      "business_essentials_card",
+      "market_scope_card",
+      "goal_conversion_card",
+      "offers_card",
+      "review_card",
+    ]);
+    expect(getOperationsSetupCards().map((card) => card.id)).toEqual([
+      "operations_setup_card",
+      "brand_card",
+      "channels_card",
+    ]);
+    expect(getCollectLaterCards().map((card) => card.id)).toEqual([
+      "audience_card",
+      "proof_card",
+    ]);
+  });
+});

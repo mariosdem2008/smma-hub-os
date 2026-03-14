@@ -12,7 +12,7 @@ Evidence: supabase/functions/_shared/cron.ts:1-16, supabase/functions/publish-sc
 
 ## Required header
 - Header: `x-cron-secret`
-- Value: `CRON_SECRET` stored in Supabase/Lovable secrets (evidence: supabase/functions/_shared/cron.ts:1-16)
+- Value: `CRON_SECRET` stored in Supabase/deployment secrets (evidence: supabase/functions/_shared/cron.ts:1-16)
 
 ## Local tests (401 vs 200)
 401 without header:

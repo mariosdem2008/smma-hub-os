@@ -433,6 +433,25 @@ serve(async (req: Request) => {
     .update({ brain_json: clientBrain, status, usable: gate.usable })
     .eq("id", brainRow.id);
 
+  if (clientId) {
+    try {
+      await supabase.rpc("refresh_client_enrichment_queue", {
+        p_client_id: clientId,
+        p_reason: "client_brain_ingest",
+      });
+      await supabase.rpc("refresh_client_execution_tasks", {
+        p_client_id: clientId,
+        p_reason: "client_brain_ingest",
+      });
+    } catch (error) {
+      console.error("client_brain_ingest_refresh_failed", {
+        agencyId,
+        clientId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
   const summary = buildClientSummary(clientBrain);
   if (summary.trim().length > 0) {
     await supabase

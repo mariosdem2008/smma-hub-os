@@ -59,7 +59,7 @@ const PLATFORMS = [
     id: "instagram",
     name: "Instagram",
     icon: Instagram,
-    color: "from-purple-500 to-pink-500",
+    color: "from-primary to-accent",
   },
   {
     id: "facebook",

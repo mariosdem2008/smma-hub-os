@@ -272,7 +272,7 @@ export default function LibraryTab({ clientId, agencyId }: LibraryTabProps) {
     if (!fileType) return <File className="h-12 w-12 text-muted-foreground" />;
     
     if (fileType.startsWith("image/")) return <ImageIcon className="h-12 w-12 text-blue-500" />;
-    if (fileType.startsWith("video/")) return <Video className="h-12 w-12 text-purple-500" />;
+    if (fileType.startsWith("video/")) return <Video className="h-12 w-12 text-primary" />;
     return <FileText className="h-12 w-12 text-orange-500" />;
   };
 

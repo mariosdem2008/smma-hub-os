@@ -1,12 +1,30 @@
 import { useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
-async function readFunctionErrorPayload(error: unknown): Promise<{ code?: string; error?: string; missing?: string[] } | null> {
+async function readFunctionErrorPayload(error: unknown): Promise<{
+  code?: string;
+  error?: string;
+  missing?: string[];
+  deep_link?: string;
+  required_mode?: string;
+  unlock_state?: string;
+  activation_mode?: string;
+  missing_certification_scenarios?: string[];
+} | null> {
   if (!error || typeof error !== "object") return null;
   const context = (error as { context?: Response }).context;
   if (!context || typeof (context as any).json !== "function") return null;
   try {
-    return (await (context as any).json()) as { code?: string; error?: string; missing?: string[] };
+    return (await (context as any).json()) as {
+      code?: string;
+      error?: string;
+      missing?: string[];
+      deep_link?: string;
+      required_mode?: string;
+      unlock_state?: string;
+      activation_mode?: string;
+      missing_certification_scenarios?: string[];
+    };
   } catch {
     return null;
   }
@@ -15,6 +33,11 @@ async function readFunctionErrorPayload(error: unknown): Promise<{ code?: string
 export class AiAssistantError extends Error {
   code?: string;
   missing?: string[];
+  deepLink?: string;
+  requiredMode?: string;
+  unlockState?: string;
+  activationMode?: string;
+  missingCertificationScenarios?: string[];
 }
 
 export type AiAssistantChatMessage = { role: "user" | "assistant"; content: string };
@@ -88,6 +111,16 @@ export function useAiAssistant() {
           const err = new AiAssistantError(payload.error ?? "AI Assistant not configured.");
           err.code = "AI_SETUP_REQUIRED";
           err.missing = payload.missing;
+          throw err;
+        }
+        if (payload?.code === "AGENT_ACTIVATION_REQUIRED") {
+          const err = new AiAssistantError(payload.error ?? "AI Assistant activation required.");
+          err.code = "AGENT_ACTIVATION_REQUIRED";
+          err.deepLink = payload.deep_link;
+          err.requiredMode = payload.required_mode;
+          err.unlockState = payload.unlock_state;
+          err.activationMode = payload.activation_mode;
+          err.missingCertificationScenarios = payload.missing_certification_scenarios;
           throw err;
         }
         if (payload?.code === "ENDPOINT_DISABLED") {
