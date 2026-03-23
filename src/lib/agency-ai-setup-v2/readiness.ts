@@ -1,6 +1,13 @@
 import type { AgencyAiSetupAgentClass, AgencyAiSetupUnlockState } from "./config";
+import type { AgencyAiSetupCheckpointSnapshot, AgencyAiSetupCheckpointStageKey } from "./adoption";
+import type { AgencyAiSetupStrategyTemplateKey } from "./adoption";
+
+export type AgencyAiSetupStoredCheckpoint = AgencyAiSetupCheckpointSnapshot & {
+  updated_at: string;
+};
 
 export type AgencyAiSetupMetaV2 = {
+  guided_strategy_template_key?: AgencyAiSetupStrategyTemplateKey;
   imports?: {
     imported_at?: string;
     accepted_sources?: string[];
@@ -35,6 +42,7 @@ export type AgencyAiSetupMetaV2 = {
     escalation_rules?: string[];
     workflow_notes?: string;
   };
+  checkpoints?: Partial<Record<AgencyAiSetupCheckpointStageKey, AgencyAiSetupStoredCheckpoint>>;
 };
 
 export type AgencyAiSetupReadinessInput = {
@@ -141,8 +149,8 @@ function buildUnlock(
 
   let unlock_state: AgencyAiSetupUnlockState = "blocked";
   if (combined.length === 0) unlock_state = "operational";
-  else if (combined.length <= 1) unlock_state = "preview_only";
-  else if (combined.length <= 2) unlock_state = "internal_assist_only";
+  else if (combined.length <= 1) unlock_state = "internal_assist_only";
+  else if (combined.length <= 2) unlock_state = "preview_only";
 
   return {
     agent_class: agentClass,

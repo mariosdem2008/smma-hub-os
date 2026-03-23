@@ -13,6 +13,7 @@ export interface AgencyAiSetupModuleRequirement {
   label: string;
   minCount: number;
   description: string;
+  actualCount?: number;
 }
 
 export const AGENCY_AI_SETUP_CORE_MODULES = [
@@ -115,6 +116,13 @@ export const AGENCY_AI_SETUP_CORE_MODULES = [
 
 export type AgencyAiSetupCoreModuleKey = (typeof AGENCY_AI_SETUP_CORE_MODULES)[number]["key"];
 
+export const STRATEGY_AI_MINIMUM_PROOF_MODULES: AgencyAiSetupCoreModuleKey[] = [
+  "agency_identity",
+  "offer_strategy",
+  "quality_bar",
+  "approval_matrix",
+];
+
 export function isAgencyAiSetupCoreModuleKey(value: string): value is AgencyAiSetupCoreModuleKey {
   return AGENCY_AI_SETUP_CORE_MODULES.some((module) => module.key === value);
 }
@@ -148,12 +156,11 @@ export function assessAgencyAiSetupModuleContent(
   content: AgencyOperatingModuleV2,
 ) {
   const meta = getAgencyAiSetupModuleMeta(moduleKey);
-  const requirements = meta?.proofRequirements ?? [];
+  const requirements = (meta?.proofRequirements ?? []).map((requirement) => ({
+    ...requirement,
+    actualCount: getAgencyAiSetupModuleItemCount(content, requirement.key),
+  }));
   const missingRequirements = requirements
-    .map((requirement) => ({
-      ...requirement,
-      actualCount: getAgencyAiSetupModuleItemCount(content, requirement.key),
-    }))
     .filter((requirement) => requirement.actualCount < requirement.minCount);
 
   return {

@@ -7,15 +7,25 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { AgencyAiSetupCheckpointCard } from "@/components/agency-ai-setup-v2/AgencyAiSetupCheckpointCard";
+import { AgencyAiSetupQuickSimulationCard } from "@/components/agency-ai-setup-v2/AgencyAiSetupQuickSimulationCard";
 import { useAgency } from "@/hooks/useAgency";
 import { useRole } from "@/hooks/useRole";
 import {
+  useCreateAgencyAiSetupSimulationV2,
   useAgencyAiSetupResolvedState,
+  usePersistAgencyAiSetupCheckpointV2,
   useSaveAgencyAiSetupWorkflowV2,
   useTouchAgencyAiSetupStatusV2,
+  type AgencyAiSetupSimulationV2Record,
 } from "@/hooks/useAgencyAiSetupV2";
 import { useToast } from "@/hooks/use-toast";
-import { strengthenSetupList, strengthenSetupTextarea } from "@/lib/agency-ai-setup-v2/adoption";
+import {
+  buildWorkflowFieldCoaching,
+  buildCheckpointSnapshot,
+  type AgencyAiSetupCheckpointSnapshot,
+  strengthenSetupList,
+  strengthenSetupTextarea,
+} from "@/lib/agency-ai-setup-v2/adoption";
 
 function GuidanceCard({
   title,
@@ -79,13 +89,35 @@ function getTextStrength(value: string, minimumLength: number) {
   return { label: "Useful detail", tone: "text-emerald-300", note: "This gives the AI extra workflow context." };
 }
 
+function CoachingCard({
+  title,
+  headline,
+  guidance,
+}: {
+  title: string;
+  headline: string;
+  guidance: string;
+}) {
+  return (
+    <div className="rounded-lg border border-border/60 bg-card/40 p-4">
+      <div className="text-sm font-medium text-foreground">{title}</div>
+      <div className="mt-2 text-sm text-foreground">{headline}</div>
+      <div className="mt-2 text-xs text-muted-foreground">{guidance}</div>
+    </div>
+  );
+}
+
 export default function AgencyAiSetupV2Workflow() {
   const { agencyId } = useAgency();
   const { canEditContent } = useRole();
   const { status } = useAgencyAiSetupResolvedState(agencyId);
   const touchStatus = useTouchAgencyAiSetupStatusV2(agencyId);
   const saveWorkflow = useSaveAgencyAiSetupWorkflowV2(agencyId);
+  const createSimulation = useCreateAgencyAiSetupSimulationV2(agencyId);
+  const persistCheckpoint = usePersistAgencyAiSetupCheckpointV2(agencyId);
   const { toast } = useToast();
+  const [quickSimulation, setQuickSimulation] = useState<AgencyAiSetupSimulationV2Record | null>(null);
+  const [checkpoint, setCheckpoint] = useState<AgencyAiSetupCheckpointSnapshot | null>(null);
 
   const existing = useMemo(() => {
     const meta = (status?.meta_json ?? {}) as Record<string, any>;
@@ -109,6 +141,11 @@ export default function AgencyAiSetupV2Workflow() {
   }, [existing]);
 
   useEffect(() => {
+    const stored = ((status?.meta_json ?? {}) as Record<string, any>)?.checkpoints?.workflow;
+    setCheckpoint(stored ?? null);
+  }, [status?.meta_json]);
+
+  useEffect(() => {
     if (agencyId && canEditContent) {
       touchStatus.mutate({ stage: "workflow", step: "workflow", state: "in_progress" });
     }
@@ -116,7 +153,7 @@ export default function AgencyAiSetupV2Workflow() {
 
   const handleSave = async () => {
     try {
-      await saveWorkflow.mutateAsync({
+      const saved = await saveWorkflow.mutateAsync({
         lifecycle_stages: splitCsv(lifecycleStages),
         approval_classes: splitCsv(approvalClasses),
         delivery_sops: splitCsv(deliverySops),
@@ -124,9 +161,36 @@ export default function AgencyAiSetupV2Workflow() {
         escalation_rules: splitCsv(escalationRules),
         workflow_notes: workflowNotes.trim(),
       });
+      const unlock = saved.derived.unlocks.find((item) => item.agent_class === "operator");
+      if (unlock) {
+        const simulation = await createSimulation.mutateAsync({
+          agentClass: "operator",
+          unlockState: unlock.unlock_state,
+          readinessLabel: saved.derived.overall_label,
+          blockers: unlock.blocked_reasons,
+          activated: false,
+          activationMode: null,
+          readinessScores: {
+            knowledge_coverage: saved.derived.knowledge_coverage,
+            process_definition: saved.derived.process_definition,
+            quality_definition: saved.derived.quality_definition,
+            compliance_safety: saved.derived.compliance_safety,
+            approval_governance: saved.derived.approval_governance,
+            evidence_strength: saved.derived.evidence_strength,
+          },
+        });
+        setQuickSimulation(simulation);
+        const nextCheckpoint = buildCheckpointSnapshot("operator", saved.derived, simulation);
+        setCheckpoint(nextCheckpoint);
+        await persistCheckpoint.mutateAsync({ stage: "workflow", checkpoint: nextCheckpoint });
+      } else {
+        const nextCheckpoint = buildCheckpointSnapshot("operator", saved.derived, null);
+        setCheckpoint(nextCheckpoint);
+        await persistCheckpoint.mutateAsync({ stage: "workflow", checkpoint: nextCheckpoint });
+      }
       toast({
         title: "Workflow saved",
-        description: "Operator and governance readiness has been recomputed from the workflow design.",
+        description: "Workflow was saved and a quick Operator AI coaching preview was generated.",
       });
     } catch (error) {
       toast({
@@ -150,6 +214,27 @@ export default function AgencyAiSetupV2Workflow() {
   const approvalStrength = getListStrength(approvalClasses, 2);
   const escalationStrength = getListStrength(escalationRules, 2);
   const workflowNotesStrength = getTextStrength(workflowNotes, 80);
+  const lifecycleCoaching = buildWorkflowFieldCoaching({
+    fieldLabel: "Lifecycle stages",
+    currentValue: lifecycleStages,
+    starterValue: WORKFLOW_STARTER.lifecycleStages,
+    minItems: 4,
+    focus: "Operator workflow",
+  });
+  const approvalCoaching = buildWorkflowFieldCoaching({
+    fieldLabel: "Approval classes",
+    currentValue: approvalClasses,
+    starterValue: WORKFLOW_STARTER.approvalClasses,
+    minItems: 2,
+    focus: "Operator workflow",
+  });
+  const escalationCoaching = buildWorkflowFieldCoaching({
+    fieldLabel: "Escalation rules",
+    currentValue: escalationRules,
+    starterValue: WORKFLOW_STARTER.escalationRules,
+    minItems: 2,
+    focus: "Operator workflow",
+  });
 
   return (
     <div className="space-y-6">
@@ -222,7 +307,7 @@ export default function AgencyAiSetupV2Workflow() {
                 variant="ghost"
                 size="sm"
                 className="px-0"
-                onClick={() => setLifecycleStages((current) => strengthenSetupList(current, WORKFLOW_STARTER.lifecycleStages.split(", ")))}
+                onClick={() => setLifecycleStages(lifecycleCoaching.strengthenCopy)}
               >
                 Strengthen this for me
               </Button>
@@ -230,6 +315,11 @@ export default function AgencyAiSetupV2Workflow() {
                 {lifecycleStrength.label}: {lifecycleStrength.note}
               </div>
               <p className="text-xs text-muted-foreground">Use the actual stages your agency uses to move work from scoped to reporting or renewal.</p>
+              <CoachingCard
+                title="Lifecycle coaching"
+                headline={lifecycleCoaching.headline}
+                guidance={lifecycleCoaching.guidance}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="approval-classes">Approval classes</Label>
@@ -244,7 +334,7 @@ export default function AgencyAiSetupV2Workflow() {
                 variant="ghost"
                 size="sm"
                 className="px-0"
-                onClick={() => setApprovalClasses((current) => strengthenSetupList(current, WORKFLOW_STARTER.approvalClasses.split(", ")))}
+                onClick={() => setApprovalClasses(approvalCoaching.strengthenCopy)}
               >
                 Strengthen this for me
               </Button>
@@ -252,6 +342,11 @@ export default function AgencyAiSetupV2Workflow() {
                 {approvalStrength.label}: {approvalStrength.note}
               </div>
               <p className="text-xs text-muted-foreground">Examples: strategy approval, creative approval, client-facing response approval, launch approval.</p>
+              <CoachingCard
+                title="Approval coaching"
+                headline={approvalCoaching.headline}
+                guidance={approvalCoaching.guidance}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="delivery-sops">Delivery SOPs</Label>
@@ -286,7 +381,7 @@ export default function AgencyAiSetupV2Workflow() {
                 variant="ghost"
                 size="sm"
                 className="px-0"
-                onClick={() => setEscalationRules((current) => strengthenSetupList(current, WORKFLOW_STARTER.escalationRules.split(", ")))}
+                onClick={() => setEscalationRules(escalationCoaching.strengthenCopy)}
               >
                 Strengthen this for me
               </Button>
@@ -294,6 +389,11 @@ export default function AgencyAiSetupV2Workflow() {
                 {escalationStrength.label}: {escalationStrength.note}
               </div>
               <p className="text-xs text-muted-foreground">Write concrete handoff rules the AI can follow without guessing.</p>
+              <CoachingCard
+                title="Escalation coaching"
+                headline={escalationCoaching.headline}
+                guidance={escalationCoaching.guidance}
+              />
             </div>
             <div className="space-y-2 md:col-span-2">
               <Label htmlFor="workflow-notes">Additional workflow notes</Label>
@@ -325,6 +425,23 @@ export default function AgencyAiSetupV2Workflow() {
                 {workflowNotesStrength.label}: {workflowNotesStrength.note}
               </div>
               <p className="text-xs text-muted-foreground">Use this for exceptions, unusual branches, or operator judgment calls that do not fit simple lists.</p>
+              <CoachingCard
+                title="Workflow notes coaching"
+                headline={
+                  workflowNotes.trim()
+                    ? workflowNotes.trim().length < 80
+                      ? "Workflow notes need clearer operator detail"
+                      : "Workflow notes are usable"
+                    : "Workflow notes are optional for now"
+                }
+                guidance={
+                  workflowNotes.trim()
+                    ? workflowNotes.trim().length < 80
+                      ? "Spell out what the AI should do when approval, ownership, or sequencing is unclear instead of leaving this as a short reminder."
+                      : "This is strong enough for a first operator draft. Expand it only if the preview still shows workflow drift."
+                    : "Leave this blank only if the workflow is straightforward. Use it when your team has exceptions or judgment calls the AI must learn."
+                }
+              />
             </div>
           </div>
 
@@ -344,11 +461,19 @@ export default function AgencyAiSetupV2Workflow() {
 
       <AgencyAiSetupCheckpointCard
         title="Operator workflow checkpoint"
-        reliableNow="The AI can start following a real workflow spine instead of assuming generic stages and handoffs."
-        stillWeak="Thin lifecycle and escalation rules still make operator behavior unreliable under pressure."
-        nextAction="Tighten weak workflow rules, then run an operator preview before you treat this as trusted internal assist."
+        reliableNow={checkpoint?.reliableNow ?? "The AI can start following a real workflow spine instead of assuming generic stages and handoffs."}
+        stillWeak={checkpoint?.stillWeak ?? "Thin lifecycle and escalation rules still make operator behavior unreliable under pressure."}
+        nextAction={checkpoint?.nextAction ?? "Tighten weak workflow rules, then run an operator preview before you treat this as trusted internal assist."}
         previewPath="/agency/ai-setup/readiness/preview/operator"
         previewLabel="Run a quick Operator AI preview"
+        milestoneLabel={checkpoint?.milestoneLabel}
+        updatedNote={checkpoint?.updatedNote}
+      />
+
+      <AgencyAiSetupQuickSimulationCard
+        title="Quick Operator AI coaching preview"
+        agentClass="operator"
+        simulation={quickSimulation}
       />
     </div>
   );

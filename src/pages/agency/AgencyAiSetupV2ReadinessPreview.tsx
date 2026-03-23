@@ -1,6 +1,6 @@
 import { useMemo } from "react";
-import { Link, Navigate, useParams } from "react-router-dom";
-import { AlertTriangle, ArrowLeft, FlaskConical, PlayCircle, ShieldCheck } from "lucide-react";
+import { Link, Navigate, useLocation, useParams } from "react-router-dom";
+import { AlertTriangle, ArrowLeft, FlaskConical, PlayCircle, ShieldCheck, Sparkles, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +18,7 @@ import {
   isAgencyAiSetupCoreModuleKey,
 } from "@/lib/agency-ai-setup-v2/modules";
 import { getAgencyAiSimulationScenarios } from "@/lib/agency-ai-setup-v2/simulations";
+import { shouldUseGuidedStrategyPreview } from "@/lib/agency-ai-setup-v2/adoption";
 
 const VALID_AGENT_CLASSES: AgencyAiSetupAgentClass[] = ["strategy", "creator", "operator", "analyst", "client_facing"];
 
@@ -109,8 +110,9 @@ function formatScenarioLabel(value: string) {
 
 export default function AgencyAiSetupV2ReadinessPreview() {
   const { agentClass } = useParams<{ agentClass: string }>();
+  const location = useLocation();
   const { agencyId } = useAgency();
-  const { readiness, unlocks, certificationsByAgentClass } = useAgencyAiSetupResolvedState(agencyId);
+  const { status, readiness, unlocks, certificationsByAgentClass } = useAgencyAiSetupResolvedState(agencyId);
   const simulations = useAgencyAiSetupSimulationsV2(agencyId);
   const createSimulation = useCreateAgencyAiSetupSimulationV2(agencyId);
   const modulesQuery = useLatestAgencyOperatingModulesV2();
@@ -169,6 +171,24 @@ export default function AgencyAiSetupV2ReadinessPreview() {
       .filter(Boolean) as Array<{ key: string; title: string; description: string; action: string }>;
   }, [modulesQuery.latestByKey, unlock?.required_modules]);
   const missingCertificationScenarios = certificationsByAgentClass?.[agentClass]?.missingScenarioKeys ?? [];
+  const locationSearch = new URLSearchParams(location.search);
+  const forceAdvanced = locationSearch.get("mode") === "advanced" || locationSearch.get("view") === "advanced";
+  const isGuidedStrategyPreview = shouldUseGuidedStrategyPreview({
+    agentClass,
+    unlockState: unlock?.unlock_state,
+    activationMode: unlock?.activation_mode,
+    hasRequiredStrategyCertification: !missingCertificationScenarios.includes("strategy_readiness_certification"),
+    forceAdvanced,
+  });
+  const latestCheckpoint = (status?.meta_json as Record<string, any> | undefined)?.checkpoints?.foundations;
+  const strategyQuickFixes = [
+    proofGapCards[0]?.action,
+    unlock?.blocked_reasons?.[0],
+    missingCertificationScenarios.length
+      ? `Run ${formatScenarioLabel(missingCertificationScenarios[0])} after tightening the minimum proof modules.`
+      : null,
+  ].filter(Boolean) as string[];
+  const primaryProofGap = proofGapCards[0] ?? null;
 
   return (
     <div className="space-y-6">
@@ -188,14 +208,22 @@ export default function AgencyAiSetupV2ReadinessPreview() {
               </Badge>
             </div>
             <p className="max-w-3xl text-sm text-muted-foreground">
-              Use this page to simulate the current setup for this agent class before activation. This is the page activation-gated workflows link back to when readiness is not sufficient.
+              {isGuidedStrategyPreview
+                ? "This first preview is the narrowest possible check: can Strategy AI help internally yet, what is still weak, and what exact proof should you fix next?"
+                : "Use this page to simulate the current setup for this agent class before activation. This is the page activation-gated workflows link back to when readiness is not sufficient."}
             </p>
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <Button variant="outline" asChild>
-              <Link to="/agency/ai-setup/activation">Go to activation</Link>
-            </Button>
+            {isGuidedStrategyPreview ? (
+              <Button variant="outline" asChild>
+                <Link to="/agency/ai-setup/modules">Go back to minimum proof modules</Link>
+              </Button>
+            ) : (
+              <Button variant="outline" asChild>
+                <Link to="/agency/ai-setup/activation">Go to activation</Link>
+              </Button>
+            )}
             <Button variant="ghost" asChild>
               <Link to={getNextEditLink(agentClass)}>Edit the highest-impact setup area</Link>
             </Button>
@@ -203,11 +231,135 @@ export default function AgencyAiSetupV2ReadinessPreview() {
         </CardContent>
       </Card>
 
+      {isGuidedStrategyPreview ? (
+        <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+          <Card className="border-primary/20 bg-primary/5">
+            <CardContent className="space-y-4 p-5">
+              <div className="flex items-start gap-3">
+                <Sparkles className="mt-0.5 h-5 w-5 text-primary" />
+                <div>
+                  <h2 className="text-base font-semibold text-foreground">Run your first Strategy AI preview</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Do not think about full certifications yet. First check whether Strategy AI can produce a useful internal draft without becoming generic.
+                  </p>
+                </div>
+              </div>
+              <div className="grid gap-3 md:grid-cols-3">
+                <div className="rounded-lg border border-border/60 bg-background/70 p-4">
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">This preview checks</div>
+                  <div className="mt-2 text-sm text-foreground">Positioning clarity, proof quality, and whether Strategy AI can help internally without guessing.</div>
+                </div>
+                <div className="rounded-lg border border-border/60 bg-background/70 p-4">
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Reliable now</div>
+                  <div className="mt-2 text-sm text-foreground">
+                    {(latestCheckpoint?.reliableNow as string | undefined) ?? "Your imported context and first minimum-proof modules give Strategy AI a usable draft baseline."}
+                  </div>
+                </div>
+                <div className="rounded-lg border border-border/60 bg-background/70 p-4">
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Still weak</div>
+                  <div className="mt-2 text-sm text-foreground">
+                    {proofGapCards[0]?.description ?? unlock?.blocked_reasons?.[0] ?? "The strategy proof is still too thin to trust for wider activation."}
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  onClick={() =>
+                    createSimulation.mutate({
+                      agentClass,
+                      scenarioKey: "strategy_readiness_certification",
+                      unlockState: unlock?.unlock_state ?? "blocked",
+                      readinessLabel: readiness.overall_label,
+                      blockers: unlock?.blocked_reasons ?? [],
+                      activated: Boolean(unlock?.activated_at),
+                      activationMode: unlock?.activation_mode ?? null,
+                      readinessScores: {
+                        knowledge_coverage: readiness.knowledge_coverage,
+                        process_definition: readiness.process_definition,
+                        quality_definition: readiness.quality_definition,
+                        compliance_safety: readiness.compliance_safety,
+                        approval_governance: readiness.approval_governance,
+                        evidence_strength: readiness.evidence_strength,
+                      },
+                    })
+                  }
+                  disabled={createSimulation.isPending}
+                >
+                  <PlayCircle className="mr-2 h-4 w-4" />
+                  {createSimulation.isPending ? "Running preview..." : "Run first Strategy AI preview"}
+                </Button>
+                <Button variant="ghost" asChild>
+                  <Link to="/agency/ai-setup/readiness/preview/strategy?view=advanced">Open advanced readiness view</Link>
+                </Button>
+                {primaryProofGap ? (
+                  <Button variant="ghost" asChild>
+                    <Link
+                      to={`/agency/ai-setup/modules/${primaryProofGap.key}?returnTo=${encodeURIComponent(
+                        "/agency/ai-setup/readiness/preview/strategy",
+                      )}`}
+                    >
+                      Fix {primaryProofGap.title} now
+                    </Link>
+                  </Button>
+                ) : null}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/60 bg-card/40">
+            <CardContent className="space-y-4 p-5">
+              <div className="flex items-start gap-3">
+                <Wrench className="mt-0.5 h-5 w-5 text-primary" />
+                <div>
+                  <h2 className="text-base font-semibold text-foreground">Fix this next</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Keep the next move narrow. Fix one weak proof area, then rerun the preview.
+                  </p>
+                </div>
+              </div>
+              <div className="space-y-3">
+                {strategyQuickFixes.length ? (
+                  strategyQuickFixes.map((fix) => (
+                    <div key={fix} className="rounded-lg border border-border/60 bg-background/60 p-3 text-sm text-muted-foreground">
+                      {fix}
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-lg border border-border/60 bg-background/60 p-3 text-sm text-muted-foreground">
+                    No narrow fix is recorded yet. Run the first preview to get a concrete next action.
+                  </div>
+                )}
+                {primaryProofGap ? (
+                  <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm text-muted-foreground">
+                    <span className="font-medium text-foreground">Fastest fix path:</span> open{" "}
+                    <Link
+                      to={`/agency/ai-setup/modules/${primaryProofGap.key}?returnTo=${encodeURIComponent(
+                        "/agency/ai-setup/readiness/preview/strategy",
+                      )}`}
+                      className="text-primary underline underline-offset-4"
+                    >
+                      {primaryProofGap.title}
+                    </Link>{" "}
+                    and tighten the missing proof before rerunning this preview.
+                  </div>
+                ) : null}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      ) : null}
+
       <Card className="border-border/60 bg-card/40">
         <CardContent className="space-y-4 p-5">
           <div>
-            <h2 className="text-base font-semibold text-foreground">Trust path for this capability</h2>
-            <p className="text-sm text-muted-foreground">Use this as the checklist for moving from draft setup to trusted activation.</p>
+            <h2 className="text-base font-semibold text-foreground">
+              {isGuidedStrategyPreview ? "What Strategy AI must prove next" : "Trust path for this capability"}
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              {isGuidedStrategyPreview
+                ? "This is the shortest path from a first draft baseline to trusted internal assist."
+                : "Use this as the checklist for moving from draft setup to trusted activation."}
+            </p>
           </div>
           <div className="grid gap-3 md:grid-cols-2">
             {getTrustPath(agentClass).map((step, index) => (
@@ -225,9 +377,13 @@ export default function AgencyAiSetupV2ReadinessPreview() {
           <div className="flex items-center gap-2">
             <ShieldCheck className="h-4 w-4 text-primary" />
             <div>
-              <h2 className="text-base font-semibold text-foreground">Certification scenarios</h2>
+              <h2 className="text-base font-semibold text-foreground">
+                {isGuidedStrategyPreview ? "Preview scenarios" : "Certification scenarios"}
+              </h2>
               <p className="text-sm text-muted-foreground">
-                Run scenario-grade checks before you expand activation. These simulations score process, quality, safety, approvals, and usefulness.
+                {isGuidedStrategyPreview
+                  ? "Run a scenario-grade check to see whether Strategy AI is specific enough to help internally and what exact proof still needs work."
+                  : "Run scenario-grade checks before you expand activation. These simulations score process, quality, safety, approvals, and usefulness."}
               </p>
             </div>
           </div>

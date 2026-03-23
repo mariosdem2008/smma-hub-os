@@ -20,6 +20,7 @@ import {
   formatUnlockStateLabel,
 } from "@/lib/agency-ai-setup-v2/config";
 import { deriveAgencyAiSetupInvalidationState } from "@/lib/agency-ai-setup-v2/invalidation";
+import { shouldUseGuidedStrategyPreview } from "@/lib/agency-ai-setup-v2/adoption";
 
 function formatAgentClassLabel(value: string) {
   return value.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
@@ -64,7 +65,7 @@ function getTrustSummary(unlockState: string) {
 export default function AgencyAiSetupV2Readiness() {
   const { agencyId } = useAgency();
   const { canEditContent } = useRole();
-  const { status, readiness, unlocks, certifications } = useAgencyAiSetupResolvedState(agencyId);
+  const { status, readiness, unlocks, certifications, certificationsByAgentClass } = useAgencyAiSetupResolvedState(agencyId);
   const modulesQuery = useLatestAgencyOperatingModulesV2();
   const runReview = useRunAgencyAiSetupReadinessReviewV2(agencyId);
   const revokeCertification = useRevokeAgencyAiCertificationV2(agencyId);
@@ -85,6 +86,14 @@ export default function AgencyAiSetupV2Readiness() {
       invalidation: invalidation[unlock.agent_class],
     }))
     .filter((item) => item.invalidation.staleCertifications.length > 0);
+  const strategyUnlock = unlocks.find((item) => item.agent_class === "strategy");
+  const missingStrategyCertificationScenarios = certificationsByAgentClass?.strategy?.missingScenarioKeys ?? [];
+  const showGuidedStrategyReadiness = shouldUseGuidedStrategyPreview({
+    agentClass: "strategy",
+    unlockState: strategyUnlock?.unlock_state,
+    activationMode: strategyUnlock?.activation_mode,
+    hasRequiredStrategyCertification: !missingStrategyCertificationScenarios.includes("strategy_readiness_certification"),
+  });
 
   useEffect(() => {
     if (agencyId && canEditContent) {
@@ -120,6 +129,43 @@ export default function AgencyAiSetupV2Readiness() {
           </div>
         </CardContent>
       </Card>
+
+      {showGuidedStrategyReadiness ? (
+        <Card className="border-primary/20 bg-primary/5">
+          <CardContent className="space-y-4 p-5">
+            <div>
+              <h2 className="text-base font-semibold text-foreground">First Strategy AI check</h2>
+              <p className="text-sm text-muted-foreground">
+                Ignore the full trust system for a moment. The next goal is simpler: can Strategy AI help internally yet, and what is the single weakest proof area to fix next?
+              </p>
+            </div>
+            <div className="grid gap-3 md:grid-cols-3">
+              <div className="rounded-lg border border-border/60 bg-background/70 p-4">
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Goal right now</div>
+                <div className="mt-2 text-sm text-foreground">Get Strategy AI to internal-assist quality before worrying about wider activation or certification language.</div>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-background/70 p-4">
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Still weak</div>
+                <div className="mt-2 text-sm text-foreground">
+                  {strategyUnlock?.blocked_reasons?.[0] ?? readiness.critical_blockers[0] ?? "No specific blocker recorded yet."}
+                </div>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-background/70 p-4">
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Best next move</div>
+                <div className="mt-2 text-sm text-foreground">Run the Strategy preview, fix the weakest proof gap it highlights, then come back here only after the preview improves.</div>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <Button asChild>
+                <Link to="/agency/ai-setup/readiness/preview/strategy">Run first Strategy AI check</Link>
+              </Button>
+              <Button variant="ghost" asChild>
+                <Link to="/agency/ai-setup/modules">Open minimum proof modules</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {staleCapabilitySummaries.length ? (
         <Card className="border-amber-500/30 bg-amber-500/10">

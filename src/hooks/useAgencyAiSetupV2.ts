@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type {
@@ -12,6 +12,12 @@ import {
   getMissingCertificationScenarios,
 } from "@/lib/agency-ai-setup-v2/config";
 import { deriveAgencyAiSetupReadiness, type AgencyAiSetupMetaV2 } from "@/lib/agency-ai-setup-v2/readiness";
+import type { DerivedAgencyReadiness } from "@/lib/agency-ai-setup-v2/readiness";
+import {
+  applyTemplateDraftToMeta,
+  type AgencyAiSetupCheckpointSnapshot,
+  type AgencyAiSetupCheckpointStageKey,
+} from "@/lib/agency-ai-setup-v2/adoption";
 import { runAgencyAiSetupSimulation } from "@/lib/agency-ai-setup-v2/simulations";
 import { useAuth } from "@/lib/auth";
 
@@ -109,6 +115,11 @@ export interface AgencyAiCertificationEventV2Record {
   simulation_id: string | null;
   payload_json: Record<string, unknown>;
   created_at: string;
+}
+
+export interface AgencyAiSetupSaveResultV2 {
+  meta: AgencyAiSetupMetaV2;
+  derived: DerivedAgencyReadiness;
 }
 
 const DEFAULT_READINESS: AgencyAiReadinessScoresV2Record = {
@@ -211,10 +222,15 @@ const DEFAULT_UNLOCKS: AgencyAgentUnlockV2Record[] = [
   },
 ];
 
+const TOUCH_STATUS_DEDUPE_WINDOW_MS = 5000;
+
 export function useAgencyAiSetupOverview(agencyId: string | null | undefined) {
   return useQuery({
     queryKey: ["agency-ai-setup-v2-overview", agencyId],
     enabled: !!agencyId,
+    staleTime: 5000,
+    refetchOnWindowFocus: false,
+    retry: 1,
     queryFn: async () => {
       if (!agencyId) return null;
       const db = supabase as any;
@@ -252,6 +268,7 @@ export function useAgencyAiSetupOverview(agencyId: string | null | undefined) {
 
 export function useTouchAgencyAiSetupStatusV2(agencyId: string | null | undefined) {
   const queryClient = useQueryClient();
+  const lastTouchRef = useRef<{ key: string; touchedAt: number } | null>(null);
 
   return useMutation({
     mutationFn: async ({
@@ -264,6 +281,17 @@ export function useTouchAgencyAiSetupStatusV2(agencyId: string | null | undefine
       state?: "not_started" | "in_progress" | "ready_for_review" | "active";
     }) => {
       if (!agencyId) return null;
+      const nextStep = step ?? stage;
+      const nextState = state ?? (stage === "overview" ? "not_started" : "in_progress");
+      const dedupeKey = `${agencyId}:${stage}:${nextStep}:${nextState}`;
+      const now = Date.now();
+      if (
+        lastTouchRef.current?.key === dedupeKey &&
+        now - lastTouchRef.current.touchedAt < TOUCH_STATUS_DEDUPE_WINDOW_MS
+      ) {
+        return null;
+      }
+      lastTouchRef.current = { key: dedupeKey, touchedAt: now };
       const db = supabase as any;
       const { data, error } = await db
         .from("agency_ai_setup_status_v2")
@@ -271,8 +299,8 @@ export function useTouchAgencyAiSetupStatusV2(agencyId: string | null | undefine
           {
             agency_id: agencyId,
             current_stage: stage,
-            current_step: step ?? stage,
-            setup_state: state ?? (stage === "overview" ? "not_started" : "in_progress"),
+            current_step: nextStep,
+            setup_state: nextState,
             last_active_at: new Date().toISOString(),
           },
           { onConflict: "agency_id" },
@@ -280,10 +308,14 @@ export function useTouchAgencyAiSetupStatusV2(agencyId: string | null | undefine
         .select("*")
         .single();
 
-      if (error) throw error;
+      if (error) {
+        lastTouchRef.current = null;
+        throw error;
+      }
       return data as AgencyAiSetupStatusV2Record;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      if (!data) return;
       queryClient.invalidateQueries({ queryKey: ["agency-ai-setup-v2-overview", agencyId] });
     },
   });
@@ -363,6 +395,9 @@ export function useAgencyAiCertificationsV2(agencyId: string | null | undefined)
   return useQuery({
     queryKey: ["agency-ai-setup-v2-certifications", agencyId],
     enabled: !!agencyId,
+    staleTime: 5000,
+    refetchOnWindowFocus: false,
+    retry: 1,
     queryFn: async () => {
       if (!agencyId) return [] as AgencyAiCertificationV2Record[];
       const db = supabase as any;
@@ -420,14 +455,36 @@ async function getApprovedBrainDocumentSummary(agencyId: string) {
   const db = supabase as any;
   const { data, error } = await db
     .from("brain_documents")
-    .select("module")
+    .select("id,title,module")
     .eq("agency_id", agencyId)
     .eq("status", "approved");
   if (error) throw error;
-  const modules = Array.from(new Set(((data ?? []) as Array<{ module: string }>).map((row) => row.module)));
+  const docs = (data ?? []) as Array<{ id: string; title: string; module: string }>;
+  const modules = Array.from(new Set(docs.map((row) => row.module)));
   return {
+    docs,
     modules,
     count: modules.length ? (data?.length ?? modules.length) : 0,
+  };
+}
+
+async function getAgencyProfileSummary(agencyId: string) {
+  const db = supabase as any;
+  const { data, error } = await db
+    .from("agencies")
+    .select("name,niche,website")
+    .eq("id", agencyId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  return {
+    name: data.name as string | null,
+    niche: data.niche as string | null,
+    description:
+      typeof data.name === "string"
+        ? `${data.name} is using Agency AI Setup V2 to turn existing positioning and delivery knowledge into a governed Strategy AI baseline.`
+        : null,
+    services: null,
   };
 }
 
@@ -564,33 +621,85 @@ export function useActivateAgencyAgentClassV2(agencyId: string | null | undefine
           );
         }
       }
-      const { data, error } = await db
+      const activatedAt = active ? new Date().toISOString() : null;
+      const activatedBy = active ? user?.id ?? null : null;
+      const activationMode = active ? mode ?? "internal_assist_only" : null;
+      const { error } = await db
         .from("agency_agent_unlocks_v2")
         .update({
-          activated_at: active ? new Date().toISOString() : null,
-          activated_by: active ? user?.id ?? null : null,
-          activation_mode: active ? mode ?? "internal_assist_only" : null,
+          activated_at: activatedAt,
+          activated_by: activatedBy,
+          activation_mode: activationMode,
         })
         .eq("agency_id", agencyId)
-        .eq("agent_class", agentClass)
-        .select("*")
-        .single();
+        .eq("agent_class", agentClass);
       if (error) throw error;
 
-      await db.from("agency_ai_setup_status_v2").upsert(
+      const { error: statusError } = await db.from("agency_ai_setup_status_v2").upsert(
         {
           agency_id: agencyId,
-          current_stage: active ? "control-center" : "activation",
-          current_step: active ? "activation" : "readiness",
+          current_stage: "activation",
+          current_step: active ? "activated" : "readiness",
           setup_state: active ? "active" : "ready_for_review",
           last_active_at: new Date().toISOString(),
-          activated_at: active ? new Date().toISOString() : null,
-          control_center_enabled_at: active ? new Date().toISOString() : null,
+          activated_at: activatedAt,
+          control_center_enabled_at: activatedAt,
         },
         { onConflict: "agency_id" },
       );
+      if (statusError) throw statusError;
 
-      return data as AgencyAgentUnlockV2Record;
+      return {
+        agency_id: agencyId,
+        agent_class: agentClass,
+        activated_at: activatedAt,
+        activated_by: activatedBy,
+        activation_mode: activationMode,
+      } as AgencyAgentUnlockV2Record;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["agency-ai-setup-v2-overview", agencyId] });
+    },
+  });
+}
+
+export function usePersistAgencyAiSetupCheckpointV2(agencyId: string | null | undefined) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      stage,
+      checkpoint,
+    }: {
+      stage: AgencyAiSetupCheckpointStageKey;
+      checkpoint: AgencyAiSetupCheckpointSnapshot;
+    }) => {
+      if (!agencyId) throw new Error("No agency selected");
+      const db = supabase as any;
+      const meta = await getCurrentMeta(agencyId);
+      const nextMeta: AgencyAiSetupMetaV2 = {
+        ...meta,
+        checkpoints: {
+          ...(meta.checkpoints ?? {}),
+          [stage]: {
+            ...checkpoint,
+            updated_at: new Date().toISOString(),
+          },
+        },
+      };
+
+      const { error } = await db
+        .from("agency_ai_setup_status_v2")
+        .upsert(
+          {
+            agency_id: agencyId,
+            meta_json: nextMeta,
+            last_active_at: new Date().toISOString(),
+          },
+          { onConflict: "agency_id" },
+        );
+      if (error) throw error;
+      return nextMeta;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["agency-ai-setup-v2-overview", agencyId] });
@@ -834,12 +943,22 @@ export function useImportAgencyAiSetupContextV2(agencyId: string | null | undefi
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (payload: { acceptedSources: string[]; acceptedDocumentCount: number }) => {
+    mutationFn: async (payload: { acceptedSources: string[]; acceptedDocumentCount: number; strategyTemplateKey?: AgencyAiSetupMetaV2["guided_strategy_template_key"] }) => {
       if (!agencyId) throw new Error("No agency selected");
       const db = supabase as any;
       const currentMeta = await getCurrentMeta(agencyId);
+      const [agencyProfile, approvedDocs] = await Promise.all([
+        getAgencyProfileSummary(agencyId),
+        getApprovedBrainDocumentSummary(agencyId),
+      ]);
+      const draftedMeta = applyTemplateDraftToMeta(
+        currentMeta,
+        payload.strategyTemplateKey ?? currentMeta.guided_strategy_template_key ?? "general_service",
+        agencyProfile,
+        approvedDocs.docs,
+      );
       const nextMeta: AgencyAiSetupMetaV2 = {
-        ...currentMeta,
+        ...draftedMeta,
         imports: {
           imported_at: new Date().toISOString(),
           accepted_sources: payload.acceptedSources,
@@ -860,6 +979,37 @@ export function useImportAgencyAiSetupContextV2(agencyId: string | null | undefi
       );
 
       await persistReadinessSnapshot(agencyId, nextMeta);
+      return nextMeta;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["agency-ai-setup-v2-overview", agencyId] });
+    },
+  });
+}
+
+export function useSelectAgencyAiSetupStrategyTemplateV2(agencyId: string | null | undefined) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (strategyTemplateKey: NonNullable<AgencyAiSetupMetaV2["guided_strategy_template_key"]>) => {
+      if (!agencyId) throw new Error("No agency selected");
+      const db = supabase as any;
+      const currentMeta = await getCurrentMeta(agencyId);
+      const nextMeta: AgencyAiSetupMetaV2 = {
+        ...currentMeta,
+        guided_strategy_template_key: strategyTemplateKey,
+      };
+
+      const { error } = await db.from("agency_ai_setup_status_v2").upsert(
+        {
+          agency_id: agencyId,
+          last_active_at: new Date().toISOString(),
+          meta_json: nextMeta,
+        },
+        { onConflict: "agency_id" },
+      );
+
+      if (error) throw error;
       return nextMeta;
     },
     onSuccess: () => {
@@ -898,8 +1048,8 @@ export function useSaveAgencyAiSetupFoundationsV2(agencyId: string | null | unde
         { onConflict: "agency_id" },
       );
 
-      await persistReadinessSnapshot(agencyId, nextMeta);
-      return nextMeta;
+      const derived = await persistReadinessSnapshot(agencyId, nextMeta);
+      return { meta: nextMeta, derived } satisfies AgencyAiSetupSaveResultV2;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["agency-ai-setup-v2-overview", agencyId] });
@@ -936,8 +1086,8 @@ export function useSaveAgencyAiSetupGuardrailsV2(agencyId: string | null | undef
         { onConflict: "agency_id" },
       );
 
-      await persistReadinessSnapshot(agencyId, nextMeta);
-      return nextMeta;
+      const derived = await persistReadinessSnapshot(agencyId, nextMeta);
+      return { meta: nextMeta, derived } satisfies AgencyAiSetupSaveResultV2;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["agency-ai-setup-v2-overview", agencyId] });
@@ -974,8 +1124,8 @@ export function useSaveAgencyAiSetupWorkflowV2(agencyId: string | null | undefin
         { onConflict: "agency_id" },
       );
 
-      await persistReadinessSnapshot(agencyId, nextMeta);
-      return nextMeta;
+      const derived = await persistReadinessSnapshot(agencyId, nextMeta);
+      return { meta: nextMeta, derived } satisfies AgencyAiSetupSaveResultV2;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["agency-ai-setup-v2-overview", agencyId] });

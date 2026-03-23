@@ -19,6 +19,7 @@ import {
   getAvailableActivationModes,
 } from "@/lib/agency-ai-setup-v2/config";
 import { deriveAgencyAiSetupInvalidationState } from "@/lib/agency-ai-setup-v2/invalidation";
+import { shouldUseGuidedStrategyPreview } from "@/lib/agency-ai-setup-v2/adoption";
 
 function getActivationGuidance(unlockState: string, missingScenarioKeys: string[]) {
   if (unlockState === "operational" && missingScenarioKeys.length === 0) {
@@ -57,6 +58,14 @@ export default function AgencyAiSetupV2Activation() {
       }),
     [certifications, modulesQuery.latestByKey, status, unlocks],
   );
+  const strategyUnlock = unlocks.find((item) => item.agent_class === "strategy");
+  const missingStrategyCertificationScenarios = certificationsByAgentClass?.strategy?.missingScenarioKeys ?? [];
+  const showGuidedStrategyActivation = shouldUseGuidedStrategyPreview({
+    agentClass: "strategy",
+    unlockState: strategyUnlock?.unlock_state,
+    activationMode: strategyUnlock?.activation_mode,
+    hasRequiredStrategyCertification: !missingStrategyCertificationScenarios.includes("strategy_readiness_certification"),
+  });
 
   useEffect(() => {
     if (agencyId && canEditContent) {
@@ -82,6 +91,43 @@ export default function AgencyAiSetupV2Activation() {
           </div>
         </CardContent>
       </Card>
+
+      {showGuidedStrategyActivation ? (
+        <Card className="border-primary/20 bg-primary/5">
+          <CardContent className="space-y-4 p-5">
+            <div>
+              <h2 className="text-base font-semibold text-foreground">First activation goal</h2>
+              <p className="text-sm text-muted-foreground">
+                Do not think about full rollout yet. The next job is just to unlock Strategy AI for internal assist once the preview loop is good enough.
+              </p>
+            </div>
+            <div className="grid gap-3 md:grid-cols-3">
+              <div className="rounded-lg border border-border/60 bg-background/70 p-4">
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Target mode</div>
+                <div className="mt-2 text-sm text-foreground">Internal Assist Only</div>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-background/70 p-4">
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Why this comes first</div>
+                <div className="mt-2 text-sm text-foreground">It lets the team use Strategy AI as a drafting partner before the system earns broader trust.</div>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-background/70 p-4">
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Before you activate</div>
+                <div className="mt-2 text-sm text-foreground">
+                  {strategyUnlock?.blocked_reasons?.[0] ?? "Run the Strategy preview and fix the weakest proof gap first."}
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <Button asChild>
+                <Link to="/agency/ai-setup/readiness/preview/strategy">Open Strategy preview</Link>
+              </Button>
+              <Button variant="ghost" asChild>
+                <Link to="/agency/ai-setup/modules">Tighten minimum proof first</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {unlocks.map((unlock) => {

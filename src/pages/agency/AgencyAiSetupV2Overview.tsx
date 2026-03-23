@@ -56,6 +56,7 @@ export default function AgencyAiSetupV2Overview() {
   const nextStage = AGENCY_AI_SETUP_STAGES.find((stage) => stage.key === (status?.current_stage ?? "imports")) ?? AGENCY_AI_SETUP_STAGES[1];
   const blockedAgentCount = unlocks.filter((row) => row.unlock_state === "blocked").length;
   const strategyUnlock = unlocks.find((row) => row.agent_class === "strategy");
+  const strategyCheckpoint = (status?.meta_json as Record<string, any> | undefined)?.checkpoints?.foundations;
   const strategyPathLabel =
     strategyUnlock?.unlock_state === "operational"
       ? "Ready for operational use"
@@ -145,6 +146,33 @@ export default function AgencyAiSetupV2Overview() {
               </div>
             </div>
           </div>
+
+          {strategyCheckpoint ? (
+            <div className="rounded-xl border border-border/60 bg-background/60 p-5">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="space-y-2">
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Latest Strategy AI preview</div>
+                  <div className="text-lg font-semibold text-foreground">
+                    {(strategyCheckpoint.milestoneLabel as string | undefined) ?? "Latest checkpoint"}
+                  </div>
+                  <div className="max-w-3xl text-sm text-muted-foreground">
+                    {(strategyCheckpoint.reliableNow as string | undefined) ?? "No preview summary recorded yet."}
+                  </div>
+                  <div className="text-sm text-foreground">
+                    <span className="font-medium">Fix next:</span> {(strategyCheckpoint.nextAction as string | undefined) ?? "Open the Strategy AI preview and run the next check."}
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <Button variant="outline" asChild>
+                    <Link to="/agency/ai-setup/readiness/preview/strategy">Reopen Strategy AI preview</Link>
+                  </Button>
+                  <Button variant="ghost" asChild>
+                    <Link to="/agency/ai-setup/modules">Open minimum proof modules</Link>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           <div className="flex flex-wrap gap-3">
             <Button variant="outline" asChild>

@@ -1,17 +1,21 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import AgencyAiSetupV2Overview from "@/pages/agency/AgencyAiSetupV2Overview";
+import AgencyAiSetupV2Start from "@/pages/agency/AgencyAiSetupV2Start";
 import AgencyAiSetupV2Section from "@/pages/agency/AgencyAiSetupV2Section";
+import AgencyAiSetupV2Imports from "@/pages/agency/AgencyAiSetupV2Imports";
 import AgencyAiSetupV2Foundations from "@/pages/agency/AgencyAiSetupV2Foundations";
 import AgencyAiSetupV2Modules from "@/pages/agency/AgencyAiSetupV2Modules";
 import AgencyAiSetupV2ModuleDetail from "@/pages/agency/AgencyAiSetupV2ModuleDetail";
 import AgencyAiSetupV2Guardrails from "@/pages/agency/AgencyAiSetupV2Guardrails";
 import AgencyAiSetupV2Workflow from "@/pages/agency/AgencyAiSetupV2Workflow";
+import AgencyAiSetupV2Activate from "@/pages/agency/AgencyAiSetupV2Activate";
 import AgencyAiSetupV2Readiness from "@/pages/agency/AgencyAiSetupV2Readiness";
 import AgencyAiSetupV2ReadinessPreview from "@/pages/agency/AgencyAiSetupV2ReadinessPreview";
 import AgencyAiSetupV2Activation from "@/pages/agency/AgencyAiSetupV2Activation";
 import AgencyAiSetupV2ControlCenter from "@/pages/agency/AgencyAiSetupV2ControlCenter";
+import type { NavigateFunction } from "react-router-dom";
 
 if (!globalThis.ResizeObserver) {
   globalThis.ResizeObserver = class ResizeObserver {
@@ -20,6 +24,24 @@ if (!globalThis.ResizeObserver) {
     disconnect() {}
   } as any;
 }
+
+const saveFoundationsMutateAsync = vi.fn();
+const saveGuardrailsMutateAsync = vi.fn();
+const saveWorkflowMutateAsync = vi.fn();
+const saveModuleMutateAsync = vi.fn();
+const createSimulationMutateAsync = vi.fn();
+const activateAgentMutateAsync = vi.fn();
+const persistCheckpointMutateAsync = vi.fn();
+const importContextMutateAsync = vi.fn();
+const navigateMock = vi.fn();
+
+vi.mock("react-router-dom", async () => {
+  const actual = await vi.importActual<typeof import("react-router-dom")>("react-router-dom");
+  return {
+    ...actual,
+    useNavigate: () => navigateMock as NavigateFunction,
+  };
+});
 
 vi.mock("@/hooks/useAgency", () => ({
   useAgency: () => ({ agencyId: "agency-1" }),
@@ -48,15 +70,28 @@ vi.mock("@/hooks/useAgencyAiSetupV2", () => ({
     mutate: vi.fn(),
   }),
   useSaveAgencyAiSetupFoundationsV2: () => ({
-    mutateAsync: vi.fn(),
+    mutateAsync: saveFoundationsMutateAsync,
     isPending: false,
   }),
   useSaveAgencyAiSetupGuardrailsV2: () => ({
-    mutateAsync: vi.fn(),
+    mutateAsync: saveGuardrailsMutateAsync,
     isPending: false,
   }),
   useSaveAgencyAiSetupWorkflowV2: () => ({
-    mutateAsync: vi.fn(),
+    mutateAsync: saveWorkflowMutateAsync,
+    isPending: false,
+  }),
+  usePersistAgencyAiSetupCheckpointV2: () => ({
+    mutate: vi.fn(),
+    mutateAsync: persistCheckpointMutateAsync,
+    isPending: false,
+  }),
+  useImportAgencyAiSetupContextV2: () => ({
+    mutateAsync: importContextMutateAsync,
+    isPending: false,
+  }),
+  useSelectAgencyAiSetupStrategyTemplateV2: () => ({
+    mutate: vi.fn(),
     isPending: false,
   }),
   useRunAgencyAiSetupReadinessReviewV2: () => ({
@@ -65,6 +100,7 @@ vi.mock("@/hooks/useAgencyAiSetupV2", () => ({
   }),
   useActivateAgencyAgentClassV2: () => ({
     mutate: vi.fn(),
+    mutateAsync: activateAgentMutateAsync,
     isPending: false,
   }),
   useAgencyAiSetupSimulationsV2: () => ({
@@ -73,6 +109,7 @@ vi.mock("@/hooks/useAgencyAiSetupV2", () => ({
   }),
   useCreateAgencyAiSetupSimulationV2: () => ({
     mutate: vi.fn(),
+    mutateAsync: createSimulationMutateAsync,
     isPending: false,
   }),
   usePromoteAgencyAiSimulationToCertificationV2: () => ({
@@ -106,7 +143,7 @@ vi.mock("@/hooks/useAgencyOperatingModulesV2", () => ({
     isPending: false,
   }),
   useSaveAgencyOperatingModuleV2: () => ({
-    mutateAsync: vi.fn(),
+    mutateAsync: saveModuleMutateAsync,
     isPending: false,
   }),
 }));
@@ -128,12 +165,27 @@ vi.mock("@/hooks/useRole", () => ({
 const { useAgencyAiSetupResolvedState } = await import("@/hooks/useAgencyAiSetupV2");
 
 describe("Agency AI Setup V2 routes", () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   beforeEach(() => {
+    saveFoundationsMutateAsync.mockReset();
+    saveGuardrailsMutateAsync.mockReset();
+    saveWorkflowMutateAsync.mockReset();
+    saveModuleMutateAsync.mockReset();
+    createSimulationMutateAsync.mockReset();
+    activateAgentMutateAsync.mockReset();
+    persistCheckpointMutateAsync.mockReset();
+    importContextMutateAsync.mockReset();
+    navigateMock.mockReset();
+
     vi.mocked(useAgencyAiSetupResolvedState).mockReturnValue({
       status: {
         current_stage: "imports",
         last_active_at: "2026-03-14T08:00:00.000Z",
         meta_json: {
+          guided_strategy_template_key: "local_service",
           imports: {
             imported_at: "2026-03-14T06:00:00.000Z",
           },
@@ -145,6 +197,32 @@ describe("Agency AI Setup V2 routes", () => {
           },
           workflow: {
             updated_at: "2026-03-14T09:00:00.000Z",
+          },
+          checkpoints: {
+            imports: {
+              milestoneLabel: "Latest checkpoint: Local Service Growth draft baseline",
+              reliableNow: "Strategy AI can draft a first positioning baseline for SMMAHUB Agency around Service businesses.",
+              stillWeak: "Your niche positioning still needs confirmation or tightening.",
+              nextAction: "Open foundations next and tighten the Strategy AI baseline one decision at a time.",
+              updatedNote: "Updated from the latest local service growth import pass.",
+              updated_at: "2026-03-14T08:50:00.000Z",
+            },
+            foundations: {
+              milestoneLabel: "Latest checkpoint: Guided Draft",
+              reliableNow: "Strategy AI can draft a usable internal baseline from the imported evidence.",
+              stillWeak: "Quality bar proof is still thin.",
+              nextAction: "Tighten the quality bar module and rerun the strategy preview.",
+              updatedNote: "Updated from the latest strategy ai coaching pass.",
+              updated_at: "2026-03-14T09:15:00.000Z",
+            },
+            guardrails: {
+              milestoneLabel: "Latest checkpoint: Operational With Review",
+              reliableNow: "Creator AI has a usable safety and quality baseline.",
+              stillWeak: "Claims policy still needs stronger examples.",
+              nextAction: "Run the creator preview before activation.",
+              updatedNote: "Updated from the latest creator AI coaching pass.",
+              updated_at: "2026-03-14T09:30:00.000Z",
+            },
           },
         },
       },
@@ -159,7 +237,12 @@ describe("Agency AI Setup V2 routes", () => {
         critical_blockers: ["Import agency context", "Approve core operating modules"],
       },
       unlocks: [
-        { agent_class: "strategy", unlock_state: "blocked", blocked_reasons: ["Core modules not approved"] },
+        {
+          agent_class: "strategy",
+          unlock_state: "blocked",
+          blocked_reasons: ["Core modules not approved"],
+          required_modules: ["agency_identity", "offer_strategy", "quality_bar", "approval_matrix"],
+        },
         { agent_class: "creator", unlock_state: "blocked", blocked_reasons: ["Guardrails incomplete"] },
         { agent_class: "operator", unlock_state: "blocked", blocked_reasons: ["Workflow incomplete"] },
         { agent_class: "analyst", unlock_state: "preview_only", blocked_reasons: [] },
@@ -212,7 +295,83 @@ describe("Agency AI Setup V2 routes", () => {
     expect(screen.getByRole("link", { name: /Continue setup/i })).toHaveAttribute("href", "/agency/ai-setup/imports");
     expect(screen.getByText("Critical blockers")).toBeInTheDocument();
     expect(screen.getByText("Strategy AI milestone")).toBeInTheDocument();
+    expect(screen.getByText("Latest Strategy AI preview")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /reopen strategy ai preview/i })).toHaveAttribute(
+      "href",
+      "/agency/ai-setup/readiness/preview/strategy",
+    );
     expect(screen.getAllByRole("link", { name: /See trust path/i }).length).toBeGreaterThan(0);
+  });
+
+  it("renders the guided first-run strategy setup entry", () => {
+    vi.mocked(useAgencyAiSetupResolvedState).mockReturnValue({
+      status: {
+        current_stage: "overview",
+        last_active_at: "2026-03-14T08:00:00.000Z",
+        meta_json: {
+          guided_strategy_template_key: "local_service",
+          checkpoints: {
+            foundations: {
+              milestoneLabel: "Latest checkpoint: Guided Draft",
+              reliableNow: "Strategy AI can draft a usable internal baseline from the imported evidence.",
+              stillWeak: "Quality bar proof is still thin.",
+              nextAction: "Tighten the quality bar module and rerun the strategy preview.",
+              updatedNote: "Updated from the latest strategy ai coaching pass.",
+              updated_at: "2026-03-14T09:15:00.000Z",
+            },
+          },
+        },
+      },
+      readiness: {
+        knowledge_coverage: 0,
+        process_definition: 0,
+        quality_definition: 0,
+        compliance_safety: 0,
+        approval_governance: 0,
+        evidence_strength: 0,
+        overall_label: "Not Started",
+        critical_blockers: ["Import agency context"],
+      },
+      unlocks: [
+        { agent_class: "strategy", unlock_state: "blocked", blocked_reasons: ["No setup evidence yet"] },
+      ],
+      certificationsByAgentClass: {},
+      certifications: [],
+      isLoading: false,
+    } as any);
+
+    render(
+      <MemoryRouter initialEntries={["/agency/ai-setup/start"]}>
+        <Routes>
+          <Route path="/agency/ai-setup/start" element={<AgencyAiSetupV2Start />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Enable Strategy AI First")).toBeInTheDocument();
+    expect(screen.getByText(/Start with one useful capability, not the whole AI system/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /continue guided setup/i })).toHaveAttribute("href", "/agency/ai-setup/imports");
+    expect(screen.getByRole("link", { name: /open full setup control plane/i })).toHaveAttribute("href", "/agency/ai-setup?mode=advanced");
+    expect(screen.getByText("Latest Strategy AI checkpoint")).toBeInTheDocument();
+    expect(screen.getByText("Pick the closest starting template")).toBeInTheDocument();
+    expect(screen.getAllByText("Local Service Growth").length).toBeGreaterThan(0);
+  });
+
+  it("shows an immediate strategy draft payoff on the imports step", () => {
+    render(
+      <MemoryRouter initialEntries={["/agency/ai-setup/imports"]}>
+        <Routes>
+          <Route path="/agency/ai-setup/imports" element={<AgencyAiSetupV2Imports />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("What Strategy AI will draft from these imports")).toBeInTheDocument();
+    expect(screen.getAllByText(/Strategy AI can draft a first positioning baseline/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Approved documents will seed rules, examples, and anti-patterns/i)).toBeInTheDocument();
+    expect(screen.getByText(/Import this context, then review the foundations draft/i)).toBeInTheDocument();
+    expect(screen.getByText("What kind of agency are you?")).toBeInTheDocument();
+    expect(screen.getByText("Imports checkpoint")).toBeInTheDocument();
   });
 
   it("renders foundations coaching and checkpoint flow", () => {
@@ -224,10 +383,100 @@ describe("Agency AI Setup V2 routes", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole("button", { name: /use starter draft/i })).toBeInTheDocument();
+    expect(screen.getAllByText("Who you serve").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("What you sell").length).toBeGreaterThan(0);
     expect(screen.getAllByRole("button", { name: /strengthen this for me/i }).length).toBeGreaterThan(0);
-    expect(screen.getByText("Strategy AI foundations checkpoint")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /run a quick strategy ai preview/i })).toHaveAttribute(
+    expect(screen.getByText("Foundations checkpoint")).toBeInTheDocument();
+    expect(screen.getByText("Current template:")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /open key modules/i })).toHaveAttribute(
+      "href",
+      "/agency/ai-setup/modules",
+    );
+  });
+
+  it("shows the full foundations review on one page", () => {
+    render(
+      <MemoryRouter initialEntries={["/agency/ai-setup/foundations"]}>
+        <Routes>
+          <Route path="/agency/ai-setup/foundations" element={<AgencyAiSetupV2Foundations />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByLabelText("Niche focus")).toBeInTheDocument();
+    expect(screen.getByLabelText("Primary services")).toBeInTheDocument();
+    expect(screen.getByLabelText("Agency summary")).toBeInTheDocument();
+    expect(screen.getByText("How you position")).toBeInTheDocument();
+  });
+
+  it("shows a quick strategy coaching preview after foundations save", async () => {
+    saveFoundationsMutateAsync.mockResolvedValue({
+      meta: {},
+      derived: {
+        knowledge_coverage: 64,
+        process_definition: 56,
+        quality_definition: 58,
+        compliance_safety: 52,
+        approval_governance: 54,
+        evidence_strength: 61,
+        overall_label: "Guided Draft",
+        critical_blockers: [],
+        unlocks: [
+          {
+            agent_class: "strategy",
+            unlock_state: "preview_only",
+            blocked_reasons: ["Core modules not approved"],
+          },
+        ],
+      },
+    });
+    createSimulationMutateAsync.mockResolvedValue({
+      id: "sim-quick-strategy",
+      agency_id: "agency-1",
+      agent_class: "strategy",
+      input_snapshot_json: {},
+      output_snapshot_json: {
+        summary: "Strategy AI is usable as an internal draft assistant, but positioning is still too generic.",
+        findings: ["Tighten the agency positioning before certification."],
+        recommended_next_action: "Approve the core positioning modules next.",
+        dimension_scores: {
+          process_adherence: 72,
+          quality_bar_fit: 63,
+        },
+      },
+      evaluation_json: {},
+      result: "warn",
+      created_by: "user-1",
+      created_at: "2026-03-14T12:00:00.000Z",
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/agency/ai-setup/foundations"]}>
+        <Routes>
+          <Route path="/agency/ai-setup/foundations" element={<AgencyAiSetupV2Foundations />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /looks good/i }));
+
+    await waitFor(() => {
+      expect(createSimulationMutateAsync).toHaveBeenCalled();
+    });
+    expect(persistCheckpointMutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        stage: "foundations",
+        checkpoint: expect.objectContaining({
+          milestoneLabel: "Latest checkpoint: Guided Draft",
+          updatedNote: "Updated from the latest strategy ai coaching pass.",
+        }),
+      }),
+    );
+
+    expect(screen.getByText("Quick Strategy AI coaching preview")).toBeInTheDocument();
+    expect(screen.getAllByText(/usable as an internal draft assistant/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Approve the core positioning modules next/i).length).toBeGreaterThan(0);
+    expect(screen.getByRole("link", { name: /open full readiness preview/i })).toHaveAttribute(
       "href",
       "/agency/ai-setup/readiness/preview/strategy",
     );
@@ -258,9 +507,14 @@ describe("Agency AI Setup V2 routes", () => {
 
     expect(screen.getByText("Operating Modules")).toBeInTheDocument();
     expect(screen.getByText("1/6 approved")).toBeInTheDocument();
+    expect(screen.getAllByText("Minimum Strategy AI proof").length).toBeGreaterThan(0);
+    expect(screen.getByText(/1\/4 minimum modules approved/i)).toBeInTheDocument();
     expect(screen.getByText("Agency Identity")).toBeInTheDocument();
-    expect(screen.getByText("Quality Bar")).toBeInTheDocument();
+    expect(screen.getAllByText("Quality Bar").length).toBeGreaterThan(0);
     expect(screen.getByText("Still needed before trusted approval")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /open next required module/i })).toHaveAttribute("href", "/agency/ai-setup/modules/offer_strategy");
+    expect(screen.getByRole("button", { name: /advanced modules/i })).toBeInTheDocument();
+    expect(screen.getByText("Minimum Strategy AI proof checkpoint")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /continue to guardrails/i })).toHaveAttribute("href", "/agency/ai-setup/guardrails");
   });
 
@@ -273,13 +527,67 @@ describe("Agency AI Setup V2 routes", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText("What good looks like")).toBeInTheDocument();
-    expect(screen.getByText("What weak input looks like")).toBeInTheDocument();
+    expect(screen.getByText(/review the draft below, tighten anything that feels generic/i)).toBeInTheDocument();
     expect(screen.getByText("Suggested draft from current setup evidence")).toBeInTheDocument();
+    expect(screen.getAllByText("Minimum Strategy AI proof").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: /apply suggested draft/i })).toBeInTheDocument();
     expect(screen.getByText("Proof requirements for trusted approval")).toBeInTheDocument();
-    expect(screen.getByLabelText("Evidence sources")).toBeInTheDocument();
-    expect(screen.getByText("Approval is blocked until the missing proof requirements above are met.")).toBeInTheDocument();
+    expect(screen.getByText(/what's still needed/i)).toBeInTheDocument();
+    expect(screen.getAllByText("Review the draft").length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: /approve module/i })).toBeInTheDocument();
+  });
+
+  it("guides minimum Strategy AI modules through a smaller proof sequence", () => {
+    render(
+      <MemoryRouter initialEntries={["/agency/ai-setup/modules/quality_bar"]}>
+        <Routes>
+          <Route path="/agency/ai-setup/modules/:moduleKey" element={<AgencyAiSetupV2ModuleDetail />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getAllByText("Minimum Strategy AI proof flow").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Review the draft").length).toBeGreaterThan(0);
+    expect(screen.getByLabelText("Definition")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /step 2 tighten rules and examples/i }));
+    expect(screen.getByLabelText("Rules")).toBeInTheDocument();
+    expect(screen.getByLabelText("Examples")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /step 3 add proof and submit/i }));
+    expect(screen.getByText(/supporting proof/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /approve module/i })).toBeInTheDocument();
+  });
+
+  it("returns the user to Strategy preview after saving a module from the preview fix loop", async () => {
+    saveModuleMutateAsync.mockResolvedValue(undefined);
+
+    render(
+      <MemoryRouter
+        initialEntries={[
+          {
+            pathname: "/agency/ai-setup/modules/offer_strategy",
+            search: "?returnTo=%2Fagency%2Fai-setup%2Freadiness%2Fpreview%2Fstrategy",
+          } as any,
+        ]}
+      >
+        <Routes>
+          <Route path="/agency/ai-setup/modules/:moduleKey" element={<AgencyAiSetupV2ModuleDetail />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Suggested draft from current setup evidence")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
+
+    await waitFor(() => {
+      expect(saveModuleMutateAsync).toHaveBeenCalled();
+    });
+
+    await waitFor(() => {
+      expect(navigateMock).toHaveBeenCalledWith("/agency/ai-setup/readiness/preview/strategy");
+    });
   });
 
   it("renders guardrails setup form", () => {
@@ -291,13 +599,15 @@ describe("Agency AI Setup V2 routes", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText("Guardrails")).toBeInTheDocument();
+    expect(screen.getByText("Set Your Guardrails")).toBeInTheDocument();
     expect(screen.getByLabelText("Quality review standard")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /use starter guardrails/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /use starter guardrails/i })).not.toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: /strengthen this for me/i }).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Nothing written yet\./i).length).toBeGreaterThan(0);
-    expect(screen.getByText("Creator and client-facing guardrails checkpoint")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /continue to workflow/i })).toHaveAttribute("href", "/agency/ai-setup/workflow");
+    expect(screen.getByText(/this page should read like real review rules/i)).toBeInTheDocument();
+    expect(screen.getByText("Guardrails checkpoint")).toBeInTheDocument();
+    expect(screen.getAllByText("Latest checkpoint: Operational With Review").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/creator ai has a usable safety and quality baseline/i).length).toBeGreaterThan(0);
+    expect(screen.getByRole("link", { name: /continue to activation/i })).toHaveAttribute("href", "/agency/ai-setup/activate");
   });
 
   it("renders workflow setup form", () => {
@@ -314,6 +624,10 @@ describe("Agency AI Setup V2 routes", () => {
     expect(screen.getByRole("button", { name: /use starter workflow/i })).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: /strengthen this for me/i }).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Missing:/i).length).toBeGreaterThan(0);
+    expect(screen.getByText("Lifecycle coaching")).toBeInTheDocument();
+    expect(screen.getByText("Approval coaching")).toBeInTheDocument();
+    expect(screen.getByText("Escalation coaching")).toBeInTheDocument();
+    expect(screen.getByText("Workflow notes coaching")).toBeInTheDocument();
     expect(screen.getByText("Operator workflow checkpoint")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /continue to readiness/i })).toHaveAttribute("href", "/agency/ai-setup/readiness");
   });
@@ -328,6 +642,11 @@ describe("Agency AI Setup V2 routes", () => {
     );
 
     expect(screen.getByText("Readiness Review")).toBeInTheDocument();
+    expect(screen.getByText("First Strategy AI check")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /run first strategy ai check/i })).toHaveAttribute(
+      "href",
+      "/agency/ai-setup/readiness/preview/strategy",
+    );
     expect(screen.getByRole("button", { name: /run readiness review/i })).toBeInTheDocument();
     expect(screen.getByText("Capability trust levels")).toBeInTheDocument();
     expect(screen.getByText("Certification status")).toBeInTheDocument();
@@ -347,11 +666,52 @@ describe("Agency AI Setup V2 routes", () => {
     );
 
     expect(screen.getByText("Activation")).toBeInTheDocument();
+    expect(screen.getByText("First activation goal")).toBeInTheDocument();
+    expect(screen.getByText("Internal Assist Only")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /open strategy preview/i })).toHaveAttribute(
+      "href",
+      "/agency/ai-setup/readiness/preview/strategy",
+    );
     expect(screen.getAllByRole("button", { name: /activate/i }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("link", { name: /open readiness preview/i }).length).toBeGreaterThan(0);
     expect(screen.getByText(/Current trust is outdated because setup evidence changed after certification/i)).toBeInTheDocument();
     expect(screen.getAllByText(/strategy readiness certification/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Needs revalidation/i).length).toBeGreaterThan(0);
+  });
+
+  it("blocks guided activation until the preview runs and passes", async () => {
+    createSimulationMutateAsync.mockResolvedValue({
+      id: "sim-guided-fail",
+      agency_id: "agency-1",
+      agent_class: "strategy",
+      result: "fail",
+      output_snapshot_json: {
+        summary: "Strategy readiness certification failed. The current setup should not be treated as expert-ready for this agent class yet.",
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/agency/ai-setup/activate"]}>
+        <Routes>
+          <Route path="/agency/ai-setup/activate" element={<AgencyAiSetupV2Activate />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText(/Run the Strategy AI preview first before turning it on./i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /activate strategy ai/i })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: /run strategy preview/i }));
+
+    await waitFor(() => {
+      expect(createSimulationMutateAsync).toHaveBeenCalled();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Fix the setup issues it found before activating internal assist./i)).toBeInTheDocument();
+    });
+    expect(screen.getByRole("button", { name: /activate strategy ai/i })).toBeDisabled();
+    expect(activateAgentMutateAsync).not.toHaveBeenCalled();
   });
 
   it("renders readiness preview screen", () => {
@@ -364,13 +724,44 @@ describe("Agency AI Setup V2 routes", () => {
     );
 
     expect(screen.getByText("strategy Preview")).toBeInTheDocument();
-    expect(screen.getByText("Certification scenarios")).toBeInTheDocument();
-    expect(screen.getByText("Trust path for this capability")).toBeInTheDocument();
+    expect(screen.getByText("Run your first Strategy AI preview")).toBeInTheDocument();
+    expect(screen.getByText("Preview scenarios")).toBeInTheDocument();
+    expect(screen.getByText("What Strategy AI must prove next")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /run first strategy ai preview/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /open advanced readiness view/i })).toHaveAttribute(
+      "href",
+      "/agency/ai-setup/readiness/preview/strategy?view=advanced",
+    );
+    expect(screen.getByRole("link", { name: /fix offer strategy now/i })).toHaveAttribute(
+      "href",
+      "/agency/ai-setup/modules/offer_strategy?returnTo=%2Fagency%2Fai-setup%2Freadiness%2Fpreview%2Fstrategy",
+    );
     expect(screen.getByText("What looks weak right now")).toBeInTheDocument();
     expect(screen.getByText("Exact proof gaps blocking trust")).toBeInTheDocument();
     expect(screen.getAllByText(/Quality Bar/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/strategy readiness certification/i).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("button", { name: /run scenario/i }).length).toBeGreaterThan(0);
+  });
+
+  it("keeps the advanced readiness framing when explicitly requested", () => {
+    render(
+      <MemoryRouter
+        initialEntries={[
+          {
+            pathname: "/agency/ai-setup/readiness/preview/strategy",
+            search: "?view=advanced",
+          } as any,
+        ]}
+      >
+        <Routes>
+          <Route path="/agency/ai-setup/readiness/preview/:agentClass" element={<AgencyAiSetupV2ReadinessPreview />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Certification scenarios")).toBeInTheDocument();
+    expect(screen.getByText("Trust path for this capability")).toBeInTheDocument();
+    expect(screen.queryByText("Run your first Strategy AI preview")).not.toBeInTheDocument();
   });
 
   it("renders control center screen", () => {
