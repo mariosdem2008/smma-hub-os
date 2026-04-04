@@ -50,7 +50,8 @@ export default defineConfig(() => ({
             return "vendor-supabase";
           if (pkg.startsWith("@radix-ui/")) return "vendor-radix";
           if (pkg === "react-icons" || pkg === "@heroicons/react") return "vendor-icons-extra";
-          if (pkg === "recharts" || pkg.startsWith("d3-")) return "vendor-charts";
+          // Keep charting libs in the general vendor bundle. The isolated
+          // chunk has produced a runtime TDZ error in production Pages builds.
           if (pkg === "date-fns") return "vendor-date";
           if (pkg === "date-fns-tz") return "vendor-date-tz";
           if (pkg === "react-hook-form" || pkg === "@hookform/resolvers") return "vendor-forms";
