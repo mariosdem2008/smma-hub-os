@@ -4,8 +4,9 @@ import type { Database } from './types';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const HAS_SUPABASE_ENV = !!SUPABASE_URL && !!SUPABASE_ANON_KEY && SUPABASE_ANON_KEY !== "undefined";
 
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY || SUPABASE_ANON_KEY === "undefined") {
+if (!HAS_SUPABASE_ENV) {
   console.error("[supabase] Missing env vars for client init", {
     hasUrl: !!SUPABASE_URL,
     hasAnon: !!SUPABASE_ANON_KEY,
@@ -15,10 +16,17 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY || SUPABASE_ANON_KEY === "undefined") {
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
+// Use a valid placeholder client so the public landing page can still render
+// even when a deployment is missing build-time env vars.
+const clientUrl = HAS_SUPABASE_ENV ? SUPABASE_URL : "https://placeholder.supabase.co";
+const clientAnonKey = HAS_SUPABASE_ENV ? SUPABASE_ANON_KEY : "public-anon-key-placeholder";
+
+export const supabase = createClient<Database>(clientUrl, clientAnonKey, {
   auth: {
     storage: localStorage,
     persistSession: true,
     autoRefreshToken: true,
   }
 });
+
+export const hasSupabaseEnv = HAS_SUPABASE_ENV;
