@@ -10,6 +10,17 @@ import { getEndpointGuardResponse } from "../_shared/endpoint-guard.ts";
 import { enforceAgencyAgentActivation } from "../_shared/agency-ai-setup.ts";
 import { buildCreatorBriefArtifact, evaluateCreatorBriefArtifact, renderCreatorBriefPromptContext } from "../../../src/lib/strategy/v2/creatorBrief.ts";
 import { createAgentRunV2, createArtifactEvaluationV2, createStrategyArtifactV2, finalizeAgentRunV2 } from "../_shared/strategy-v2.ts";
+import { deterministicGradeAgainstGovernance, loadGovernanceForGrading, persistAiGrading } from "../_shared/answer-grading.ts";
+
+function extractSuggestionText(suggestion: unknown): string {
+  if (typeof suggestion === "string") return suggestion;
+  if (!suggestion || typeof suggestion !== "object") return "";
+  const s = suggestion as Record<string, unknown>;
+  return [s.caption, s.hook, s.idea, s.title, s.text, s.content, s.body, s.script]
+    .filter((v) => typeof v === "string")
+    .join("\n")
+    .trim();
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -444,8 +455,54 @@ serve(async (req: { method: string; headers: { get: (arg0: string) => any; }; js
         },
       });
       suggestions = aiResult.output ?? [];
-      // TODO(governance): before any generated suggestion is published directly,
-      // call gradeAgainstGovernance from ../_shared/answer-grading.ts and persist ai_gradings.
+
+      // Governance enforcement: grade every generated suggestion against the
+      // agency brain (deterministic layer only — no model/cost). Suggestions
+      // with a hard violation (banned claim, missing disclaimer, restricted
+      // topic) are dropped before they can reach a client-facing surface; the
+      // rest are annotated with their grading and one summary row is persisted.
+      try {
+        if (Array.isArray(suggestions) && suggestions.length > 0) {
+          const governance = await loadGovernanceForGrading({
+            supabase: supabaseClient,
+            agencyId: agency_id,
+            clientId: client_id,
+          });
+          let blockedCount = 0;
+          let worstScore = 100;
+          const governed = suggestions.map((suggestion: unknown) => {
+            const text = extractSuggestionText(suggestion);
+            if (!text) return suggestion;
+            const grading = deterministicGradeAgainstGovernance({ text, governance, contentType: mode ?? "content" });
+            worstScore = Math.min(worstScore, grading.score);
+            if (grading.hard_violations.length > 0) blockedCount += 1;
+            if (suggestion && typeof suggestion === "object") {
+              return { ...(suggestion as Record<string, unknown>), governance: { accepted: grading.accepted, score: grading.score, hard_violations: grading.hard_violations, soft_issues: grading.soft_issues } };
+            }
+            return suggestion;
+          });
+          // Never surface hard-violation content to a client-facing flow.
+          suggestions = governed.filter((s: any) => !(s && typeof s === "object" && s.governance && s.governance.hard_violations?.length > 0));
+          await persistAiGrading({
+            supabase: supabaseClient,
+            agencyId: agency_id,
+            clientId: client_id,
+            contentType: mode ?? "content",
+            surface: "generate-ai-content",
+            result: {
+              accepted: blockedCount === 0,
+              score: worstScore,
+              hard_violations: blockedCount > 0 ? [{ code: "suggestions_blocked", message: `${blockedCount} suggestion(s) blocked for hard governance violations.`, evidence: "" }] : [],
+              soft_issues: [],
+              requires_human_approval: blockedCount > 0,
+            },
+            createdBy: user.id,
+          });
+        }
+      } catch (gradingError) {
+        // Grading must never break generation; log and continue with raw output.
+        console.error("[AI-CONTENT] governance grading failed", gradingError instanceof Error ? gradingError.message : gradingError);
+      }
     } catch (e) {
       console.error('[AI-CONTENT] AI generation failed:', e);
       return new Response(
