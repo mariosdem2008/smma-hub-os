@@ -19,7 +19,7 @@ import {
 import { useAuth } from "@/lib/auth";
 import { useRole } from "@/hooks/useRole";
 import { useToast } from "@/hooks/use-toast";
-import { useAgencyClientBlockers, useScanAgencyClientBlockers } from "@/hooks/useClientBlockers";
+import { useAgencyPulse, type AgencyPulseAttentionItem, type AgencyPulseSeverity } from "@/hooks/useAgencyPulse";
 import { supabase } from "@/integrations/supabase/client";
 import { getActiveAgencyId } from "@/lib/active-agency";
 import { PostCreateAgencyCta } from "@/components/PostCreateAgencyCta";
@@ -98,15 +98,6 @@ type DashboardSignals = {
   pipelineTotal: number;
 };
 
-type AlertItem = {
-  id: string;
-  severity: "critical" | "high" | "medium" | "low";
-  title: string;
-  description: string;
-  ctaLabel: string;
-  onCta: () => void;
-};
-
 const PRIORITIES = ["low", "medium", "high", "urgent"] as const;
 const TASK_STATUSES = ["todo", "in_progress", "completed"] as const;
 const AI_SETUP_CORE_MODULES = ["bootstrap", "rep_policy", "quality_bar"] as const;
@@ -152,24 +143,32 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
-function badgeVariantForSeverity(severity: AlertItem["severity"]) {
-  if (severity === "critical") return "destructive" as const;
-  if (severity === "high") return "default" as const;
-  if (severity === "medium") return "secondary" as const;
-  return "outline" as const;
-}
-
-function alertSeverityForBlocker(severity: "high" | "med" | "low", deliveryState: string): AlertItem["severity"] {
-  if (severity === "high" && deliveryState === "blocked") return "critical";
-  if (severity === "high") return "high";
-  if (severity === "med") return "medium";
-  return "low";
-}
-
 function formatOwner(owner: string) {
   if (owner === "client") return "Client";
   if (owner === "agency") return "Agency";
   return "Owner";
+}
+
+function badgeVariantForPulseSeverity(severity: AgencyPulseSeverity) {
+  if (severity === "high") return "destructive" as const;
+  if (severity === "med") return "orange" as const;
+  return "outline" as const;
+}
+
+function formatPulseSeverity(severity: AgencyPulseSeverity) {
+  if (severity === "med") return "medium";
+  return severity;
+}
+
+function formatResponsibleAgent(agent: AgencyPulseAttentionItem["responsible_agent"]) {
+  if (agent === "grading") return "Grading";
+  if (agent === "blocker") return "Blocker";
+  if (agent === "strategy") return "Strategy";
+  return "Reporting";
+}
+
+function formatSignalType(type: AgencyPulseAttentionItem["signal_type"]) {
+  return type.replace(/_/g, " ");
 }
 
 export default function Dashboard() {
@@ -192,8 +191,13 @@ export default function Dashboard() {
   const [overdueProjects, setOverdueProjects] = useState<ProjectRecord[]>([]);
   const [teamOpenTasks, setTeamOpenTasks] = useState<Record<string, number>>({});
   const [signals, setSignals] = useState<DashboardSignals>(initialSignals);
-  const { data: blockerSnapshots = [] } = useAgencyClientBlockers(agencyId || undefined);
-  const scanAgencyBlockers = useScanAgencyClientBlockers();
+  const {
+    data: agencyPulse,
+    isLoading: pulseLoading,
+    isFetching: pulseFetching,
+    error: pulseError,
+    refetch: refetchAgencyPulse,
+  } = useAgencyPulse(agencyId || undefined);
 
   const [aiSetupComplete, setAiSetupComplete] = useState<boolean | null>(null);
   const [executiveSummary, setExecutiveSummary] = useState<string>("");
@@ -522,18 +526,14 @@ export default function Dashboard() {
       .slice(0, 8);
   }, [clients, overdueProjects, reviewProjects]);
 
-  const clientNameById = useMemo(() => {
-    return new Map(clients.map((client) => [client.id, client.name]));
-  }, [clients]);
-
-  const activeBlockerSnapshots = useMemo(() => {
-    return blockerSnapshots.filter((snapshot) => snapshot.blockers.length > 0);
-  }, [blockerSnapshots]);
-
-  const portfolioBlockerCount = useMemo(() => {
-    return activeBlockerSnapshots.reduce((total, snapshot) => total + snapshot.blockers.length, 0);
-  }, [activeBlockerSnapshots]);
-  const hasBlockerSnapshots = blockerSnapshots.length > 0;
+  const pulseSummary = agencyPulse?.summary ?? {
+    clients_total: signals.totalClients,
+    on_track: signals.totalClients,
+    at_risk: 0,
+    blocked: 0,
+  };
+  const attentionItems = agencyPulse?.attention.slice(0, 8) ?? [];
+  const pulseRiskCount = pulseSummary.at_risk + pulseSummary.blocked;
 
   const capacityUtilization = useMemo(() => {
     const baseline = Math.max(1, teamMembers.length) * 14;
@@ -563,110 +563,15 @@ export default function Dashboard() {
     );
   }, [signals]);
 
-  const alerts = useMemo<AlertItem[]>(() => {
-    const items: AlertItem[] = [];
-    const blockerAlerts = activeBlockerSnapshots
-      .flatMap((snapshot) =>
-        snapshot.blockers.map((blocker) => ({
-          snapshot,
-          blocker,
-          severity: alertSeverityForBlocker(blocker.severity, snapshot.delivery_state),
-        })),
-      )
-      .sort((a, b) => {
-        const order = { critical: 4, high: 3, medium: 2, low: 1 };
-        return order[b.severity] - order[a.severity];
-      })
-      .slice(0, 5);
-
-    if (blockerAlerts.length > 0) {
-      return blockerAlerts.map(({ snapshot, blocker, severity }) => {
-        const clientName = clientNameById.get(snapshot.client_id) ?? "Client";
-        return {
-          id: `${snapshot.client_id}:${blocker.code}:${blocker.signal_source}`,
-          severity,
-          title: `${clientName}: ${blocker.title}`,
-          description: `${blocker.detail} ${formatOwner(blocker.owner)} next: ${blocker.recommended_next_action}`,
-          ctaLabel: "Open blocker",
-          onCta: () => navigate(blocker.deep_link || `/clients/${snapshot.client_id}`),
-        };
-      });
+  const pulseExecutiveSummary = useMemo(() => {
+    if (!agencyPulse) return executiveSummary;
+    if (agencyPulse.briefing) return agencyPulse.briefing;
+    const top = agencyPulse.attention[0];
+    if (!top) {
+      return `${agencyPulse.summary.on_track} of ${agencyPulse.summary.clients_total} active client(s) are on track. No immediate agency pulse actions are queued.`;
     }
-
-    if (signals.approvalsPending > 0) {
-      const first = reviewProjects[0];
-      items.push({
-        id: "approvals",
-        severity: signals.oldestApprovalAgeDays >= 3 ? "critical" : "high",
-        title: "Approval backlog is building",
-        description: `${signals.approvalsPending} approvals pending. Oldest is ${signals.oldestApprovalAgeDays} day(s).`,
-        ctaLabel: "Open approvals",
-        onCta: () => {
-          if (first?.client?.id) navigate(`/clients/${first.client.id}?tab=pipeline&focus=review`);
-        },
-      });
-    }
-
-    if (signals.overdueContent > 0) {
-      const first = overdueProjects[0];
-      items.push({
-        id: "overdue",
-        severity: signals.overdueContent >= 3 ? "critical" : "high",
-        title: "Overdue content detected",
-        description: `${signals.overdueContent} scheduled item(s) missed publish date.`,
-        ctaLabel: "Reschedule now",
-        onCta: () => {
-          if (first?.client?.id) navigate(`/clients/${first.client.id}?tab=pipeline&focus=publish`);
-        },
-      });
-    }
-
-    if (capacityUtilization >= 85) {
-      items.push({
-        id: "capacity",
-        severity: "medium",
-        title: "Capacity threshold approaching",
-        description: `Current utilization is ${capacityUtilization}%. Consider load balancing.`,
-        ctaLabel: "Open team view",
-        onCta: () => navigate("/team"),
-      });
-    }
-
-    if (readinessSummary.notStarted > 0) {
-      items.push({
-        id: "readiness",
-        severity: "medium",
-        title: "Client readiness gap",
-        description: `${readinessSummary.notStarted} client(s) have not started onboarding essentials.`,
-        ctaLabel: "Review clients",
-        onCta: () => navigate("/clients"),
-      });
-    }
-
-    if (items.length === 0) {
-      items.push({
-        id: "healthy",
-        severity: "low",
-        title: "Operationally healthy",
-        description: "No immediate risk thresholds are breached.",
-        ctaLabel: "Open clients",
-        onCta: () => navigate("/clients"),
-      });
-    }
-
-    return items;
-  }, [
-    activeBlockerSnapshots,
-    capacityUtilization,
-    clientNameById,
-    navigate,
-    overdueProjects,
-    readinessSummary.notStarted,
-    reviewProjects,
-    signals.approvalsPending,
-    signals.oldestApprovalAgeDays,
-    signals.overdueContent,
-  ]);
+    return `${agencyPulse.summary.blocked} blocked and ${agencyPulse.summary.at_risk} at-risk client(s). Next action: ${top.client_name} - ${top.recommended_action}`;
+  }, [agencyPulse, executiveSummary]);
 
   const runAiAction = (clientId: string, action: "strategy" | "hooks" | "captions") => {
     navigate(`/clients/${clientId}?tab=strategy&action=${action}`);
@@ -758,28 +663,32 @@ export default function Dashboard() {
   };
 
   const copyExecutiveSummary = async () => {
-    if (!executiveSummary) return;
+    if (!pulseExecutiveSummary) return;
     try {
-      await navigator.clipboard.writeText(executiveSummary);
+      await navigator.clipboard.writeText(pulseExecutiveSummary);
       toast({ title: "Summary copied", description: "Executive summary copied to clipboard." });
     } catch {
       toast({ title: "Copy failed", description: "Could not copy summary.", variant: "destructive" });
     }
   };
 
-  const handleScanBlockers = async () => {
+  const handleRefreshPulse = async () => {
     if (!agencyId) return;
     try {
-      const result = await scanAgencyBlockers.mutateAsync({ agencyId, limit: 25 });
+      const result = await refetchAgencyPulse();
+      if (result.error) throw result.error;
+      const refresh = result.data?.refresh;
       toast({
-        title: "Blocker scan complete",
-        description: `${result.scanned} client(s) scanned${result.failed ? `, ${result.failed} failed` : ""}.`,
-        variant: result.failed ? "destructive" : undefined,
+        title: "Agency pulse refreshed",
+        description: refresh
+          ? `${refresh.refreshed} blocker snapshot(s) refreshed${refresh.failed ? `, ${refresh.failed} failed` : ""}.`
+          : "Latest attention queue loaded.",
+        variant: refresh?.failed ? "destructive" : undefined,
       });
     } catch (error: any) {
       toast({
-        title: "Blocker scan failed",
-        description: error?.message ?? "Could not scan blockers.",
+        title: "Pulse refresh failed",
+        description: error?.message ?? "Could not refresh agency pulse.",
         variant: "destructive",
       });
     }
@@ -830,7 +739,7 @@ export default function Dashboard() {
             <div className="page-eyebrow">Operator home</div>
             <h1 className="mt-2 font-display text-3xl font-bold text-foreground">Agency command center</h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-              Live portfolio control for {signals.totalClients} clients, {teamMembers.length} team members, and the
+              Live portfolio control for {pulseSummary.clients_total} clients, {teamMembers.length} team members, and the
               work that needs approval before it reaches a client.
             </p>
           </div>
@@ -858,11 +767,14 @@ export default function Dashboard() {
 
             <Button
               variant="outline"
-              onClick={() => void fetchDashboardData(true)}
-              disabled={refreshing}
-              loading={refreshing}
+              onClick={() => {
+                void fetchDashboardData(true);
+                void refetchAgencyPulse();
+              }}
+              disabled={!agencyId || refreshing || pulseFetching}
+              loading={refreshing || pulseFetching}
             >
-              {!refreshing ? <RefreshCw className="h-4 w-4" /> : null}
+              {!refreshing && !pulseFetching ? <RefreshCw className="h-4 w-4" /> : null}
               Refresh
             </Button>
           </div>
@@ -870,25 +782,24 @@ export default function Dashboard() {
 
         <div className="grid gap-0 divide-y divide-border/70 md:grid-cols-3 md:divide-x md:divide-y-0">
           <div className="p-5">
-            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Approval posture</div>
+            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">On track</div>
             <div className="mt-2 flex items-baseline gap-2">
-              <span className="metric-number text-3xl font-bold text-foreground">{signals.approvalsPending}</span>
-              <span className="text-sm text-muted-foreground">pending</span>
+              <span className="metric-number text-3xl font-bold text-foreground">{pulseLoading ? "..." : pulseSummary.on_track}</span>
+              <span className="text-sm text-muted-foreground">clients</span>
             </div>
           </div>
           <div className="p-5">
-            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Client readiness</div>
+            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">At risk</div>
             <div className="mt-2 flex items-baseline gap-2">
-              <span className="metric-number text-3xl font-bold text-foreground">{readinessSummary.complete}</span>
-              <span className="text-sm text-muted-foreground">complete</span>
+              <span className="metric-number text-3xl font-bold text-foreground">{pulseLoading ? "..." : pulseSummary.at_risk}</span>
+              <span className="text-sm text-muted-foreground">clients</span>
             </div>
           </div>
           <div className="p-5">
-            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">AI setup</div>
-            <div className="mt-2">
-              <Badge variant={aiSetupComplete ? "green" : aiSetupComplete === false ? "orange" : "secondary"}>
-                {aiSetupComplete ? "Ready" : aiSetupComplete === false ? "Needs review" : "Checking"}
-              </Badge>
+            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Blocked</div>
+            <div className="mt-2 flex items-baseline gap-2">
+              <span className="metric-number text-3xl font-bold text-foreground">{pulseLoading ? "..." : pulseSummary.blocked}</span>
+              <span className="text-sm text-muted-foreground">clients</span>
             </div>
           </div>
         </div>
@@ -918,8 +829,8 @@ export default function Dashboard() {
           { label: "Automation rate", value: `${automationRate}%`, sub: "Scheduled + published", icon: Wand2 },
           {
             label: "Revenue risk",
-            value: `${hasBlockerSnapshots ? portfolioBlockerCount : signals.approvalsPending + signals.overdueContent}`,
-            sub: hasBlockerSnapshots ? "Client blockers" : "Items at risk",
+            value: pulseLoading ? "..." : `${pulseRiskCount}`,
+            sub: "Agency pulse",
             icon: AlertTriangle,
           },
         ].map((kpi) => (
@@ -947,54 +858,92 @@ export default function Dashboard() {
               <div>
                 <CardTitle>Action queue</CardTitle>
                 <CardDescription>
-                  Prioritized actions to protect delivery, retention, and quality.
+                  Unified agent signals prioritized across blockers, grading, strategy, and reporting.
                 </CardDescription>
               </div>
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => void handleScanBlockers()}
-                disabled={!agencyId || scanAgencyBlockers.isPending}
-                loading={scanAgencyBlockers.isPending}
+                onClick={() => void handleRefreshPulse()}
+                disabled={!agencyId || pulseFetching}
+                loading={pulseFetching}
               >
-                {!scanAgencyBlockers.isPending ? <RefreshCw className="h-3.5 w-3.5" /> : null}
-                Scan blockers
+                {!pulseFetching ? <RefreshCw className="h-3.5 w-3.5" /> : null}
+                Refresh pulse
               </Button>
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
-            {alerts.map((alert) => (
-              <div key={alert.id} className="rounded-lg border border-border/80 bg-surface/40 p-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-medium text-foreground">{alert.title}</h3>
-                      <Badge variant={badgeVariantForSeverity(alert.severity)}>{alert.severity}</Badge>
+            {pulseLoading ? (
+              <>
+                <Skeleton className="h-24 w-full" />
+                <Skeleton className="h-24 w-full" />
+                <Skeleton className="h-24 w-full" />
+              </>
+            ) : pulseError ? (
+              <EmptyState
+                icon={AlertTriangle}
+                title="Agency pulse unavailable"
+                description={pulseError instanceof Error ? pulseError.message : "The unified attention queue could not be loaded."}
+                action={{ label: "Retry", onClick: () => void refetchAgencyPulse() }}
+              />
+            ) : attentionItems.length > 0 ? (
+              attentionItems.map((item) => (
+                <div key={`${item.client_id}:${item.signal_type}:${item.title}`} className="rounded-lg border border-border/80 bg-surface/40 p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant={badgeVariantForPulseSeverity(item.severity)}>{formatPulseSeverity(item.severity)}</Badge>
+                        <Badge variant="secondary">{formatResponsibleAgent(item.responsible_agent)}</Badge>
+                        <Badge variant="outline">{formatOwner(item.owner)}</Badge>
+                        <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                          {formatSignalType(item.signal_type)}
+                        </span>
+                      </div>
+                      <h3 className="mt-3 font-medium text-foreground">{item.client_name}: {item.title}</h3>
+                      <p className="mt-1 text-sm leading-6 text-muted-foreground">{item.detail}</p>
+                      <p className="mt-2 text-sm text-foreground">
+                        <span className="text-muted-foreground">Recommended:</span> {item.recommended_action}
+                      </p>
                     </div>
-                    <p className="mt-1 text-sm text-muted-foreground">{alert.description}</p>
+                    <Button size="sm" variant="outline" onClick={() => navigate(item.deep_link || `/clients/${item.client_id}`)}>
+                      Open
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
-                  <Button size="sm" variant="outline" onClick={alert.onCta}>
-                    {alert.ctaLabel}
-                    <ArrowRight className="h-3.5 w-3.5" />
-                  </Button>
                 </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <EmptyState
+                icon={CheckSquare}
+                title="No attention needed"
+                description="All active clients are clear across blocker, grading, strategy, and reporting signals."
+                action={{ label: "Open clients", onClick: () => navigate("/clients") }}
+              />
+            )}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
             <CardTitle>Executive summary</CardTitle>
-            <CardDescription>Generated from live KPI signals.</CardDescription>
+            <CardDescription>Generated from live KPI and agency pulse signals.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-sm leading-6 text-muted-foreground">{executiveSummary || "No data available yet."}</p>
+            <p className="text-sm leading-6 text-muted-foreground">{pulseExecutiveSummary || "No data available yet."}</p>
             <div className="flex gap-2">
               <Button size="sm" variant="outline" onClick={copyExecutiveSummary}>
                 Copy summary
               </Button>
-              <Button size="sm" onClick={() => void fetchDashboardData(true)} disabled={refreshing} loading={refreshing}>
+              <Button
+                size="sm"
+                onClick={() => {
+                  void fetchDashboardData(true);
+                  void refetchAgencyPulse();
+                }}
+                disabled={!agencyId || refreshing || pulseFetching}
+                loading={refreshing || pulseFetching}
+              >
                 Regenerate
               </Button>
             </div>

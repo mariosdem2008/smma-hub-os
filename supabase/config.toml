@@ -104,3 +104,6 @@ verify_jwt = false
 
 [functions.ai-blocker-scan]
 verify_jwt = true
+
+[functions.ai-agency-pulse]
+verify_jwt = true

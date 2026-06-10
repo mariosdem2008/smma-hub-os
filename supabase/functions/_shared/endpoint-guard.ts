@@ -19,6 +19,7 @@ const UI_ENDPOINT_ALLOWLIST = new Set([
   "ai-rep-chat",
   "ai-retrieve-context",
   "ai-ask",
+  "ai-agency-pulse",
   "ai-blocker-scan",
   "ai-strategy-generate",
   "ai-assistant",
