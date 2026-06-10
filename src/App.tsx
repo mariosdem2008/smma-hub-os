@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useParams } from "react-router-dom";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 import { AuthProvider } from "@/lib/auth";
 import { ClientAuthProvider } from "@/lib/client-auth";
@@ -166,6 +167,7 @@ const App = () => {
         <BrowserRouter>
           {/* ✅ ONLY auth provider is global */}
           <AuthProvider>
+            <ErrorBoundary>
             <Suspense
               fallback={
                 <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground">
@@ -330,6 +332,7 @@ const App = () => {
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
+            </ErrorBoundary>
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>
