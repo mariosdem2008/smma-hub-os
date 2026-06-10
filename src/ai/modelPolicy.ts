@@ -34,6 +34,7 @@ type TaskModelPolicy = {
 const DEFAULT_TEXT_MODEL = "gpt-4o-mini";
 const DEFAULT_STRATEGY_MODEL = "gemini-flash-latest";
 const DEFAULT_EMBED_MODEL = "text-embedding-3-small";
+const DEFAULT_LOCAL_GRADER_MODEL = "qwen2.5:7b-instruct";
 
 const DEFAULT_POLICIES: Record<TaskType, TaskModelPolicy> = {
   [TaskType.CHAT_GENERAL]: {
@@ -138,6 +139,10 @@ const DEFAULT_POLICIES: Record<TaskType, TaskModelPolicy> = {
     dev: { provider: "gemini", model: DEFAULT_STRATEGY_MODEL, params: { temperature: 0.3, max_tokens: 220 } },
     prod: { provider: "gemini", model: DEFAULT_STRATEGY_MODEL, params: { temperature: 0.3, max_tokens: 220 } },
   },
+  [TaskType.ANSWER_QUALITY_CHECK]: {
+    dev: { provider: "openai", model: DEFAULT_LOCAL_GRADER_MODEL, params: { temperature: 0, max_tokens: 600 } },
+    prod: { provider: "openai", model: DEFAULT_LOCAL_GRADER_MODEL, params: { temperature: 0, max_tokens: 600 } },
+  },
 }
 
 const DEFAULT_MODE: EnvMode = "dev"
@@ -172,7 +177,8 @@ function resolveProviderOverride(taskType: TaskType, mode: EnvMode): Provider | 
     taskType === TaskType.STRATEGY_PLAN ||
     taskType === TaskType.STRATEGY_DIAGNOSIS ||
     taskType === TaskType.STRATEGY_RECOMMENDATION ||
-    taskType === TaskType.AI_ASSISTANT
+    taskType === TaskType.AI_ASSISTANT ||
+    taskType === TaskType.ANSWER_QUALITY_CHECK
   ) {
     return perTask as Provider | undefined;
   }
@@ -189,7 +195,8 @@ function resolveModelOverride(taskType: TaskType, mode: EnvMode, legacyModelEnv?
     taskType === TaskType.STRATEGY_PLAN ||
     taskType === TaskType.STRATEGY_DIAGNOSIS ||
     taskType === TaskType.STRATEGY_RECOMMENDATION ||
-    taskType === TaskType.AI_ASSISTANT
+    taskType === TaskType.AI_ASSISTANT ||
+    taskType === TaskType.ANSWER_QUALITY_CHECK
   ) {
     return perTask ?? legacy;
   }

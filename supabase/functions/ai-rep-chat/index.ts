@@ -2,10 +2,11 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
-import { buildAiRepChatMessages, decideAiRepResponse, parseAiRepLlmReply, type AiRepChatTurn } from "../_shared/ai-rep-chat.ts";
+import { applyAiRepChatGradingGate, buildAiRepChatMessages, decideAiRepResponse, parseAiRepLlmReply, type AiRepChatTurn } from "../_shared/ai-rep-chat.ts";
 import { capMatchesByTokenBudget, clampMatchCount, getInitialMatchCount, applyScoreRerank } from "../_shared/retrieval.ts";
 import { embedQueryForRag, getMatchRpcName } from "../_shared/rag-index.ts";
 import { getEndpointGuardResponse } from "../_shared/endpoint-guard.ts";
+import { gradeAgainstGovernance, loadGovernanceForGrading, persistAiGrading } from "../_shared/answer-grading.ts";
 import { generateSpanId, generateTraceId, logOtelSpan } from "../../../src/ai/otel.ts";
 import { TaskType } from "../../../src/ai/taskTypes.ts";
 import { isEpisodicMemoryEnabled, isPhase2EnabledForAgency } from "../../../src/ai/flags.ts";
@@ -13,6 +14,7 @@ import { ai } from "../../../src/ai/router.ts";
 import { enforceAgencyAgentActivation } from "../_shared/agency-ai-setup.ts";
 
 const CLIENT_PORTAL_JWT_SECRET = Deno.env.get("CLIENT_PORTAL_JWT_SECRET");
+const ENABLE_REP_CHAT_LLM_GRADER = Deno.env.get("AI_REP_CHAT_LLM_GRADER") === "true";
 
 interface ClientPortalJwtPayload {
   sub: string;
@@ -346,6 +348,10 @@ serve(async (req: Request) => {
   let llmUsage: { inputTokens?: number; outputTokens?: number } | undefined;
   let llmLatencyMs = 0;
   let fallbackReason: string | null = null;
+  let responseUnknown = decision.unknown;
+  let gradingBlocked = false;
+  let gradingPersistError: string | null = null;
+  let gradingSummary: Record<string, unknown> | null = null;
 
   if (!decision.unknown && brief) {
     const llmStart = Date.now();
@@ -382,6 +388,68 @@ serve(async (req: Request) => {
       llmLatencyMs = Date.now() - llmStart;
       fallbackReason = err instanceof Error ? `llm_error: ${err.message}`.slice(0, 200) : "llm_error";
     }
+  }
+
+  try {
+    const governance = await loadGovernanceForGrading({
+      supabase,
+      agencyId: clientRow.agency_id,
+      clientId,
+      clientBrainJson: brainJson,
+    });
+    const grading = await gradeAgainstGovernance({
+      text: assistantMessage,
+      governance,
+      contentType: "client_chat_reply",
+      surface: "ai-rep-chat",
+      runLlmJudge: ENABLE_REP_CHAT_LLM_GRADER,
+      context: {
+        agencyId: clientRow.agency_id,
+        clientId,
+        userId,
+        environment: "prod",
+        supabase,
+        skipUsageLog: true,
+      },
+    });
+    const persisted = await persistAiGrading({
+      supabase,
+      agencyId: clientRow.agency_id,
+      clientId,
+      contentType: "client_chat_reply",
+      surface: "ai-rep-chat",
+      result: grading,
+      createdBy: user?.id ?? null,
+    });
+    gradingPersistError = persisted.error;
+
+    const gated = applyAiRepChatGradingGate({
+      assistantMessage,
+      suggestions,
+      unknown: responseUnknown,
+      grading,
+    });
+    assistantMessage = gated.assistantMessage;
+    suggestions = gated.suggestions;
+    responseUnknown = gated.unknown;
+    gradingBlocked = gated.blocked;
+    if (gated.fallbackReason) {
+      fallbackReason = fallbackReason
+        ? `${fallbackReason}; grading_blocked:${gated.fallbackReason}`
+        : `grading_blocked:${gated.fallbackReason}`;
+    }
+    gradingSummary = {
+      score: grading.score,
+      accepted: grading.accepted,
+      hard_violation_count: grading.hard_violations.length,
+      soft_issue_count: grading.soft_issues.length,
+      blocked: gradingBlocked,
+      llm_judge: ENABLE_REP_CHAT_LLM_GRADER,
+    };
+  } catch (err) {
+    fallbackReason = fallbackReason
+      ? `${fallbackReason}; grading_error`
+      : err instanceof Error ? `grading_error: ${err.message}`.slice(0, 200) : "grading_error";
   }
 
   // Phase 2: episodic memory capture (0 cross-tenant leaks; tenant scoped by agency_id + client_id).
@@ -509,10 +577,12 @@ serve(async (req: Request) => {
     tokens_in: llmUsage?.inputTokens ?? Math.ceil(message.length / 4),
     tokens_out: llmUsage?.outputTokens ?? Math.ceil(assistantMessage.length / 4),
     latency_ms: llmLatencyMs,
-    unknown: decision.unknown,
+    unknown: responseUnknown,
     metadata: {
       generation: llmModel ? "llm" : "deterministic",
       fallback_reason: fallbackReason,
+      grading: gradingSummary,
+      grading_persist_error: gradingPersistError,
     },
   });
 
@@ -521,7 +591,7 @@ serve(async (req: Request) => {
         assistant_message: assistantMessage,
         suggestions,
         used_sections: decision.used_sections,
-        unknown: decision.unknown,
+        unknown: responseUnknown,
       },
       200,
       corsHeaders(req),

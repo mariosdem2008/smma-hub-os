@@ -1,5 +1,6 @@
 import type { ClientBriefV1 } from "./client-brief-v1.ts";
 import type { ChatMessage } from "../../../src/ai/providers/types.ts";
+import type { GradingResult } from "./answer-grading.ts";
 
 export type AiRepChatResult = {
   assistant_message: string;
@@ -109,6 +110,51 @@ export function parseAiRepLlmReply(text: string): {
   return {
     assistant_message: assistantMessage.length > 0 ? assistantMessage : trimmed,
     suggestions,
+  };
+}
+
+export function applyAiRepChatGradingGate(args: {
+  assistantMessage: string;
+  suggestions: AiRepChatResult["suggestions"];
+  unknown: boolean;
+  grading: GradingResult;
+}): {
+  assistantMessage: string;
+  suggestions: AiRepChatResult["suggestions"];
+  unknown: boolean;
+  blocked: boolean;
+  fallbackReason: string | null;
+} {
+  if (args.grading.hard_violations.length === 0) {
+    return {
+      assistantMessage: args.assistantMessage,
+      suggestions: args.suggestions,
+      unknown: args.unknown,
+      blocked: false,
+      fallbackReason: null,
+    };
+  }
+
+  const fallback =
+    "I need a safer, evidence-backed version before I can answer that. Please share the approved proof point or claim we can use.";
+
+  return {
+    assistantMessage: fallback,
+    suggestions: [
+      {
+        id: "provide-proof",
+        label: "Add proof point",
+        user_message: "Use this approved proof point: ",
+      },
+      {
+        id: "revise-safely",
+        label: "Revise safely",
+        user_message: "Rewrite this without unsupported or restricted claims.",
+      },
+    ],
+    unknown: true,
+    blocked: true,
+    fallbackReason: args.grading.hard_violations.map((issue) => issue.code).join(",") || "hard_violation",
   };
 }
 

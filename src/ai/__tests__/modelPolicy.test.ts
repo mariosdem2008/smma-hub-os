@@ -21,6 +21,8 @@ const ENV_KEYS = [
   "AI_MODEL__STRATEGY_PLAN",
   "AI_PROVIDER__AI_ASSISTANT",
   "AI_MODEL__AI_ASSISTANT",
+  "AI_PROVIDER__ANSWER_QUALITY_CHECK",
+  "AI_MODEL__ANSWER_QUALITY_CHECK",
   "AI_TEXT_MODEL_DEFAULT",
 ];
 
@@ -48,6 +50,7 @@ describe("model policy", () => {
       [TaskType.CONTENT_IDEAS]: { dev: "gpt-4o-mini", prod: "gpt-4o-mini" },
       [TaskType.SCRIPT_WRITING]: { dev: "gpt-4o-mini", prod: "gpt-4o-mini" },
       [TaskType.TOOL_EXECUTION]: { dev: "gpt-4o-mini", prod: "gpt-4o-mini" },
+      [TaskType.ANSWER_QUALITY_CHECK]: { dev: "qwen2.5:7b-instruct", prod: "qwen2.5:7b-instruct" },
     } as const;
 
     for (const [taskType, expected] of Object.entries(defaults)) {
@@ -88,6 +91,10 @@ describe("model policy", () => {
 
     const strategy = getModelForTask({ taskType: TaskType.STRATEGY_PLAN, mode: "prod", planTier: "free" });
     expect(strategy.provider).toBe("gemini");
+
+    const grader = getModelForTask({ taskType: TaskType.ANSWER_QUALITY_CHECK, mode: "prod", planTier: "free" });
+    expect(grader.provider).toBe("openai");
+    expect(grader.model).toBe("qwen2.5:7b-instruct");
   });
 
   it("does not allow global provider/model overrides to change strategy tasks", () => {
@@ -106,6 +113,10 @@ describe("model policy", () => {
     const aiAssistant = getModelForTask({ taskType: TaskType.AI_ASSISTANT, mode: "prod", planTier: "free" });
     expect(aiAssistant.provider).toBe("gemini");
     expect(aiAssistant.model).toBe("gemini-flash-latest");
+
+    const grader = getModelForTask({ taskType: TaskType.ANSWER_QUALITY_CHECK, mode: "prod", planTier: "free" });
+    expect(grader.provider).toBe("openai");
+    expect(grader.model).toBe("qwen2.5:7b-instruct");
   });
 
   it("allows per-task overrides for AI assistant", () => {
@@ -115,6 +126,15 @@ describe("model policy", () => {
     const aiAssistant = getModelForTask({ taskType: TaskType.AI_ASSISTANT, mode: "prod", planTier: "free" });
     expect(aiAssistant.provider).toBe("openai");
     expect(aiAssistant.model).toBe("override-model");
+  });
+
+  it("allows per-task overrides for the local answer quality judge", () => {
+    process.env.AI_PROVIDER__ANSWER_QUALITY_CHECK = "openai";
+    process.env.AI_MODEL__ANSWER_QUALITY_CHECK = "qwen2.5-coder:1.5b";
+
+    const grader = getModelForTask({ taskType: TaskType.ANSWER_QUALITY_CHECK, mode: "prod", planTier: "free" });
+    expect(grader.provider).toBe("openai");
+    expect(grader.model).toBe("qwen2.5-coder:1.5b");
   });
 
   it("uses per-task per-mode override when set", () => {

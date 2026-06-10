@@ -444,6 +444,8 @@ serve(async (req: { method: string; headers: { get: (arg0: string) => any; }; js
         },
       });
       suggestions = aiResult.output ?? [];
+      // TODO(governance): before any generated suggestion is published directly,
+      // call gradeAgainstGovernance from ../_shared/answer-grading.ts and persist ai_gradings.
     } catch (e) {
       console.error('[AI-CONTENT] AI generation failed:', e);
       return new Response(

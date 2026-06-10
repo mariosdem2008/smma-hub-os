@@ -1,6 +1,7 @@
 import { buildAdminSetupGuidedPrompt } from "./prompts/adminSetupGuided.ts"
 import { buildAdminGeneralChatPrompt } from "./prompts/adminGeneralChat.ts"
 import { buildAdminSetupExtractPrompt } from "./prompts/adminSetupExtract.ts"
+import { buildAnswerQualityPrompt } from "./prompts/answerQuality.ts"
 import { buildChatGeneralPrompt } from "./prompts/chatGeneral.ts"
 import { buildClassifyIntentPrompt } from "./prompts/classifyIntent.ts"
 import { buildClientPortalQaPrompt } from "./prompts/clientPortalQa.ts"
@@ -16,7 +17,8 @@ import { buildStrategyRecommendationPrompt } from "./prompts/strategyRecommendat
 import { buildSummarizePrompt } from "./prompts/summarize.ts"
 import { buildToolExecutionPrompt } from "./prompts/toolExecution.ts"
 import { resolveModelPolicy } from "./modelPolicy.ts"
-import { adminChatSchema, adminChatStrategicSchema, aiAssistantSchema, arraySchema, intentResultSchema, objectSchema, onboardingAnswerCheckSchema, onboardingClarifySchema, planSchemaV1, OutputSchema } from "./schema.ts"
+import { adminChatSchema, adminChatStrategicSchema, aiAssistantSchema, answerQualityCheckSchema, arraySchema, intentResultSchema, objectSchema, onboardingAnswerCheckSchema, onboardingClarifySchema, planSchemaV1 } from "./schema.ts"
+import type { OutputSchema } from "./schema.ts"
 import { TaskType } from "./taskTypes.ts"
 import type { ChatMessage } from "./providers/types.ts"
 import { strategyDiagnosisSchema, strategyRecommendationSchema } from "../lib/strategy/v2/contracts.ts"
@@ -460,6 +462,27 @@ export const TASK_REGISTRY: Record<TaskType, TaskConfig> = {
       follow_up_text: "Can you share a bit more detail so I can capture it correctly?",
       clarification_text: reason ?? "This helps me personalize your agency brain.",
       confidence: 0,
+    }),
+  },
+  [TaskType.ANSWER_QUALITY_CHECK]: {
+    taskType: TaskType.ANSWER_QUALITY_CHECK,
+    outputMode: "json_schema",
+    safetyMode: "normal",
+    promptBuilder: (args) =>
+      buildAnswerQualityPrompt({
+        candidateText: args.input ?? "",
+        contentType: (args.metadata?.contentType as string) ?? "unknown",
+        surface: (args.metadata?.surface as string | undefined) ?? undefined,
+        governanceSummary: args.metadata?.governanceSummary ?? {},
+        clientContext: (args.metadata?.clientContext as string | undefined) ?? undefined,
+      }),
+    requires: { agency: false, client: false },
+    usageEndpoint: "ai-answer-quality-check",
+    schema: answerQualityCheckSchema(),
+    buildUnknown: () => ({
+      score: 70,
+      soft_issues: [],
+      requires_human_approval: false,
     }),
   },
 };

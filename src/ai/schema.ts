@@ -99,6 +99,17 @@ export type OnboardingClarifySchema = {
   confidence?: number;
 };
 
+export type AnswerQualityCheckSchema = {
+  score: number;
+  soft_issues: Array<{
+    code: string;
+    message: string;
+    severity: "low" | "medium" | "high";
+  }>;
+  requires_human_approval: boolean;
+  suggested_revision?: string;
+};
+
 export type AiAssistantProposal = {
   id: string;
   module: string;
@@ -493,6 +504,45 @@ export function onboardingClarifySchema(): OutputSchema<OnboardingClarifySchema>
         return { ok: false, errors: ["confidence must be a number"] };
       }
       return { ok: true, data: record as OnboardingClarifySchema };
+    },
+  };
+}
+
+export function answerQualityCheckSchema(): OutputSchema<AnswerQualityCheckSchema> {
+  return {
+    name: "answer_quality_check_v1",
+    validate: (value: unknown) => {
+      if (!isPlainObject(value)) return { ok: false, errors: ["Expected object"] };
+      const record = value as Record<string, unknown>;
+      const required = ["score", "soft_issues", "requires_human_approval"];
+      const missing = required.filter((key) => !(key in record));
+      if (missing.length > 0) return { ok: false, errors: missing.map((key) => `Missing key: ${key}`) };
+      if (typeof record.score !== "number" || record.score < 0 || record.score > 100) {
+        return { ok: false, errors: ["score must be a number from 0 to 100"] };
+      }
+      if (!Array.isArray(record.soft_issues)) {
+        return { ok: false, errors: ["soft_issues must be an array"] };
+      }
+      for (const issue of record.soft_issues) {
+        if (!isPlainObject(issue)) return { ok: false, errors: ["soft_issues entries must be objects"] };
+        const item = issue as Record<string, unknown>;
+        if (typeof item.code !== "string" || !item.code.trim()) {
+          return { ok: false, errors: ["soft_issues.code must be a non-empty string"] };
+        }
+        if (typeof item.message !== "string" || !item.message.trim()) {
+          return { ok: false, errors: ["soft_issues.message must be a non-empty string"] };
+        }
+        if (item.severity !== "low" && item.severity !== "medium" && item.severity !== "high") {
+          return { ok: false, errors: ["soft_issues.severity must be low, medium, or high"] };
+        }
+      }
+      if (typeof record.requires_human_approval !== "boolean") {
+        return { ok: false, errors: ["requires_human_approval must be a boolean"] };
+      }
+      if (record.suggested_revision !== undefined && typeof record.suggested_revision !== "string") {
+        return { ok: false, errors: ["suggested_revision must be a string"] };
+      }
+      return { ok: true, data: record as AnswerQualityCheckSchema };
     },
   };
 }

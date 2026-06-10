@@ -269,6 +269,8 @@ export const TASK_MODULE_MAP: Record<TaskType, ModuleRequirement[]> = {
   [TaskType.ONBOARDING_ANSWER_CHECK]: [],
 
   [TaskType.ONBOARDING_CLARIFY]: [],
+
+  [TaskType.ANSWER_QUALITY_CHECK]: [],
 };
 
 /**
