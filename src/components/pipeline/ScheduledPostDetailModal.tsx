@@ -68,6 +68,8 @@ const getPlatformIcon = (platform: string) => {
 };
 
 const statusColors: Record<string, string> = {
+  draft: "bg-slate-500",
+  planned: "bg-indigo-500",
   pending: "bg-yellow-500",
   queued: "bg-blue-400",
   publishing: "bg-blue-600",
@@ -224,7 +226,7 @@ export default function ScheduledPostDetailModal({
   }
 
   const localScheduledTime = convertToLocal(post.scheduled_for, userTimezone);
-  const canEdit = !readOnly && ["pending", "queued"].includes(post.status);
+  const canEdit = !readOnly && ["draft", "planned", "pending", "queued"].includes(post.status);
 
   return (
     <>

@@ -13,6 +13,7 @@ import { STRATEGY_MODULES } from '@/lib/strategy/constants';
 import { evaluateStrategyModule } from '@/lib/strategy/rulesEngine';
 import { strategyDocumentsKeys } from '@/hooks/useStrategyDocuments';
 import { parseEdgeFunctionResponse } from '@/lib/edgeFunctionError';
+import { clientOperationsKeys } from '@/hooks/useClientOperations';
 
 type StrategyGenerateResult =
   | { mode: 'ai'; documentId?: string | null }
@@ -383,7 +384,8 @@ export function useApproveStrategyModule() {
       moduleId: string;
       clientId: string;
     }) => {
-      const { data, error } = await supabase
+      const db = supabase as any;
+      const { data, error } = await db
         .from('strategy_modules')
         .update({
           status: 'approved',
@@ -395,10 +397,18 @@ export function useApproveStrategyModule() {
         .single();
 
       if (error) throw error;
+      if (data?.strategy_id) {
+        const { error: materializeError } = await db.rpc('materialize_strategy_approved_work', {
+          p_strategy_id: data.strategy_id,
+          p_reason: 'strategy_module_approved',
+        });
+        if (materializeError) throw materializeError;
+      }
       return data as unknown as StrategyModuleRecord;
     },
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: strategyModulesKeys.byClient(variables.clientId) });
+      queryClient.invalidateQueries({ queryKey: clientOperationsKeys.executionTasks(variables.clientId) });
     },
   });
 }
