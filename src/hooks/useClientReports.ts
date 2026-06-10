@@ -31,6 +31,35 @@ export interface ClientReport {
     }>;
     insights: string;
     recommendations: string;
+    report_insight_json?: {
+      headline: string;
+      performance_summary: string;
+      insights: Array<{ point: string; evidence: string }>;
+      recommendations: Array<{ action: string; why: string; owner: "agency" | "client" }>;
+      risks_or_blockers: string[];
+    };
+    grounding?: {
+      kpi_evidence_phrases?: string[];
+      strategy_sources?: string[];
+      delivery_source?: string;
+      delivery_state?: string;
+      blocker_count?: number;
+    };
+    governance?: {
+      score?: number;
+      accepted?: boolean;
+      blocked_by_governance?: boolean;
+      initial_hard_violation_count?: number;
+      initial_soft_issue_count?: number;
+      grading_persist_error?: string | null;
+    };
+    ai?: {
+      task_type?: string;
+      insight_source?: string;
+      insight_model?: string | null;
+      local_model_configured?: boolean;
+      fallback_reason?: string | null;
+    };
   };
   created_at: string;
   updated_at: string;

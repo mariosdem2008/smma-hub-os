@@ -110,6 +110,23 @@ export type AnswerQualityCheckSchema = {
   suggested_revision?: string;
 };
 
+export type ReportInsightRecommendationOwner = "agency" | "client";
+
+export type ReportInsight = {
+  headline: string;
+  performance_summary: string;
+  insights: Array<{
+    point: string;
+    evidence: string;
+  }>;
+  recommendations: Array<{
+    action: string;
+    why: string;
+    owner: ReportInsightRecommendationOwner;
+  }>;
+  risks_or_blockers: string[];
+};
+
 export type AiAssistantProposal = {
   id: string;
   module: string;
@@ -543,6 +560,77 @@ export function answerQualityCheckSchema(): OutputSchema<AnswerQualityCheckSchem
         return { ok: false, errors: ["suggested_revision must be a string"] };
       }
       return { ok: true, data: record as AnswerQualityCheckSchema };
+    },
+  };
+}
+
+function validateStringArray(record: Record<string, unknown>, key: string, maxItems: number) {
+  const value = record[key];
+  if (!Array.isArray(value)) return [`${key} must be an array`];
+  if (value.length > maxItems) return [`${key} must have <= ${maxItems} items`];
+  for (const item of value) {
+    if (typeof item !== "string" || !item.trim()) {
+      return [`${key} entries must be non-empty strings`];
+    }
+  }
+  return [];
+}
+
+export function reportInsightSchema(): OutputSchema<ReportInsight> {
+  return {
+    name: "report_insight_v1",
+    validate: (value: unknown) => {
+      if (!isPlainObject(value)) return { ok: false, errors: ["Expected object"] };
+      const record = value as Record<string, unknown>;
+      const required = ["headline", "performance_summary", "insights", "recommendations", "risks_or_blockers"];
+      const missing = required.filter((key) => !(key in record));
+      if (missing.length > 0) return { ok: false, errors: missing.map((key) => `Missing key: ${key}`) };
+
+      if (typeof record.headline !== "string" || !record.headline.trim()) {
+        return { ok: false, errors: ["headline must be a non-empty string"] };
+      }
+      if (record.headline.length > 220) {
+        return { ok: false, errors: ["headline must be <= 220 characters"] };
+      }
+      if (typeof record.performance_summary !== "string" || !record.performance_summary.trim()) {
+        return { ok: false, errors: ["performance_summary must be a non-empty string"] };
+      }
+
+      if (!Array.isArray(record.insights)) return { ok: false, errors: ["insights must be an array"] };
+      if (record.insights.length > 5) return { ok: false, errors: ["insights must have <= 5 items"] };
+      for (const insight of record.insights) {
+        if (!isPlainObject(insight)) return { ok: false, errors: ["insights entries must be objects"] };
+        if (typeof insight.point !== "string" || !insight.point.trim()) {
+          return { ok: false, errors: ["insights.point must be a non-empty string"] };
+        }
+        if (typeof insight.evidence !== "string" || !insight.evidence.trim()) {
+          return { ok: false, errors: ["insights.evidence must be a non-empty string"] };
+        }
+      }
+
+      if (!Array.isArray(record.recommendations)) return { ok: false, errors: ["recommendations must be an array"] };
+      if (record.recommendations.length > 5) {
+        return { ok: false, errors: ["recommendations must have <= 5 items"] };
+      }
+      for (const recommendation of record.recommendations) {
+        if (!isPlainObject(recommendation)) {
+          return { ok: false, errors: ["recommendations entries must be objects"] };
+        }
+        if (typeof recommendation.action !== "string" || !recommendation.action.trim()) {
+          return { ok: false, errors: ["recommendations.action must be a non-empty string"] };
+        }
+        if (typeof recommendation.why !== "string" || !recommendation.why.trim()) {
+          return { ok: false, errors: ["recommendations.why must be a non-empty string"] };
+        }
+        if (recommendation.owner !== "agency" && recommendation.owner !== "client") {
+          return { ok: false, errors: ["recommendations.owner must be agency or client"] };
+        }
+      }
+
+      const riskErrors = validateStringArray(record, "risks_or_blockers", 8);
+      if (riskErrors.length > 0) return { ok: false, errors: riskErrors };
+
+      return { ok: true, data: record as ReportInsight };
     },
   };
 }

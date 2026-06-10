@@ -23,6 +23,8 @@ const ENV_KEYS = [
   "AI_MODEL__AI_ASSISTANT",
   "AI_PROVIDER__ANSWER_QUALITY_CHECK",
   "AI_MODEL__ANSWER_QUALITY_CHECK",
+  "AI_PROVIDER__REPORT_INSIGHT",
+  "AI_MODEL__REPORT_INSIGHT",
   "AI_TEXT_MODEL_DEFAULT",
 ];
 
@@ -43,6 +45,7 @@ describe("model policy", () => {
       [TaskType.CHAT_ADMIN_ONBOARDING]: { dev: "gpt-4o-mini", prod: "gpt-4o-mini" },
       [TaskType.CLIENT_PORTAL_QA]: { dev: "gpt-4o-mini", prod: "gpt-4o-mini" },
       [TaskType.SUMMARIZE]: { dev: "gpt-4o-mini", prod: "gpt-4o-mini" },
+      [TaskType.REPORT_INSIGHT]: { dev: "qwen2.5:7b-instruct", prod: "qwen2.5:7b-instruct" },
       [TaskType.EXTRACT_STRUCTURED]: { dev: "gpt-4o-mini", prod: "gpt-4o-mini" },
       [TaskType.CLASSIFY_INTENT]: { dev: "gpt-4o-mini", prod: "gpt-4o-mini" },
       [TaskType.STRATEGY_PLAN]: { dev: "gemini-flash-latest", prod: "gemini-flash-latest" },
@@ -95,6 +98,10 @@ describe("model policy", () => {
     const grader = getModelForTask({ taskType: TaskType.ANSWER_QUALITY_CHECK, mode: "prod", planTier: "free" });
     expect(grader.provider).toBe("openai");
     expect(grader.model).toBe("qwen2.5:7b-instruct");
+
+    const report = getModelForTask({ taskType: TaskType.REPORT_INSIGHT, mode: "prod", planTier: "free" });
+    expect(report.provider).toBe("openai");
+    expect(report.model).toBe("qwen2.5:7b-instruct");
   });
 
   it("does not allow global provider/model overrides to change strategy tasks", () => {
@@ -117,6 +124,10 @@ describe("model policy", () => {
     const grader = getModelForTask({ taskType: TaskType.ANSWER_QUALITY_CHECK, mode: "prod", planTier: "free" });
     expect(grader.provider).toBe("openai");
     expect(grader.model).toBe("qwen2.5:7b-instruct");
+
+    const report = getModelForTask({ taskType: TaskType.REPORT_INSIGHT, mode: "prod", planTier: "free" });
+    expect(report.provider).toBe("openai");
+    expect(report.model).toBe("qwen2.5:7b-instruct");
   });
 
   it("allows per-task overrides for AI assistant", () => {

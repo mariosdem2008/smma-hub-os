@@ -129,6 +129,9 @@ export const TASK_MODULE_MAP: Record<TaskType, ModuleRequirement[]> = {
   // Summarize - no brain needed
   [TaskType.SUMMARIZE]: [],
 
+  // Report insight receives explicit report, governance, strategy, and blocker context from the edge function.
+  [TaskType.REPORT_INSIGHT]: [],
+
   // Extract structured - no brain needed
   [TaskType.EXTRACT_STRUCTURED]: [],
 

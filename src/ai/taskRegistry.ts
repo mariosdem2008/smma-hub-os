@@ -11,13 +11,14 @@ import { buildOnboardingAnswerCheckPrompt } from "./prompts/onboardingAnswerChec
 import { buildOnboardingClarifyPrompt } from "./prompts/onboardingClarify.ts"
 import { buildOnboardingAudiencePrompt, buildOnboardingDifferentiatorsPrompt, buildOnboardingOffersPrompt } from "./prompts/onboardingGuide.ts"
 import { buildPlannerPrompt } from "./prompts/planner.ts"
+import { buildReportInsightPrompt } from "./prompts/reportInsight.ts"
 import { buildStrategyDiagnosisPrompt } from "./prompts/strategyDiagnosis.ts"
 import { buildStrategyPlanPrompt } from "./prompts/strategyPlan.ts"
 import { buildStrategyRecommendationPrompt } from "./prompts/strategyRecommendation.ts"
 import { buildSummarizePrompt } from "./prompts/summarize.ts"
 import { buildToolExecutionPrompt } from "./prompts/toolExecution.ts"
 import { resolveModelPolicy } from "./modelPolicy.ts"
-import { adminChatSchema, adminChatStrategicSchema, aiAssistantSchema, answerQualityCheckSchema, arraySchema, intentResultSchema, objectSchema, onboardingAnswerCheckSchema, onboardingClarifySchema, planSchemaV1 } from "./schema.ts"
+import { adminChatSchema, adminChatStrategicSchema, aiAssistantSchema, answerQualityCheckSchema, arraySchema, intentResultSchema, objectSchema, onboardingAnswerCheckSchema, onboardingClarifySchema, planSchemaV1, reportInsightSchema } from "./schema.ts"
 import type { OutputSchema } from "./schema.ts"
 import { TaskType } from "./taskTypes.ts"
 import type { ChatMessage } from "./providers/types.ts"
@@ -261,6 +262,25 @@ export const TASK_REGISTRY: Record<TaskType, TaskConfig> = {
       }),
     requires: { agency: false, client: false },
     usageEndpoint: "generate-monthly-report",
+  },
+  [TaskType.REPORT_INSIGHT]: {
+    taskType: TaskType.REPORT_INSIGHT,
+    outputMode: "json_schema",
+    safetyMode: "normal",
+    promptBuilder: (args) =>
+      buildReportInsightPrompt({
+        context: args.metadata?.insightContext ?? args.input ?? {},
+      }),
+    requires: { agency: false, client: false },
+    usageEndpoint: "generate-monthly-report",
+    schema: reportInsightSchema(),
+    buildUnknown: () => ({
+      headline: "Report insight unavailable",
+      performance_summary: "The report was generated from deterministic KPI data because model output was unavailable.",
+      insights: [],
+      recommendations: [],
+      risks_or_blockers: ["Model output unavailable; deterministic KPI fallback should be used."],
+    }),
   },
   [TaskType.EXTRACT_STRUCTURED]: {
     taskType: TaskType.EXTRACT_STRUCTURED,
