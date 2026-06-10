@@ -4,6 +4,7 @@ Date: 2026-03-23
 Owner: Founder / Product Direction
 Status: Authoritative
 Purpose: Define the real end-state platform, the core promise, the product standard, and the gap between the current repo and what SMMAHUB must become.
+ICP and pricing authority: [00-ICP-AND-POSITIONING](../00-ICP-AND-POSITIONING.md).
 
 ## 1. The Hard Truth
 
@@ -387,16 +388,17 @@ The right story is:
 
 More concretely:
 
+- the buyer is a Tier 2 operating agency with 5-25 active clients, EUR15k-EUR100k/month revenue, and a 2-10 person team
 - the agency teaches SMMAHUB how it works
 - SMMAHUB uses that context across clients
 - AI helps run strategy, execution, follow-up, and collaboration
 - the agency retains control through rules, approvals, and visibility
 
-That is how the product earns premium pricing.
+That is how the product earns infrastructure pricing: EUR199/month floor, EUR199-EUR499/month standard range, and custom pricing for larger qualified agencies. The top of funnel is a booked strategy audit or guided demo, not a self-serve no-cost signup.
 
 ## 9. What "High Ticket" Means In Product Terms
 
-High-ticket does not come from branding alone. It comes from replacing real operational pain.
+High-ticket does not come from branding alone. It comes from replacing real operational pain. For SMMAHUB, high ticket starts with the locked EUR199/month floor and is justified only when the product gives an expert operator enough leverage to trust it across live client work.
 
 For SMMAHUB to deserve premium pricing, agencies must be able to feel and explain at least some of the following:
 
