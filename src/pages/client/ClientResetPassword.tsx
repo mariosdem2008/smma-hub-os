@@ -1,17 +1,18 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { Loader2, Lock } from "lucide-react";
+
+import { AuthShell } from "@/components/auth/AuthShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
 
 export default function ClientResetPassword() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  
+
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -21,17 +22,17 @@ export default function ClientResetPassword() {
   const token = searchParams.get("token");
 
   useEffect(() => {
-    setTokenValid(!!token);
+    setTokenValid(Boolean(token));
     setValidating(false);
   }, [token]);
 
-  const handleReset = async (e: React.FormEvent) => {
+  const handleReset = async (e: FormEvent) => {
     e.preventDefault();
-    
+
     if (password !== confirmPassword) {
       toast({
-        title: "Password Mismatch",
-        description: "Passwords do not match",
+        title: "Passwords do not match",
+        description: "Enter the same password in both fields.",
         variant: "destructive",
       });
       return;
@@ -42,18 +43,15 @@ export default function ClientResetPassword() {
     setLoading(true);
 
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/client-auth-reset-password`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-          },
-          credentials: "include",
-          body: JSON.stringify({ reset_token: token, new_password: password }),
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/client-auth-reset-password`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
         },
-      );
+        credentials: "include",
+        body: JSON.stringify({ reset_token: token, new_password: password }),
+      });
 
       if (!response.ok) {
         const error = await response.json();
@@ -61,18 +59,17 @@ export default function ClientResetPassword() {
       }
 
       const { user } = await response.json();
-      
+
       toast({
-        title: "Password Reset",
-        description: "Your password has been reset successfully",
+        title: "Password reset",
+        description: "Your client portal password has been updated.",
       });
 
-      // Redirect to portal - need to fetch portal slug
       navigate(`/client/portal/${user.client_id}`);
     } catch (error: any) {
       toast({
-        title: "Reset Failed",
-        description: error.message || "Failed to reset password",
+        title: "Password reset failed",
+        description: error.message || "We could not update your password.",
         variant: "destructive",
       });
     } finally {
@@ -82,66 +79,71 @@ export default function ClientResetPassword() {
 
   if (validating) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
+      <AuthShell mode="client" eyebrow="Password reset" title="Checking your reset link." description="This takes a moment.">
+        <div className="flex items-center gap-3 rounded-lg border border-border/80 bg-muted/40 p-4 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin text-primary" />
+          Validating secure token
+        </div>
+      </AuthShell>
     );
   }
 
   if (!tokenValid) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <Card className="w-full max-w-md p-8 text-center">
-          <h1 className="text-2xl font-bold mb-4">Invalid Reset Link</h1>
-          <p className="text-muted-foreground">
-            This password reset link is invalid or has expired.
-          </p>
-        </Card>
-      </div>
+      <AuthShell
+        mode="client"
+        eyebrow="Password reset"
+        title="This reset link is no longer valid."
+        description="Ask your agency for a fresh reset link."
+      >
+        <div className="rounded-lg border border-border/80 bg-muted/40 p-4 text-sm text-muted-foreground">
+          The token is missing or expired.
+        </div>
+      </AuthShell>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md p-8">
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold mb-2">Reset Your Password</h1>
-          <p className="text-muted-foreground">Enter your new password</p>
+    <AuthShell
+      mode="client"
+      eyebrow="Password reset"
+      title="Set a new client portal password."
+      description="Choose a password that protects approvals, messages, and shared assets."
+    >
+      <form onSubmit={handleReset} className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="password">New password</Label>
+          <Input
+            id="password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Enter new password"
+            required
+            minLength={8}
+            autoComplete="new-password"
+          />
         </div>
 
-        <form onSubmit={handleReset} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="password">New Password</Label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-              minLength={8}
-            />
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor="confirmPassword">Confirm new password</Label>
+          <Input
+            id="confirmPassword"
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            placeholder="Confirm new password"
+            required
+            minLength={8}
+            autoComplete="new-password"
+          />
+        </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="confirmPassword">Confirm New Password</Label>
-            <Input
-              id="confirmPassword"
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-              minLength={8}
-            />
-          </div>
-
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Reset Password
-          </Button>
-        </form>
-      </Card>
-    </div>
+        <Button type="submit" className="w-full" loading={loading}>
+          <Lock className="h-4 w-4" />
+          Reset password
+        </Button>
+      </form>
+    </AuthShell>
   );
 }

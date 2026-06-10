@@ -40,6 +40,8 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type ViewMode = "executive" | "operations";
 type PeriodKey = "7d" | "30d" | "90d";
@@ -709,29 +711,56 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="flex min-h-[70vh] items-center justify-center">
-        <div className="flex items-center gap-3 text-white/75">
-          <Loader2 className="h-5 w-5 animate-spin" />
-          <span>Loading command center...</span>
+      <div className="app-page">
+        <Card className="p-5">
+          <div className="flex items-center justify-between gap-4">
+            <div className="space-y-3">
+              <Skeleton className="h-3 w-32" />
+              <Skeleton className="h-9 w-72 max-w-full" />
+              <Skeleton className="h-4 w-96 max-w-full" />
+            </div>
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          </div>
+        </Card>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <Card key={index} className="p-5">
+              <Skeleton className="h-3 w-28" />
+              <Skeleton className="mt-4 h-8 w-20" />
+              <Skeleton className="mt-5 h-3 w-32" />
+            </Card>
+          ))}
+        </div>
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+          <Card className="p-5 xl:col-span-2">
+            <Skeleton className="h-5 w-40" />
+            <Skeleton className="mt-4 h-16 w-full" />
+            <Skeleton className="mt-3 h-16 w-full" />
+          </Card>
+          <Card className="p-5">
+            <Skeleton className="h-5 w-40" />
+            <Skeleton className="mt-4 h-32 w-full" />
+          </Card>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-2xl border border-white/10 bg-black/40 p-5 backdrop-blur-sm">
-        <div className="flex flex-wrap items-center justify-between gap-4">
+    <div className="app-page">
+      <Card className="overflow-hidden">
+        <div className="flex flex-wrap items-start justify-between gap-5 border-b border-border/70 p-5">
           <div>
-            <div className="text-xs uppercase tracking-[0.2em] text-white/55">Enterprise Dashboard</div>
-            <h1 className="mt-1 text-2xl font-semibold text-white">Agency Command Center</h1>
-            <p className="mt-1 text-sm text-white/65">
-              Real-time portfolio control for {signals.totalClients} clients and {teamMembers.length} team members.
+            <div className="page-eyebrow">Operator home</div>
+            <h1 className="mt-2 font-display text-3xl font-bold text-foreground">Agency command center</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+              Live portfolio control for {signals.totalClients} clients, {teamMembers.length} team members, and the
+              work that needs approval before it reaches a client.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Select value={viewMode} onValueChange={(value: ViewMode) => setViewMode(value)}>
-              <SelectTrigger className="w-[160px] border-white/20 bg-white/5 text-white">
+              <SelectTrigger className="w-[160px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -741,7 +770,7 @@ export default function Dashboard() {
             </Select>
 
             <Select value={period} onValueChange={(value: PeriodKey) => setPeriod(value)}>
-              <SelectTrigger className="w-[120px] border-white/20 bg-white/5 text-white">
+              <SelectTrigger className="w-[120px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -753,25 +782,50 @@ export default function Dashboard() {
 
             <Button
               variant="outline"
-              className="border-white/20 bg-white/5 text-white"
               onClick={() => void fetchDashboardData(true)}
               disabled={refreshing}
+              loading={refreshing}
             >
-              {refreshing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+              {!refreshing ? <RefreshCw className="h-4 w-4" /> : null}
               Refresh
             </Button>
           </div>
         </div>
-      </div>
+
+        <div className="grid gap-0 divide-y divide-border/70 md:grid-cols-3 md:divide-x md:divide-y-0">
+          <div className="p-5">
+            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Approval posture</div>
+            <div className="mt-2 flex items-baseline gap-2">
+              <span className="metric-number text-3xl font-bold text-foreground">{signals.approvalsPending}</span>
+              <span className="text-sm text-muted-foreground">pending</span>
+            </div>
+          </div>
+          <div className="p-5">
+            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Client readiness</div>
+            <div className="mt-2 flex items-baseline gap-2">
+              <span className="metric-number text-3xl font-bold text-foreground">{readinessSummary.complete}</span>
+              <span className="text-sm text-muted-foreground">complete</span>
+            </div>
+          </div>
+          <div className="p-5">
+            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">AI setup</div>
+            <div className="mt-2">
+              <Badge variant={aiSetupComplete ? "green" : aiSetupComplete === false ? "orange" : "secondary"}>
+                {aiSetupComplete ? "Ready" : aiSetupComplete === false ? "Needs review" : "Checking"}
+              </Badge>
+            </div>
+          </div>
+        </div>
+      </Card>
 
       {dataUnavailable ? (
-        <Card className="border-amber-400/40 bg-amber-500/10 text-amber-100">
+        <Card className="border-warning/30 bg-warning/10">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5" />
-              Partial Data Available
+              Partial data available
             </CardTitle>
-            <CardDescription className="text-amber-100/80">
+            <CardDescription>
               Some widgets may be incomplete due to data source warnings. Core actions remain available.
             </CardDescription>
           </CardHeader>
@@ -782,47 +836,51 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
         {[
-          { label: "Capacity Utilization", value: `${capacityUtilization}%`, sub: "Team load", icon: Briefcase },
-          { label: "AI Hours Saved", value: `${hoursSavedThisPeriod}h`, sub: `${period.toUpperCase()} period`, icon: Sparkles },
-          { label: "Quality Score", value: `${qualityScore}%`, sub: "Approved + published ratio", icon: Target },
-          { label: "Automation Rate", value: `${automationRate}%`, sub: "Scheduled + published ratio", icon: Wand2 },
-          { label: "Revenue Risk", value: `${signals.approvalsPending + signals.overdueContent}`, sub: "Items at risk", icon: AlertTriangle },
+          { label: "Capacity utilization", value: `${capacityUtilization}%`, sub: "Team load", icon: Briefcase },
+          { label: "AI hours saved", value: `${hoursSavedThisPeriod}h`, sub: `${period.toUpperCase()} period`, icon: Sparkles },
+          { label: "Quality score", value: `${qualityScore}%`, sub: "Approved + published", icon: Target },
+          { label: "Automation rate", value: `${automationRate}%`, sub: "Scheduled + published", icon: Wand2 },
+          { label: "Revenue risk", value: `${signals.approvalsPending + signals.overdueContent}`, sub: "Items at risk", icon: AlertTriangle },
         ].map((kpi) => (
-          <Card key={kpi.label} className="border-white/10 bg-black/40">
+          <Card key={kpi.label}>
             <CardHeader className="pb-2">
-              <CardDescription className="text-white/60">{kpi.label}</CardDescription>
-              <CardTitle className="text-2xl text-white">{kpi.value}</CardTitle>
+              <div className="flex items-center justify-between gap-3">
+                <CardDescription>{kpi.label}</CardDescription>
+                <div className="rounded-md border border-border/70 bg-muted/50 p-2 text-muted-foreground">
+                  <kpi.icon className="h-4 w-4" />
+                </div>
+              </div>
+              <CardTitle className="metric-number text-3xl">{kpi.value}</CardTitle>
             </CardHeader>
-            <CardContent className="flex items-center justify-between pt-0 text-xs text-white/55">
+            <CardContent className="pt-0 text-xs text-muted-foreground">
               <span>{kpi.sub}</span>
-              <kpi.icon className="h-4 w-4" />
             </CardContent>
           </Card>
         ))}
       </div>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-        <Card className="border-white/10 bg-black/40 xl:col-span-2">
+        <Card className="xl:col-span-2">
           <CardHeader>
-            <CardTitle className="text-white">Action Queue</CardTitle>
-            <CardDescription className="text-white/60">
+            <CardTitle>Action queue</CardTitle>
+            <CardDescription>
               Prioritized actions to protect delivery, retention, and quality.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {alerts.map((alert) => (
-              <div key={alert.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
+              <div key={alert.id} className="rounded-lg border border-border/80 bg-surface/40 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className="font-medium text-white">{alert.title}</h3>
+                      <h3 className="font-medium text-foreground">{alert.title}</h3>
                       <Badge variant={badgeVariantForSeverity(alert.severity)}>{alert.severity}</Badge>
                     </div>
-                    <p className="mt-1 text-sm text-white/65">{alert.description}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{alert.description}</p>
                   </div>
-                  <Button size="sm" variant="outline" className="border-white/20 bg-white/5 text-white" onClick={alert.onCta}>
+                  <Button size="sm" variant="outline" onClick={alert.onCta}>
                     {alert.ctaLabel}
-                    <ArrowRight className="ml-2 h-3.5 w-3.5" />
+                    <ArrowRight className="h-3.5 w-3.5" />
                   </Button>
                 </div>
               </div>
@@ -830,18 +888,18 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="border-white/10 bg-black/40">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-white">Executive Summary</CardTitle>
-            <CardDescription className="text-white/60">Auto-generated from live KPI signals.</CardDescription>
+            <CardTitle>Executive summary</CardTitle>
+            <CardDescription>Generated from live KPI signals.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-sm leading-relaxed text-white/80">{executiveSummary || "No data available yet."}</p>
+            <p className="text-sm leading-6 text-muted-foreground">{executiveSummary || "No data available yet."}</p>
             <div className="flex gap-2">
-              <Button size="sm" variant="outline" className="border-white/20 bg-white/5 text-white" onClick={copyExecutiveSummary}>
-                Copy Summary
+              <Button size="sm" variant="outline" onClick={copyExecutiveSummary}>
+                Copy summary
               </Button>
-              <Button size="sm" onClick={() => void fetchDashboardData(true)} disabled={refreshing}>
+              <Button size="sm" onClick={() => void fetchDashboardData(true)} disabled={refreshing} loading={refreshing}>
                 Regenerate
               </Button>
             </div>
@@ -851,64 +909,71 @@ export default function Dashboard() {
 
       {viewMode === "executive" ? (
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-          <Card className="border-white/10 bg-black/40 xl:col-span-2">
+          <Card className="xl:col-span-2">
             <CardHeader>
-              <CardTitle className="text-white">Client Portfolio Health</CardTitle>
-              <CardDescription className="text-white/60">Top clients ranked by operational health score.</CardDescription>
+              <CardTitle>Client portfolio health</CardTitle>
+              <CardDescription>Top clients ranked by operational health score.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {clientHealthScores.map((client) => (
-                <div key={client.id} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+                <div key={client.id} className="flex flex-col gap-3 rounded-lg border border-border/80 bg-surface/40 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <div className="font-medium text-white">{client.name}</div>
-                    <div className="text-xs text-white/60">Health driver: readiness + delivery stability</div>
+                    <div className="font-medium text-foreground">{client.name}</div>
+                    <div className="text-xs text-muted-foreground">Health driver: readiness + delivery stability</div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <Badge variant={client.score >= 80 ? "secondary" : client.score >= 60 ? "default" : "destructive"}>{client.score}</Badge>
-                    <Badge variant="outline" className="border-white/20 text-white/80">
+                    <Badge variant="outline">
                       {client.trend === "up" ? "Improving" : client.trend === "down" ? "Declining" : "Stable"}
                     </Badge>
-                    <Button size="sm" variant="ghost" className="text-white" onClick={() => navigate(`/clients/${client.id}`)}>
+                    <Button size="sm" variant="ghost" onClick={() => navigate(`/clients/${client.id}`)}>
                       Open
                     </Button>
                   </div>
                 </div>
               ))}
-              {clientHealthScores.length === 0 ? <p className="text-sm text-white/60">No clients found.</p> : null}
+              {clientHealthScores.length === 0 ? (
+                <EmptyState
+                  icon={Users}
+                  title="No clients yet"
+                  description="Add your first client workspace to begin tracking readiness, approvals, and delivery health."
+                  action={{ label: "Add client", onClick: () => setShowNewClientDialog(true) }}
+                />
+              ) : null}
             </CardContent>
           </Card>
 
-          <Card className="border-white/10 bg-black/40">
+          <Card>
             <CardHeader>
-              <CardTitle className="text-white">Forecast & Risk</CardTitle>
-              <CardDescription className="text-white/60">30/60/90 style indicators from current load.</CardDescription>
+              <CardTitle>Forecast and risk</CardTitle>
+              <CardDescription>Current load indicators.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <div className="mb-1 flex items-center justify-between text-xs text-white/60">
+                <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
                   <span>Capacity pressure</span>
                   <span>{capacityUtilization}%</span>
                 </div>
                 <Progress value={capacityUtilization} className="h-2" />
               </div>
               <div>
-                <div className="mb-1 flex items-center justify-between text-xs text-white/60">
+                <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
                   <span>Approval bottleneck</span>
                   <span>{signals.approvalsPending}</span>
                 </div>
                 <Progress value={clamp(signals.approvalsPending * 10, 0, 100)} className="h-2" />
               </div>
               <div>
-                <div className="mb-1 flex items-center justify-between text-xs text-white/60">
+                <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
                   <span>Overdue risk</span>
                   <span>{signals.overdueContent}</span>
                 </div>
                 <Progress value={clamp(signals.overdueContent * 15, 0, 100)} className="h-2" />
               </div>
 
-              <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                <div className="text-sm font-medium text-white">Scenario Planner</div>
-                <p className="mt-1 text-xs text-white/60">
+              <div className="rounded-lg border border-border/80 bg-surface/40 p-3">
+                <div className="text-sm font-medium text-foreground">Scenario planner</div>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
                   With current load, adding 5 new clients would move utilization to ~
                   {clamp(capacityUtilization + Math.round((5 / Math.max(1, teamMembers.length)) * 12), 0, 100)}%.
                 </p>
@@ -918,50 +983,50 @@ export default function Dashboard() {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-          <Card className="border-white/10 bg-black/40 xl:col-span-2">
+          <Card className="xl:col-span-2">
             <CardHeader>
-              <CardTitle className="text-white">Operations Control</CardTitle>
-              <CardDescription className="text-white/60">Live queue for approvals and overdue items.</CardDescription>
+              <CardTitle>Operations control</CardTitle>
+              <CardDescription>Live queue for approvals and overdue items.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div>
-                <div className="mb-2 text-xs uppercase tracking-[0.2em] text-white/50">Approvals</div>
+                <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Approvals</div>
                 <div className="space-y-2">
                   {reviewProjects.slice(0, 5).map((project) => (
-                    <div key={project.id} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+                    <div key={project.id} className="flex items-center justify-between gap-3 rounded-lg border border-border/80 bg-surface/40 px-4 py-3">
                       <div>
-                        <div className="font-medium text-white">{project.title}</div>
-                        <div className="text-xs text-white/60">{project.client?.name ?? "Unknown client"}</div>
+                        <div className="font-medium text-foreground">{project.title}</div>
+                        <div className="text-xs text-muted-foreground">{project.client?.name ?? "Unknown client"}</div>
                       </div>
-                      <Button size="sm" variant="outline" className="border-white/20 bg-white/5 text-white" onClick={() => project.client?.id && navigate(`/clients/${project.client.id}?tab=pipeline&focus=review`)}>Review</Button>
+                      <Button size="sm" variant="outline" onClick={() => project.client?.id && navigate(`/clients/${project.client.id}?tab=pipeline&focus=review`)}>Review</Button>
                     </div>
                   ))}
-                  {reviewProjects.length === 0 ? <p className="text-sm text-white/60">No approvals pending.</p> : null}
+                  {reviewProjects.length === 0 ? <p className="text-sm text-muted-foreground">No approvals pending.</p> : null}
                 </div>
               </div>
 
               <div>
-                <div className="mb-2 text-xs uppercase tracking-[0.2em] text-white/50">Overdue Content</div>
+                <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Overdue content</div>
                 <div className="space-y-2">
                   {overdueProjects.slice(0, 5).map((project) => (
-                    <div key={project.id} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+                    <div key={project.id} className="flex items-center justify-between gap-3 rounded-lg border border-border/80 bg-surface/40 px-4 py-3">
                       <div>
-                        <div className="font-medium text-white">{project.title}</div>
-                        <div className="text-xs text-white/60">{project.client?.name ?? "Unknown client"} - {project.scheduled_time ? format(new Date(project.scheduled_time), "MMM d") : "No date"}</div>
+                        <div className="font-medium text-foreground">{project.title}</div>
+                        <div className="text-xs text-muted-foreground">{project.client?.name ?? "Unknown client"} - {project.scheduled_time ? format(new Date(project.scheduled_time), "MMM d") : "No date"}</div>
                       </div>
-                      <Button size="sm" variant="outline" className="border-white/20 bg-white/5 text-white" onClick={() => project.client?.id && navigate(`/clients/${project.client.id}?tab=pipeline&focus=publish`)}>Reschedule</Button>
+                      <Button size="sm" variant="outline" onClick={() => project.client?.id && navigate(`/clients/${project.client.id}?tab=pipeline&focus=publish`)}>Reschedule</Button>
                     </div>
                   ))}
-                  {overdueProjects.length === 0 ? <p className="text-sm text-white/60">No overdue content.</p> : null}
+                  {overdueProjects.length === 0 ? <p className="text-sm text-muted-foreground">No overdue content.</p> : null}
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-white/10 bg-black/40">
+          <Card>
             <CardHeader>
-              <CardTitle className="text-white">Team Load</CardTitle>
-              <CardDescription className="text-white/60">Open tasks by assignee.</CardDescription>
+              <CardTitle>Team load</CardTitle>
+              <CardDescription>Open tasks by assignee.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {teamMembers.slice(0, 8).map((member) => {
@@ -969,7 +1034,7 @@ export default function Dashboard() {
                 const utilization = clamp(openCount * 18, 0, 100);
                 return (
                   <div key={member.user_id} className="space-y-1">
-                    <div className="flex items-center justify-between text-sm text-white/80">
+                    <div className="flex items-center justify-between text-sm text-muted-foreground">
                       <span>{member.profiles?.full_name || member.profiles?.email || "Unknown"}</span>
                       <span>{openCount} open</span>
                     </div>
@@ -977,52 +1042,52 @@ export default function Dashboard() {
                   </div>
                 );
               })}
-              {teamMembers.length === 0 ? <p className="text-sm text-white/60">No team members found.</p> : null}
+              {teamMembers.length === 0 ? <p className="text-sm text-muted-foreground">No team members found.</p> : null}
             </CardContent>
           </Card>
         </div>
       )}
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-        <Card className="border-white/10 bg-black/40 xl:col-span-2">
+        <Card className="xl:col-span-2">
           <CardHeader>
-            <CardTitle className="text-white">AI Performance & ROI</CardTitle>
-            <CardDescription className="text-white/60">Enterprise AI throughput, quality, and value tracking.</CardDescription>
+            <CardTitle>AI performance and ROI</CardTitle>
+            <CardDescription>Throughput, quality, and value tracking.</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                <div className="text-xs uppercase tracking-[0.2em] text-white/50">Hours Saved</div>
-                <div className="mt-2 text-2xl font-semibold text-white">{hoursSavedThisPeriod}h</div>
+              <div className="rounded-lg border border-border/80 bg-surface/40 p-4">
+                <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Hours saved</div>
+                <div className="metric-number mt-2 text-2xl font-semibold text-foreground">{hoursSavedThisPeriod}h</div>
               </div>
-              <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                <div className="text-xs uppercase tracking-[0.2em] text-white/50">Automation Rate</div>
-                <div className="mt-2 text-2xl font-semibold text-white">{automationRate}%</div>
+              <div className="rounded-lg border border-border/80 bg-surface/40 p-4">
+                <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Automation rate</div>
+                <div className="metric-number mt-2 text-2xl font-semibold text-foreground">{automationRate}%</div>
               </div>
-              <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                <div className="text-xs uppercase tracking-[0.2em] text-white/50">Quality Score</div>
-                <div className="mt-2 text-2xl font-semibold text-white">{qualityScore}%</div>
+              <div className="rounded-lg border border-border/80 bg-surface/40 p-4">
+                <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Quality score</div>
+                <div className="metric-number mt-2 text-2xl font-semibold text-foreground">{qualityScore}%</div>
               </div>
             </div>
 
             <div className="mt-4 flex flex-wrap gap-2">
-              <Button variant="outline" className="border-white/20 bg-white/5 text-white" onClick={() => handleAiActionClick("strategy")}>Generate Strategy</Button>
-              <Button variant="outline" className="border-white/20 bg-white/5 text-white" onClick={() => handleAiActionClick("hooks")}>Generate Hooks</Button>
-              <Button variant="outline" className="border-white/20 bg-white/5 text-white" onClick={() => handleAiActionClick("captions")}>Draft Captions</Button>
+              <Button variant="outline" onClick={() => handleAiActionClick("strategy")}>Generate strategy</Button>
+              <Button variant="outline" onClick={() => handleAiActionClick("hooks")}>Generate hooks</Button>
+              <Button variant="outline" onClick={() => handleAiActionClick("captions")}>Draft captions</Button>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-white/10 bg-black/40">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-white">Quick Actions</CardTitle>
-            <CardDescription className="text-white/60">High-frequency operations shortcuts.</CardDescription>
+            <CardTitle>Quick actions</CardTitle>
+            <CardDescription>High-frequency operations shortcuts.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
-            <Button className="w-full justify-start" onClick={() => setShowNewClientDialog(true)}><Plus className="mr-2 h-4 w-4" />Add New Client</Button>
-            <Button variant="outline" className="w-full justify-start border-white/20 bg-white/5 text-white" onClick={() => setShowTaskDialog(true)}><CheckSquare className="mr-2 h-4 w-4" />Create Task</Button>
-            <Button variant="outline" className="w-full justify-start border-white/20 bg-white/5 text-white" onClick={() => navigate("/clients")}><Users className="mr-2 h-4 w-4" />Open Clients</Button>
-            <Button variant="outline" className="w-full justify-start border-white/20 bg-white/5 text-white" onClick={() => navigate("/team")}><ClipboardList className="mr-2 h-4 w-4" />Open Team Queue</Button>
+            <Button className="w-full justify-start" onClick={() => setShowNewClientDialog(true)}><Plus className="h-4 w-4" />Add client</Button>
+            <Button variant="outline" className="w-full justify-start" onClick={() => setShowTaskDialog(true)}><CheckSquare className="h-4 w-4" />Create task</Button>
+            <Button variant="outline" className="w-full justify-start" onClick={() => navigate("/clients")}><Users className="h-4 w-4" />Open clients</Button>
+            <Button variant="outline" className="w-full justify-start" onClick={() => navigate("/team")}><ClipboardList className="h-4 w-4" />Open team queue</Button>
           </CardContent>
         </Card>
       </div>
@@ -1030,18 +1095,18 @@ export default function Dashboard() {
       <Dialog open={showNewClientDialog} onOpenChange={setShowNewClientDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add New Client</DialogTitle>
+            <DialogTitle>Add client</DialogTitle>
             <DialogDescription>Create a new client workspace and start onboarding.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-3">
-            <div><Label htmlFor="client_name">Client Name</Label><Input id="client_name" value={clientFormData.name} onChange={(e) => setClientFormData((prev) => ({ ...prev, name: e.target.value }))} /></div>
+          <div className="space-y-4">
+            <div><Label htmlFor="client_name">Client name</Label><Input id="client_name" value={clientFormData.name} onChange={(e) => setClientFormData((prev) => ({ ...prev, name: e.target.value }))} /></div>
             <div><Label htmlFor="client_company">Company</Label><Input id="client_company" value={clientFormData.company} onChange={(e) => setClientFormData((prev) => ({ ...prev, company: e.target.value }))} /></div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-3 sm:grid-cols-2">
               <div><Label htmlFor="client_email">Email</Label><Input id="client_email" value={clientFormData.email} onChange={(e) => setClientFormData((prev) => ({ ...prev, email: e.target.value }))} /></div>
               <div><Label htmlFor="client_phone">Phone</Label><Input id="client_phone" value={clientFormData.phone} onChange={(e) => setClientFormData((prev) => ({ ...prev, phone: e.target.value }))} /></div>
             </div>
             <div>
-              <Label>Onboarding Path</Label>
+              <Label>Onboarding path</Label>
               <Select value={clientFormData.onboardingMode} onValueChange={(value) => setClientFormData((prev) => ({ ...prev, onboardingMode: value }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -1053,7 +1118,7 @@ export default function Dashboard() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowNewClientDialog(false)} disabled={submitting}>Cancel</Button>
-            <Button onClick={handleCreateClient} disabled={submitting}>{submitting ? "Creating..." : "Create Client"}</Button>
+            <Button onClick={handleCreateClient} loading={submitting}>Create client</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1061,10 +1126,10 @@ export default function Dashboard() {
       <Dialog open={showTaskDialog} onOpenChange={setShowTaskDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Create Task</DialogTitle>
+            <DialogTitle>Create task</DialogTitle>
             <DialogDescription>Create a task in the agency operations queue.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div><Label htmlFor="task_title">Title</Label><Input id="task_title" value={taskFormData.title} onChange={(e) => setTaskFormData((prev) => ({ ...prev, title: e.target.value }))} /></div>
             <div><Label htmlFor="task_description">Description</Label><Textarea id="task_description" value={taskFormData.description} onChange={(e) => setTaskFormData((prev) => ({ ...prev, description: e.target.value }))} /></div>
             <div>
@@ -1074,7 +1139,7 @@ export default function Dashboard() {
                 <SelectContent>{clients.map((client) => (<SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>))}</SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-3 sm:grid-cols-2">
               <div>
                 <Label>Priority</Label>
                 <Select value={taskFormData.priority} onValueChange={(value) => setTaskFormData((prev) => ({ ...prev, priority: value }))}>
@@ -1090,7 +1155,7 @@ export default function Dashboard() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-3 sm:grid-cols-2">
               <div><Label htmlFor="task_due">Due date</Label><Input id="task_due" type="date" value={taskFormData.due_date} onChange={(e) => setTaskFormData((prev) => ({ ...prev, due_date: e.target.value }))} /></div>
               <div>
                 <Label>Assignee</Label>
@@ -1106,7 +1171,7 @@ export default function Dashboard() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowTaskDialog(false)} disabled={submitting}>Cancel</Button>
-            <Button onClick={handleCreateTask} disabled={submitting}>{submitting ? "Creating..." : "Create Task"}</Button>
+            <Button onClick={handleCreateTask} loading={submitting}>Create task</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

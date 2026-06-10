@@ -9,11 +9,31 @@ import { useUpgradeModal } from "@/contexts/UpgradeModalContext";
 import { useUpgradeAssistantTriggers } from "@/hooks/useUpgradeAssistantTriggers";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { UserPlus, Sparkles } from "lucide-react";
+import { Search, Sparkles, UserPlus } from "lucide-react";
 import { InviteTeamMemberDialog } from "./InviteTeamMemberDialog";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
+import { ThemeToggle } from "@/components/ThemeToggle";
+
+const pageLabels: Record<string, string> = {
+  dashboard: "Dashboard",
+  clients: "Clients",
+  messages: "Messages",
+  team: "Team",
+  billing: "Billing",
+  settings: "Settings",
+  agency: "Agency",
+  "ai-setup": "AI Setup",
+  ai: "AI",
+  admin: "Admin",
+};
+
+function getCrumbs(pathname: string) {
+  const segments = pathname.split("/").filter(Boolean);
+  if (segments.length === 0) return ["Dashboard"];
+  return segments.slice(0, 3).map((segment) => pageLabels[segment] ?? segment.replace(/-/g, " "));
+}
 
 export function AppLayout() {
   const location = useLocation();
@@ -35,6 +55,8 @@ export function AppLayout() {
   };
 
   const upgradeBadgeText = getUpgradeBadgeText();
+  const crumbs = getCrumbs(location.pathname);
+  const pageTitle = crumbs[crumbs.length - 1] ?? "Dashboard";
 
   const isOnboarding = location.pathname.startsWith("/ai/onboarding/agency");
   const isClientOnboarding =
@@ -57,17 +79,31 @@ export function AppLayout() {
       <div className="saas-onboarding-theme flex h-[100dvh] w-full overflow-x-hidden overflow-y-hidden">
         {!isMobile && <AppSidebar />}
         <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-hidden">
-          <header className="sticky top-0 z-20 flex h-14 items-center gap-4 border-b border-white/10 bg-black/45 px-4 backdrop-blur-md">
-            {!isMobile && <SidebarTrigger className="icon-hover" />}
-            <div className="flex-1">
-              <h2 className="bg-gradient-to-r from-[#5b5fff] to-[#22d3ee] bg-clip-text text-lg font-bold text-transparent">SMMAHUB</h2>
+          <header className="glass-header sticky top-0 z-20 flex h-16 items-center gap-3 px-3 md:px-5">
+            {!isMobile && <SidebarTrigger className="text-muted-foreground hover:text-foreground" />}
+            <div className="min-w-0 flex-1">
+              <div className="hidden items-center gap-2 text-xs text-muted-foreground md:flex">
+                {crumbs.map((crumb, index) => (
+                  <span key={`${crumb}-${index}`} className="flex items-center gap-2 capitalize">
+                    {index > 0 ? <span className="text-border">/</span> : null}
+                    {crumb}
+                  </span>
+                ))}
+              </div>
+              <h1 className="truncate font-display text-base font-semibold text-foreground md:text-lg">{pageTitle}</h1>
             </div>
-            <div className="flex items-center gap-2 md:gap-3">
+            <div className="hidden min-w-[260px] items-center gap-2 rounded-md border border-border/80 bg-surface/70 px-3 py-2 text-sm text-muted-foreground shadow-xs lg:flex">
+              <Search className="h-4 w-4" />
+              <span className="truncate">Search clients, approvals, or actions</span>
+              <kbd className="ml-auto rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">Cmd K</kbd>
+            </div>
+            <div className="flex items-center gap-2">
               <NotificationCenter />
+              <ThemeToggle />
               {upgradeBadgeText && !isMobile && (
                 <Badge
                   variant="secondary"
-                  className="cursor-pointer bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-90 transition-all duration-200 border-0"
+                  className="cursor-pointer border-primary/25 bg-primary/10 text-primary hover:bg-primary/20"
                   onClick={() => openUpgradeModal()}
                 >
                   <Sparkles className="mr-1 h-3 w-3" />
@@ -84,7 +120,7 @@ export function AppLayout() {
                   Invite Team Member
                 </Button>
               )}
-              {!isMobile && <span className="text-sm text-muted-foreground hidden md:inline">{user?.email}</span>}
+              {!isMobile && <span className="hidden max-w-[180px] truncate text-sm text-muted-foreground xl:inline">{user?.email}</span>}
             </div>
           </header>
           <main

@@ -1,20 +1,21 @@
-import { useState, useEffect } from "react";
-import { useNavigate, useParams, Link } from "react-router-dom";
+import { useEffect, useState, type FormEvent } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { Loader2 } from "lucide-react";
+
+import { AuthShell } from "@/components/auth/AuthShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card } from "@/components/ui/card";
-import { useClientAuth } from "@/lib/client-auth";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useClientAuth } from "@/lib/client-auth";
 
 export default function ClientLogin() {
   const { portalSlug } = useParams();
   const navigate = useNavigate();
   const { login, isAuthenticated } = useClientAuth();
   const { toast } = useToast();
-  
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -27,10 +28,6 @@ export default function ClientLogin() {
   useEffect(() => {
     const bootstrapPortal = async () => {
       const { data: authUser } = await supabase.auth.getUser();
-      console.log("[client-login] mount", {
-        hasSession: !!authUser?.user,
-        lookup: authUser?.user ? "portal_user_id" : "slug",
-      });
 
       if (authUser?.user?.id) {
         const { data: client, error } = await supabase
@@ -41,21 +38,18 @@ export default function ClientLogin() {
 
         if (client) {
           const destination = client.portal_slug ? `/client/portal/${client.portal_slug}` : "/client/portal";
-          console.log("[client-login] authed client found, navigating:", destination);
           navigate(destination);
           return;
         }
 
         if (error) {
-          console.error("[client-login] portal_user_id lookup failed", error);
+          setPortalError("Account not linked to a portal");
         }
 
         setPortalError("Account not linked to a portal");
       }
 
       if (portalSlug) {
-        // Avoid unauthenticated table/view lookups that can fail under strict RLS.
-        // The login edge function resolves and validates portal slug server-side.
         setClientName(portalSlug);
       }
 
@@ -69,17 +63,14 @@ export default function ClientLogin() {
     bootstrapPortal();
   }, [isAuthenticated, portalSlug, navigate, toast]);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
     const { data: authUser } = await supabase.auth.getUser();
-    if (authUser?.user?.id) {
-      console.log("[client-login] existing session, using portal_user_id flow");
-    }
 
     if (!portalSlug && !clientId && !authUser?.user) {
       toast({
-        title: "Error",
-        description: "Client portal slug is required",
+        title: "Portal slug required",
+        description: "Use the portal link from your agency invite.",
         variant: "destructive",
       });
       return;
@@ -94,15 +85,11 @@ export default function ClientLogin() {
       let destination = "/client/portal";
 
       if (userSession?.user?.id) {
-        const { data: client, error } = await supabase
+        const { data: client } = await supabase
           .from("clients")
           .select("portal_slug")
           .eq("portal_user_id", userSession.user.id)
           .maybeSingle();
-
-        if (error) {
-          console.error("[client-login] portal_user_id lookup after login failed", error);
-        }
 
         if (client?.portal_slug) {
           destination = `/client/portal/${client.portal_slug}`;
@@ -111,12 +98,11 @@ export default function ClientLogin() {
         destination = `/client/portal/${portalSlug}`;
       }
 
-      console.log("[client-login] navigating to portal:", destination);
       navigate(destination);
     } catch (error: any) {
       toast({
-        title: "Login Failed",
-        description: error.message || "Invalid email or password",
+        title: "Client sign in failed",
+        description: error.message || "Check your email and password.",
         variant: "destructive",
       });
     } finally {
@@ -124,7 +110,7 @@ export default function ClientLogin() {
     }
   };
 
-  const handlePortalSlugSubmit = (e: React.FormEvent) => {
+  const handlePortalSlugSubmit = (e: FormEvent) => {
     e.preventDefault();
     const normalized = portalSlugInput.trim().replace(/^\/+|\/+$/g, "");
     if (!normalized) {
@@ -140,100 +126,106 @@ export default function ClientLogin() {
 
   if (!portalLookupComplete && !clientId && !portalError) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
+      <AuthShell eyebrow="Client portal" title="Opening your portal." description="We are checking your access.">
+        <div className="flex items-center gap-3 rounded-lg border border-border/80 bg-muted/40 p-4 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin text-primary" />
+          Preparing secure client access
+        </div>
+      </AuthShell>
     );
   }
 
   if (portalError === "Portal link required") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <Card className="w-full max-w-md p-8">
-          <h1 className="text-2xl font-bold mb-2">Client Portal</h1>
-          <p className="text-muted-foreground mb-6">Enter your portal slug from your agency invite link.</p>
-          <form onSubmit={handlePortalSlugSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="portalSlug">Portal slug</Label>
-              <Input
-                id="portalSlug"
-                value={portalSlugInput}
-                onChange={(e) => setPortalSlugInput(e.target.value)}
-                placeholder="your-company"
-                autoComplete="off"
-                required
-              />
-            </div>
-            <Button type="submit" className="w-full">Continue</Button>
-          </form>
-        </Card>
-      </div>
+      <AuthShell
+        mode="client"
+        eyebrow="Client portal"
+        title="Enter your portal link."
+        description="Use the portal slug from your agency invite to continue."
+      >
+        <form onSubmit={handlePortalSlugSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="portalSlug">Portal slug</Label>
+            <Input
+              id="portalSlug"
+              value={portalSlugInput}
+              onChange={(e) => setPortalSlugInput(e.target.value)}
+              placeholder="your-company"
+              autoComplete="off"
+              required
+            />
+          </div>
+          <Button type="submit" className="w-full">
+            Continue
+          </Button>
+        </form>
+      </AuthShell>
     );
   }
 
   if (portalError && !clientId) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Card className="w-full max-w-md p-8 text-center">
-          <h1 className="text-2xl font-bold mb-4">{portalError}</h1>
-          <p className="text-muted-foreground">Please contact your agency for assistance.</p>
-        </Card>
-      </div>
+      <AuthShell
+        mode="client"
+        eyebrow="Client portal"
+        title={portalError}
+        description="Please contact your agency for access help."
+      >
+        <div className="rounded-lg border border-border/80 bg-muted/40 p-4 text-center text-sm text-muted-foreground">
+          Your agency can resend the portal invite.
+        </div>
+      </AuthShell>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md p-8">
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold mb-2">Client Portal</h1>
-          <p className="text-muted-foreground">{clientName}</p>
+    <AuthShell
+      mode="client"
+      eyebrow="Client portal"
+      title="Sign in to your client workspace."
+      description={clientName ? `Portal: ${clientName}` : "Review approvals, messages, assets, and campaign progress."}
+    >
+      <form onSubmit={handleLogin} className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="client@company.com"
+            required
+            autoComplete="email"
+          />
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="your@email.com"
-              required
-            />
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor="password">Password</Label>
+          <Input
+            id="password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Enter password"
+            required
+            autoComplete="current-password"
+          />
+        </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-            />
-          </div>
+        <Button type="submit" className="w-full" loading={loading}>
+          Sign in
+        </Button>
 
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Sign In
-          </Button>
-
-          <div className="text-center text-sm">
-            {portalSlug ? (
-              <Link
-                to={`/client/forgot-password/${portalSlug}`}
-                className="text-primary hover:underline"
-              >
-                Forgot password?
-              </Link>
-            ) : (
-              <span className="text-muted-foreground">Forgot password is available after portal slug selection.</span>
-            )}
-          </div>
-        </form>
-      </Card>
-    </div>
+        <div className="text-center text-sm">
+          {portalSlug ? (
+            <Link to={`/client/forgot-password/${portalSlug}`} className="text-primary hover:text-primary-hover hover:underline">
+              Forgot password?
+            </Link>
+          ) : (
+            <span className="text-muted-foreground">Password reset is available after portal selection.</span>
+          )}
+        </div>
+      </form>
+    </AuthShell>
   );
 }

@@ -1,12 +1,12 @@
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { Home, Users, CheckSquare, Settings } from "lucide-react";
+import { Brain, Home, Settings, Users } from "lucide-react";
 import { hapticSelection } from "@/lib/haptics";
 
 const navItems = [
   { path: "/dashboard", label: "Home", icon: Home },
   { path: "/clients", label: "Clients", icon: Users },
-  { path: "/tasks", label: "Tasks", icon: CheckSquare },
+  { path: "/agency/ai-setup", label: "AI Setup", icon: Brain },
   { path: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -21,8 +21,8 @@ export function MobileBottomNav() {
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:hidden">
-      <div className="grid grid-cols-4 h-16">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border/80 bg-background/90 shadow-panel backdrop-blur-xl supports-[backdrop-filter]:bg-background/80 md:hidden">
+      <div className="grid h-16 grid-cols-4">
         {navItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.path);
@@ -37,12 +37,12 @@ export function MobileBottomNav() {
                 "active:scale-95 active:opacity-70 transition-transform duration-100",
                 active
                   ? "text-primary"
-                  : "text-muted-foreground"
+                  : "text-muted-foreground hover:text-foreground"
               )}
               style={{ minHeight: "44px", minWidth: "44px" }}
             >
               <Icon className="h-5 w-5" />
-              <span className="text-[10px] font-medium">{item.label}</span>
+              <span className="text-[10px] font-semibold">{item.label}</span>
             </Link>
           );
         })}

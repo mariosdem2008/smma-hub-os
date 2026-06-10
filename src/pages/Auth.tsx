@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
+
+import { AuthShell } from "@/components/auth/AuthShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
 export default function Auth() {
@@ -20,7 +21,7 @@ export default function Auth() {
   });
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
@@ -31,12 +32,11 @@ export default function Auth() {
 
     if (error) {
       toast({
-        title: "Error",
+        title: "Sign in failed",
         description: error.message,
         variant: "destructive",
       });
     } else {
-      // Check for redirect URL
       const redirectUrl = sessionStorage.getItem("redirectUrl") || "/bootstrap";
       sessionStorage.removeItem("redirectUrl");
       navigate(redirectUrl);
@@ -45,13 +45,13 @@ export default function Auth() {
     setLoading(false);
   };
 
-  const handleSignup = async (e: React.FormEvent) => {
+  const handleSignup = async (e: FormEvent) => {
     e.preventDefault();
 
     if (formData.password !== formData.confirmPassword) {
       toast({
-        title: "Error",
-        description: "Passwords do not match",
+        title: "Passwords do not match",
+        description: "Enter the same password in both fields.",
         variant: "destructive",
       });
       return;
@@ -59,7 +59,7 @@ export default function Auth() {
 
     setLoading(true);
 
-    const { data, error } = await supabase.auth.signUp({
+    const { error } = await supabase.auth.signUp({
       email: formData.email,
       password: formData.password,
       options: {
@@ -68,153 +68,131 @@ export default function Auth() {
       },
     });
 
-    console.log("SIGNUP data:", data);
-    console.log("SIGNUP error:", error);
-
-
     if (error) {
       toast({
-        title: "Error",
+        title: "Account creation failed",
         description: error.message,
         variant: "destructive",
       });
     } else {
       toast({
-        title: "Success",
-        description: "Check your email to confirm your account",
+        title: "Confirm your email",
+        description: "We sent a confirmation link to your inbox.",
       });
-      // Don't navigate - let user check email
     }
 
     setLoading(false);
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1 text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary">
-            <span className="text-xl font-bold text-primary-foreground">S</span>
+    <AuthShell
+      eyebrow={isLogin ? "Agency sign in" : "Create workspace"}
+      title={isLogin ? "Return to your operating system." : "Set up your agency control layer."}
+      description={
+        isLogin
+          ? "Access client context, approvals, AI setup, and delivery state from one governed workspace."
+          : "Create the workspace your team will use to run governed AI across every client account."
+      }
+    >
+      {isLogin ? (
+        <form onSubmit={handleLogin} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="owner@agency.com"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              required
+              disabled={loading}
+              autoComplete="email"
+            />
           </div>
-          <CardTitle className="text-2xl">{isLogin ? "Log in to SMMA Hub" : "Create an account"}</CardTitle>
-          <CardDescription>
-            {isLogin ? "Enter your credentials to access your account" : "Get started with your social media agency"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isLogin ? (
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="name@example.com"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  required
-                  disabled={loading}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  required
-                  disabled={loading}
-                />
-              </div>
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Logging in..." : "Login"}
-              </Button>
-              <Button
-                type="button"
-                variant="link"
-                className="w-full"
-                onClick={() => navigate("/forgot-password")}
-                disabled={loading}
-              >
-                Forgot password?
-              </Button>
-              <Separator />
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                onClick={() => setIsLogin(false)}
-                disabled={loading}
-              >
-                Create an account
-              </Button>
-            </form>
-          ) : (
-            <form onSubmit={handleSignup} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="fullName">Full Name</Label>
-                <Input
-                  id="fullName"
-                  type="text"
-                  placeholder="John Doe"
-                  value={formData.fullName}
-                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                  required
-                  disabled={loading}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="signupEmail">Email</Label>
-                <Input
-                  id="signupEmail"
-                  type="email"
-                  placeholder="name@example.com"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  required
-                  disabled={loading}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="signupPassword">Password</Label>
-                <Input
-                  id="signupPassword"
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  required
-                  disabled={loading}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  value={formData.confirmPassword}
-                  onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                  required
-                  disabled={loading}
-                />
-              </div>
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Creating account..." : "Create Account"}
-              </Button>
-              <Separator />
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                onClick={() => setIsLogin(true)}
-                disabled={loading}
-              >
-                Already have an account? Log in
-              </Button>
-            </form>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+          <div className="space-y-2">
+            <Label htmlFor="password">Password</Label>
+            <Input
+              id="password"
+              type="password"
+              value={formData.password}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              required
+              disabled={loading}
+              autoComplete="current-password"
+            />
+          </div>
+          <Button type="submit" className="w-full" loading={loading}>
+            Sign in
+          </Button>
+          <Button type="button" variant="link" className="w-full" onClick={() => navigate("/forgot-password")} disabled={loading}>
+            Forgot password?
+          </Button>
+          <Separator />
+          <Button type="button" variant="outline" className="w-full" onClick={() => setIsLogin(false)} disabled={loading}>
+            Create an account
+          </Button>
+        </form>
+      ) : (
+        <form onSubmit={handleSignup} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="fullName">Full name</Label>
+            <Input
+              id="fullName"
+              type="text"
+              placeholder="Maya Chen"
+              value={formData.fullName}
+              onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+              required
+              disabled={loading}
+              autoComplete="name"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="signupEmail">Email</Label>
+            <Input
+              id="signupEmail"
+              type="email"
+              placeholder="owner@agency.com"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              required
+              disabled={loading}
+              autoComplete="email"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="signupPassword">Password</Label>
+            <Input
+              id="signupPassword"
+              type="password"
+              value={formData.password}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              required
+              disabled={loading}
+              autoComplete="new-password"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="confirmPassword">Confirm password</Label>
+            <Input
+              id="confirmPassword"
+              type="password"
+              value={formData.confirmPassword}
+              onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+              required
+              disabled={loading}
+              autoComplete="new-password"
+            />
+          </div>
+          <Button type="submit" className="w-full" loading={loading}>
+            Create account
+          </Button>
+          <Separator />
+          <Button type="button" variant="outline" className="w-full" onClick={() => setIsLogin(true)} disabled={loading}>
+            Already have an account? Sign in
+          </Button>
+        </form>
+      )}
+    </AuthShell>
   );
 }

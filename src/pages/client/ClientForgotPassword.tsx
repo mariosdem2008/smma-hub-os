@@ -1,17 +1,18 @@
-import { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useEffect, useState, type FormEvent } from "react";
+import { Link, useParams } from "react-router-dom";
+import { Loader2, Mail } from "lucide-react";
+
+import { AuthShell } from "@/components/auth/AuthShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card } from "@/components/ui/card";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function ClientForgotPassword() {
   const { portalSlug } = useParams();
   const { toast } = useToast();
-  
+
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
@@ -27,8 +28,8 @@ export default function ClientForgotPassword() {
         setResolvingPortal(false);
         return;
       }
-      
-      const { data, error } = await supabase
+
+      const { data } = await supabase
         .from("portal_public_clients")
         .select("id, name")
         .eq("portal_slug", portalSlug)
@@ -40,9 +41,6 @@ export default function ClientForgotPassword() {
         setClientName(data.name);
         setPortalError(null);
       } else {
-        if (error) {
-          console.error("[client-forgot-password] portal slug lookup failed", error);
-        }
         setPortalError("Client portal not found");
       }
       setResolvingPortal(false);
@@ -51,13 +49,13 @@ export default function ClientForgotPassword() {
     fetchClient();
   }, [portalSlug]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    
+
     if (!clientId) {
       toast({
-        title: "Error",
-        description: "Client portal not found",
+        title: "Client portal not found",
+        description: "Use the portal link from your agency invite.",
         variant: "destructive",
       });
       return;
@@ -66,17 +64,14 @@ export default function ClientForgotPassword() {
     setLoading(true);
 
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/client-auth-forgot-password`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "apikey": import.meta.env.VITE_SUPABASE_ANON_KEY,
-          },
-          body: JSON.stringify({ email, client_id: clientId }),
-        }
-      );
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/client-auth-forgot-password`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({ email, client_id: clientId }),
+      });
 
       if (!response.ok) {
         throw new Error("Failed to send reset email");
@@ -84,13 +79,13 @@ export default function ClientForgotPassword() {
 
       setSent(true);
       toast({
-        title: "Email Sent",
-        description: "If an account exists, you will receive a password reset email",
+        title: "Reset email sent",
+        description: "If an account exists, a reset link will arrive shortly.",
       });
-    } catch (error) {
+    } catch {
       toast({
-        title: "Error",
-        description: "Failed to send reset email. Please try again.",
+        title: "Reset email failed",
+        description: "Please try again or contact your agency.",
         variant: "destructive",
       });
     } finally {
@@ -100,82 +95,79 @@ export default function ClientForgotPassword() {
 
   if (resolvingPortal) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
+      <AuthShell mode="client" eyebrow="Client portal" title="Checking portal access." description="This takes a moment.">
+        <div className="flex items-center gap-3 rounded-lg border border-border/80 bg-muted/40 p-4 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin text-primary" />
+          Resolving portal
+        </div>
+      </AuthShell>
     );
   }
 
   if (portalError || !clientId) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <Card className="w-full max-w-md p-8 text-center">
-          <h1 className="text-2xl font-bold mb-4">{portalError ?? "Client portal not found"}</h1>
-          <p className="text-muted-foreground mb-6">Please use your agency invite link or contact your agency.</p>
-          {portalSlug ? (
-            <Link to={`/client/login/${portalSlug}`}>
-              <Button variant="outline" className="w-full">Back to Login</Button>
-            </Link>
-          ) : null}
-        </Card>
-      </div>
+      <AuthShell
+        mode="client"
+        eyebrow="Client portal"
+        title={portalError ?? "Client portal not found"}
+        description="Please use your agency invite link or contact your agency."
+      >
+        {portalSlug ? (
+          <Button asChild variant="outline" className="w-full">
+            <Link to={`/client/login/${portalSlug}`}>Back to sign in</Link>
+          </Button>
+        ) : null}
+      </AuthShell>
     );
   }
 
   if (sent) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <Card className="w-full max-w-md p-8 text-center">
-          <h1 className="text-2xl font-bold mb-4">Check Your Email</h1>
-          <p className="text-muted-foreground mb-6">
-            If an account exists with {email}, you will receive a password reset link shortly.
-          </p>
-          <Link to={`/client/login/${portalSlug}`}>
-            <Button variant="outline" className="w-full">
-              Back to Login
-            </Button>
-          </Link>
-        </Card>
-      </div>
+      <AuthShell
+        mode="client"
+        eyebrow="Password reset"
+        title="Check your email."
+        description={`If an account exists with ${email}, a reset link will arrive shortly.`}
+      >
+        <Button asChild variant="outline" className="w-full">
+          <Link to={`/client/login/${portalSlug}`}>Back to sign in</Link>
+        </Button>
+      </AuthShell>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md p-8">
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold mb-2">Reset Password</h1>
-          <p className="text-muted-foreground">{clientName}</p>
+    <AuthShell
+      mode="client"
+      eyebrow="Password reset"
+      title="Recover client portal access."
+      description={clientName ? `Portal: ${clientName}` : "Enter your email to receive a secure reset link."}
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="client@company.com"
+            required
+            autoComplete="email"
+          />
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="your@email.com"
-              required
-            />
-          </div>
+        <Button type="submit" className="w-full" loading={loading}>
+          <Mail className="h-4 w-4" />
+          Send reset link
+        </Button>
 
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Send Reset Link
-          </Button>
-
-          <div className="text-center text-sm">
-            <Link
-              to={`/client/login/${portalSlug}`}
-              className="text-primary hover:underline"
-            >
-              Back to Login
-            </Link>
-          </div>
-        </form>
-      </Card>
-    </div>
+        <div className="text-center text-sm">
+          <Link to={`/client/login/${portalSlug}`} className="text-primary hover:text-primary-hover hover:underline">
+            Back to sign in
+          </Link>
+        </div>
+      </form>
+    </AuthShell>
   );
 }

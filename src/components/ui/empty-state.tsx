@@ -13,25 +13,21 @@ interface EmptyStateProps {
   className?: string;
 }
 
-const iconBackgrounds = [
-  "bg-gradient-orange",
-  "bg-gradient-teal",
-  "bg-gradient-purple",
-  "bg-gradient-green",
-];
-
 export function EmptyState({ icon: Icon, title, description, action, className }: EmptyStateProps) {
-  const randomBg = iconBackgrounds[Math.floor(Math.random() * iconBackgrounds.length)];
-  
   return (
-    <div className={cn("flex flex-col items-center justify-center py-12 px-4 text-center", className)}>
-      <div className={cn("rounded-full p-6 mb-6", randomBg)}>
-        <Icon className="h-12 w-12 text-white" />
+    <div
+      className={cn(
+        "flex flex-col items-center justify-center rounded-lg border border-dashed border-border/80 bg-muted/30 px-4 py-12 text-center",
+        className,
+      )}
+    >
+      <div className="mb-5 rounded-lg border border-primary/20 bg-primary/10 p-4 text-primary">
+        <Icon className="h-8 w-8" />
       </div>
-      <h3 className="text-xl font-bold mb-2">{title}</h3>
-      <p className="text-muted-foreground max-w-md mb-6">{description}</p>
+      <h3 className="mb-2 font-display text-xl font-semibold text-foreground">{title}</h3>
+      <p className="mb-6 max-w-md text-sm leading-6 text-muted-foreground">{description}</p>
       {action && (
-        <Button onClick={action.onClick}>
+        <Button onClick={action.onClick} size="sm">
           {action.label}
         </Button>
       )}

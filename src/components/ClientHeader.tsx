@@ -191,8 +191,7 @@ export default function ClientHeader({
       if (onClientUpdate) {
         onClientUpdate();
       }
-    } catch (error) {
-      console.error("Logo upload error:", error);
+    } catch {
       toast({
         title: "Error",
         description: "Failed to upload logo",
@@ -238,8 +237,7 @@ export default function ClientHeader({
       if (onClientUpdate) {
         onClientUpdate();
       }
-    } catch (error) {
-      console.error("Update client error:", error);
+    } catch {
       toast({
         title: "Error",
         description: "Failed to update client details",
@@ -267,7 +265,6 @@ export default function ClientHeader({
       setShowDeleteDialog(false);
       navigate("/clients");
     } catch (error: any) {
-      console.error("Delete client error:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to delete client",
@@ -293,8 +290,8 @@ export default function ClientHeader({
           />
           <Avatar
             className={cn(
-              "h-10 w-10 ring-2 ring-primary/20",
-              canManageClient && "cursor-pointer hover:ring-4 hover:ring-primary/40 transition-all",
+              "h-10 w-10 ring-1 ring-border",
+              canManageClient && "cursor-pointer transition-all hover:ring-2 hover:ring-primary/30",
             )}
             onClick={() => {
               if (canManageClient) {
@@ -303,13 +300,13 @@ export default function ClientHeader({
             }}
           >
             <AvatarImage src={currentLogoUrl || undefined} alt={name} />
-            <AvatarFallback className="text-sm font-semibold bg-gradient-to-r from-primary to-accent text-white">
+            <AvatarFallback className="bg-primary/10 text-sm font-semibold text-primary">
               {getInitials(name)}
             </AvatarFallback>
           </Avatar>
           {uploadingLogo && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full">
-              <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+            <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-background/70">
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
             </div>
           )}
         </div>
@@ -323,7 +320,7 @@ export default function ClientHeader({
 
   return (
     <>
-      <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6 rounded-xl border bg-card p-4 sm:p-6 shadow-lg shadow-black/40 hover:shadow-xl hover:shadow-black/50 transition-all duration-200">
+      <div className="flex flex-col items-start gap-4 rounded-xl border border-border/80 bg-card p-4 shadow-card sm:flex-row sm:gap-6 sm:p-6">
         <div className="relative">
           <input
             type="file"
@@ -335,8 +332,8 @@ export default function ClientHeader({
           />
           <Avatar
             className={cn(
-              "h-16 w-16 sm:h-20 sm:w-20 ring-2 ring-primary/20",
-              canManageClient && "cursor-pointer hover:ring-4 hover:ring-primary/40 transition-all",
+              "h-16 w-16 ring-1 ring-border sm:h-20 sm:w-20",
+              canManageClient && "cursor-pointer transition-all hover:ring-2 hover:ring-primary/30",
             )}
             onClick={() => {
               if (canManageClient) {
@@ -345,13 +342,13 @@ export default function ClientHeader({
             }}
           >
             <AvatarImage src={currentLogoUrl || undefined} alt={name} />
-            <AvatarFallback className="text-xl sm:text-2xl font-semibold bg-gradient-to-r from-primary to-accent text-white">
+            <AvatarFallback className="bg-primary/10 text-xl font-semibold text-primary sm:text-2xl">
               {getInitials(name)}
             </AvatarFallback>
           </Avatar>
           {uploadingLogo && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full">
-              <div className="h-6 w-6 animate-spin rounded-full border-2 border-white border-t-transparent" />
+            <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-background/70">
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
             </div>
           )}
         </div>
@@ -360,7 +357,7 @@ export default function ClientHeader({
           <div className="flex flex-col gap-3">
             <div className="flex flex-col sm:flex-row sm:items-center gap-2">
               <div className="flex items-center gap-3">
-                <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                <h1 className="font-display text-2xl font-bold text-foreground sm:text-3xl">
                   {name}
                 </h1>
                 <TooltipProvider>
@@ -397,7 +394,7 @@ export default function ClientHeader({
                       onClick={() => setShowAssetDialog(true)}
                       className="h-8 gap-2 flex-1 sm:flex-none transition-all duration-200"
                     >
-                      <Upload className="h-4 w-4 icon-hover" />
+                        <Upload className="h-4 w-4" />
                       <span className="sm:inline">Upload</span>
                     </Button>
                   )}
@@ -429,7 +426,7 @@ export default function ClientHeader({
                 href={website}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1 text-xs sm:text-sm text-primary hover:text-accent transition-colors"
+                className="flex items-center gap-1 text-xs text-primary transition-colors hover:text-primary-hover sm:text-sm"
               >
                 <span className="truncate max-w-[150px] sm:max-w-none">{website.replace(/^https?:\/\//, "")}</span>
                 <ExternalLink className="h-3 w-3 flex-shrink-0" />
@@ -438,7 +435,7 @@ export default function ClientHeader({
 
             {primaryColor && (
               <Badge variant="outline" className="flex items-center gap-1.5 sm:gap-2 border-primary/20">
-                <div className="h-3 w-3 rounded-full ring-1 ring-white/20" style={{ backgroundColor: primaryColor }} />
+                <div className="h-3 w-3 rounded-sm ring-1 ring-border" style={{ backgroundColor: primaryColor }} />
                 <span className="text-xs font-mono hidden sm:inline">{primaryColor}</span>
               </Badge>
             )}
@@ -543,7 +540,7 @@ export default function ClientHeader({
             <Button onClick={handleSaveChanges} disabled={savingChanges || !editForm.name.trim()}>
               {savingChanges ? (
                 <>
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent mr-2" />
+                  <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
                   Saving...
                 </>
               ) : (

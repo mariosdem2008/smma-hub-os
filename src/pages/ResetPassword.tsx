@@ -1,12 +1,13 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState, type FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
+import { Lock, Loader2 } from "lucide-react";
+
+import { AuthShell } from "@/components/auth/AuthShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Lock } from "lucide-react";
 
 export default function ResetPassword() {
   const { toast } = useToast();
@@ -18,17 +19,18 @@ export default function ResetPassword() {
   const [tokenValid, setTokenValid] = useState(false);
 
   useEffect(() => {
-    // Check if we have a valid session (user clicked reset link)
     const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
       if (session) {
         setTokenValid(true);
       } else {
         setTokenValid(false);
         toast({
-          title: "Invalid Reset Link",
-          description: "This reset link is invalid or has expired.",
+          title: "Reset link expired",
+          description: "Request a new password reset link to continue.",
           variant: "destructive",
         });
       }
@@ -38,13 +40,13 @@ export default function ResetPassword() {
     checkSession();
   }, [toast]);
 
-  const handleReset = async (e: React.FormEvent) => {
+  const handleReset = async (e: FormEvent) => {
     e.preventDefault();
 
     if (password !== confirmPassword) {
       toast({
-        title: "Error",
-        description: "Passwords do not match",
+        title: "Passwords do not match",
+        description: "Enter the same password in both fields.",
         variant: "destructive",
       });
       return;
@@ -52,8 +54,8 @@ export default function ResetPassword() {
 
     if (password.length < 6) {
       toast({
-        title: "Error",
-        description: "Password must be at least 6 characters",
+        title: "Password is too short",
+        description: "Use at least 6 characters.",
         variant: "destructive",
       });
       return;
@@ -63,24 +65,23 @@ export default function ResetPassword() {
 
     try {
       const { error } = await supabase.auth.updateUser({
-        password: password,
+        password,
       });
 
       if (error) throw error;
 
       toast({
-        title: "Success",
-        description: "Your password has been reset successfully",
+        title: "Password reset",
+        description: "Your workspace password has been updated.",
       });
 
-      // Redirect to dashboard after successful reset
       setTimeout(() => {
         navigate("/dashboard");
       }, 1000);
     } catch (error: any) {
       toast({
-        title: "Error",
-        description: error.message || "Failed to reset password",
+        title: "Password reset failed",
+        description: error.message || "We could not update your password.",
         variant: "destructive",
       });
     } finally {
@@ -90,85 +91,69 @@ export default function ResetPassword() {
 
   if (validating) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="animate-pulse">Validating reset link...</div>
-      </div>
+      <AuthShell eyebrow="Password reset" title="Checking your reset link." description="This takes a moment.">
+        <div className="flex items-center gap-3 rounded-lg border border-border/80 bg-muted/40 p-4 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin text-primary" />
+          Validating secure session
+        </div>
+      </AuthShell>
     );
   }
 
   if (!tokenValid) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="space-y-1 text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-destructive">
-              <Lock className="h-6 w-6 text-destructive-foreground" />
-            </div>
-            <CardTitle className="text-2xl">Invalid Reset Link</CardTitle>
-            <CardDescription>
-              This password reset link is invalid or has expired
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button
-              type="button"
-              className="w-full"
-              onClick={() => navigate("/forgot-password")}
-            >
-              Request new reset link
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+      <AuthShell
+        eyebrow="Password reset"
+        title="This reset link is no longer valid."
+        description="Request a fresh link and return here from your email."
+      >
+        <Button type="button" className="w-full" onClick={() => navigate("/forgot-password")}>
+          Request new reset link
+        </Button>
+      </AuthShell>
     );
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1 text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary">
-            <Lock className="h-6 w-6 text-primary-foreground" />
-          </div>
-          <CardTitle className="text-2xl">Set new password</CardTitle>
-          <CardDescription>
-            Enter your new password below
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleReset} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="password">New Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Enter new password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                disabled={loading}
-                minLength={6}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm New Password</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                placeholder="Confirm new password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-                disabled={loading}
-                minLength={6}
-              />
-            </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Resetting..." : "Reset password"}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+    <AuthShell
+      eyebrow="Password reset"
+      title="Set a new password."
+      description="Choose a password that protects agency and client work."
+    >
+      <form onSubmit={handleReset} className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="password">New password</Label>
+          <Input
+            id="password"
+            type="password"
+            placeholder="Enter new password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            disabled={loading}
+            minLength={6}
+            autoComplete="new-password"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="confirmPassword">Confirm new password</Label>
+          <Input
+            id="confirmPassword"
+            type="password"
+            placeholder="Confirm new password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            required
+            disabled={loading}
+            minLength={6}
+            autoComplete="new-password"
+          />
+        </div>
+        <Button type="submit" className="w-full" loading={loading}>
+          <Lock className="h-4 w-4" />
+          Reset password
+        </Button>
+      </form>
+    </AuthShell>
   );
 }

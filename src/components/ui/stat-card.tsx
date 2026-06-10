@@ -13,26 +13,26 @@ interface StatCardProps {
 }
 
 const variantStyles = {
-  default: "from-[hsl(172,72%,44%)] to-[hsl(196,92%,58%)]",
-  orange: "from-[hsl(25,95%,60%)] to-[hsl(35,95%,65%)]",
-  teal: "from-[hsl(180,85%,55%)] to-[hsl(190,85%,60%)]",
-  purple: "from-[hsl(172,72%,44%)] to-[hsl(196,92%,58%)]",
-  green: "from-[hsl(150,70%,55%)] to-[hsl(160,70%,60%)]",
+  default: "border-primary/20 bg-primary/10 text-primary",
+  orange: "border-warning/20 bg-warning/10 text-warning",
+  teal: "border-accent/20 bg-accent/10 text-accent",
+  purple: "border-primary/20 bg-primary/10 text-primary",
+  green: "border-success/20 bg-success/10 text-success",
 };
 
 export function StatCard({ title, value, icon: Icon, description, variant = "default", className }: StatCardProps) {
   const isMobile = useIsMobile();
 
   return (
-    <Card className={cn("py-4 md:py-6 hover:shadow-lg transition-all duration-200", className)}>
+    <Card className={cn("py-4 transition-colors duration-200 md:py-6", className)}>
       <div className="flex items-start justify-between">
         <div className="space-y-1 md:space-y-2 flex-1">
           <p className="text-xs md:text-sm text-muted-foreground font-medium">{title}</p>
-          <p className="text-2xl md:text-3xl font-bold">{value}</p>
+          <p className="metric-number text-2xl font-bold md:text-3xl">{value}</p>
           {description && <p className="text-xs text-muted-foreground">{description}</p>}
         </div>
-        <div className={cn("rounded-lg md:rounded-xl p-2 md:p-3 bg-gradient-to-br shadow-lg", variantStyles[variant])}>
-          <Icon className={isMobile ? "h-5 w-5 text-white" : "h-6 w-6 text-white"} />
+        <div className={cn("rounded-lg border p-2 md:p-3", variantStyles[variant])}>
+          <Icon className={isMobile ? "h-5 w-5" : "h-6 w-6"} />
         </div>
       </div>
     </Card>
