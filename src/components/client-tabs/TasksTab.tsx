@@ -134,7 +134,6 @@ export default function TasksTab({ clientId, agencyId }: TasksTabProps) {
 
       setTeamMembers(combinedData);
     } catch (error) {
-      console.error("Error fetching team members:", error);
       toast({
         title: "Error",
         description: "Failed to fetch team members",

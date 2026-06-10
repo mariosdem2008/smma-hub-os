@@ -1,8 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { StatCard } from "@/components/ui/stat-card";
 import { 
   ArrowLeft, 
   Download, 
@@ -18,6 +16,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import type { ClientReport } from "@/hooks/useClientReports";
+import { PremiumInlineEmpty, PremiumLoading, PremiumStatCard } from "@/components/shared/PremiumPage";
 
 export default function ReportDetail() {
   const { clientId, reportId } = useParams();
@@ -43,17 +42,7 @@ export default function ReportDetail() {
   };
 
   if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <Skeleton className="h-12 w-64" />
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Skeleton className="h-32" />
-          <Skeleton className="h-32" />
-          <Skeleton className="h-32" />
-          <Skeleton className="h-32" />
-        </div>
-      </div>
-    );
+    return <PremiumLoading rows={4} />;
   }
 
   if (!report) {
@@ -63,11 +52,11 @@ export default function ReportDetail() {
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Reports
         </Button>
-        <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">Report not found</p>
-          </CardContent>
-        </Card>
+        <PremiumInlineEmpty
+          icon={FileText}
+          title="Report not found"
+          description="This report may have been removed or is no longer available."
+        />
       </div>
     );
   }
@@ -100,33 +89,33 @@ export default function ReportDetail() {
 
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <StatCard
-          title="Follower Growth"
+        <PremiumStatCard
+          label="Follower Growth"
           value={`${kpis.followersGrowth > 0 ? '+' : ''}${kpis.followersGrowth}%`}
           icon={Users}
-          description={`${kpis.followersStart.toLocaleString()} → ${kpis.followersEnd.toLocaleString()}`}
-          variant={kpis.followersGrowth >= 0 ? "green" : "default"}
+          detail={`${kpis.followersStart.toLocaleString()} to ${kpis.followersEnd.toLocaleString()}`}
+          tone={kpis.followersGrowth >= 0 ? "success" : "destructive"}
         />
-        <StatCard
-          title="Total Impressions"
+        <PremiumStatCard
+          label="Total Impressions"
           value={kpis.totalImpressions.toLocaleString()}
           icon={Eye}
-          description={`${kpis.postsCount} posts published`}
-          variant="teal"
+          detail={`${kpis.postsCount} posts published`}
+          tone="primary"
         />
-        <StatCard
-          title="Engagement Rate"
+        <PremiumStatCard
+          label="Engagement Rate"
           value={`${kpis.avgEngagementRate}%`}
           icon={Heart}
-          description={`${kpis.totalEngagement.toLocaleString()} total engagements`}
-          variant="orange"
+          detail={`${kpis.totalEngagement.toLocaleString()} total engagements`}
+          tone="warning"
         />
-        <StatCard
-          title="Profile Visits"
+        <PremiumStatCard
+          label="Profile Visits"
           value={kpis.profileVisits.toLocaleString()}
           icon={TrendingUp}
-          description="Total profile views"
-          variant="purple"
+          detail="Total profile views"
+          tone="accent"
         />
       </div>
 
@@ -135,7 +124,7 @@ export default function ReportDetail() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Lightbulb className="h-5 w-5 text-yellow-500" />
+              <Lightbulb className="h-5 w-5 text-primary" />
               Key Insights
             </CardTitle>
           </CardHeader>
@@ -152,7 +141,7 @@ export default function ReportDetail() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Target className="h-5 w-5 text-blue-500" />
+              <Target className="h-5 w-5 text-primary" />
               Strategic Recommendations
             </CardTitle>
           </CardHeader>
@@ -202,7 +191,7 @@ export default function ReportDetail() {
                     </div>
                     <div>
                       <p className="text-muted-foreground">Rate</p>
-                      <p className="font-semibold text-green-600">{post.engagementRate}%</p>
+                      <p className="font-semibold text-success">{post.engagementRate}%</p>
                     </div>
                   </div>
                 </div>

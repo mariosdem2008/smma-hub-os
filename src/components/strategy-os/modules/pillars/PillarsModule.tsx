@@ -157,10 +157,10 @@ export function PillarsModule() {
   });
 
   const purposeColors: Record<PillarPurpose, string> = {
-    reach: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+    reach: 'bg-primary/10 text-primary border-primary/30',
     authority: 'bg-primary/15 text-primary border-primary/30',
-    leads: 'bg-green-500/20 text-green-400 border-green-500/30',
-    proof: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+    leads: 'bg-success/10 text-success border-success/30',
+    proof: 'bg-warning/10 text-warning border-warning/30',
   };
 
   return (
@@ -190,7 +190,7 @@ export function PillarsModule() {
             <span
               className={cn(
                 'text-sm font-medium',
-                totalCoverage === 100 ? 'text-green-400' : 'text-orange-400'
+                totalCoverage === 100 ? 'text-success' : 'text-warning'
               )}
             >
               {totalCoverage}%
@@ -254,7 +254,7 @@ export function PillarsModule() {
                       <TableCell>
                         <span className={cn(
                           "text-sm tabular-nums",
-                          (pillar.examples ?? []).length >= 3 ? "text-muted-foreground" : "text-orange-400"
+                          (pillar.examples ?? []).length >= 3 ? "text-muted-foreground" : "text-warning"
                         )}>
                           {(pillar.examples ?? []).length}
                         </span>

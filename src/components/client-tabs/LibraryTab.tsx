@@ -93,7 +93,6 @@ export default function LibraryTab({ clientId, agencyId }: LibraryTabProps) {
       .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("Error fetching library assets:", error);
       toast({
         title: "Error",
         description: "Failed to fetch library",
@@ -195,7 +194,6 @@ export default function LibraryTab({ clientId, agencyId }: LibraryTabProps) {
       setShowUploadDialog(false);
       setUploadFolder("");
     } catch (error) {
-      console.error("Upload error:", error);
       toast({
         title: "Error",
         description: "Failed to upload files",
@@ -238,7 +236,6 @@ export default function LibraryTab({ clientId, agencyId }: LibraryTabProps) {
         description: "Asset deleted successfully",
       });
     } catch (error: any) {
-      console.error("Delete error:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to delete asset",
@@ -271,9 +268,9 @@ export default function LibraryTab({ clientId, agencyId }: LibraryTabProps) {
   const getFileIcon = (fileType: string | null) => {
     if (!fileType) return <File className="h-12 w-12 text-muted-foreground" />;
     
-    if (fileType.startsWith("image/")) return <ImageIcon className="h-12 w-12 text-blue-500" />;
+    if (fileType.startsWith("image/")) return <ImageIcon className="h-12 w-12 text-primary" />;
     if (fileType.startsWith("video/")) return <Video className="h-12 w-12 text-primary" />;
-    return <FileText className="h-12 w-12 text-orange-500" />;
+    return <FileText className="h-12 w-12 text-warning" />;
   };
 
   const filteredAssets = selectedFolder 

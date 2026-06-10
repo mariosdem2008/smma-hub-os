@@ -33,14 +33,14 @@ export function ModuleWorkspace({ module }: ModuleWorkspaceProps) {
   const isEmpty = !moduleData || moduleData.status === 'empty';
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="flex h-full flex-col bg-card/40">
       <ModuleHeader module={module} moduleData={moduleData} />
 
       <div className="px-4 pt-4">
         <StrategyDocPreview view={module} />
       </div>
 
-      <div className="flex-1">
+      <div className="flex-1 px-0 pb-4">
         {isEmpty ? (
           <EmptyModuleState module={module} />
         ) : (

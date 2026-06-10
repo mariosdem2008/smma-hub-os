@@ -19,9 +19,9 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useRole } from "@/hooks/useRole";
-import { 
-  Lightbulb, 
-  Plus, 
+import {
+  Lightbulb,
+  Plus,
   Trash2,
   Maximize2
 } from "lucide-react";
@@ -48,10 +48,10 @@ interface Idea {
 type IdeaStatus = "draft" | "in_review" | "approved" | "rejected";
 
 const STATUS_COLUMNS: { id: IdeaStatus; label: string; color: string }[] = [
-  { id: "draft", label: "Draft", color: "bg-slate-100 dark:bg-slate-900" },
-  { id: "in_review", label: "In Review", color: "bg-yellow-100 dark:bg-yellow-900" },
-  { id: "approved", label: "Approved", color: "bg-green-100 dark:bg-green-900" },
-  { id: "rejected", label: "Rejected", color: "bg-red-100 dark:bg-red-900" },
+  { id: "draft", label: "Draft", color: "bg-muted/50" },
+  { id: "in_review", label: "In Review", color: "bg-warning/10" },
+  { id: "approved", label: "Approved", color: "bg-success/10" },
+  { id: "rejected", label: "Rejected", color: "bg-destructive/10" },
 ];
 
 export default function IdeasBoard({ clientId }: IdeasTabProps) {
@@ -105,7 +105,6 @@ export default function IdeasBoard({ clientId }: IdeasTabProps) {
       .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("Error fetching ideas:", error);
       toast({
         title: "Error",
         description: "Failed to fetch ideas",
@@ -158,7 +157,7 @@ export default function IdeasBoard({ clientId }: IdeasTabProps) {
 
   const updateIdeaStatus = async (ideaId: string, newStatus: IdeaStatus, sendNotification = false) => {
     const idea = ideas.find(i => i.id === ideaId);
-    
+
     const { error } = await supabase
       .from("ideas")
       .update({ status: newStatus })
@@ -233,7 +232,7 @@ export default function IdeasBoard({ clientId }: IdeasTabProps) {
     }
 
     const canApprove = role === 'owner' || role === 'admin' || role === 'manager';
-    
+
     // Creators can only submit (draft → in_review)
     if (!canApprove) {
       if (!(fromStatus === 'draft' && toStatus === 'in_review')) {
@@ -245,7 +244,7 @@ export default function IdeasBoard({ clientId }: IdeasTabProps) {
         return;
       }
     }
-    
+
     // For approve/reject actions, use modal for comment collection
     if (toStatus === 'approved' || toStatus === 'rejected') {
       setReviewIdeaId(draggableId);
@@ -271,12 +270,12 @@ export default function IdeasBoard({ clientId }: IdeasTabProps) {
 
   const handleReviewSubmit = async (comment: string) => {
     const newStatus = reviewAction === 'approve' ? 'approved' : 'rejected';
-    
+
     const { data: { user } } = await supabase.auth.getUser();
-    
+
     const { error } = await supabase
       .from('ideas')
-      .update({ 
+      .update({
         status: newStatus,
         review_comment: comment || null,
         reviewed_by: user?.id,
@@ -290,7 +289,6 @@ export default function IdeasBoard({ clientId }: IdeasTabProps) {
         description: `Failed to ${reviewAction} idea`,
         variant: "destructive",
       });
-      console.error(error);
       return;
     }
 
@@ -448,8 +446,8 @@ export default function IdeasBoard({ clientId }: IdeasTabProps) {
                     ref={provided.innerRef}
                     {...provided.droppableProps}
                     className={`flex-1 p-2 rounded-lg border-2 border-dashed min-h-[200px] ${
-                      snapshot.isDraggingOver 
-                        ? "bg-primary/10 border-primary" 
+                      snapshot.isDraggingOver
+                        ? "bg-primary/10 border-primary"
                         : "border-border/50"
                     }`}
                   >
@@ -511,9 +509,9 @@ export default function IdeasBoard({ clientId }: IdeasTabProps) {
 
                                 {idea.review_comment && (
                                   <div className={`text-xs p-2 rounded border ${
-                                    idea.status === 'approved' 
-                                      ? 'bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800' 
-                                      : 'bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800'
+                                    idea.status === 'approved'
+                                      ? 'border-success/25 bg-success/10'
+                                      : 'border-destructive/25 bg-destructive/10'
                                   }`}>
                                     <p className="font-medium">
                                       {idea.status === 'approved' ? 'Approval Note:' : 'Rejection Reason:'}
@@ -536,7 +534,7 @@ export default function IdeasBoard({ clientId }: IdeasTabProps) {
                                       <Button
                                         size="sm"
                                         onClick={() => openReviewModal(idea.id, idea.title, 'approve')}
-                                        className="bg-green-600 hover:bg-green-700"
+                                        className="bg-primary text-primary-foreground hover:bg-primary-hover"
                                       >
                                         Approve
                                       </Button>

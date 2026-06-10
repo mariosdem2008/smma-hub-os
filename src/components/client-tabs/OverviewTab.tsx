@@ -366,11 +366,11 @@ export default function OverviewTab({ clientId, client, onNotesUpdate }: Overvie
                       <p className="text-2xl font-bold">{analytics.totalImpressions.toLocaleString()}</p>
                       <div className="flex items-center gap-1 text-xs">
                         {analytics.impressionsGrowth > 0 ? (
-                          <TrendingUp className="h-3 w-3 text-green-500" />
+                          <TrendingUp className="h-3 w-3 text-success" />
                         ) : (
-                          <TrendingDown className="h-3 w-3 text-red-500" />
+                          <TrendingDown className="h-3 w-3 text-destructive" />
                         )}
-                        <span className={analytics.impressionsGrowth > 0 ? "text-green-500" : "text-red-500"}>
+                        <span className={analytics.impressionsGrowth > 0 ? "text-success" : "text-destructive"}>
                           {Math.abs(analytics.impressionsGrowth)}% vs prev 30d
                         </span>
                       </div>
@@ -408,19 +408,19 @@ export default function OverviewTab({ clientId, client, onNotesUpdate }: Overvie
 
                 <div className="flex items-center justify-between rounded-lg border p-4">
                   <div className="flex items-center gap-3">
-                    <div className="rounded-full bg-green-500/10 p-2">
-                      <Users className="h-5 w-5 text-green-500" />
+                    <div className="rounded-full bg-success/10 p-2">
+                      <Users className="h-5 w-5 text-success" />
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Followers</p>
                       <p className="text-2xl font-bold">{analytics.totalFollowers.toLocaleString()}</p>
                       <div className="flex items-center gap-1 text-xs">
                         {analytics.followerGrowth > 0 ? (
-                          <TrendingUp className="h-3 w-3 text-green-500" />
+                          <TrendingUp className="h-3 w-3 text-success" />
                         ) : (
-                          <TrendingDown className="h-3 w-3 text-red-500" />
+                          <TrendingDown className="h-3 w-3 text-destructive" />
                         )}
-                        <span className={analytics.followerGrowth > 0 ? "text-green-500" : "text-red-500"}>
+                        <span className={analytics.followerGrowth > 0 ? "text-success" : "text-destructive"}>
                           {Math.abs(analytics.followerGrowth)}% vs prev 30d
                         </span>
                       </div>
@@ -497,8 +497,8 @@ export default function OverviewTab({ clientId, client, onNotesUpdate }: Overvie
 
             <div className="flex items-center justify-between rounded-lg border p-4">
               <div className="flex items-center gap-3">
-                <div className="rounded-full bg-green-500/10 p-2">
-                  <CheckCircle2 className="h-5 w-5 text-green-500" />
+                <div className="rounded-full bg-success/10 p-2">
+                  <CheckCircle2 className="h-5 w-5 text-success" />
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Published</p>
@@ -509,8 +509,8 @@ export default function OverviewTab({ clientId, client, onNotesUpdate }: Overvie
 
             <div className="flex items-center justify-between rounded-lg border p-4">
               <div className="flex items-center gap-3">
-                <div className="rounded-full bg-orange-500/10 p-2">
-                  <Clock className="h-5 w-5 text-orange-500" />
+                <div className="rounded-full bg-warning/10 p-2">
+                  <Clock className="h-5 w-5 text-warning" />
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Upcoming (7 days)</p>

@@ -66,7 +66,6 @@ export default function ClientUploadsTab({ clientId, agencyId }: ClientUploadsTa
 
   useEffect(() => {
     fetchUploads();
-    if (DEBUG_RELOAD) console.log("[ClientUploadsTab] subscribeToUploads mount for client", clientId);
     return subscribeToUploads();
   }, [clientId]);
 
@@ -83,14 +82,12 @@ export default function ClientUploadsTab({ clientId, agencyId }: ClientUploadsTa
         setUploads(data as any);
       }
     } catch (error) {
-      console.error("Error fetching uploads:", error);
     } finally {
       setLoading(false);
     }
   };
 
   const subscribeToUploads = () => {
-    if (DEBUG_RELOAD) console.log("[ClientUploadsTab] creating channel for client", clientId);
     const channel = supabase
       .channel("client_uploads_agency_changes")
       .on(
@@ -102,14 +99,12 @@ export default function ClientUploadsTab({ clientId, agencyId }: ClientUploadsTa
           filter: `client_id=eq.${clientId}`,
         },
         () => {
-          if (DEBUG_RELOAD) console.log("[ClientUploadsTab] change received, refetching uploads");
           fetchUploads();
         }
       )
       .subscribe();
 
     return () => {
-      if (DEBUG_RELOAD) console.log("[ClientUploadsTab] cleanup channel for client", clientId);
       supabase.removeChannel(channel);
     };
   };
@@ -180,7 +175,6 @@ export default function ClientUploadsTab({ clientId, agencyId }: ClientUploadsTa
 
       fetchUploads();
     } catch (error: any) {
-      console.error("Approve error:", error);
       toast({
         title: "Approval failed",
         description: error.message,
@@ -224,7 +218,6 @@ export default function ClientUploadsTab({ clientId, agencyId }: ClientUploadsTa
       setRejectionReason("");
       fetchUploads();
     } catch (error: any) {
-      console.error("Reject error:", error);
       toast({
         title: "Rejection failed",
         description: error.message,

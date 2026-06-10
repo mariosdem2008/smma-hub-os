@@ -81,13 +81,13 @@ export function HistoryTab() {
                       className={cn(
                         'rounded-full p-1.5 flex-shrink-0',
                         eventType === 'seeded' && 'bg-primary/10 text-primary',
-                        eventType === 'locked' && 'bg-red-500/10 text-red-400',
-                        eventType === 'unlocked' && 'bg-green-500/10 text-green-400',
-                        eventType === 'approved' && 'bg-green-500/10 text-green-400',
-                        eventType === 'updated' && 'bg-blue-500/10 text-blue-400',
-                        eventType === 'created' && 'bg-blue-500/10 text-blue-400',
+                        eventType === 'locked' && 'bg-destructive/10 text-destructive',
+                        eventType === 'unlocked' && 'bg-success/10 text-success',
+                        eventType === 'approved' && 'bg-success/10 text-success',
+                        eventType === 'updated' && 'bg-primary/10 text-primary',
+                        eventType === 'created' && 'bg-primary/10 text-primary',
                         (eventType === 'task_generated' || eventType === 'task_pushed') &&
-                          'bg-yellow-500/10 text-yellow-400'
+                          'bg-warning/10 text-warning'
                       )}
                     >
                       <Icon className="h-3 w-3" />

@@ -107,7 +107,6 @@ export function ClientPortalTab({ clientId }: ClientPortalTabProps) {
 
       setPortalInvites(invites || []);
     } catch (error) {
-      console.error("Error fetching portal data:", error);
     } finally {
       setLoading(false);
     }
@@ -139,7 +138,6 @@ export function ClientPortalTab({ clientId }: ClientPortalTabProps) {
           : "The client portal has been disabled.",
       });
     } catch (error) {
-      console.error("Error toggling portal:", error);
       toast({
         title: "Error",
         description: "Failed to update portal status.",
@@ -175,7 +173,6 @@ export function ClientPortalTab({ clientId }: ClientPortalTabProps) {
       setDeleteUserId(null);
       fetchPortalData();
     } catch (error) {
-      console.error("Error deleting user:", error);
       toast({
         title: "Error",
         description: "Failed to delete user.",
@@ -203,7 +200,6 @@ export function ClientPortalTab({ clientId }: ClientPortalTabProps) {
       setDeleteInviteId(null);
       fetchPortalData();
     } catch (error) {
-      console.error("Error deleting invite:", error);
       toast({
         title: "Error",
         description: "Failed to cancel invitation.",

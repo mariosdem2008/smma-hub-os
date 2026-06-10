@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { FileText, Calendar, Download, Plus, TrendingUp } from "lucide-react";
 import { useClientReports } from "@/hooks/useClientReports";
 import { useGenerateReport } from "@/hooks/useGenerateReport";
@@ -14,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useNavigate } from "react-router-dom";
+import { PremiumInlineEmpty, PremiumLoading, PremiumPage } from "@/components/shared/PremiumPage";
 
 interface ReportsTabProps {
   clientId: string;
@@ -46,17 +46,15 @@ export default function ReportsTab({ clientId, agencyId }: ReportsTabProps) {
   };
 
   if (isLoading) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-32 w-full" />
-        <Skeleton className="h-32 w-full" />
-        <Skeleton className="h-32 w-full" />
-      </div>
-    );
+    return <PremiumLoading rows={3} />;
   }
 
   return (
-    <div className="space-y-6">
+    <PremiumPage
+      eyebrow="Reporting"
+      title="Client Reports"
+      description="Generate and review monthly analytics reports with AI-powered insights."
+    >
       {/* Generate Report Card */}
       <Card>
         <CardHeader>
@@ -89,6 +87,7 @@ export default function ReportsTab({ clientId, agencyId }: ReportsTabProps) {
               onClick={handleGenerateReport}
               disabled={generateReport.isPending}
             >
+              <Plus className="mr-2 h-4 w-4" />
               {generateReport.isPending ? "Generating..." : "Generate Report"}
             </Button>
           </div>
@@ -103,15 +102,11 @@ export default function ReportsTab({ clientId, agencyId }: ReportsTabProps) {
         </h3>
 
         {!reports || reports.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground mb-4">No reports generated yet</p>
-              <p className="text-sm text-muted-foreground">
-                Generate your first monthly report to see analytics and AI insights
-              </p>
-            </CardContent>
-          </Card>
+          <PremiumInlineEmpty
+            icon={FileText}
+            title="No reports generated yet"
+            description="Generate your first monthly report to see analytics and AI insights."
+          />
         ) : (
           <div className="grid gap-4">
             {reports.map((report) => (
@@ -149,8 +144,8 @@ export default function ReportsTab({ clientId, agencyId }: ReportsTabProps) {
                         </div>
                         <div>
                           <p className="text-xs text-muted-foreground">Follower Growth</p>
-                          <p className={`text-lg font-semibold flex items-center gap-1 ${
-                            report.data.kpis.followersGrowth >= 0 ? 'text-green-600' : 'text-red-600'
+                      <p className={`text-lg font-semibold flex items-center gap-1 ${
+                            report.data.kpis.followersGrowth >= 0 ? 'text-success' : 'text-destructive'
                           }`}>
                             <TrendingUp className="h-4 w-4" />
                             {report.data.kpis.followersGrowth > 0 ? '+' : ''}
@@ -183,6 +178,6 @@ export default function ReportsTab({ clientId, agencyId }: ReportsTabProps) {
           </div>
         )}
       </div>
-    </div>
+    </PremiumPage>
   );
 }

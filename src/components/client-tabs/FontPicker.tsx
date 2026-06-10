@@ -136,7 +136,6 @@ export default function FontPicker({ clientId, label, value, onChange, disabled 
         description: "Font uploaded successfully",
       });
     } catch (error) {
-      console.error("Font upload error:", error);
       toast({
         title: "Upload failed",
         description: "Failed to upload font file",

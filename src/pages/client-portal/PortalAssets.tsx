@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Download, FileText, Image, Film, FolderOpen, CheckCircle, Rocket } from "lucide-react";
 import { AssetDetailModal } from "@/components/assets/AssetDetailModal";
-import { ClientPortalAssetVersions } from "@/components/assets/ClientPortalAssetVersions";
+import { PremiumInlineEmpty, PremiumLoading, PremiumPage } from "@/components/shared/PremiumPage";
 
 interface Asset {
   id: string;
@@ -117,15 +117,15 @@ export function PortalAssets() {
   }), [assets]);
 
   if (loading) {
-    return <div>Loading assets...</div>;
+    return <PremiumLoading rows={4} />;
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold">Assets</h2>
-        <p className="text-muted-foreground">View and download assets shared by your agency</p>
-      </div>
+    <PremiumPage
+      eyebrow="Asset Library"
+      title="Assets"
+      description="View, comment on, and download assets shared by your agency."
+    >
 
       <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as "all" | "ready" | "published")} className="space-y-4">
         <TabsList>
@@ -148,9 +148,9 @@ export function PortalAssets() {
               {filteredAssets.map((asset) => {
                 const Icon = getFileIcon(asset.file_type);
                 return (
-                  <Card key={asset.id} className="p-4 space-y-3">
+                  <Card key={asset.id} className="space-y-3 p-4 transition-all hover:border-primary/35 hover:shadow-panel">
                     <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-accent flex items-center justify-center shrink-0">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-accent/20 bg-accent/10 text-accent">
                         <Icon className="h-5 w-5" />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -200,8 +200,8 @@ export function PortalAssets() {
                             className="w-full h-full object-cover"
                           />
                         )}
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                          <Film className="h-8 w-8 text-white" />
+                        <div className="absolute inset-0 flex items-center justify-center bg-background/45 text-foreground">
+                          <Film className="h-8 w-8" />
                         </div>
                       </div>
                     )}
@@ -227,13 +227,11 @@ export function PortalAssets() {
               })}
             </div>
           ) : (
-            <Card className="p-12 text-center">
-              <FolderOpen className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-lg font-semibold mb-2">No Assets Yet</h3>
-              <p className="text-muted-foreground">
-                Your agency hasn't shared any assets with you yet.
-              </p>
-            </Card>
+            <PremiumInlineEmpty
+              icon={FolderOpen}
+              title="No assets yet"
+              description="Your agency has not shared any assets with you yet."
+            />
           )}
         </TabsContent>
 
@@ -243,9 +241,9 @@ export function PortalAssets() {
               {filteredAssets.map((asset) => {
                 const Icon = getFileIcon(asset.file_type);
                 return (
-                  <Card key={asset.id} className="p-4 space-y-3">
+                  <Card key={asset.id} className="space-y-3 p-4 transition-all hover:border-primary/35 hover:shadow-panel">
                     <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-accent flex items-center justify-center shrink-0">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-accent/20 bg-accent/10 text-accent">
                         <Icon className="h-5 w-5" />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -287,8 +285,8 @@ export function PortalAssets() {
                             className="w-full h-full object-cover"
                           />
                         )}
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                          <Film className="h-8 w-8 text-white" />
+                        <div className="absolute inset-0 flex items-center justify-center bg-background/45 text-foreground">
+                          <Film className="h-8 w-8" />
                         </div>
                       </div>
                     )}
@@ -314,13 +312,11 @@ export function PortalAssets() {
               })}
             </div>
           ) : (
-            <Card className="p-12 text-center">
-              <FolderOpen className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-lg font-semibold mb-2">No Ready Assets</h3>
-              <p className="text-muted-foreground">
-                No assets are currently marked as ready.
-              </p>
-            </Card>
+            <PremiumInlineEmpty
+              icon={FolderOpen}
+              title="No ready assets"
+              description="No assets are currently marked as ready."
+            />
           )}
         </TabsContent>
 
@@ -330,9 +326,9 @@ export function PortalAssets() {
               {filteredAssets.map((asset) => {
                 const Icon = getFileIcon(asset.file_type);
                 return (
-                  <Card key={asset.id} className="p-4 space-y-3">
+                  <Card key={asset.id} className="space-y-3 p-4 transition-all hover:border-primary/35 hover:shadow-panel">
                     <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-accent flex items-center justify-center shrink-0">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-accent/20 bg-accent/10 text-accent">
                         <Icon className="h-5 w-5" />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -374,8 +370,8 @@ export function PortalAssets() {
                             className="w-full h-full object-cover"
                           />
                         )}
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                          <Film className="h-8 w-8 text-white" />
+                        <div className="absolute inset-0 flex items-center justify-center bg-background/45 text-foreground">
+                          <Film className="h-8 w-8" />
                         </div>
                       </div>
                     )}
@@ -401,13 +397,11 @@ export function PortalAssets() {
               })}
             </div>
           ) : (
-            <Card className="p-12 text-center">
-              <FolderOpen className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-lg font-semibold mb-2">No Published Assets</h3>
-              <p className="text-muted-foreground">
-                No assets have been published yet.
-              </p>
-            </Card>
+            <PremiumInlineEmpty
+              icon={FolderOpen}
+              title="No published assets"
+              description="No assets have been published yet."
+            />
           )}
         </TabsContent>
       </Tabs>
@@ -420,6 +414,6 @@ export function PortalAssets() {
           onAssetUpdated={fetchAssets}
         />
       )}
-    </div>
+    </PremiumPage>
   );
 }

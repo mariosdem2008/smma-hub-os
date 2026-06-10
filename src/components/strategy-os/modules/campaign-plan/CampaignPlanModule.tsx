@@ -36,10 +36,10 @@ const MONTHS = [
 ];
 
 const STATUS_COLORS: Record<CampaignStatus, string> = {
-  planned: 'bg-blue-500/20 text-blue-400',
-  active: 'bg-green-500/20 text-green-400',
+  planned: 'bg-primary/10 text-primary',
+  active: 'bg-success/10 text-success',
   completed: 'bg-muted text-muted-foreground',
-  cancelled: 'bg-red-500/20 text-red-400',
+  cancelled: 'bg-destructive/10 text-destructive',
 };
 
 export function CampaignPlanModule() {
@@ -294,7 +294,7 @@ export function CampaignPlanModule() {
       {/* Stop Doing List */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base text-red-400">Stop Doing</CardTitle>
+          <CardTitle className="text-base text-destructive">Stop Doing</CardTitle>
           <CardDescription>Things we've decided to stop doing</CardDescription>
         </CardHeader>
         <CardContent>
@@ -305,7 +305,7 @@ export function CampaignPlanModule() {
             }
             placeholder="One item per line..."
             disabled={isLocked}
-            className="min-h-[100px] border-red-500/30"
+            className="min-h-[100px] border-destructive/30"
           />
         </CardContent>
       </Card>

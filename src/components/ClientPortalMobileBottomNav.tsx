@@ -22,8 +22,8 @@ export function ClientPortalMobileBottomNav() {
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:hidden">
-      <div className="grid grid-cols-6 h-16">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border/80 bg-background/92 shadow-panel backdrop-blur-xl safe-area-bottom md:hidden">
+      <div className="grid h-16 grid-cols-6 px-1">
         {navItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.path);
@@ -34,11 +34,11 @@ export function ClientPortalMobileBottomNav() {
               to={`${basePortalPath}/${item.path}`}
               onClick={() => hapticSelection()}
               className={cn(
-                "flex flex-col items-center justify-center gap-1 transition-colors touch-manipulation",
-                "active:scale-95 active:opacity-70 transition-transform duration-100",
+                "focus-ring touch-manipulation my-1 flex flex-col items-center justify-center gap-1 rounded-lg transition-all",
+                "active:scale-[0.98] active:opacity-80",
                 active
-                  ? "text-primary"
-                  : "text-muted-foreground"
+                  ? "bg-primary text-primary-foreground shadow-btn-primary"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
               style={{ minHeight: "44px", minWidth: "44px" }}
             >

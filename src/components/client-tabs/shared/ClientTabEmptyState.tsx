@@ -27,24 +27,24 @@ export default function ClientTabEmptyState({
   className,
 }: ClientTabEmptyStateProps) {
   return (
-    <Card className={cn("border-dashed", className)}>
-      <CardContent className="flex flex-col items-center justify-center py-12 px-6 text-center">
+    <Card className={cn("border-dashed bg-card/80", className)}>
+      <CardContent className="flex flex-col items-center justify-center px-6 py-12 text-center">
         {icon && (
-          <div className="mb-4 text-muted-foreground">
+          <div className="mb-5 rounded-lg border border-primary/20 bg-primary/10 p-4 text-primary">
             {icon}
           </div>
         )}
 
-        <h3 className="text-lg font-semibold mb-2">{title}</h3>
+        <h3 className="mb-2 font-display text-xl font-semibold text-foreground">{title}</h3>
 
         {description && (
-          <p className="text-sm text-muted-foreground mb-6 max-w-sm">
+          <p className="mb-6 max-w-md text-sm leading-6 text-muted-foreground">
             {description}
           </p>
         )}
 
         {(primaryAction || secondaryAction) && (
-          <div className="flex flex-col sm:flex-row items-center gap-3">
+          <div className="flex flex-col items-center gap-3 sm:flex-row">
             {primaryAction && (
               <Button
                 onClick={primaryAction.onClick}

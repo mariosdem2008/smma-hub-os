@@ -110,7 +110,6 @@ export default function AssetsTab({ clientId, agencyId }: AssetsTabProps) {
       .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("Error fetching assets:", error);
       toast({
         title: "Error",
         description: "Failed to fetch assets",
@@ -192,7 +191,6 @@ export default function AssetsTab({ clientId, agencyId }: AssetsTabProps) {
         description: `${files.length} file(s) uploaded successfully`,
       });
     } catch (error) {
-      console.error("Upload error:", error);
       toast({
         title: "Error",
         description: "Failed to upload files",
@@ -208,7 +206,6 @@ export default function AssetsTab({ clientId, agencyId }: AssetsTabProps) {
     if (!deleteAsset) return;
 
     try {
-      console.log('Starting asset deletion for:', deleteAsset.id);
       
       // Extract file path from URL
       const url = new URL(deleteAsset.file_url);
@@ -217,14 +214,12 @@ export default function AssetsTab({ clientId, agencyId }: AssetsTabProps) {
       
       if (bucketIndex !== -1 && bucketIndex < pathParts.length - 1) {
         const filePath = pathParts.slice(bucketIndex + 1).join('/');
-        console.log('Deleting file from storage:', filePath);
         
         const { error: storageError } = await supabase.storage
           .from("assets")
           .remove([filePath]);
 
         if (storageError) {
-          console.error('Storage deletion error:', storageError);
         }
       }
 
@@ -236,31 +231,26 @@ export default function AssetsTab({ clientId, agencyId }: AssetsTabProps) {
         
         if (thumbBucketIndex !== -1 && thumbBucketIndex < thumbPathParts.length - 1) {
           const thumbPath = thumbPathParts.slice(thumbBucketIndex + 1).join('/');
-          console.log('Deleting thumbnail from storage:', thumbPath);
           
           const { error: thumbError } = await supabase.storage
             .from('assets')
             .remove([thumbPath]);
           
           if (thumbError) {
-            console.error('Thumbnail deletion error:', thumbError);
           }
         }
       }
 
       // Delete from database (cascade will handle versions and comments)
-      console.log('Deleting asset from database');
       const { error: dbError } = await supabase
         .from("assets")
         .delete()
         .eq("id", deleteAsset.id);
 
       if (dbError) {
-        console.error('Database deletion error:', dbError);
         throw dbError;
       }
 
-      console.log('Asset deleted successfully');
       setAssets(assets.filter((a) => a.id !== deleteAsset.id));
       setDeleteAsset(null);
       setPreviewAsset(null);
@@ -270,7 +260,6 @@ export default function AssetsTab({ clientId, agencyId }: AssetsTabProps) {
         description: "Asset deleted successfully",
       });
     } catch (error: any) {
-      console.error("Delete error:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to delete asset",
@@ -428,7 +417,7 @@ export default function AssetsTab({ clientId, agencyId }: AssetsTabProps) {
 
       {/* Viewer Notice */}
       {isViewer && (
-        <Card className="border-yellow-500/50 bg-yellow-500/10">
+        <Card className="border-warning/40 bg-warning/10">
           <CardContent className="py-4">
             <p className="text-sm text-muted-foreground">
               You have read-only access to assets.
@@ -551,8 +540,8 @@ export default function AssetsTab({ clientId, agencyId }: AssetsTabProps) {
                           className="w-full h-full object-cover"
                         />
                       )}
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                        <Video className="h-8 w-8 text-white" />
+                      <div className="absolute inset-0 flex items-center justify-center bg-background/45 text-foreground">
+                        <Video className="h-8 w-8" />
                       </div>
                     </div>
                   ) : (

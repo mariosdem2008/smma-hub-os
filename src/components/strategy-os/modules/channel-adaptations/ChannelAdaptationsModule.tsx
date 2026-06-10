@@ -428,7 +428,7 @@ export function ChannelAdaptationsModule() {
 
               <TabsContent value="dos" className="space-y-4 mt-4">
                 <div className="space-y-2">
-                  <Label className="text-green-400">Do's (one per line)</Label>
+                  <Label className="text-success">Do's (one per line)</Label>
                   <Textarea
                     value={editingChannel.dos.join('\n')}
                     onChange={(e) =>
@@ -438,11 +438,11 @@ export function ChannelAdaptationsModule() {
                     }
                     placeholder="Use trending audio&#10;Engage in comments"
                     disabled={doDontLocked}
-                    className="border-green-500/30"
+                    className="border-success/30"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-red-400">Don'ts (one per line)</Label>
+                  <Label className="text-destructive">Don'ts (one per line)</Label>
                   <Textarea
                     value={editingChannel.donts.join('\n')}
                     onChange={(e) =>
@@ -452,7 +452,7 @@ export function ChannelAdaptationsModule() {
                     }
                     placeholder="Ignore DMs&#10;Post blurry content"
                     disabled={doDontLocked}
-                    className="border-red-500/30"
+                    className="border-destructive/30"
                   />
                 </div>
               </TabsContent>

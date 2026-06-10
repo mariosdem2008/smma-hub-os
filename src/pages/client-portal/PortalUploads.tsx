@@ -8,8 +8,7 @@ import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useClientAuth } from "@/lib/client-auth";
 import { UploadDropzone } from "@/components/shared/UploadDropzone";
-
-const DEBUG_RELOAD = true;
+import { PremiumInlineEmpty, PremiumLoading, PremiumPage } from "@/components/shared/PremiumPage";
 
 interface ClientUpload {
   id: string;
@@ -33,7 +32,6 @@ export default function PortalUploads() {
 
   useEffect(() => {
     fetchUploads();
-    if (DEBUG_RELOAD) console.log("[PortalUploads] subscribeToUploads mount for client", clientId);
     return subscribeToUploads();
   }, [clientId]);
 
@@ -50,15 +48,18 @@ export default function PortalUploads() {
       if (data) {
         setUploads(data);
       }
-    } catch (error) {
-      console.error("Error fetching uploads:", error);
+    } catch {
+      toast({
+        title: "Error loading uploads",
+        description: "Could not load your uploaded files.",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
   };
 
   const subscribeToUploads = () => {
-    if (DEBUG_RELOAD) console.log("[PortalUploads] creating channel for client", clientId);
     const channel = supabase
       .channel("client_uploads_changes")
       .on(
@@ -70,129 +71,14 @@ export default function PortalUploads() {
           filter: `client_id=eq.${clientId}`,
         },
         () => {
-          if (DEBUG_RELOAD) console.log("[PortalUploads] change received, refetching uploads");
           fetchUploads();
         },
       )
       .subscribe();
 
     return () => {
-      if (DEBUG_RELOAD) console.log("[PortalUploads] cleanup channel for client", clientId);
       supabase.removeChannel(channel);
     };
-  };
-
-  const getClientPortalToken = (): string | null => {
-    console.log("Looking for client portal token...");
-
-    // First, check if there's a token in the URL (for invite flows)
-    const urlParams = new URLSearchParams(window.location.search);
-    const tokenFromUrl = urlParams.get("token");
-    if (tokenFromUrl) {
-      console.log("Found token in URL");
-      return tokenFromUrl;
-    }
-
-    // Check localStorage for various possible token names
-    const possibleStorageKeys = [
-      "cp_access_token",
-      "client_portal_token",
-      "sb-access-token",
-      "sb-dzyhrzdwwuaorruscxcn-auth-token",
-      "access_token",
-      "token",
-    ];
-
-    for (const key of possibleStorageKeys) {
-      const storedValue = localStorage.getItem(key);
-      if (storedValue) {
-        console.log(`Found value in localStorage key: ${key}`, storedValue.substring(0, 50) + "...");
-
-        try {
-          // Try to parse as JSON (might be a Supabase auth session object)
-          const parsed = JSON.parse(storedValue);
-
-          // Check if it's a Supabase auth session object
-          if (parsed.access_token) {
-            console.log(`Extracted access_token from JSON object`);
-            return parsed.access_token;
-          }
-
-          // Check if it's a client portal token object
-          if (parsed.token) {
-            console.log(`Extracted token from JSON object`);
-            return parsed.token;
-          }
-
-          // If it's a string that looks like a JWT (has 3 parts separated by dots)
-          if (typeof parsed === "string" && parsed.split(".").length === 3) {
-            console.log(`Value appears to be a JWT token`);
-            return parsed;
-          }
-        } catch (e) {
-          // Not JSON, check if it's a plain JWT token
-          if (storedValue.split(".").length === 3) {
-            console.log(`Value appears to be a plain JWT token`);
-            return storedValue;
-          }
-
-          // Might be a JSON string that failed to parse
-          console.log(`Could not parse value from key ${key} as JSON or JWT`);
-        }
-      }
-    }
-
-    // Check sessionStorage
-    for (const key of possibleStorageKeys) {
-      const storedValue = sessionStorage.getItem(key);
-      if (storedValue) {
-        console.log(`Found value in sessionStorage key: ${key}`, storedValue.substring(0, 50) + "...");
-
-        try {
-          const parsed = JSON.parse(storedValue);
-          if (parsed.access_token) {
-            console.log(`Extracted access_token from JSON object`);
-            return parsed.access_token;
-          }
-          if (parsed.token) {
-            console.log(`Extracted token from JSON object`);
-            return parsed.token;
-          }
-          if (typeof parsed === "string" && parsed.split(".").length === 3) {
-            return parsed;
-          }
-        } catch (e) {
-          if (storedValue.split(".").length === 3) {
-            return storedValue;
-          }
-        }
-      }
-    }
-
-    // Check cookies
-    try {
-      const cookies = document.cookie.split(";");
-      for (const cookie of cookies) {
-        const [name, value] = cookie.trim().split("=");
-        if (possibleStorageKeys.includes(name)) {
-          console.log(`Found value in cookie: ${name}`, value.substring(0, 50) + "...");
-
-          try {
-            const parsed = JSON.parse(value);
-            if (parsed.access_token) return parsed.access_token;
-            if (parsed.token) return parsed.token;
-            if (typeof parsed === "string" && parsed.split(".").length === 3) return parsed;
-          } catch (e) {
-            if (value.split(".").length === 3) return value;
-          }
-        }
-      }
-    } catch (error) {
-      console.error("Error reading cookies:", error);
-    }
-
-    console.log("No valid token found in any storage location");
-    return null;
   };
 
   const handleFileUpload = async (files: File[]) => {
@@ -204,8 +90,6 @@ export default function PortalUploads() {
 
     setUploading(true);
     try {
-      console.log("Starting file upload:", file.name, file.size, file.type);
-
       // Upload through Edge Function - cookies are sent automatically
       const formData = new FormData();
       formData.append("file", file);
@@ -220,11 +104,8 @@ export default function PortalUploads() {
         },
       );
 
-      console.log("Upload response status:", response.status);
-
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("Upload error response:", errorText);
         let errorMessage = "Upload failed";
         try {
           const errorJson = JSON.parse(errorText);
@@ -235,8 +116,7 @@ export default function PortalUploads() {
         throw new Error(errorMessage);
       }
 
-      const result = await response.json();
-      console.log("Upload successful:", result);
+      await response.json();
 
       toast({
         title: "File uploaded successfully",
@@ -245,7 +125,6 @@ export default function PortalUploads() {
 
       fetchUploads();
     } catch (error: any) {
-      console.error("Upload error:", error);
       toast({
         title: "Upload failed",
         description: error.message,
@@ -290,11 +169,11 @@ export default function PortalUploads() {
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">My Uploads</h1>
-        <p className="text-muted-foreground mt-1">Upload files for agency review</p>
-      </div>
+    <PremiumPage
+      eyebrow="Submissions"
+      title="My Uploads"
+      description="Upload files for agency review and track their status."
+    >
 
       <Card>
         <CardHeader>
@@ -322,20 +201,20 @@ export default function PortalUploads() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="text-center py-8 text-muted-foreground">Loading uploads...</div>
+            <PremiumLoading rows={2} />
           ) : uploads.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <FileIcon className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p>No uploads yet</p>
-            </div>
+            <PremiumInlineEmpty
+              icon={FileIcon}
+              title="No uploads yet"
+              description="Files you upload for agency review will appear here."
+            />
           ) : (
             <div className="space-y-4">
               {uploads.map((upload) => (
-                <Card key={upload.id}>
-                  <CardContent className="pt-6">
+                <div key={upload.id} className="rounded-lg border border-border/80 bg-muted/30 p-4">
                     <div className="flex items-start gap-4">
                       <div className="flex-shrink-0">
-                        <div className="w-12 h-12 bg-muted rounded flex items-center justify-center">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-border bg-muted/60">
                           <FileIcon className="h-6 w-6" />
                         </div>
                       </div>
@@ -370,13 +249,12 @@ export default function PortalUploads() {
                         )}
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
+                </div>
               ))}
             </div>
           )}
         </CardContent>
       </Card>
-    </div>
+    </PremiumPage>
   );
 }

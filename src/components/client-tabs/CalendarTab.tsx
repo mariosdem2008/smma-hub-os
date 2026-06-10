@@ -32,14 +32,14 @@ interface ScheduledItem {
 }
 
 const stageColors: Record<string, string> = {
-  draft: "bg-slate-500",
-  planned: "bg-indigo-500",
-  pending: "bg-yellow-500",
-  queued: "bg-blue-400",
-  publishing: "bg-blue-600",
-  published: "bg-green-500",
-  failed: "bg-red-500",
-  cancelled: "bg-gray-500",
+  draft: "border-border bg-muted text-muted-foreground",
+  planned: "border-primary/30 bg-primary/10 text-primary",
+  pending: "border-warning/30 bg-warning/10 text-warning",
+  queued: "border-primary/30 bg-primary/10 text-primary",
+  publishing: "border-info/30 bg-info/10 text-info",
+  published: "border-success/30 bg-success/10 text-success",
+  failed: "border-destructive/30 bg-destructive/10 text-destructive",
+  cancelled: "border-border bg-muted text-muted-foreground",
 };
 
 const statusLabels: Record<string, string> = {
@@ -85,7 +85,6 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
         setUserTimezone(data.timezone);
       }
     } catch (error) {
-      console.error("Error fetching timezone:", error);
     }
   };
 
@@ -334,7 +333,7 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
                           {item.title}
                         </p>
                         <Badge
-                          className={`${stageColors[item.status]} text-white text-xs mt-1`}
+                          className={`${stageColors[item.status] ?? stageColors.draft} text-xs mt-1`}
                         >
                           {item.status}
                         </Badge>
@@ -395,7 +394,7 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
                         onClick={() => handleOpenDetail(item.id)}
                         className={`${
                           stageColors[item.status]
-                        } text-white text-xs p-1 rounded hover:opacity-80 cursor-pointer transition-opacity`}
+                        } cursor-pointer rounded border p-1 text-xs transition-colors hover:border-primary/50`}
                       >
                         <p className="line-clamp-1">{item.title}</p>
                       </div>
@@ -446,7 +445,7 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
                               {item.platform}
                             </p>
                           </div>
-                          <Badge className={`${stageColors[item.status]} text-white`}>
+                          <Badge className={`${stageColors[item.status] ?? stageColors.draft}`}>
                             {item.status}
                           </Badge>
                         </div>
@@ -469,8 +468,8 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
                         </div>
 
                         {item.error_message && (
-                          <div className="flex items-start gap-2 p-2 bg-red-50 dark:bg-red-950/20 rounded border border-red-200 dark:border-red-800 mt-2">
-                            <p className="text-xs text-red-900 dark:text-red-100">
+                          <div className="mt-2 flex items-start gap-2 rounded border border-destructive/25 bg-destructive/10 p-2">
+                            <p className="text-xs text-destructive">
                               {item.error_message}
                             </p>
                           </div>

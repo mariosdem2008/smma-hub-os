@@ -182,7 +182,7 @@ export function StrategyDocPreview({ view }: StrategyDocPreviewProps) {
   return (
     <>
       <button type="button" className="w-full text-left" onClick={() => setOpen(true)}>
-        <Card className="border border-border/60 bg-gradient-to-r from-muted/40 via-background to-background shadow-sm">
+        <Card className="border border-border/60 bg-card/80 shadow-card">
           <CardContent className="p-4">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0 space-y-2">

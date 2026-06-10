@@ -11,9 +11,9 @@ interface AIConfidenceBadgeProps {
 
 export function AIConfidenceBadge({ confidence, className }: AIConfidenceBadgeProps) {
   const getConfidenceColor = (conf: number) => {
-    if (conf >= 85) return 'text-green-400 bg-green-500/10 border-green-500/30';
-    if (conf >= 70) return 'text-yellow-400 bg-yellow-500/10 border-yellow-500/30';
-    return 'text-orange-400 bg-orange-500/10 border-orange-500/30';
+    if (conf >= 85) return 'text-success bg-success/10 border-success/30';
+    if (conf >= 70) return 'text-warning bg-warning/10 border-warning/30';
+    return 'text-warning bg-warning/10 border-warning/30';
   };
 
   const getConfidenceLabel = (conf: number) => {

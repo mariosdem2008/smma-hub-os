@@ -43,9 +43,9 @@ export function StrategyOSLayout({ activeModule, onModuleChange }: StrategyOSLay
   }, [isMobile, panelOpen]);
 
   return (
-    <div className="rounded-lg border border-border/60 bg-card/40 p-4">
+    <div className="rounded-lg border border-border/80 bg-card/80 p-4 shadow-card md:p-5">
       <div className={`grid gap-4 ${gridColumns}`}>
-        <aside className="hidden lg:block">
+        <aside className="hidden rounded-lg border border-border/70 bg-muted/25 p-3 lg:block">
           <StrategyModuleNav
             modules={STRATEGY_OS_V3_MODULES}
             activeModule={activeModule}
@@ -63,12 +63,13 @@ export function StrategyOSLayout({ activeModule, onModuleChange }: StrategyOSLay
             />
           )}
 
-          <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-border/70 bg-card p-4 shadow-xs">
             <div>
-              <div className="text-lg font-semibold" data-testid="strategy-module-title">
+              <p className="page-eyebrow">Strategy Module</p>
+              <div className="font-display text-2xl font-bold text-foreground" data-testid="strategy-module-title">
                 {activeDefinition.label}
               </div>
-              <div className="text-sm text-muted-foreground">
+              <div className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
                 {activeDefinition.description}
               </div>
               <div className="mt-2">
@@ -84,7 +85,7 @@ export function StrategyOSLayout({ activeModule, onModuleChange }: StrategyOSLay
 
           <StrategyNextStepBar summary={statusSummary} onSelectModule={onModuleChange} />
 
-          <div className="min-h-[500px] rounded-lg border border-border/60 bg-background/60">
+          <div className="min-h-[500px] overflow-hidden rounded-lg border border-border/80 bg-card/70 shadow-card">
             <StrategyModuleRenderer moduleId={activeModule} />
           </div>
         </section>

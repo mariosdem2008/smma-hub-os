@@ -88,7 +88,6 @@ export default function BrandingTab({ clientId, clientName = "Client Name" }: Br
       .maybeSingle();
 
     if (error) {
-      console.error("Error fetching branding:", error);
     } else if (data) {
       setBranding({
         id: data.id,
@@ -234,7 +233,6 @@ export default function BrandingTab({ clientId, clientName = "Client Name" }: Br
         description: "Brand guidelines PDF generated successfully",
       });
     } catch (error) {
-      console.error('Error generating PDF:', error);
       toast({
         title: "Error",
         description: "Failed to generate PDF. Please try again.",
@@ -266,7 +264,6 @@ export default function BrandingTab({ clientId, clientName = "Client Name" }: Br
         description: "Your PDF is being downloaded",
       });
     } catch (error) {
-      console.error('Error downloading PDF:', error);
       toast({
         title: "Error",
         description: "Failed to download PDF. Please try again.",
@@ -762,7 +759,7 @@ export default function BrandingTab({ clientId, clientName = "Client Name" }: Br
       )}
       
       {!canEdit && (
-        <Card className="border-yellow-500/50 bg-yellow-500/10">
+        <Card className="border-warning/40 bg-warning/10">
           <CardContent className="py-4">
             <p className="text-sm text-muted-foreground">
               You have read-only access to branding settings. Only agency owners and managers can edit brand identity.

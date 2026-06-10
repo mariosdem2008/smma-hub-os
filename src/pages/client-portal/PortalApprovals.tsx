@@ -2,15 +2,14 @@ import { useState, useEffect } from "react";
 import { useOutletContext } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useHasSupabaseSession } from "@/hooks/useHasSupabaseSession";
-import { hapticSelection } from "@/lib/haptics";
-import { Clock, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { ArrowLeft, CheckCircle } from "lucide-react";
 import ProjectApprovalInterface from "@/components/approval/ProjectApprovalInterface";
+import { PremiumInlineEmpty, PremiumLoading, PremiumPage } from "@/components/shared/PremiumPage";
 
 interface OutletContext {
   clientId: string;
@@ -166,11 +165,7 @@ export default function PortalApprovals() {
   }, [clientId, hasSession, sessionLoading]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <PremiumLoading rows={3} />;
   }
 
   if (selectedProject) {
@@ -178,9 +173,10 @@ export default function PortalApprovals() {
       <div className="space-y-4">
         <button
           onClick={() => setSelectedProject(null)}
-          className="text-sm text-muted-foreground hover:text-foreground"
+          className="focus-ring inline-flex items-center gap-2 rounded-md px-2 py-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
-          ← Back to Approvals
+          <ArrowLeft className="h-4 w-4" />
+          Back to Approvals
         </button>
         
         <ProjectApprovalInterface
@@ -196,8 +192,14 @@ export default function PortalApprovals() {
   }
 
   return (
+    <PremiumPage
+      eyebrow="Review Queue"
+      title="Content Approvals"
+      description="Review content awaiting your feedback and keep campaigns moving."
+      contentClassName="space-y-4 md:space-y-6"
+    >
     <div 
-      className="space-y-4 md:space-y-6 px-2 md:px-4"
+      className="space-y-4 md:space-y-6"
       style={{
         transform: isMobile ? `translateY(${pullDistance}px)` : undefined,
         transition: isRefreshing ? "transform 0.3s ease-out" : "none",
@@ -212,28 +214,18 @@ export default function PortalApprovals() {
         </div>
       )}
       
-      <div>
-        <h1 className="text-2xl md:text-3xl font-bold">Content Approvals</h1>
-        <p className="text-sm md:text-base text-muted-foreground mt-2">
-          Review and approve content awaiting your feedback
-        </p>
-      </div>
-
-
       {projects.length === 0 ? (
-        <Card>
-          <CardContent className="py-8 md:py-12 text-center">
-            <p className="text-sm md:text-base text-muted-foreground">
-              No content awaiting your approval
-            </p>
-          </CardContent>
-        </Card>
+        <PremiumInlineEmpty
+          icon={CheckCircle}
+          title="No content awaiting approval"
+          description="New client-review items will appear here as soon as your agency sends them."
+        />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
           {projects.map(project => (
             <Card 
               key={project.id}
-              className="cursor-pointer hover:shadow-lg transition-shadow"
+              className="cursor-pointer overflow-hidden transition-all hover:border-primary/40 hover:shadow-panel"
               onClick={() => setSelectedProject(project)}
             >
               <CardContent className="p-3 md:p-4 space-y-3">
@@ -241,30 +233,30 @@ export default function PortalApprovals() {
                   project.final_assets[0].file_type?.startsWith("video") ? (
                     <video
                       src={project.final_assets[0].file_url}
-                      className="w-full h-40 md:h-48 object-cover rounded"
+                      className="h-40 w-full rounded-lg object-cover md:h-48"
                       controls
                     />
                   ) : project.final_assets[0].file_type?.startsWith("image") ? (
                     <img
                       src={project.final_assets[0].file_url}
                       alt={project.final_assets[0].filename}
-                      className="w-full h-40 md:h-48 object-cover rounded"
+                      className="h-40 w-full rounded-lg object-cover md:h-48"
                     />
                   ) : (
                     <img
                       src={project.final_assets[0].file_url}
                       alt={project.final_assets[0].filename}
-                      className="w-full h-40 md:h-48 object-cover rounded"
+                      className="h-40 w-full rounded-lg object-cover md:h-48"
                     />
                   )
                 ) : project.thumbnail_url ? (
                   <img
                     src={project.thumbnail_url}
                     alt={project.title}
-                    className="w-full h-40 md:h-48 object-cover rounded"
+                    className="h-40 w-full rounded-lg object-cover md:h-48"
                   />
                 ) : (
-                  <div className="w-full h-40 md:h-48 bg-muted rounded flex items-center justify-center">
+                  <div className="flex h-40 w-full items-center justify-center rounded-lg border border-dashed border-border bg-muted/40 md:h-48">
                     <p className="text-muted-foreground text-sm">No preview</p>
                   </div>
                 )}
@@ -293,5 +285,6 @@ export default function PortalApprovals() {
         </div>
       )}
     </div>
+    </PremiumPage>
   );
 }

@@ -14,13 +14,13 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import {
-  Lock, 
-  Unlock, 
-  Target, 
-  Shield, 
-  TrendingUp, 
-  CheckCircle, 
-  XCircle, 
+  Lock,
+  Unlock,
+  Target,
+  Shield,
+  TrendingUp,
+  CheckCircle,
+  XCircle,
   AlertCircle,
   Plus,
   Trash2,
@@ -41,20 +41,20 @@ export function PositioningModule() {
 
   const content = (moduleData?.content_json ?? {}) as PositioningContent;
   const isLocked = isModuleLocked('positioning');
-  
+
   // Get decision lock states from context
   const sentenceLocked = decisions.some(
-    (decision) => decision.module === 'positioning' && 
-    decision.decision_key === 'positioning_sentence_locked' && 
+    (decision) => decision.module === 'positioning' &&
+    decision.decision_key === 'positioning_sentence_locked' &&
     decision.locked
   );
-  
+
   const differentiatorsLocked = decisions.some(
-    (decision) => decision.module === 'positioning' && 
-    decision.decision_key === 'top_differentiators_locked' && 
+    (decision) => decision.module === 'positioning' &&
+    decision.decision_key === 'top_differentiators_locked' &&
     decision.locked
   );
-  
+
   // Initialize with proper default values including missing properties
   const [localContent, setLocalContent] = useState<PositioningContent>(() => {
     // Start with content if it exists, otherwise create proper defaults
@@ -64,36 +64,36 @@ export function PositioningModule() {
         finalSentence: content.finalSentence || '',
         proofPoints: content.proofPoints || [],
         differentiators: content.differentiators || [],
-        boundaries: content.boundaries || { 
-          allowedPromises: [], 
-          riskyPromises: [], 
-          forbiddenPromises: [] 
+        boundaries: content.boundaries || {
+          allowedPromises: [],
+          riskyPromises: [],
+          forbiddenPromises: []
         },
-        decisions: content.decisions || { 
-          sentenceLocked: sentenceLocked, 
-          differentiatorsLocked: differentiatorsLocked 
+        decisions: content.decisions || {
+          sentenceLocked: sentenceLocked,
+          differentiatorsLocked: differentiatorsLocked
         }
       };
     }
-    
+
     // Default structure with proper decisions object
     return {
       sentence: { target: '', category: '', differentiator: '', benefit: '' },
       finalSentence: '',
       proofPoints: [],
       differentiators: [],
-      boundaries: { 
-        allowedPromises: [], 
-        riskyPromises: [], 
-        forbiddenPromises: [] 
+      boundaries: {
+        allowedPromises: [],
+        riskyPromises: [],
+        forbiddenPromises: []
       },
-      decisions: { 
-        sentenceLocked: sentenceLocked, 
-        differentiatorsLocked: differentiatorsLocked 
+      decisions: {
+        sentenceLocked: sentenceLocked,
+        differentiatorsLocked: differentiatorsLocked
       }
     };
   });
-  
+
   const [hasChanges, setHasChanges] = useState(false);
   const [saveError, setSaveError] = useState(false);
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -108,10 +108,10 @@ export function PositioningModule() {
   const updateSentenceField = (field: keyof typeof localContent.sentence, value: string) => {
     const newSentence = { ...localContent.sentence, [field]: value };
     const finalSentence = `For ${newSentence.target || '[target audience]'} who need ${newSentence.category || '[market category]'}, we are the only ${newSentence.differentiator || '[differentiator]'} that ${newSentence.benefit || '[core benefit]'}.`;
-    
-    updateLocal({ 
-      sentence: newSentence, 
-      finalSentence 
+
+    updateLocal({
+      sentence: newSentence,
+      finalSentence
     });
   };
 
@@ -194,7 +194,7 @@ export function PositioningModule() {
         <div className="flex items-center gap-3">
           <Badge
             variant="secondary"
-            className={`gap-1 border ${isLocked ? 'border-destructive/30 bg-destructive/10 text-destructive' : 'border-emerald-500/25 bg-emerald-500/10 text-emerald-300'}`}
+            className={`gap-1 border ${isLocked ? 'border-destructive/30 bg-destructive/10 text-destructive' : 'border-success/25 bg-success/10 text-success'}`}
           >
             {isLocked ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
             {isLocked ? 'Locked' : 'Editable'}
@@ -237,7 +237,7 @@ export function PositioningModule() {
                       disabled={isLocked || localContent.decisions?.sentenceLocked}
                     />
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label className="flex items-center gap-2 text-sm font-medium">
                       <TrendingUp className="h-4 w-4" />
@@ -252,7 +252,7 @@ export function PositioningModule() {
                     />
                   </div>
                 </div>
-                
+
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label className="text-sm font-medium">Market Category</Label>
@@ -264,7 +264,7 @@ export function PositioningModule() {
                       disabled={isLocked || localContent.decisions?.sentenceLocked}
                     />
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label className="text-sm font-medium">Primary Differentiator</Label>
                     <Input
@@ -279,18 +279,18 @@ export function PositioningModule() {
               </div>
 
               <Separator />
-              
-              <div className="bg-gradient-to-r  p-6 rounded-lg border">
+
+              <div className="rounded-lg border border-border bg-muted/30 p-6">
                 <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Positioning Statement Preview
                 </Label>
                 <p className="mt-3 text-lg font-medium leading-relaxed">
-                  For {localContent.sentence.target || '[target audience]'} who need {localContent.sentence.category || '[market category]'}, 
+                  For {localContent.sentence.target || '[target audience]'} who need {localContent.sentence.category || '[market category]'},
                   we are the only {localContent.sentence.differentiator || '[differentiator]'} that {localContent.sentence.benefit || '[core benefit]'}.
                 </p>
                 {localContent.finalSentence && (
-                  <div className="mt-4 p-4 bg-white border rounded-md">
-                    <p className="text-sm font-medium text-gray-900">{localContent.finalSentence}</p>
+                  <div className="mt-4 p-4 bg-card border rounded-md">
+                    <p className="text-sm font-medium text-foreground">{localContent.finalSentence}</p>
                     {localContent.decisions?.sentenceLocked && (
                       <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
                         <Lock className="h-3 w-3" />
@@ -322,7 +322,7 @@ export function PositioningModule() {
                     Support your positioning with verifiable proof points
                   </CardDescription>
                 </div>
-                <Button 
+                <Button
                   onClick={() => updateLocal({
                     proofPoints: [...localContent.proofPoints, {
                       id: Date.now().toString(),
@@ -364,13 +364,13 @@ export function PositioningModule() {
                                 <button
                                   key={star}
                                   onClick={() => updateLocal({
-                                    proofPoints: localContent.proofPoints.map(p => 
+                                    proofPoints: localContent.proofPoints.map(p =>
                                       p.id === point.id ? { ...p, confidence: star as any } : p
                                     )
                                   })}
                                   disabled={isLocked}
                                 >
-                                  <Star className={`h-4 w-4 ${star <= point.confidence ? 'fill-primary text-primary' : 'text-gray-300'}`} />
+                                  <Star className={`h-4 w-4 ${star <= point.confidence ? 'fill-primary text-primary' : 'text-muted-foreground'}`} />
                                 </button>
                               ))}
                               <span className="text-xs text-muted-foreground ml-2">
@@ -386,19 +386,19 @@ export function PositioningModule() {
                             proofPoints: localContent.proofPoints.filter(p => p.id !== point.id)
                           })}
                           disabled={isLocked}
-                          className="h-8 w-8 text-gray-400 hover:text-gray-700"
+                          className="h-8 w-8 text-muted-foreground hover:text-foreground"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
-                      
+
                       <div className="grid gap-4 md:grid-cols-2">
                         <div className="space-y-2">
                           <Label className="text-sm">Claim</Label>
                           <Textarea
                             value={point.claim}
                             onChange={(e) => updateLocal({
-                              proofPoints: localContent.proofPoints.map(p => 
+                              proofPoints: localContent.proofPoints.map(p =>
                                 p.id === point.id ? { ...p, claim: e.target.value } : p
                               )
                             })}
@@ -412,7 +412,7 @@ export function PositioningModule() {
                           <Textarea
                             value={point.evidence}
                             onChange={(e) => updateLocal({
-                              proofPoints: localContent.proofPoints.map(p => 
+                              proofPoints: localContent.proofPoints.map(p =>
                                 p.id === point.id ? { ...p, evidence: e.target.value } : p
                               )
                             })}
@@ -448,7 +448,7 @@ export function PositioningModule() {
                     Define approved and banned language for your unique value
                   </CardDescription>
                 </div>
-                <Button 
+                <Button
                   onClick={() => updateLocal({
                     differentiators: [...localContent.differentiators, {
                       id: Date.now().toString(),
@@ -492,17 +492,17 @@ export function PositioningModule() {
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
-                    
+
                     <div className="space-y-4">
                       <div className="space-y-2">
                         <Label className="flex items-center gap-2 text-sm font-medium">
-                          <CheckCircle className="h-4 w-4 text-green-600" />
+                          <CheckCircle className="h-4 w-4 text-success" />
                           Approved Language
                         </Label>
                         <Textarea
                           value={diff.approvedPhrasing}
                           onChange={(e) => updateLocal({
-                            differentiators: localContent.differentiators.map(d => 
+                            differentiators: localContent.differentiators.map(d =>
                               d.id === diff.id ? { ...d, approvedPhrasing: e.target.value } : d
                             )
                           })}
@@ -511,19 +511,19 @@ export function PositioningModule() {
                           disabled={isLocked || localContent.decisions?.differentiatorsLocked}
                         />
                       </div>
-                      
+
                       <div className="space-y-2">
                         <Label className="flex items-center gap-2 text-sm font-medium">
-                          <XCircle className="h-4 w-4 text-red-600" />
+                          <XCircle className="h-4 w-4 text-destructive" />
                           Banned Language
                         </Label>
                         <Textarea
                           value={diff.bannedPhrasing.join('\n')}
                           onChange={(e) => updateLocal({
-                            differentiators: localContent.differentiators.map(d => 
-                              d.id === diff.id ? { 
-                                ...d, 
-                                bannedPhrasing: e.target.value.split('\n').filter(Boolean) 
+                            differentiators: localContent.differentiators.map(d =>
+                              d.id === diff.id ? {
+                                ...d,
+                                bannedPhrasing: e.target.value.split('\n').filter(Boolean)
                               } : d
                             )
                           })}
@@ -550,10 +550,10 @@ export function PositioningModule() {
           </AccordionTrigger>
           <AccordionContent className="pt-2">
           <div className="grid gap-6 md:grid-cols-3">
-            <Card className="border-green-200">
+            <Card className="border-success/25">
               <CardHeader className="pb-3">
                 <div className="flex items-center gap-2">
-                  <CheckCircle className="h-5 w-5 text-green-600" />
+                  <CheckCircle className="h-5 w-5 text-success" />
                   <CardTitle className="text-base">Core Promises</CardTitle>
                 </div>
                 <CardDescription>
@@ -575,11 +575,11 @@ export function PositioningModule() {
                 />
               </CardContent>
             </Card>
-            
-            <Card className="border-yellow-200">
+
+            <Card className="border-warning/25">
               <CardHeader className="pb-3">
                 <div className="flex items-center gap-2">
-                  <AlertCircle className="h-5 w-5 text-yellow-600" />
+                  <AlertCircle className="h-5 w-5 text-warning" />
                   <CardTitle className="text-base">Qualified Claims</CardTitle>
                 </div>
                 <CardDescription>
@@ -601,11 +601,11 @@ export function PositioningModule() {
                 />
               </CardContent>
             </Card>
-            
-            <Card className="border-red-200">
+
+            <Card className="border-destructive/25">
               <CardHeader className="pb-3">
                 <div className="flex items-center gap-2">
-                  <XCircle className="h-5 w-5 text-red-600" />
+                  <XCircle className="h-5 w-5 text-destructive" />
                   <CardTitle className="text-base">Exclusions</CardTitle>
                 </div>
                 <CardDescription>

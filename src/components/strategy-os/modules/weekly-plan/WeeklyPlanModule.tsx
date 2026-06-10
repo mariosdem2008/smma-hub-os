@@ -366,7 +366,7 @@ export function WeeklyPlanModule() {
         <CardContent className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="space-y-2">
-              <Label className="text-green-400">Wins</Label>
+              <Label className="text-success">Wins</Label>
               <Textarea
                 value={(localContent.weeklyReview?.wins ?? []).join('\n')}
                 onChange={(e) =>
@@ -383,7 +383,7 @@ export function WeeklyPlanModule() {
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-red-400">Losses</Label>
+              <Label className="text-destructive">Losses</Label>
               <Textarea
                 value={(localContent.weeklyReview?.losses ?? []).join('\n')}
                 onChange={(e) =>
@@ -400,7 +400,7 @@ export function WeeklyPlanModule() {
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-blue-400">Changes Next Week</Label>
+              <Label className="text-primary">Changes Next Week</Label>
               <Textarea
                 value={(localContent.weeklyReview?.changesNextWeek ?? []).join('\n')}
                 onChange={(e) =>

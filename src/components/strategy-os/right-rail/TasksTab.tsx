@@ -314,7 +314,7 @@ export function TasksTab() {
                         className="mt-0.5 flex-shrink-0"
                       >
                         {isCompleted ? (
-                          <CheckCircle className="h-4 w-4 text-green-400" />
+                          <CheckCircle className="h-4 w-4 text-success" />
                         ) : (
                           <Circle className="h-4 w-4 text-muted-foreground hover:text-primary" />
                         )}
@@ -322,7 +322,7 @@ export function TasksTab() {
                     ) : (
                       <span className="mt-0.5 flex-shrink-0">
                       {isCompleted ? (
-                        <CheckCircle className="h-4 w-4 text-green-400" />
+                        <CheckCircle className="h-4 w-4 text-success" />
                       ) : (
                         <Circle className="h-4 w-4 text-muted-foreground" />
                       )}
@@ -349,7 +349,7 @@ export function TasksTab() {
                           {task.source === 'strategy' ? 'Strategy' : 'Operational'}
                         </Badge>
                         {task.status === 'pushed' && (
-                          <Badge variant="secondary" className="text-[10px] px-1.5 bg-green-500/10">
+                          <Badge variant="secondary" className="text-[10px] px-1.5 bg-success/10">
                             Pushed
                           </Badge>
                         )}

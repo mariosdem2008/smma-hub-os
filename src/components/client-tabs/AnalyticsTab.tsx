@@ -12,9 +12,11 @@ import { useAiAssistant, AiAssistantError } from "@/hooks/useAiAssistant";
 import { useToast } from "@/hooks/use-toast";
 import { AiWorkflowBlockNotice } from "@/components/ai/AiWorkflowBlockNotice";
 import { buildAssistantBlockStateFromError, type AiWorkflowBlockState } from "@/lib/aiWorkflowBlock";
+import { PremiumInlineEmpty, PremiumLoading, PremiumPage, PremiumStatCard } from "@/components/shared/PremiumPage";
 import { Eye, Users, Heart, TrendingUp, TrendingDown, Instagram, Facebook, RefreshCw, Wand2, Copy } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 interface AnalyticsTabProps {
   clientId: string;
@@ -134,26 +136,18 @@ export default function AnalyticsTab({ clientId }: AnalyticsTabProps) {
   };
 
   if (analyticsLoading && !analytics) {
-    return (
-      <div className="space-y-6">
-        <Skeleton className="h-32 w-full" />
-        <Skeleton className="h-64 w-full" />
-        <Skeleton className="h-64 w-full" />
-      </div>
-    );
+    return <PremiumLoading rows={3} />;
   }
 
   if (!analytics || (analytics.postsThisMonth === 0 && analytics.totalFollowers === 0)) {
     return (
-      <Card className="text-center py-12">
-        <CardContent>
-          <div className="w-16 h-16 bg-gradient-to-br from-primary/10 to-accent/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-primary/10">
-            <Eye className="h-8 w-8 text-primary" />
-          </div>
-          <p className="text-muted-foreground font-medium mb-2">No Analytics Data Yet</p>
-          <p className="text-sm text-muted-foreground mb-6">
-            Connect social profiles and publish content to see insights. Metrics sync runs every 6 hours.
-          </p>
+      <Card className="py-10">
+        <CardContent className="space-y-5">
+          <PremiumInlineEmpty
+            icon={Eye}
+            title="No analytics data yet"
+            description="Connect social profiles and publish content to see insights. Metrics sync runs every 6 hours."
+          />
           <div className="flex items-center justify-center gap-2">
             <Button onClick={handleAiAnomalySummary} disabled={aiAssistant.isPending} variant="outline">
               <Wand2 className={`h-4 w-4 mr-2 ${aiAssistant.isPending ? "animate-pulse" : ""}`} />
@@ -190,14 +184,12 @@ export default function AnalyticsTab({ clientId }: AnalyticsTabProps) {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header with Sync Button */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold">Performance Analytics</h2>
-          <p className="text-sm text-muted-foreground">Last 30 days</p>
-        </div>
-        <div className="flex items-center gap-2">
+    <PremiumPage
+      eyebrow="Measurement"
+      title="Performance Analytics"
+      description="Last 30 days of profile, post, reach, and engagement signals."
+      actions={
+        <>
           <Button onClick={handleAiAnomalySummary} disabled={aiAssistant.isPending} variant="outline" size="sm">
             <Wand2 className={`h-4 w-4 mr-2 ${aiAssistant.isPending ? "animate-pulse" : ""}`} />
             {aiAssistant.isPending ? "Analyzing..." : "AI Anomaly Summary"}
@@ -206,8 +198,9 @@ export default function AnalyticsTab({ clientId }: AnalyticsTabProps) {
             <RefreshCw className={`h-4 w-4 mr-2 ${syncMutation.isPending ? "animate-spin" : ""}`} />
             {syncMutation.isPending ? "Syncing..." : "Sync Metrics"}
           </Button>
-        </div>
-      </div>
+        </>
+      }
+    >
       {aiBlock ? (
         <AiWorkflowBlockNotice block={aiBlock} fallbackLink="/agency/ai-setup/activation" />
       ) : null}
@@ -227,83 +220,43 @@ export default function AnalyticsTab({ clientId }: AnalyticsTabProps) {
         </div>
       )}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-start justify-between">
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground font-medium">Total Impressions</p>
-                <p className="text-2xl font-bold">{analytics.totalImpressions.toLocaleString()}</p>
-                <div className="flex items-center gap-1 text-xs">
-                  {analytics.impressionsGrowth > 0 ? (
-                    <TrendingUp className="h-3 w-3 text-green-500" />
-                  ) : (
-                    <TrendingDown className="h-3 w-3 text-red-500" />
-                  )}
-                  <span className={analytics.impressionsGrowth > 0 ? "text-green-500" : "text-red-500"}>
-                    {Math.abs(analytics.impressionsGrowth)}%
-                  </span>
-                </div>
-              </div>
-              <div className="rounded-lg p-2 bg-gradient-to-br from-primary to-accent shadow-lg">
-                <Eye className="h-5 w-5 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-start justify-between">
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground font-medium">Total Reach</p>
-                <p className="text-2xl font-bold">{analytics.totalReach.toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground">{analytics.postsThisMonth} posts</p>
-              </div>
-              <div className="rounded-lg p-2 bg-gradient-to-br from-accent-teal to-accent-teal/80 shadow-lg">
-                <Users className="h-5 w-5 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-start justify-between">
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground font-medium">Engagement Rate</p>
-                <p className="text-2xl font-bold">{analytics.avgEngagementRate}%</p>
-                <p className="text-xs text-muted-foreground">{analytics.totalEngagement.toLocaleString()} total</p>
-              </div>
-              <div className="rounded-lg p-2 bg-gradient-to-br from-accent-pink to-accent-pink/80 shadow-lg">
-                <Heart className="h-5 w-5 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-start justify-between">
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground font-medium">Followers</p>
-                <p className="text-2xl font-bold">{analytics.totalFollowers.toLocaleString()}</p>
-                <div className="flex items-center gap-1 text-xs">
-                  {analytics.followerGrowth > 0 ? (
-                    <TrendingUp className="h-3 w-3 text-green-500" />
-                  ) : (
-                    <TrendingDown className="h-3 w-3 text-red-500" />
-                  )}
-                  <span className={analytics.followerGrowth > 0 ? "text-green-500" : "text-red-500"}>
-                    {Math.abs(analytics.followerGrowth)}%
-                  </span>
-                </div>
-              </div>
-              <div className="rounded-lg p-2 bg-gradient-to-br from-green-500 to-green-600 shadow-lg">
-                <Users className="h-5 w-5 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <PremiumStatCard
+          icon={Eye}
+          label="Total Impressions"
+          value={analytics.totalImpressions.toLocaleString()}
+          detail={
+            <span className={cn("inline-flex items-center gap-1", analytics.impressionsGrowth > 0 ? "text-success" : "text-destructive")}>
+              {analytics.impressionsGrowth > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+              {Math.abs(analytics.impressionsGrowth)}%
+            </span>
+          }
+        />
+        <PremiumStatCard
+          icon={Users}
+          label="Total Reach"
+          value={analytics.totalReach.toLocaleString()}
+          detail={`${analytics.postsThisMonth} posts`}
+          tone="accent"
+        />
+        <PremiumStatCard
+          icon={Heart}
+          label="Engagement Rate"
+          value={`${analytics.avgEngagementRate}%`}
+          detail={`${analytics.totalEngagement.toLocaleString()} total engagements`}
+          tone="warning"
+        />
+        <PremiumStatCard
+          icon={Users}
+          label="Followers"
+          value={analytics.totalFollowers.toLocaleString()}
+          tone="success"
+          detail={
+            <span className={cn("inline-flex items-center gap-1", analytics.followerGrowth > 0 ? "text-success" : "text-destructive")}>
+              {analytics.followerGrowth > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+              {Math.abs(analytics.followerGrowth)}%
+            </span>
+          }
+        />
       </div>
 
       {/* Trends Chart */}
@@ -333,7 +286,7 @@ export default function AnalyticsTab({ clientId }: AnalyticsTabProps) {
                   <Line
                     type="monotone"
                     dataKey="followers"
-                    stroke="hsl(142, 70%, 55%)"
+                    stroke="hsl(var(--success))"
                     strokeWidth={2}
                     dot={{ r: 3 }}
                     name="Followers"
@@ -359,7 +312,7 @@ export default function AnalyticsTab({ clientId }: AnalyticsTabProps) {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-green-500" />
+              <TrendingUp className="h-5 w-5 text-success" />
               Top Performing Posts
             </CardTitle>
           </CardHeader>
@@ -377,7 +330,7 @@ export default function AnalyticsTab({ clientId }: AnalyticsTabProps) {
                     key={post.id}
                     className="flex items-center gap-3 rounded-lg border p-3 hover:bg-muted/30 transition-colors"
                   >
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-500/10 text-sm font-bold text-green-500">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-success/10 text-sm font-bold text-success">
                       #{index + 1}
                     </div>
                     {post.project?.thumbnail_url && (
@@ -394,7 +347,7 @@ export default function AnalyticsTab({ clientId }: AnalyticsTabProps) {
                           {getPlatformIcon(post.platform)}
                           <span className="ml-1">{post.platform}</span>
                         </Badge>
-                        <span className="font-semibold text-green-500">{post.engagementRate}%</span>
+                        <span className="font-semibold text-success">{post.engagementRate}%</span>
                         <span>•</span>
                         <span>{post.reach.toLocaleString()} reach</span>
                       </div>
@@ -403,7 +356,7 @@ export default function AnalyticsTab({ clientId }: AnalyticsTabProps) {
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground text-center py-8">No posts with analytics yet</p>
+              <PremiumInlineEmpty icon={TrendingUp} title="No posts with analytics yet" description="Published posts with synced metrics will appear here." className="py-8" />
             )}
           </CardContent>
         </Card>
@@ -412,7 +365,7 @@ export default function AnalyticsTab({ clientId }: AnalyticsTabProps) {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <TrendingDown className="h-5 w-5 text-red-500" />
+              <TrendingDown className="h-5 w-5 text-destructive" />
               Needs Improvement
             </CardTitle>
           </CardHeader>
@@ -430,7 +383,7 @@ export default function AnalyticsTab({ clientId }: AnalyticsTabProps) {
                     key={post.id}
                     className="flex items-center gap-3 rounded-lg border p-3 hover:bg-muted/30 transition-colors"
                   >
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-500/10 text-sm font-bold text-red-500">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-destructive/10 text-sm font-bold text-destructive">
                       #{index + 1}
                     </div>
                     {post.project?.thumbnail_url && (
@@ -447,7 +400,7 @@ export default function AnalyticsTab({ clientId }: AnalyticsTabProps) {
                           {getPlatformIcon(post.platform)}
                           <span className="ml-1">{post.platform}</span>
                         </Badge>
-                        <span className="font-semibold text-red-500">{post.engagementRate}%</span>
+                        <span className="font-semibold text-destructive">{post.engagementRate}%</span>
                         <span>•</span>
                         <span>{post.reach.toLocaleString()} reach</span>
                       </div>
@@ -456,11 +409,11 @@ export default function AnalyticsTab({ clientId }: AnalyticsTabProps) {
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground text-center py-8">No posts with analytics yet</p>
+              <PremiumInlineEmpty icon={TrendingDown} title="No posts with analytics yet" description="Lower-performing posts will appear once there are enough synced metrics." className="py-8" />
             )}
           </CardContent>
         </Card>
       </div>
-    </div>
+    </PremiumPage>
   );
 }

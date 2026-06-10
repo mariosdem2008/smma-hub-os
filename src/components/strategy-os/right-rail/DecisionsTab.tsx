@@ -78,7 +78,7 @@ export function DecisionsTab() {
                     >
                       <div className="flex items-center gap-2">
                         {isDecisionLocked ? (
-                          <CheckCircle className="h-3.5 w-3.5 text-green-400" />
+                          <CheckCircle className="h-3.5 w-3.5 text-success" />
                         ) : (
                           <Circle className="h-3.5 w-3.5 text-muted-foreground" />
                         )}

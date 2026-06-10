@@ -1,5 +1,6 @@
 import { useOutletContext } from "react-router-dom";
 import SocialConnectionsSection from "@/components/SocialConnectionsSection";
+import { PremiumPage } from "@/components/shared/PremiumPage";
 
 interface OutletContext {
   clientId: string;
@@ -11,15 +12,12 @@ export default function PortalSocialProfiles() {
   const { clientId } = useOutletContext<OutletContext>();
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold">Social Profiles</h2>
-        <p className="text-muted-foreground">
-          Connect and manage your social media accounts
-        </p>
-      </div>
-
+    <PremiumPage
+      eyebrow="Connections"
+      title="Social Profiles"
+      description="Connect and manage your social media accounts."
+    >
       <SocialConnectionsSection clientId={clientId} isClientPortal={true} />
-    </div>
+    </PremiumPage>
   );
 }

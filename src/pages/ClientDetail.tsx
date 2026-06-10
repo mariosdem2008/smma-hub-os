@@ -114,6 +114,12 @@ const secondaryTabs = [
 
 const allTabs = [...primaryTabs, ...secondaryTabs];
 
+const workspaceStatusTone = {
+  ready: "border-success/30 bg-success/10 text-success",
+  warning: "border-warning/30 bg-warning/10 text-warning",
+  degraded: "border-destructive/30 bg-destructive/10 text-destructive",
+} as const;
+
 export default function ClientDetail() {
   const { clientId: rawClientId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -503,7 +509,7 @@ export default function ClientDetail() {
 
   return (
     <div
-      className="flex min-h-[calc(100vh-3.5rem)]"
+      className="flex min-h-[calc(100vh-3.5rem)] bg-background/60"
       style={{
         transform: isMobile ? `translateY(${pullDistance}px)` : undefined,
         transition: isRefreshing ? "transform 0.3s ease-out" : "none",
@@ -522,11 +528,11 @@ export default function ClientDetail() {
 
       {/* Left Sidebar Navigation */}
       {!isMobile && (
-        <aside className="w-56 border-r bg-muted/30 flex-shrink-0">
-          <div className="p-4 border-b space-y-3">
+        <aside className="sticky top-0 h-[calc(100vh-3.5rem)] w-64 flex-shrink-0 overflow-y-auto border-r border-border/80 bg-card/70 shadow-sidebar">
+          <div className="space-y-3 border-b border-border/70 p-4">
             <button
               onClick={() => navigate("/clients")}
-              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              className="focus-ring flex items-center gap-1 rounded-md px-1 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
             >
               <ChevronLeft className="h-3 w-3" />
               <span>Clients</span>
@@ -544,7 +550,7 @@ export default function ClientDetail() {
               onClientUpdate={handleClientUpdate}
             />
           </div>
-          <nav className="p-2 space-y-1">
+          <nav className="space-y-1 p-3" aria-label="Client workspace sections">
             {primaryTabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -555,11 +561,12 @@ export default function ClientDetail() {
                   <button
                     onClick={() => handleTabChange(tab.id)}
                     className={cn(
-                      "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-left",
+                      "focus-ring flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors",
                       isActive
-                        ? "bg-primary text-primary-foreground"
+                        ? "bg-primary text-primary-foreground shadow-btn-primary"
                         : "text-muted-foreground hover:bg-muted hover:text-foreground",
                     )}
+                    aria-current={isActive ? "page" : undefined}
                   >
                     <Icon className="h-4 w-4 flex-shrink-0" />
                     <span className="truncate flex-1">{tab.label}</span>
@@ -579,10 +586,10 @@ export default function ClientDetail() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                  className={cn(
-                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-left",
+                    className={cn(
+                    "focus-ring flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors",
                     secondaryTabs.some((tab) => tab.id === activeTab)
-                      ? "bg-muted text-foreground"
+                      ? "bg-surface-raised text-foreground"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground",
                   )}
                 >
@@ -604,13 +611,11 @@ export default function ClientDetail() {
               </DropdownMenuContent>
             </DropdownMenu>
           </nav>
-          <div className="px-3 pb-3">
+          <div className="px-3 pb-4">
             <div
               className={cn(
-                "rounded-md border px-2.5 py-2 text-xs",
-                aiStatus.tone === "ready" && "border-emerald-500/30 bg-emerald-500/10 text-emerald-100",
-                aiStatus.tone === "warning" && "border-amber-500/30 bg-amber-500/10 text-amber-100",
-                aiStatus.tone === "degraded" && "border-orange-500/30 bg-orange-500/10 text-orange-100",
+                "rounded-lg border px-3 py-2 text-xs shadow-xs",
+                workspaceStatusTone[aiStatus.tone],
               )}
             >
               <div className="flex items-center gap-1.5 font-medium">
@@ -631,8 +636,8 @@ export default function ClientDetail() {
 
       {/* Mobile Tab Bar */}
       {isMobile && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t">
-          <div className="flex overflow-x-auto scrollbar-hide py-2 px-2 gap-1">
+        <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-border/80 bg-background/92 shadow-panel backdrop-blur-xl safe-area-bottom">
+          <div className="momentum-scroll scrollbar-hide flex gap-1 overflow-x-auto px-2 py-2">
             {primaryTabs.map((tab) => {
               const Icon = tab.icon;
               const badgeCount = showTabBadges ? tabBadgeCounts[tab.id] ?? 0 : 0;
@@ -641,9 +646,10 @@ export default function ClientDetail() {
                   key={tab.id}
                   onClick={() => handleTabChange(tab.id)}
                   className={cn(
-                    "relative flex flex-col items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium transition-colors flex-shrink-0 min-w-[60px]",
-                    activeTab === tab.id ? "bg-primary text-primary-foreground" : "text-muted-foreground",
+                    "focus-ring relative flex min-w-[64px] flex-shrink-0 flex-col items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium transition-colors",
+                    activeTab === tab.id ? "bg-primary text-primary-foreground shadow-btn-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground",
                   )}
+                  aria-current={activeTab === tab.id ? "page" : undefined}
                 >
                   <div className="relative">
                     <Icon className="h-4 w-4" />
@@ -661,10 +667,10 @@ export default function ClientDetail() {
               <SheetTrigger asChild>
                 <button
                   className={cn(
-                    "flex flex-col items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium transition-colors flex-shrink-0 min-w-[60px]",
+                    "focus-ring flex min-w-[64px] flex-shrink-0 flex-col items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium transition-colors",
                     secondaryTabs.some((tab) => tab.id === activeTab)
-                      ? "bg-muted text-foreground"
-                      : "text-muted-foreground",
+                      ? "bg-surface-raised text-foreground"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
                   )}
                 >
                   <MoreHorizontal className="h-4 w-4" />
@@ -701,13 +707,14 @@ export default function ClientDetail() {
       )}
 
       {/* Main Content */}
-      <main className={cn("flex-1 overflow-auto", isMobile ? "pb-24 p-4" : "p-6")}>
+      <main className={cn("min-w-0 flex-1 overflow-auto", isMobile ? "p-4 pb-24" : "p-6")}>
+        <div className="mx-auto w-full max-w-[1440px] space-y-5">
         {/* Show client header on mobile */}
         {isMobile && (
           <div className="mb-4 space-y-3">
             <button
               onClick={() => navigate("/clients")}
-              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              className="focus-ring flex items-center gap-1 rounded-md px-1 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
             >
               <ChevronLeft className="h-3 w-3" />
               <span>Clients</span>
@@ -734,13 +741,13 @@ export default function ClientDetail() {
         )}
 
         {strategyGenerating && (
-          <div className="mb-4 rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-2 text-sm text-sky-100">
+          <div className="mb-4 rounded-lg border border-info/30 bg-info/10 px-3 py-2 text-sm text-info">
             Strategy generation is in progress. You can stay here while the system finishes building the first strategy document.
           </div>
         )}
 
         {gateStatus?.usable && stagedReadiness && (
-          <div className="mb-4 rounded-lg border border-border/70 bg-card/40 p-4">
+          <div className="mb-4 rounded-lg border border-border/80 bg-card/80 p-4 shadow-card">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <div className="text-sm font-semibold text-foreground">Client setup journey</div>
@@ -846,7 +853,7 @@ export default function ClientDetail() {
                       </div>
                     ))}
                     {blockingChecklistItems.length === 0 && (
-                      <div className="rounded-md border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-100">
+                      <div className="rounded-md border border-success/25 bg-success/10 px-3 py-2 text-sm text-success">
                         No blocking execution items remain.
                       </div>
                     )}
@@ -967,9 +974,7 @@ export default function ClientDetail() {
         <div
           className={cn(
             "mb-4 rounded-lg border px-3 py-2 text-xs sm:text-sm",
-            aiStatus.tone === "ready" && "border-emerald-500/30 bg-emerald-500/10 text-emerald-100",
-            aiStatus.tone === "warning" && "border-amber-500/30 bg-amber-500/10 text-amber-100",
-            aiStatus.tone === "degraded" && "border-orange-500/30 bg-orange-500/10 text-orange-100",
+            workspaceStatusTone[aiStatus.tone],
           )}
         >
           <div className="flex items-center gap-2 font-medium">
@@ -986,6 +991,7 @@ export default function ClientDetail() {
         </div>
 
         <div className="space-y-4">{renderTabContent()}</div>
+        </div>
       </main>
 
       {/* Global Right Panel Trigger - Hidden when feature flag is OFF */}

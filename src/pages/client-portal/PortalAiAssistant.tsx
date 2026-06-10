@@ -1,5 +1,6 @@
 import { useOutletContext } from "react-router-dom";
 import AiRepChatTab from "@/components/client-tabs/AiRepChatTab";
+import { PremiumPage } from "@/components/shared/PremiumPage";
 
 interface OutletContext {
   clientId: string;
@@ -9,10 +10,14 @@ export function PortalAiAssistant() {
   const { clientId } = useOutletContext<OutletContext>();
 
   return (
-    <div className="container max-w-4xl py-8 space-y-6">
-      <h1 className="text-3xl font-bold">AI Assistant</h1>
+    <PremiumPage
+      eyebrow="Assistant"
+      title="AI Assistant"
+      description="Ask campaign, asset, and performance questions in your client portal."
+      className="mx-auto max-w-4xl"
+    >
       <AiRepChatTab clientId={clientId} />
-    </div>
+    </PremiumPage>
   );
 }
 

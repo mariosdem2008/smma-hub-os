@@ -239,7 +239,6 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
 
       setProjects(projectsWithData);
     } catch (error: any) {
-      console.error("Error fetching projects:", error);
       toast({
         title: "Error loading pipeline",
         description: error.message,
@@ -266,7 +265,6 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
         setUserTimezone(data.timezone);
       }
     } catch (error) {
-      console.error("Error fetching timezone:", error);
     }
   };
 
@@ -359,7 +357,6 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
           }
         });
       } catch (notifError) {
-        console.error('Notification error:', notifError);
       }
 
       toast({
@@ -369,7 +366,6 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
 
       setProjects(projects.map(p => p.id === projectId ? { ...p, status: newStage, rejection_reason: rejectionReason || null } : p));
     } catch (error: any) {
-      console.error('Stage transition error:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to move project",
@@ -412,7 +408,6 @@ export default function PipelineTab({ clientId, agencyId }: PipelineTabProps) {
 
       fetchProjects();
     } catch (error: any) {
-      console.error('Bulk approve error:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to bulk approve",

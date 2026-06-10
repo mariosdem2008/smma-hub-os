@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useHasSupabaseSession } from "@/hooks/useHasSupabaseSession";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { PremiumPage, PremiumStatCard } from "@/components/shared/PremiumPage";
 import { 
   Palette, 
   Globe, 
@@ -104,11 +105,16 @@ export function PortalOverview() {
   const displayColors = brandColors.length > 0 ? brandColors : brandColorsFallback;
 
   return (
-    <div className="grid gap-6 md:grid-cols-2">
+    <PremiumPage
+      eyebrow="Portal Home"
+      title={`Welcome, ${client.name}`}
+      description="Your shared workspace for approvals, assets, campaign performance, and brand information."
+    >
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(340px,0.85fr)]">
       {/* Left Column */}
       <div className="space-y-6">
         {/* Brand Information Card */}
-        <Card>
+        <Card className="overflow-hidden">
           <CardHeader>
             <CardTitle>Brand Information</CardTitle>
           </CardHeader>
@@ -187,7 +193,7 @@ export function PortalOverview() {
                   <p className="text-sm font-medium mb-2">Brand Colors</p>
                   <div className="flex flex-wrap gap-2">
                     {displayColors.map((color, index) => (
-                      <div key={index} className="flex items-center gap-2 rounded-md border px-3 py-1.5">
+                    <div key={index} className="flex items-center gap-2 rounded-md border border-border/80 bg-muted/30 px-3 py-1.5">
                         <div
                           className="h-4 w-4 rounded"
                           style={{ backgroundColor: color }}
@@ -219,49 +225,14 @@ export function PortalOverview() {
 
       {/* Right Column */}
       <div className="space-y-6">
-        {/* Key Stats Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Your Content</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between rounded-lg border p-4">
-              <div className="flex items-center gap-3">
-                <div className="rounded-full bg-primary/10 p-2">
-                  <CalendarDays className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Scheduled Posts</p>
-                  <p className="text-2xl font-bold">{stats.totalPosts}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between rounded-lg border p-4">
-              <div className="flex items-center gap-3">
-                <div className="rounded-full bg-yellow-500/10 p-2">
-                  <Lightbulb className="h-5 w-5 text-yellow-500" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Ideas</p>
-                  <p className="text-2xl font-bold">{stats.totalIdeas}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between rounded-lg border p-4">
-              <div className="flex items-center gap-3">
-                <div className="rounded-full bg-blue-500/10 p-2">
-                  <FolderOpen className="h-5 w-5 text-blue-500" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Assets</p>
-                  <p className="text-2xl font-bold">{stats.totalAssets}</p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <section className="space-y-3">
+          <h2 className="font-display text-xl font-semibold text-foreground">Your Content</h2>
+          <div className="grid gap-3">
+            <PremiumStatCard icon={CalendarDays} label="Scheduled Posts" value={stats.totalPosts} />
+            <PremiumStatCard icon={Lightbulb} label="Total Ideas" value={stats.totalIdeas} tone="warning" />
+            <PremiumStatCard icon={FolderOpen} label="Total Assets" value={stats.totalAssets} tone="accent" />
+          </div>
+        </section>
 
         {/* Quick Actions Info Card */}
         <Card>
@@ -300,5 +271,6 @@ export function PortalOverview() {
         </Card>
       </div>
     </div>
+    </PremiumPage>
   );
 }

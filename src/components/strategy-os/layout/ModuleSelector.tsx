@@ -141,7 +141,7 @@ function ModuleSelectorItem({
       {/* Right side indicators */}
       <div className="flex items-center gap-1">
         {hasBlockers && (
-          <AlertCircle className="h-3.5 w-3.5 text-orange-400" />
+          <AlertCircle className="h-3.5 w-3.5 text-warning" />
         )}
         {isLocked && (
           <Lock className="h-3.5 w-3.5 text-muted-foreground" />
@@ -158,10 +158,10 @@ function ModuleSelectorItem({
         <div
           className={cn(
             'absolute top-1 right-1 h-2 w-2 rounded-full',
-            status === 'draft' && 'bg-yellow-400',
-            status === 'review' && 'bg-blue-400',
-            status === 'approved' && 'bg-green-400',
-            status === 'locked' && 'bg-red-400'
+            status === 'draft' && 'bg-warning',
+            status === 'review' && 'bg-primary',
+            status === 'approved' && 'bg-success',
+            status === 'locked' && 'bg-destructive'
           )}
         />
       )}

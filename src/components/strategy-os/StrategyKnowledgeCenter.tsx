@@ -202,7 +202,7 @@ function highlightNodes(node: ReactNode, query: string): ReactNode {
     const parts = node.split(regex);
     return parts.map((part, index) =>
       part.toLowerCase() === query.toLowerCase() ? (
-        <mark key={`${part}-${index}`} className="bg-yellow-300/40 text-foreground rounded px-0.5">
+        <mark key={`${part}-${index}`} className="bg-warning/20 text-foreground rounded px-0.5">
           {part}
         </mark>
       ) : (
@@ -707,8 +707,7 @@ export function StrategyKnowledgeCenter({ clientId, agencyId }: StrategyKnowledg
       code === "BRAIN_INCOMPLETE" ||
       code === "MISSING_DOCUMENT";
     if (!expectedReadinessError) {
-      console.error(title, error);
-    }
+          }
 
     toast({
       title,
@@ -1012,7 +1011,7 @@ export function StrategyKnowledgeCenter({ clientId, agencyId }: StrategyKnowledg
             </div>
 
             {latestReadinessArtifact && Array.isArray(latestReadinessArtifact.open_questions) && latestReadinessArtifact.open_questions.length > 0 && (
-              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
+              <div className="rounded-lg border border-warning/30 bg-warning/10 p-3">
                 <div className="text-sm font-medium">Open questions</div>
                 <div className="mt-2 text-sm text-muted-foreground">
                   {latestReadinessArtifact.open_questions.slice(0, 3).join(" | ")}
@@ -1163,7 +1162,7 @@ export function StrategyKnowledgeCenter({ clientId, agencyId }: StrategyKnowledg
             )}
 
             {latestCreatorBriefArtifact && (
-              <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/10 p-3">
+              <div className="rounded-lg border border-success/25 bg-success/10 p-3">
                 <div className="text-sm font-medium">Latest creator brief</div>
                 <div className="mt-2 text-sm text-muted-foreground">
                   {typeof latestCreatorBriefArtifact.content_json?.summary === "string"
@@ -1173,7 +1172,7 @@ export function StrategyKnowledgeCenter({ clientId, agencyId }: StrategyKnowledg
               </div>
             )}
 
-            <div className="rounded-lg border border-sky-500/30 bg-sky-500/10 p-3">
+            <div className="rounded-lg border border-info/30 bg-info/10 p-3">
               <div className="text-sm font-medium">Downstream readiness</div>
               <div className="mt-2 text-sm text-muted-foreground">
                 {latestRecommendationArtifact?.status === "approved" && latestStrategyPlanArtifact?.status === "approved"
@@ -1465,7 +1464,7 @@ export function StrategyKnowledgeCenter({ clientId, agencyId }: StrategyKnowledg
             </div>
 
             {activeExecutionTasks.length === 0 ? (
-              <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
+              <div className="rounded-lg border border-success/25 bg-success/10 px-4 py-3 text-sm text-success">
                 No active execution tasks. Setup blockers and enrichment items are currently under control.
               </div>
             ) : (
@@ -1671,7 +1670,7 @@ export function StrategyKnowledgeCenter({ clientId, agencyId }: StrategyKnowledg
           </div>
 
           {sortedQueue.length === 0 ? (
-            <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
+            <div className="rounded-lg border border-success/25 bg-success/10 px-4 py-3 text-sm text-success">
               No active enrichment items. The current onboarding and strategy context are aligned.
             </div>
           ) : (
@@ -1912,7 +1911,7 @@ export function StrategyKnowledgeCenter({ clientId, agencyId }: StrategyKnowledg
         <Card className="border-dashed border-border/60 bg-background/60">
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
             {strategyGenerating ? (
-              <Loader2 className="mb-4 h-12 w-12 animate-spin text-sky-400" />
+              <Loader2 className="mb-4 h-12 w-12 animate-spin text-primary" />
             ) : (
               <FileText className="mb-4 h-12 w-12 text-muted-foreground/60" />
             )}

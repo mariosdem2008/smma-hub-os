@@ -21,14 +21,15 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Lightbulb } from "lucide-react";
 import ApprovalReviewModal from "@/components/ApprovalReviewModal";
 import { format } from "date-fns";
+import { PremiumInlineEmpty, PremiumLoading, PremiumPage } from "@/components/shared/PremiumPage";
 
 type IdeaStatus = "draft" | "in_review" | "approved" | "rejected";
 
 const statusColors: Record<IdeaStatus, string> = {
-  draft: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200",
-  in_review: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-  approved: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-  rejected: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+  draft: "border-border bg-muted text-muted-foreground",
+  in_review: "border-warning/30 bg-warning/10 text-warning",
+  approved: "border-success/30 bg-success/10 text-success",
+  rejected: "border-destructive/30 bg-destructive/10 text-destructive",
 };
 
 const statusLabels: Record<IdeaStatus, string> = {
@@ -162,7 +163,6 @@ export function PortalIdeas() {
           description: "Failed to submit idea",
           variant: "destructive",
         });
-        console.error(error);
         return;
       }
 
@@ -195,7 +195,6 @@ export function PortalIdeas() {
         description: `Failed to ${reviewAction} idea`,
         variant: "destructive",
       });
-      console.error(error);
       return;
     }
 
@@ -214,18 +213,15 @@ export function PortalIdeas() {
   };
 
   if (loading) {
-    return <div>Loading ideas...</div>;
+    return <PremiumLoading rows={4} />;
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold mb-2">Ideas</h1>
-          <p className="text-muted-foreground">
-            Share your content ideas and track their progress
-          </p>
-        </div>
+    <PremiumPage
+      eyebrow="Collaboration"
+      title="Ideas"
+      description="Share content ideas with your agency team and track review progress."
+      actions={
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button>
@@ -278,7 +274,8 @@ export function PortalIdeas() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
+      }
+    >
 
       {/* Ideas Grid by Status */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -295,7 +292,7 @@ export function PortalIdeas() {
                   <div className="space-y-3">
                     <div className="flex items-start justify-between gap-2">
                       <h4 className="font-medium line-clamp-2">{idea.title}</h4>
-                      <Badge className={statusColors[idea.status as IdeaStatus]}>
+                      <Badge variant="outline" className={statusColors[idea.status as IdeaStatus]}>
                         {statusLabels[idea.status as IdeaStatus]}
                       </Badge>
                     </div>
@@ -340,7 +337,7 @@ export function PortalIdeas() {
                             setReviewAction('approve');
                             setReviewModalOpen(true);
                           }}
-                          className="flex-1 bg-green-600 hover:bg-green-700"
+                          className="flex-1"
                         >
                           Approve
                         </Button>
@@ -361,22 +358,22 @@ export function PortalIdeas() {
                     )}
 
                     {idea.status === "approved" && idea.review_comment && (
-                      <div className="text-xs p-2 bg-green-50 dark:bg-green-950 rounded border border-green-200 dark:border-green-800">
-                        <p className="font-medium text-green-900 dark:text-green-100">
+                      <div className="rounded border border-success/25 bg-success/10 p-2 text-xs">
+                        <p className="font-medium text-success">
                           Approval Note:
                         </p>
-                        <p className="text-green-700 dark:text-green-300 mt-1">
+                        <p className="mt-1 text-muted-foreground">
                           {idea.review_comment}
                         </p>
                       </div>
                     )}
 
                     {idea.status === "rejected" && idea.review_comment && (
-                      <div className="text-xs p-2 bg-red-50 dark:bg-red-950 rounded border border-red-200 dark:border-red-800">
-                        <p className="font-medium text-red-900 dark:text-red-100">
+                      <div className="rounded border border-destructive/25 bg-destructive/10 p-2 text-xs">
+                        <p className="font-medium text-destructive">
                           Rejection Reason:
                         </p>
-                        <p className="text-red-700 dark:text-red-300 mt-1">
+                        <p className="mt-1 text-muted-foreground">
                           {idea.review_comment}
                         </p>
                       </div>
@@ -386,9 +383,11 @@ export function PortalIdeas() {
               ))}
 
               {ideasByStatus[status].length === 0 && (
-                <div className="text-center p-8 border-2 border-dashed rounded-lg">
-                  <p className="text-sm text-muted-foreground">No {statusLabels[status].toLowerCase()} ideas</p>
-                </div>
+                <PremiumInlineEmpty
+                  icon={Lightbulb}
+                  title={`No ${statusLabels[status].toLowerCase()} ideas`}
+                  className="py-8"
+                />
               )}
             </div>
           </div>
@@ -396,17 +395,17 @@ export function PortalIdeas() {
       </div>
 
       {ideas.length === 0 && (
-        <Card className="p-12 text-center">
-          <Lightbulb className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-          <h3 className="text-lg font-semibold mb-2">No Ideas Yet</h3>
-          <p className="text-muted-foreground mb-4">
-            Start sharing your content ideas with your agency team.
-          </p>
-          <Button onClick={() => setDialogOpen(true)}>
+        <div className="space-y-4">
+          <PremiumInlineEmpty
+            icon={Lightbulb}
+            title="No ideas yet"
+            description="Start sharing your content ideas with your agency team."
+          />
+          <Button onClick={() => setDialogOpen(true)} className="mx-auto flex">
             <Plus className="h-4 w-4 mr-2" />
             Add Your First Idea
           </Button>
-        </Card>
+        </div>
       )}
 
       <ApprovalReviewModal
@@ -417,6 +416,6 @@ export function PortalIdeas() {
         action={reviewAction}
         onSubmit={handleReview}
       />
-    </div>
+    </PremiumPage>
   );
 }

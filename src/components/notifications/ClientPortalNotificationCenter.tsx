@@ -36,7 +36,7 @@ export function ClientPortalNotificationCenter() {
       case 'new_message':
         return <MessageSquare className="h-4 w-4 text-primary" />;
       case 'approval_reminder':
-        return <Clock className="h-4 w-4 text-yellow-500" />;
+        return <Clock className="h-4 w-4 text-warning" />;
       default:
         return <Bell className="h-4 w-4" />;
     }
@@ -104,8 +104,11 @@ export function ClientPortalNotificationCenter() {
             </div>
           ) : clientNotifications?.length === 0 ? (
             <div className="p-8 text-center text-muted-foreground">
-              <Bell className="h-8 w-8 mx-auto mb-2 opacity-20" />
-              <p className="text-sm">No notifications</p>
+              <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary">
+                <Bell className="h-5 w-5" />
+              </div>
+              <p className="text-sm font-medium text-foreground">No notifications</p>
+              <p className="mt-1 text-xs">Approval reminders and agency messages will appear here.</p>
             </div>
           ) : (
             <div className="divide-y divide-border">

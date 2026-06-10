@@ -19,7 +19,7 @@ export function StrategyModuleNav({
 }: StrategyModuleNavProps) {
   return (
     <div className="flex flex-col gap-2">
-      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+      <div className="text-label uppercase tracking-wider text-primary">
         Modules
       </div>
       <div className="flex flex-col gap-1">
@@ -35,10 +35,10 @@ export function StrategyModuleNav({
               type="button"
               onClick={() => onSelect(module.id)}
               className={cn(
-                "rounded-lg border px-3 py-2 text-left transition",
+                "focus-ring rounded-lg border px-3 py-2 text-left transition",
                 isActive
-                  ? "border-primary/50 bg-primary/10 text-foreground"
-                  : "border-border/60 bg-background hover:border-border",
+                  ? "border-primary/50 bg-primary/10 text-foreground shadow-xs"
+                  : "border-border/60 bg-card hover:border-primary/30 hover:bg-muted/40",
                 isRecommended && "ring-2 ring-primary/20",
                 isBlocked && "border-destructive/40 bg-destructive/5",
               )}
@@ -81,15 +81,14 @@ const getStatusIcon = (status: ModuleStatus) => {
 const statusColor = (status: ModuleStatus) => {
   switch (status) {
     case "complete":
-      return "text-emerald-500";
+      return "text-success";
     case "blocked":
       return "text-destructive";
     case "in_progress":
-      return "text-amber-500";
+      return "text-warning";
     default:
       return "text-muted-foreground";
   }
 };
 
 export default StrategyModuleNav;
-

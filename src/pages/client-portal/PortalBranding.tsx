@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Palette, Eye, Type, FileDown, Link2, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { PremiumInlineEmpty, PremiumLoading, PremiumPage } from "@/components/shared/PremiumPage";
 
 interface ClientBranding {
   primary_color: string | null;
@@ -63,8 +64,7 @@ export function PortalBranding() {
         title: "Success",
         description: "Brand guidelines PDF generated successfully",
       });
-    } catch (error) {
-      console.error('Error generating PDF:', error);
+    } catch {
       toast({
         title: "Error",
         description: "Failed to generate PDF. Please try again.",
@@ -86,17 +86,15 @@ export function PortalBranding() {
   };
 
   if (loading) {
-    return <div>Loading branding...</div>;
+    return <PremiumLoading rows={4} />;
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold mb-2">Brand Identity</h1>
-        <p className="text-muted-foreground">
-          Your complete brand guidelines and visual identity
-        </p>
-      </div>
+    <PremiumPage
+      eyebrow="Brand System"
+      title="Brand Identity"
+      description="Your complete brand guidelines and visual identity."
+    >
 
       {/* Visual Preview Banner */}
       {branding && (
@@ -112,14 +110,14 @@ export function PortalBranding() {
             <div 
               className="relative h-24 flex items-center justify-center overflow-hidden"
               style={{
-                background: `linear-gradient(135deg, ${branding.primary_color || '#06B6D4'} 0%, ${branding.secondary_color || '#0891B2'} 100%)`
+                backgroundColor: branding.primary_color || "hsl(var(--primary))",
               }}
             >
               {/* Accent overlay */}
               <div 
                 className="absolute inset-0 opacity-20"
                 style={{
-                  background: `radial-gradient(circle at top right, ${branding.accent_color || '#10B981'}, transparent 60%)`
+                  backgroundColor: branding.accent_color || "hsl(var(--accent))",
                 }}
               />
               
@@ -141,19 +139,19 @@ export function PortalBranding() {
             <div className="flex border-t">
               <div 
                 className="flex-1 h-16 flex items-center justify-center border-r"
-                style={{ backgroundColor: branding.primary_color || '#06B6D4' }}
+                style={{ backgroundColor: branding.primary_color || "hsl(var(--primary))" }}
               >
                 <span className="text-xs font-mono text-white drop-shadow-md">Primary</span>
               </div>
               <div 
                 className="flex-1 h-16 flex items-center justify-center border-r"
-                style={{ backgroundColor: branding.secondary_color || '#0891B2' }}
+                style={{ backgroundColor: branding.secondary_color || "hsl(var(--accent))" }}
               >
                 <span className="text-xs font-mono text-white drop-shadow-md">Secondary</span>
               </div>
               <div 
                 className="flex-1 h-16 flex items-center justify-center"
-                style={{ backgroundColor: branding.accent_color || '#10B981' }}
+                style={{ backgroundColor: branding.accent_color || "hsl(var(--success))" }}
               >
                 <span className="text-xs font-mono text-white drop-shadow-md">Accent</span>
               </div>
@@ -370,14 +368,12 @@ export function PortalBranding() {
       )}
 
       {!branding && (
-        <Card className="p-8 text-center">
-          <Palette className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-          <h3 className="text-lg font-semibold mb-2">No Branding Set Up</h3>
-          <p className="text-muted-foreground">
-            Your agency hasn't configured brand guidelines yet.
-          </p>
-        </Card>
+        <PremiumInlineEmpty
+          icon={Palette}
+          title="No branding set up"
+          description="Your agency has not configured brand guidelines yet."
+        />
       )}
-    </div>
+    </PremiumPage>
   );
 }

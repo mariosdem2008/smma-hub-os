@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ExternalLink } from "lucide-react";
+import { PremiumInlineEmpty, PremiumLoading, PremiumPage } from "@/components/shared/PremiumPage";
 import { 
   SiInstagram, 
   SiFacebook, 
@@ -57,24 +58,22 @@ export function PortalSocial() {
   };
 
   if (loading) {
-    return <div>Loading social profiles...</div>;
+    return <PremiumLoading rows={2} />;
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold mb-2">Social Profiles</h1>
-        <p className="text-muted-foreground">
-          Your social media presence across platforms
-        </p>
-      </div>
+    <PremiumPage
+      eyebrow="Channels"
+      title="Social Profiles"
+      description="Your social media presence across platforms."
+    >
 
       {/* Website */}
       {client.website && (
         <Card className="p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-lg bg-accent flex items-center justify-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-accent/20 bg-accent/10 text-accent">
                 <ExternalLink className="h-6 w-6" />
               </div>
               <div>
@@ -102,7 +101,7 @@ export function PortalSocial() {
               <Card key={profile.id} className="p-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-lg bg-accent flex items-center justify-center">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-accent/20 bg-accent/10 text-accent">
                       <Icon className="h-6 w-6" />
                     </div>
                     <div>
@@ -125,12 +124,12 @@ export function PortalSocial() {
           })}
         </div>
       ) : (
-        <Card className="p-8 text-center">
-          <p className="text-muted-foreground">
-            No social profiles have been added yet.
-          </p>
-        </Card>
+        <PremiumInlineEmpty
+          icon={ExternalLink}
+          title="No social profiles yet"
+          description="Connected social profiles will appear here."
+        />
       )}
-    </div>
+    </PremiumPage>
   );
 }

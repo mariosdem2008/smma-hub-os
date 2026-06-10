@@ -35,8 +35,8 @@ export function ModuleStatusGrid() {
             {/* Status indicators */}
             <div className="absolute top-2 right-2 flex items-center gap-1">
               {hasBlockers && (
-                <div className="rounded-full bg-orange-500/10 p-1">
-                  <AlertCircle className="h-3 w-3 text-orange-400" />
+                <div className="rounded-full bg-warning/10 p-1">
+                  <AlertCircle className="h-3 w-3 text-warning" />
                 </div>
               )}
               {isLocked && (

@@ -17,16 +17,16 @@ export function StrategyHealthCard({
   blockersCount,
 }: StrategyHealthCardProps) {
   const getHealthStatus = () => {
-    if (completion >= 80) return { label: 'Healthy', color: 'text-green-400', icon: CheckCircle2 };
-    if (completion >= 50) return { label: 'In Progress', color: 'text-yellow-400', icon: Sparkles };
-    return { label: 'Needs Attention', color: 'text-orange-400', icon: AlertTriangle };
+    if (completion >= 80) return { label: 'Healthy', color: 'text-success', icon: CheckCircle2 };
+    if (completion >= 50) return { label: 'In Progress', color: 'text-warning', icon: Sparkles };
+    return { label: 'Needs Attention', color: 'text-warning', icon: AlertTriangle };
   };
 
   const health = getHealthStatus();
   const HealthIcon = health.icon;
 
   return (
-    <Card className="bg-gradient-to-br from-card to-muted/20">
+    <Card className="bg-card">
       <CardContent className="pt-6">
         <div className="flex items-start justify-between mb-4">
           <div>
@@ -51,7 +51,7 @@ export function StrategyHealthCard({
             <p className="text-xs text-muted-foreground">Total Modules</p>
           </div>
           <div>
-            <p className={cn('text-2xl font-semibold', blockersCount > 0 && 'text-orange-400')}>
+            <p className={cn('text-2xl font-semibold', blockersCount > 0 && 'text-warning')}>
               {blockersCount}
             </p>
             <p className="text-xs text-muted-foreground">Blockers</p>

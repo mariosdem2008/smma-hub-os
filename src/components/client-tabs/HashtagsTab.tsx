@@ -82,7 +82,6 @@ export default function HashtagsTab({ clientId }: HashtagsTabProps) {
       .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("Error fetching hashtags:", error);
       toast({
         title: "Error",
         description: "Failed to fetch hashtags",
@@ -364,7 +363,7 @@ export default function HashtagsTab({ clientId }: HashtagsTabProps) {
 
       {/* Filter and Actions */}
       {isViewer && (
-        <Card className="border-yellow-500/50 bg-yellow-500/10">
+        <Card className="border-warning/40 bg-warning/10">
           <CardContent className="py-4">
             <p className="text-sm text-muted-foreground">
               You have read-only access to hashtags.

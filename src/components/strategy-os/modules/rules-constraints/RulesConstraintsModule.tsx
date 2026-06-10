@@ -32,9 +32,9 @@ import { cn } from '@/lib/utils';
 import { getAutosaveLabel } from "@/components/strategy-os/shared/autosave";
 
 const STATUS_STYLES: Record<ClaimStatus, { icon: typeof CheckCircle; color: string }> = {
-  allowed: { icon: CheckCircle, color: 'text-green-400' },
-  proof_required: { icon: AlertTriangle, color: 'text-yellow-400' },
-  forbidden: { icon: XCircle, color: 'text-red-400' },
+  allowed: { icon: CheckCircle, color: 'text-success' },
+  proof_required: { icon: AlertTriangle, color: 'text-warning' },
+  forbidden: { icon: XCircle, color: 'text-destructive' },
 };
 
 const STATUS_LABELS: Record<ClaimStatus, string> = {
@@ -231,19 +231,19 @@ export function RulesConstraintsModule() {
                             <SelectContent>
                               <SelectItem value="allowed">
                                 <div className="flex items-center gap-2">
-                                  <CheckCircle className="h-4 w-4 text-green-400" />
+                                  <CheckCircle className="h-4 w-4 text-success" />
                                   Allowed
                                 </div>
                               </SelectItem>
                               <SelectItem value="proof_required">
                                 <div className="flex items-center gap-2">
-                                  <AlertTriangle className="h-4 w-4 text-yellow-400" />
+                                  <AlertTriangle className="h-4 w-4 text-warning" />
                                   Proof required
                                 </div>
                               </SelectItem>
                               <SelectItem value="forbidden">
                                 <div className="flex items-center gap-2">
-                                  <XCircle className="h-4 w-4 text-red-400" />
+                                  <XCircle className="h-4 w-4 text-destructive" />
                                   Forbidden
                                 </div>
                               </SelectItem>

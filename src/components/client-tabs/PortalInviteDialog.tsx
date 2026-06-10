@@ -134,7 +134,6 @@ export function PortalInviteDialog({
       onInviteSent();
       onOpenChange(false);
     } catch (error: any) {
-      console.error("Error sending invitation:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to send invitation",

@@ -1,4 +1,4 @@
-import { useParams, Link, Outlet, useNavigate } from "react-router-dom";
+import { useParams, Link, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useClientAuth } from "@/lib/client-auth";
@@ -18,6 +18,7 @@ import {
   MessageSquare,
   Bot,
   BarChart3,
+  LayoutDashboard,
 } from "lucide-react";
 
 interface Client {
@@ -35,6 +36,7 @@ interface Client {
 }
 
 const navItems = [
+  { path: "", label: "Overview", key: "overview", icon: LayoutDashboard },
   { path: "approvals", label: "Approvals", key: "approvals", icon: CheckCircle },
   { path: "content-calendar", label: "Calendar", key: "content_calendar", icon: CalendarDays },
   { path: "performance", label: "Performance", key: "performance", icon: BarChart3 },
@@ -58,6 +60,7 @@ function ClientPortalLayoutContent() {
   const { portalSlug } = useParams();
   const navigate = useNavigate();
   const { logout, clientUser, loading: clientAuthLoading } = useClientAuth();
+  const location = useLocation();
   const [client, setClient] = useState<Client | null>(null);
   const [portalLoading, setPortalLoading] = useState(true);
   const [notLinked, setNotLinked] = useState(false);
@@ -79,16 +82,12 @@ function ClientPortalLayoutContent() {
         return;
       }
 
-      const { data, error } = await (supabase.from("clients") as any)
+      const { data } = await (supabase.from("clients") as any)
         .select(
           "id,name,logo_url,primary_font,secondary_font,brand_colors,website,notes,niche,tone_of_voice,agency_id,portal_slug",
         )
         .eq("id", clientUser.client_id)
         .maybeSingle();
-
-      if (error) {
-        console.error("[client-portal] portal_user_id lookup failed", error);
-      }
 
       if (data) {
         setResolvedPortalSlug(data.portal_slug || null);
@@ -139,18 +138,25 @@ function ClientPortalLayoutContent() {
   return (
     <div className="min-h-screen bg-background">
       {/* Top Nav */}
-      <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-16 items-center justify-between px-4 md:px-6">
-          <div className="flex items-center gap-4">
-            {client.logo_url && <img src={client.logo_url} alt={client.name} className="h-10 w-10 object-contain" />}
+      <header className="glass-header sticky top-0 z-50">
+        <div className="container flex min-h-16 items-center justify-between gap-3 px-4 py-3 md:px-6">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-border bg-card shadow-xs">
+              {client.logo_url ? (
+                <img src={client.logo_url} alt={client.name} className="h-9 w-9 object-contain" />
+              ) : (
+                <span className="font-display text-sm font-bold text-primary">
+                  {client.name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase()}
+                </span>
+              )}
+            </div>
             <div>
-              <h1 className="text-lg md:text-xl font-semibold">{client.name}</h1>
-              <p className="text-xs text-muted-foreground hidden md:block">Client Portal</p>
+              <h1 className="truncate font-display text-lg font-semibold text-foreground md:text-xl">{client.name}</h1>
+              <p className="hidden text-label uppercase tracking-wider text-primary md:block">Client Portal</p>
             </div>
           </div>
           <div className="flex items-center gap-2 md:gap-4">
             <ClientPortalNotificationCenter />
-            {!isMobile && <span className="text-sm text-muted-foreground">{client.name}</span>}
             <Button variant="ghost" size="sm" onClick={handleSignOut}>
               <LogOut className="h-4 w-4 md:mr-2" />
               <span className="hidden md:inline">Sign Out</span>
@@ -159,26 +165,27 @@ function ClientPortalLayoutContent() {
         </div>
       </header>
 
-      <div className={cn("container flex", isMobile ? "px-4 py-4 pb-20" : "px-6 py-6")}>
+      <div className={cn("container flex gap-6", isMobile ? "px-4 py-4 pb-24" : "px-6 py-6")}>
         {/* Sidebar - Hidden on mobile */}
         {!isMobile && (
-          <aside className="w-64 shrink-0 pr-6">
-            <nav className="space-y-1">
+          <aside className="w-[17rem] shrink-0">
+            <nav className="sticky top-24 space-y-2 rounded-lg border border-border/80 bg-card/80 p-2 shadow-card" aria-label="Client portal navigation">
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const targetPath = `${basePortalPath}${item.path ? `/${item.path}` : ""}`;
-                const isActive = window.location.pathname === targetPath;
+                const isActive = location.pathname === targetPath;
 
                 return (
                   <Link
                     key={item.path}
                     to={targetPath}
                     className={cn(
-                      "flex items-center gap-3 px-4 py-2 text-sm font-medium rounded-md transition-colors",
+                      "focus-ring flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                       isActive
-                        ? "bg-accent text-accent-foreground"
+                        ? "bg-primary text-primary-foreground shadow-btn-primary"
                         : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
                     )}
+                    aria-current={isActive ? "page" : undefined}
                   >
                     <Icon className="h-4 w-4" />
                     <span>{item.label}</span>
@@ -190,7 +197,7 @@ function ClientPortalLayoutContent() {
         )}
 
         {/* Main Content */}
-        <main className="flex-1 min-w-0">
+        <main className="min-w-0 flex-1">
           <Outlet context={{ client, clientId: client.id, clientUser: null }} />
         </main>
       </div>

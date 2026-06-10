@@ -33,13 +33,13 @@ function PanelBody() {
         ))}
       </TabsList>
 
-      <TabsContent value="decisions" className="mt-4 h-[calc(100vh-220px)] overflow-hidden rounded-lg border border-border/60 bg-background/40">
+      <TabsContent value="decisions" className="mt-4 h-[calc(100vh-220px)] overflow-hidden rounded-lg border border-border/80 bg-card/70">
         <DecisionsTab />
       </TabsContent>
-      <TabsContent value="history" className="mt-4 h-[calc(100vh-220px)] overflow-hidden rounded-lg border border-border/60 bg-background/40">
+      <TabsContent value="history" className="mt-4 h-[calc(100vh-220px)] overflow-hidden rounded-lg border border-border/80 bg-card/70">
         <HistoryTab />
       </TabsContent>
-      <TabsContent value="tasks" className="mt-4 h-[calc(100vh-220px)] overflow-hidden rounded-lg border border-border/60 bg-background/40">
+      <TabsContent value="tasks" className="mt-4 h-[calc(100vh-220px)] overflow-hidden rounded-lg border border-border/80 bg-card/70">
         <TasksTab />
       </TabsContent>
     </Tabs>
@@ -63,9 +63,12 @@ export function StrategyRightPanel({ isMobile, open, onOpenChange }: StrategyRig
   }
 
   return (
-    <aside className="rounded-lg border border-border/60 bg-background/60 p-4">
+    <aside className="rounded-lg border border-border/80 bg-card/80 p-4 shadow-card">
       <div className="mb-3 flex items-center justify-between">
-        <div className="text-sm font-semibold">AI Assistant</div>
+        <div>
+          <p className="page-eyebrow">Strategy Tools</p>
+          <div className="font-display text-base font-semibold text-foreground">AI Assistant</div>
+        </div>
         <Button size="sm" variant="ghost" onClick={() => onOpenChange(false)}>
           Hide
         </Button>

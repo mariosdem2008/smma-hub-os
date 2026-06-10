@@ -9,11 +9,12 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { hapticSelection } from "@/lib/haptics";
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, startOfMonth, endOfMonth, isSameDay } from "date-fns";
-import { Clock, Globe } from "lucide-react";
+import { CalendarDays, Clock, Globe } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useHasSupabaseSession } from "@/hooks/useHasSupabaseSession";
 import { convertToLocal } from "@/lib/utils";
 import ScheduledPostDetailModal from "@/components/pipeline/ScheduledPostDetailModal";
+import { PremiumInlineEmpty, PremiumLoading, PremiumPage } from "@/components/shared/PremiumPage";
 
 interface ScheduledPost {
   id: string;
@@ -30,12 +31,12 @@ interface OutletContext {
 }
 
 const statusColors: Record<string, string> = {
-  pending: "bg-yellow-500",
-  queued: "bg-blue-400",
-  publishing: "bg-blue-600",
-  published: "bg-green-500",
-  failed: "bg-red-500",
-  cancelled: "bg-gray-500",
+  pending: "border-warning/30 bg-warning/10 text-warning",
+  queued: "border-primary/30 bg-primary/10 text-primary",
+  publishing: "border-info/30 bg-info/10 text-info",
+  published: "border-success/30 bg-success/10 text-success",
+  failed: "border-destructive/30 bg-destructive/10 text-destructive",
+  cancelled: "border-border bg-muted text-muted-foreground",
 };
 
 export function PortalContentCalendar() {
@@ -159,16 +160,23 @@ export function PortalContentCalendar() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-pulse text-muted-foreground">Loading calendar...</div>
-      </div>
-    );
+    return <PremiumLoading rows={3} />;
   }
 
   return (
+    <PremiumPage
+      eyebrow="Publishing"
+      title="Content Calendar"
+      description="View scheduled and published content in your local timezone."
+      actions={
+        <Badge variant="outline" className="text-xs">
+          <Globe className="h-3 w-3 mr-1" />
+          {userTimezone}
+        </Badge>
+      }
+    >
     <div 
-      className="space-y-4 md:space-y-6 p-4 md:p-0"
+      className="space-y-4 md:space-y-6"
       style={{
         transform: isMobile ? `translateY(${pullDistance}px)` : undefined,
         transition: isRefreshing ? "transform 0.3s ease-out" : "none",
@@ -183,20 +191,13 @@ export function PortalContentCalendar() {
         </div>
       )}
       
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-3">
-            <h2 className="text-xl md:text-2xl font-bold">Content Calendar</h2>
-            <Badge variant="outline" className="text-xs">
-              <Globe className="h-3 w-3 mr-1" />
-              {userTimezone}
-            </Badge>
-          </div>
-          <p className="text-sm md:text-base text-muted-foreground">
-            View your scheduled and published content
-          </p>
-        </div>
-      </div>
+      {posts.length === 0 && (
+        <PremiumInlineEmpty
+          icon={CalendarDays}
+          title="No scheduled content yet"
+          description="Scheduled and published posts will appear here after your agency adds them to the calendar."
+        />
+      )}
 
       <Tabs value={view} onValueChange={(v) => { setView(v as "week" | "month"); hapticSelection(); }}>
         <TabsList className="w-full md:w-auto">
@@ -249,7 +250,7 @@ export function PortalContentCalendar() {
                           {post.title}
                         </p>
                         <Badge
-                          className={`${statusColors[post.status]} text-white text-xs mt-1`}
+                          className={`${statusColors[post.status] ?? statusColors.cancelled} text-xs mt-1`}
                         >
                           {post.status}
                         </Badge>
@@ -297,8 +298,8 @@ export function PortalContentCalendar() {
                           setDetailModalOpen(true);
                         }}
                         className={`${
-                          statusColors[post.status]
-                        } text-white text-xs p-1 rounded hover:opacity-80 cursor-pointer transition-opacity`}
+                          statusColors[post.status] ?? statusColors.cancelled
+                        } cursor-pointer rounded border p-1 text-xs transition-colors hover:border-primary/50`}
                       >
                         <p className="line-clamp-1">{post.title}</p>
                       </div>
@@ -321,5 +322,6 @@ export function PortalContentCalendar() {
         readOnly={true}
       />
     </div>
+    </PremiumPage>
   );
 }
