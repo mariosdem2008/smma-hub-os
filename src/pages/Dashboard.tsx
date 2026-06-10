@@ -19,6 +19,7 @@ import {
 import { useAuth } from "@/lib/auth";
 import { useRole } from "@/hooks/useRole";
 import { useToast } from "@/hooks/use-toast";
+import { useAgencyClientBlockers, useScanAgencyClientBlockers } from "@/hooks/useClientBlockers";
 import { supabase } from "@/integrations/supabase/client";
 import { getActiveAgencyId } from "@/lib/active-agency";
 import { PostCreateAgencyCta } from "@/components/PostCreateAgencyCta";
@@ -158,6 +159,19 @@ function badgeVariantForSeverity(severity: AlertItem["severity"]) {
   return "outline" as const;
 }
 
+function alertSeverityForBlocker(severity: "high" | "med" | "low", deliveryState: string): AlertItem["severity"] {
+  if (severity === "high" && deliveryState === "blocked") return "critical";
+  if (severity === "high") return "high";
+  if (severity === "med") return "medium";
+  return "low";
+}
+
+function formatOwner(owner: string) {
+  if (owner === "client") return "Client";
+  if (owner === "agency") return "Agency";
+  return "Owner";
+}
+
 export default function Dashboard() {
   const { user } = useAuth();
   const { isAdmin } = useRole();
@@ -178,6 +192,8 @@ export default function Dashboard() {
   const [overdueProjects, setOverdueProjects] = useState<ProjectRecord[]>([]);
   const [teamOpenTasks, setTeamOpenTasks] = useState<Record<string, number>>({});
   const [signals, setSignals] = useState<DashboardSignals>(initialSignals);
+  const { data: blockerSnapshots = [] } = useAgencyClientBlockers(agencyId || undefined);
+  const scanAgencyBlockers = useScanAgencyClientBlockers();
 
   const [aiSetupComplete, setAiSetupComplete] = useState<boolean | null>(null);
   const [executiveSummary, setExecutiveSummary] = useState<string>("");
@@ -506,6 +522,19 @@ export default function Dashboard() {
       .slice(0, 8);
   }, [clients, overdueProjects, reviewProjects]);
 
+  const clientNameById = useMemo(() => {
+    return new Map(clients.map((client) => [client.id, client.name]));
+  }, [clients]);
+
+  const activeBlockerSnapshots = useMemo(() => {
+    return blockerSnapshots.filter((snapshot) => snapshot.blockers.length > 0);
+  }, [blockerSnapshots]);
+
+  const portfolioBlockerCount = useMemo(() => {
+    return activeBlockerSnapshots.reduce((total, snapshot) => total + snapshot.blockers.length, 0);
+  }, [activeBlockerSnapshots]);
+  const hasBlockerSnapshots = blockerSnapshots.length > 0;
+
   const capacityUtilization = useMemo(() => {
     const baseline = Math.max(1, teamMembers.length) * 14;
     const load = signals.tasksDuePeriod + signals.approvalsPending + signals.overdueContent;
@@ -536,6 +565,33 @@ export default function Dashboard() {
 
   const alerts = useMemo<AlertItem[]>(() => {
     const items: AlertItem[] = [];
+    const blockerAlerts = activeBlockerSnapshots
+      .flatMap((snapshot) =>
+        snapshot.blockers.map((blocker) => ({
+          snapshot,
+          blocker,
+          severity: alertSeverityForBlocker(blocker.severity, snapshot.delivery_state),
+        })),
+      )
+      .sort((a, b) => {
+        const order = { critical: 4, high: 3, medium: 2, low: 1 };
+        return order[b.severity] - order[a.severity];
+      })
+      .slice(0, 5);
+
+    if (blockerAlerts.length > 0) {
+      return blockerAlerts.map(({ snapshot, blocker, severity }) => {
+        const clientName = clientNameById.get(snapshot.client_id) ?? "Client";
+        return {
+          id: `${snapshot.client_id}:${blocker.code}:${blocker.signal_source}`,
+          severity,
+          title: `${clientName}: ${blocker.title}`,
+          description: `${blocker.detail} ${formatOwner(blocker.owner)} next: ${blocker.recommended_next_action}`,
+          ctaLabel: "Open blocker",
+          onCta: () => navigate(blocker.deep_link || `/clients/${snapshot.client_id}`),
+        };
+      });
+    }
 
     if (signals.approvalsPending > 0) {
       const first = reviewProjects[0];
@@ -600,7 +656,9 @@ export default function Dashboard() {
 
     return items;
   }, [
+    activeBlockerSnapshots,
     capacityUtilization,
+    clientNameById,
     navigate,
     overdueProjects,
     readinessSummary.notStarted,
@@ -706,6 +764,24 @@ export default function Dashboard() {
       toast({ title: "Summary copied", description: "Executive summary copied to clipboard." });
     } catch {
       toast({ title: "Copy failed", description: "Could not copy summary.", variant: "destructive" });
+    }
+  };
+
+  const handleScanBlockers = async () => {
+    if (!agencyId) return;
+    try {
+      const result = await scanAgencyBlockers.mutateAsync({ agencyId, limit: 25 });
+      toast({
+        title: "Blocker scan complete",
+        description: `${result.scanned} client(s) scanned${result.failed ? `, ${result.failed} failed` : ""}.`,
+        variant: result.failed ? "destructive" : undefined,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Blocker scan failed",
+        description: error?.message ?? "Could not scan blockers.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -840,7 +916,12 @@ export default function Dashboard() {
           { label: "AI hours saved", value: `${hoursSavedThisPeriod}h`, sub: `${period.toUpperCase()} period`, icon: Sparkles },
           { label: "Quality score", value: `${qualityScore}%`, sub: "Approved + published", icon: Target },
           { label: "Automation rate", value: `${automationRate}%`, sub: "Scheduled + published", icon: Wand2 },
-          { label: "Revenue risk", value: `${signals.approvalsPending + signals.overdueContent}`, sub: "Items at risk", icon: AlertTriangle },
+          {
+            label: "Revenue risk",
+            value: `${hasBlockerSnapshots ? portfolioBlockerCount : signals.approvalsPending + signals.overdueContent}`,
+            sub: hasBlockerSnapshots ? "Client blockers" : "Items at risk",
+            icon: AlertTriangle,
+          },
         ].map((kpi) => (
           <Card key={kpi.label}>
             <CardHeader className="pb-2">
@@ -862,10 +943,24 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <Card className="xl:col-span-2">
           <CardHeader>
-            <CardTitle>Action queue</CardTitle>
-            <CardDescription>
-              Prioritized actions to protect delivery, retention, and quality.
-            </CardDescription>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <CardTitle>Action queue</CardTitle>
+                <CardDescription>
+                  Prioritized actions to protect delivery, retention, and quality.
+                </CardDescription>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => void handleScanBlockers()}
+                disabled={!agencyId || scanAgencyBlockers.isPending}
+                loading={scanAgencyBlockers.isPending}
+              >
+                {!scanAgencyBlockers.isPending ? <RefreshCw className="h-3.5 w-3.5" /> : null}
+                Scan blockers
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-3">
             {alerts.map((alert) => (

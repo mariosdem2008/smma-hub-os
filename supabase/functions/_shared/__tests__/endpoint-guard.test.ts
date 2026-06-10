@@ -14,6 +14,7 @@ describe("endpoint guard", () => {
   it("allows endpoints in allowlist by default", () => {
     expect(isEndpointAllowlisted("ai-strategy-generate")).toBe(true);
     expect(isEndpointAllowlisted("ai-onboarding")).toBe(true);
+    expect(isEndpointAllowlisted("ai-blocker-scan")).toBe(true);
     const response = getEndpointGuardResponse("ai-strategy-generate", {});
     expect(response).toBeNull();
   });

@@ -101,3 +101,6 @@ verify_jwt = false
 
 [functions.add-client-user-to-conversation]
 verify_jwt = false
+
+[functions.ai-blocker-scan]
+verify_jwt = true

@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useClientFonts } from "@/hooks/useClientFonts";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { useClientBlockers, useScanClientBlockers } from "@/hooks/useClientBlockers";
 import { useAgencyMemberOptions, useClientEnrichmentQueue, useClientExecutionTasks, useClientOperationEvents, useClientOperationsChecklist, useClientOperationsSetup } from "@/hooks/useClientOperations";
 import { useOnboardingProfile } from "@/hooks/useOnboardingProfile";
 import { hapticSelection } from "@/lib/haptics";
@@ -70,6 +71,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   Wrench,
+  RefreshCw,
 } from "lucide-react";
 
 interface Client {
@@ -120,6 +122,24 @@ const workspaceStatusTone = {
   degraded: "border-destructive/30 bg-destructive/10 text-destructive",
 } as const;
 
+function blockerSeverityVariant(severity: "high" | "med" | "low") {
+  if (severity === "high") return "destructive" as const;
+  if (severity === "med") return "secondary" as const;
+  return "outline" as const;
+}
+
+function blockerOwnerLabel(owner: "agency" | "client" | "owner") {
+  if (owner === "agency") return "Agency";
+  if (owner === "client") return "Client";
+  return "Owner";
+}
+
+function deliveryStateLabel(state: string | undefined) {
+  if (state === "blocked") return "Blocked";
+  if (state === "at_risk") return "At risk";
+  return "On track";
+}
+
 export default function ClientDetail() {
   const { clientId: rawClientId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -152,6 +172,8 @@ export default function ClientDetail() {
   const { data: operationEvents = [] } = useClientOperationEvents(clientId || undefined);
   const { data: enrichmentQueue = [] } = useClientEnrichmentQueue(clientId || undefined);
   const { data: agencyMembers = [] } = useAgencyMemberOptions(agencyId || undefined);
+  const { data: blockerSnapshot, isLoading: blockerLoading } = useClientBlockers(clientId || undefined);
+  const scanClientBlockers = useScanClientBlockers();
 
   // Tab notification badges (behind feature flag)
   const [tabBadgeCounts, setTabBadgeCounts] = useState<Record<string, number>>({});
@@ -283,6 +305,23 @@ export default function ClientDetail() {
     }
   };
 
+  const handleScanBlockers = async () => {
+    if (!clientId || !agencyId) return;
+    try {
+      const result = await scanClientBlockers.mutateAsync({ agencyId, clientId });
+      toast({
+        title: "Blocker scan complete",
+        description: `${result.snapshot.blockers.length} blocker(s) found.`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Blocker scan failed",
+        description: error?.message ?? "Could not scan blockers for this client.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getStepIdFromHref = (href: string | null | undefined) => {
     if (!href) return null;
     const [prefix, value] = href.split(":");
@@ -310,6 +349,7 @@ export default function ClientDetail() {
   const blockingChecklistItems = operationsChecklist.sections.flatMap((section) => section.items).filter((item) => item.status === "blocked");
   const activeExecutionTasks = executionTasks.filter((task) => ["todo", "waiting_on_client", "in_progress", "blocked"].includes(task.status));
   const urgentExecutionTasks = activeExecutionTasks.filter((task) => task.priority === "urgent");
+  const topClientBlockers = blockerSnapshot?.blockers.slice(0, 3) ?? [];
   const recentOperationEvents = operationEvents.slice(0, 3);
   const assigneeLabelByUserId = new Map(
     agencyMembers.map((member) => [member.user_id, member.profile?.full_name || member.profile?.email || member.user_id]),
@@ -743,6 +783,79 @@ export default function ClientDetail() {
         {strategyGenerating && (
           <div className="mb-4 rounded-lg border border-info/30 bg-info/10 px-3 py-2 text-sm text-info">
             Strategy generation is in progress. You can stay here while the system finishes building the first strategy document.
+          </div>
+        )}
+
+        {gateStatus?.usable && (
+          <div className="mb-4 rounded-lg border border-border/80 bg-card/80 p-4 shadow-card">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="text-sm font-semibold text-foreground">Delivery blockers</div>
+                  {blockerSnapshot && (
+                    <Badge
+                      variant={
+                        blockerSnapshot.delivery_state === "blocked"
+                          ? "destructive"
+                          : blockerSnapshot.delivery_state === "at_risk"
+                            ? "secondary"
+                            : "outline"
+                      }
+                    >
+                      {deliveryStateLabel(blockerSnapshot.delivery_state)}
+                    </Badge>
+                  )}
+                </div>
+                <div className="mt-1 text-sm text-muted-foreground">
+                  {blockerSnapshot
+                    ? `Last scan: ${new Date(blockerSnapshot.scanned_at).toLocaleString()}`
+                    : "No blocker scan has run for this client yet."}
+                </div>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => void handleScanBlockers()}
+                disabled={!agencyId || scanClientBlockers.isPending}
+                loading={scanClientBlockers.isPending}
+              >
+                {!scanClientBlockers.isPending ? <RefreshCw className="h-3.5 w-3.5" /> : null}
+                Scan blockers
+              </Button>
+            </div>
+
+            {blockerLoading ? (
+              <div className="mt-3 rounded-md border border-border/60 bg-background/40 px-3 py-2 text-sm text-muted-foreground">
+                Loading blocker snapshot...
+              </div>
+            ) : topClientBlockers.length > 0 ? (
+              <div className="mt-3 space-y-2">
+                {topClientBlockers.map((blocker) => (
+                  <div key={`${blocker.code}-${blocker.signal_source}`} className="rounded-md border border-border/60 bg-background/40 px-3 py-2">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <div className="text-sm font-medium text-foreground">{blocker.title}</div>
+                          <Badge variant={blockerSeverityVariant(blocker.severity)}>{blocker.severity}</Badge>
+                          <Badge variant="outline">{blockerOwnerLabel(blocker.owner)}</Badge>
+                        </div>
+                        <div className="mt-1 text-xs leading-5 text-muted-foreground">{blocker.detail}</div>
+                        <div className="mt-1 text-xs leading-5 text-muted-foreground">
+                          Next: {blocker.recommended_next_action}
+                        </div>
+                      </div>
+                      <Button size="sm" variant="ghost" onClick={() => navigate(blocker.deep_link)}>
+                        Open
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : blockerSnapshot ? (
+              <div className="mt-3 rounded-md border border-success/25 bg-success/10 px-3 py-2 text-sm text-success">
+                No active delivery blockers in the latest scan.
+              </div>
+            ) : null}
           </div>
         )}
 
