@@ -1,8 +1,9 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
+import { PUBLIC_URL, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
+import { buildApprovalNotificationIdempotencyKey } from "../../../src/lib/approvalNotifications.ts";
 
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
+const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") ?? "";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -19,13 +20,14 @@ interface NotificationRequest {
   contentId?: string;
   contentTitle?: string;
   clientId?: string;
-  action: 'submitted' | 'approved' | 'rejected' | 'approval_requested' | 'changes_requested';
+  action: 'submitted' | 'approved' | 'rejected' | 'approval_requested' | 'changes_requested' | 'approval_reminder';
   comment?: string;
   // New pipeline-specific fields
   asset_id?: string;
   approver_id?: string;
   // Project approval fields
   project_id?: string;
+  idempotency_key?: string;
 }
 
 function generateWhiteLabelEmail(
@@ -142,6 +144,228 @@ function generateWhiteLabelEmail(
   `;
 }
 
+function uniqueEmails(values: Array<string | null | undefined>): string[] {
+  return Array.from(
+    new Set(
+      values
+        .map((value) => String(value ?? "").trim().toLowerCase())
+        .filter((value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)),
+    ),
+  );
+}
+
+async function parseProviderResponse(response: Response): Promise<Record<string, unknown>> {
+  const text = await response.text();
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { body: text.slice(0, 2000) };
+  }
+}
+
+async function beginEmailDelivery(
+  supabase: ReturnType<typeof createClient>,
+  input: {
+    agencyId: string;
+    projectId?: string | null;
+    action: string;
+    idempotencyKey: string;
+    requestPayload: Record<string, unknown>;
+  },
+) {
+  const existing = await supabase
+    .from("notification_deliveries")
+    .select("id, status, sent_at, created_at, attempt_count")
+    .eq("idempotency_key", input.idempotencyKey)
+    .maybeSingle();
+
+  if (existing.error) throw existing.error;
+
+  if (existing.data?.status === "sent" && existing.data.sent_at) {
+    return { id: existing.data.id as string, shouldSend: false, deduped: true };
+  }
+
+  if (existing.data?.status === "sending") {
+    const createdAt = Date.parse(String(existing.data.created_at ?? ""));
+    const stillInFlight = Number.isFinite(createdAt) && Date.now() - createdAt < 10 * 60 * 1000;
+    if (stillInFlight) {
+      return { id: existing.data.id as string, shouldSend: false, deduped: true };
+    }
+  }
+
+  if (existing.data?.id) {
+    const attemptCount = Number(existing.data.attempt_count ?? 0) + 1;
+    const updated = await supabase
+      .from("notification_deliveries")
+      .update({
+        status: "sending",
+        attempt_count: attemptCount,
+        request_payload: input.requestPayload,
+        provider_response: {},
+        error_message: null,
+      })
+      .eq("id", existing.data.id)
+      .select("id")
+      .single();
+    if (updated.error) throw updated.error;
+    return { id: updated.data.id as string, shouldSend: true, deduped: false };
+  }
+
+  const inserted = await supabase
+    .from("notification_deliveries")
+    .insert({
+      agency_id: input.agencyId,
+      project_id: input.projectId ?? null,
+      action: input.action,
+      idempotency_key: input.idempotencyKey,
+      status: "sending",
+      request_payload: input.requestPayload,
+    })
+    .select("id")
+    .single();
+
+  if (inserted.error) {
+    if ((inserted.error as any).code === "23505") {
+      return beginEmailDelivery(supabase, input);
+    }
+    throw inserted.error;
+  }
+
+  return { id: inserted.data.id as string, shouldSend: true, deduped: false };
+}
+
+async function markEmailDeliverySent(
+  supabase: ReturnType<typeof createClient>,
+  deliveryId: string,
+  providerResponse: Record<string, unknown>,
+) {
+  const { error } = await supabase
+    .from("notification_deliveries")
+    .update({
+      status: "sent",
+      sent_at: new Date().toISOString(),
+      provider_response: providerResponse,
+      error_message: null,
+    })
+    .eq("id", deliveryId);
+  if (error) throw error;
+}
+
+async function markEmailDeliveryFailed(
+  supabase: ReturnType<typeof createClient>,
+  deliveryId: string,
+  errorMessage: string,
+  providerResponse: Record<string, unknown> = {},
+) {
+  const { error } = await supabase
+    .from("notification_deliveries")
+    .update({
+      status: "failed",
+      error_message: errorMessage.slice(0, 1000),
+      provider_response: providerResponse,
+    })
+    .eq("id", deliveryId);
+  if (error) throw error;
+}
+
+async function markEmailDeliverySkipped(
+  supabase: ReturnType<typeof createClient>,
+  input: {
+    agencyId: string;
+    projectId?: string | null;
+    action: string;
+    idempotencyKey: string;
+    requestPayload: Record<string, unknown>;
+    reason: string;
+  },
+) {
+  const delivery = await beginEmailDelivery(supabase, input);
+  if (!delivery.shouldSend) return { deduped: true };
+  const { error } = await supabase
+    .from("notification_deliveries")
+    .update({
+      status: "skipped",
+      provider_response: { reason: input.reason },
+      error_message: null,
+    })
+    .eq("id", delivery.id);
+  if (error) throw error;
+  return { deduped: false };
+}
+
+async function sendEmailOnce(
+  supabase: ReturnType<typeof createClient>,
+  input: {
+    agencyId: string;
+    projectId?: string | null;
+    action: string;
+    idempotencyKey: string;
+    requestPayload: Record<string, unknown>;
+    from: string;
+    to: string[];
+    subject: string;
+    html: string;
+  },
+) {
+  const recipients = uniqueEmails(input.to);
+  if (recipients.length === 0) {
+    const skipped = await markEmailDeliverySkipped(supabase, {
+      agencyId: input.agencyId,
+      projectId: input.projectId,
+      action: input.action,
+      idempotencyKey: input.idempotencyKey,
+      requestPayload: input.requestPayload,
+      reason: "no_valid_recipient",
+    });
+    return { success: true, skipped: true, deduped: skipped.deduped };
+  }
+
+  const delivery = await beginEmailDelivery(supabase, input);
+  if (!delivery.shouldSend) {
+    return { success: true, skipped: false, deduped: true };
+  }
+
+  if (!RESEND_API_KEY) {
+    await markEmailDeliveryFailed(supabase, delivery.id, "RESEND_API_KEY is not configured");
+    throw new Error("RESEND_API_KEY is not configured");
+  }
+
+  const emailResponse = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: input.from,
+      to: recipients,
+      subject: input.subject,
+      html: input.html,
+    }),
+  });
+
+  const providerResponse = await parseProviderResponse(emailResponse);
+  if (!emailResponse.ok) {
+    const message = typeof providerResponse.body === "string"
+      ? providerResponse.body
+      : `Resend returned ${emailResponse.status}`;
+    await markEmailDeliveryFailed(supabase, delivery.id, message, {
+      status: emailResponse.status,
+      ...providerResponse,
+    });
+    console.error("Failed to send email:", providerResponse);
+    throw new Error("Failed to send email notification");
+  }
+
+  await markEmailDeliverySent(supabase, delivery.id, {
+    status: emailResponse.status,
+    ...providerResponse,
+  });
+
+  return { success: true, skipped: false, deduped: false };
+}
+
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -158,7 +382,7 @@ serve(async (req: Request) => {
     if (project_id) {
       const { data: project, error: projectError } = await supabase
         .from('projects')
-        .select('title, client_id, agency_id, clients(name, email)')
+        .select('title, client_id, agency_id, clients(name, email, portal_slug)')
         .eq('id', project_id)
         .single();
 
@@ -196,6 +420,9 @@ serve(async (req: Request) => {
       let subject: string;
       let heading: string;
       let bodyText: string;
+      let ctaText: string | undefined;
+      let ctaUrl: string | undefined;
+      let recipients: string[] = [ownerProfile.email];
 
       if (action === 'approved') {
         subject = `Client approved: ${project.title}`;
@@ -223,6 +450,34 @@ serve(async (req: Request) => {
           </div>
           <p>The project has been moved back to production. Please review the feedback and make the necessary adjustments.</p>
         `;
+      } else if (action === 'approval_reminder') {
+        const { data: clientUsers } = await supabase
+          .from('client_users')
+          .select('email')
+          .eq('client_id', project.client_id);
+
+        recipients = uniqueEmails([
+          client.email,
+          ...((clientUsers ?? []) as Array<{ email?: string | null }>).map((user) => user.email),
+        ]);
+
+        const portalSlug = typeof client?.portal_slug === "string" && client.portal_slug.trim()
+          ? `/${client.portal_slug.trim()}`
+          : "";
+
+        subject = `Reminder: ${project.title} is waiting for review`;
+        heading = "Content Waiting for Review";
+        bodyText = `
+          <p>Hello,</p>
+          <p>Your agency has a project ready for your review:</p>
+          <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 5px 0;"><strong>Project:</strong> ${project.title}</p>
+            <p style="margin: 5px 0;"><strong>Client:</strong> ${client.name}</p>
+          </div>
+          <p>Please approve it or request changes so the campaign can keep moving.</p>
+        `;
+        ctaText = "Review content";
+        ctaUrl = `${PUBLIC_URL}/client/portal${portalSlug}/approvals`;
       } else {
         throw new Error('Invalid action type for project approval');
       }
@@ -231,34 +486,30 @@ serve(async (req: Request) => {
         branding,
         subject,
         heading,
-        bodyText
+        bodyText,
+        ctaText,
+        ctaUrl
       );
 
-      // Send email
-      const emailResponse = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${RESEND_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: `${senderName} <notifications@smmahub.net>`,
-          to: [ownerProfile.email],
-          subject: subject,
-          html: htmlContent,
-        }),
+      const idempotencyKey = request.idempotency_key ?? buildApprovalNotificationIdempotencyKey({
+        action,
+        projectId: project_id,
       });
 
-      if (!emailResponse.ok) {
-        const errorText = await emailResponse.text();
-        console.error('Failed to send email:', errorText);
-        throw new Error('Failed to send email notification');
-      }
-
-      console.log('Project approval email sent successfully');
+      const delivery = await sendEmailOnce(supabase, {
+        agencyId,
+        projectId: project_id,
+        action,
+        idempotencyKey,
+        requestPayload: request as unknown as Record<string, unknown>,
+        from: `${senderName} <notifications@smmahub.net>`,
+        to: recipients,
+        subject,
+        html: htmlContent,
+      });
 
       return new Response(
-        JSON.stringify({ success: true }),
+        JSON.stringify({ success: true, ...delivery, idempotency_key: idempotencyKey }),
         { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
@@ -382,31 +633,24 @@ serve(async (req: Request) => {
         bodyText
       );
 
-      // Send email
-      const emailResponse = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${RESEND_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: `${senderName} <notifications@smmahub.net>`,
-          to: [recipientEmail],
-          subject: subject,
-          html: htmlContent,
-        }),
+      const idempotencyKey = request.idempotency_key ?? buildApprovalNotificationIdempotencyKey({
+        action,
+        assetId: asset_id,
       });
 
-      if (!emailResponse.ok) {
-        const errorText = await emailResponse.text();
-        console.error('Failed to send email:', errorText);
-        throw new Error('Failed to send email notification');
-      }
-
-      console.log('Pipeline approval email sent successfully');
+      const delivery = await sendEmailOnce(supabase, {
+        agencyId,
+        action,
+        idempotencyKey,
+        requestPayload: request as unknown as Record<string, unknown>,
+        from: `${senderName} <notifications@smmahub.net>`,
+        to: [recipientEmail],
+        subject,
+        html: htmlContent,
+      });
 
       return new Response(
-        JSON.stringify({ success: true }),
+        JSON.stringify({ success: true, ...delivery, idempotency_key: idempotencyKey }),
         { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
@@ -511,29 +755,26 @@ serve(async (req: Request) => {
 
     const senderName = branding?.email_sender_name || 'Content Hub';
 
-    // Send email via Resend API
-    const emailResponse = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${RESEND_API_KEY}`,
-      },
-      body: JSON.stringify({
-        from: `${senderName} <onboarding@resend.dev>`,
-        to: [recipientEmail],
-        subject: subject,
-        html: htmlContent,
-      }),
+    const idempotencyKey = request.idempotency_key ?? buildApprovalNotificationIdempotencyKey({
+      action,
+      contentType,
+      contentId,
+      clientId,
     });
 
-    if (!emailResponse.ok) {
-      throw new Error(`Failed to send email: ${await emailResponse.text()}`);
-    }
-
-    console.log("Email sent successfully to:", recipientEmail);
+    const delivery = await sendEmailOnce(supabase, {
+      agencyId: client.agency_id,
+      action,
+      idempotencyKey,
+      requestPayload: request as unknown as Record<string, unknown>,
+      from: `${senderName} <onboarding@resend.dev>`,
+      to: [recipientEmail],
+      subject,
+      html: htmlContent,
+    });
 
     return new Response(
-      JSON.stringify({ success: true }),
+      JSON.stringify({ success: true, ...delivery, idempotency_key: idempotencyKey }),
       {
         status: 200,
         headers: { "Content-Type": "application/json", ...corsHeaders },

@@ -36,7 +36,7 @@ export interface ClientReport {
   updated_at: string;
 }
 
-export function useClientReports(clientId: string) {
+export function useClientReports(clientId: string, enabled = true) {
   return useQuery({
     queryKey: ["client-reports", clientId],
     queryFn: async (): Promise<ClientReport[]> => {
@@ -50,6 +50,26 @@ export function useClientReports(clientId: string) {
 
       return (data || []) as ClientReport[];
     },
-    enabled: !!clientId,
+    enabled: !!clientId && enabled,
+  });
+}
+
+export function useClientReport(clientId: string | undefined, reportId: string | undefined) {
+  return useQuery({
+    queryKey: ["client-report", clientId ?? "", reportId ?? ""],
+    queryFn: async (): Promise<ClientReport | null> => {
+      if (!clientId || !reportId) return null;
+
+      const { data, error } = await supabase
+        .from("client_reports")
+        .select("*")
+        .eq("client_id", clientId)
+        .eq("id", reportId)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data as ClientReport | null;
+    },
+    enabled: !!clientId && !!reportId,
   });
 }

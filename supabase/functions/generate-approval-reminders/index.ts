@@ -2,6 +2,11 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
 import { verifyCronSecret } from "../_shared/cron.ts";
+import {
+  buildApprovalNotificationIdempotencyKey,
+  getApprovalReminderDedupeSince,
+  shouldSendApprovalReminder,
+} from "../../../src/lib/approvalNotifications.ts";
 
 Deno.serve(async (req: Request) => {
   const headers = corsHeaders(req);
@@ -48,11 +53,12 @@ Deno.serve(async (req: Request) => {
     }
 
     const notifications = [];
+    const reminderEmailJobs: Array<{ projectId: string; idempotencyKey: string }> = [];
+    const now = new Date();
+    const twentyFourHoursAgo = getApprovalReminderDedupeSince(now).toISOString();
 
     for (const project of stuckProjects) {
       // Check if we already sent a reminder for this project in the last 24 hours
-      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-      
       const { data: existingNotification } = await supabaseClient
         .from('notifications')
         .select('id')
@@ -61,6 +67,32 @@ Deno.serve(async (req: Request) => {
         .gt('created_at', twentyFourHoursAgo)
         .limit(1)
         .maybeSingle();
+
+      const { data: existingDelivery } = await supabaseClient
+        .from('notification_deliveries')
+        .select('sent_at')
+        .eq('project_id', project.id)
+        .eq('action', 'approval_reminder')
+        .eq('status', 'sent')
+        .order('sent_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const shouldEmail = shouldSendApprovalReminder({
+        now,
+        lastSentAt: (existingDelivery?.sent_at as string | undefined) ?? null,
+      });
+
+      if (shouldEmail) {
+        reminderEmailJobs.push({
+          projectId: project.id,
+          idempotencyKey: buildApprovalNotificationIdempotencyKey({
+            action: 'approval_reminder',
+            projectId: project.id,
+            day: now,
+          }),
+        });
+      }
 
       if (existingNotification) continue;
 
@@ -129,11 +161,59 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    console.log(`Generated ${notifications.length} approval reminder notifications`);
+    const emailResults = [];
+    const emailErrors = [];
+
+    for (const job of reminderEmailJobs) {
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/send-approval-notification`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          project_id: job.projectId,
+          action: 'approval_reminder',
+          idempotency_key: job.idempotencyKey,
+        }),
+      });
+
+      const bodyText = await response.text();
+      let body: Record<string, unknown> = {};
+      try {
+        body = bodyText ? JSON.parse(bodyText) : {};
+      } catch {
+        body = { body: bodyText.slice(0, 500) };
+      }
+
+      if (!response.ok) {
+        emailErrors.push({ project_id: job.projectId, status: response.status, body });
+        continue;
+      }
+
+      emailResults.push({ project_id: job.projectId, ...body });
+    }
+
+    console.log(`Generated ${notifications.length} approval reminder notifications and ${emailResults.length} reminder email results`);
+
+    if (emailErrors.length > 0) {
+      return new Response(JSON.stringify({
+        error: 'One or more reminder emails failed',
+        notifications_created: notifications.length,
+        emails_attempted: reminderEmailJobs.length,
+        email_results: emailResults,
+        email_errors: emailErrors,
+      }), {
+        status: 500,
+        headers: { ...headers, 'Content-Type': 'application/json' },
+      });
+    }
 
     return new Response(JSON.stringify({ 
       message: 'Approval reminders generated',
       notifications_created: notifications.length,
+      emails_attempted: reminderEmailJobs.length,
+      email_results: emailResults,
     }), {
       status: 200,
       headers: { ...headers, 'Content-Type': 'application/json' },

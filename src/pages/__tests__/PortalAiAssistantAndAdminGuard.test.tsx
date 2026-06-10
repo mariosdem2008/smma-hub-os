@@ -27,10 +27,6 @@ vi.mock("@/hooks/use-toast", () => ({
   useToast: () => ({ toast: vi.fn() }),
 }));
 
-vi.mock("@/components/client-tabs/AiRepChatTab", () => ({
-  default: ({ clientId }: { clientId: string }) => <div>AiRepChatTab {clientId}</div>,
-}));
-
 function OutletContextWrapper({ clientId }: { clientId: string }) {
   return <Outlet context={{ clientId }} />;
 }
@@ -82,7 +78,8 @@ describe("Client portal AI + admin guard", () => {
     );
 
     expect(await screen.findByText("AI Assistant")).toBeInTheDocument();
-    expect(screen.getByText("AiRepChatTab client-123")).toBeInTheDocument();
+    expect(screen.getByText(/Ask me about approvals/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Message the AI Assistant...")).toBeInTheDocument();
   });
 
   it("blocks non-admin access to Agency AI route", async () => {

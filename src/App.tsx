@@ -97,6 +97,9 @@ const PortalMessages = lazy(() => import("./pages/client-portal/PortalMessages")
 const PortalPerformance = lazy(() =>
   import("./pages/client-portal/PortalPerformance").then((module) => ({ default: module.PortalPerformance })),
 );
+const PortalReportDetail = lazy(() =>
+  import("./pages/client-portal/PortalReportDetail").then((module) => ({ default: module.PortalReportDetail })),
+);
 const ReportDetail = lazy(() => import("./components/client-tabs/ReportDetail"));
 const PortalAiAssistant = lazy(() =>
   import("./pages/client-portal/PortalAiAssistant").then((module) => ({ default: module.PortalAiAssistant })),
@@ -199,6 +202,7 @@ const App = () => {
                   <Route path="approvals" element={<PortalApprovals />} />
                   <Route path="content-calendar" element={<PortalContentCalendar />} />
                   <Route path="performance" element={<PortalPerformance />} />
+                  <Route path="reports/:reportId" element={<PortalReportDetail />} />
                   <Route path="ideas" element={<PortalIdeas />} />
                   <Route path="assets" element={<PortalAssets />} />
                   <Route path="branding" element={<PortalBranding />} />
@@ -213,6 +217,7 @@ const App = () => {
                   <Route path="approvals" element={<PortalApprovals />} />
                   <Route path="content-calendar" element={<PortalContentCalendar />} />
                   <Route path="performance" element={<PortalPerformance />} />
+                  <Route path="reports/:reportId" element={<PortalReportDetail />} />
                   <Route path="ideas" element={<PortalIdeas />} />
                   <Route path="assets" element={<PortalAssets />} />
                   <Route path="branding" element={<PortalBranding />} />
