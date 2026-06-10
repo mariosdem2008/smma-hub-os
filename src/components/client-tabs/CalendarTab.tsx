@@ -32,6 +32,8 @@ interface ScheduledItem {
 }
 
 const stageColors: Record<string, string> = {
+  draft: "bg-slate-500",
+  planned: "bg-indigo-500",
   pending: "bg-yellow-500",
   queued: "bg-blue-400",
   publishing: "bg-blue-600",
@@ -41,6 +43,8 @@ const stageColors: Record<string, string> = {
 };
 
 const statusLabels: Record<string, string> = {
+  draft: "Draft",
+  planned: "Planned",
   pending: "Pending",
   queued: "Queued",
   publishing: "Publishing",
@@ -279,6 +283,17 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
             />
           </div>
 
+          {items.length === 0 ? (
+            <ClientTabEmptyState
+              icon={<div className="text-3xl">📅</div>}
+              title="Calendar is empty"
+              description="Once you generate and approve content ideas, they'll appear here ready to schedule."
+              primaryAction={{
+                label: "Generate content ideas →",
+                onClick: () => navigate(`/clients/${clientId}?tab=ideas`),
+              }}
+            />
+          ) : (
           <div className="grid grid-cols-7 gap-4">
             {getWeekDays().map((day) => {
               const dayItems = getItemsForDay(day);
@@ -330,6 +345,7 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
               );
             })}
           </div>
+          )}
         </TabsContent>
 
         <TabsContent value="month" className="space-y-4">
@@ -345,6 +361,17 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
             />
           </div>
 
+          {items.length === 0 ? (
+            <ClientTabEmptyState
+              icon={<div className="text-3xl">📅</div>}
+              title="Calendar is empty"
+              description="Once you generate and approve content ideas, they'll appear here ready to schedule."
+              primaryAction={{
+                label: "Generate content ideas →",
+                onClick: () => navigate(`/clients/${clientId}?tab=ideas`),
+              }}
+            />
+          ) : (
           <div className="grid grid-cols-7 gap-2">
             {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
               <div key={day} className="font-semibold text-center text-sm p-2">
@@ -378,6 +405,7 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
               );
             })}
           </div>
+          )}
         </TabsContent>
 
         <TabsContent value="queue" className="space-y-4">
@@ -391,12 +419,12 @@ export default function CalendarTab({ clientId }: CalendarTabProps) {
           <div className="space-y-3">
             {items.length === 0 ? (
               <ClientTabEmptyState
-                icon={<Clock className="h-12 w-12" />}
-                title="No scheduled posts yet"
-                description="Create content in the Pipeline and schedule it to see posts here."
+                icon={<div className="text-3xl">📅</div>}
+                title="Calendar is empty"
+                description="Once you generate and approve content ideas, they'll appear here ready to schedule."
                 primaryAction={{
-                  label: "Go to Pipeline",
-                  onClick: () => navigate(`/clients/${clientId}?tab=pipeline`),
+                  label: "Generate content ideas →",
+                  onClick: () => navigate(`/clients/${clientId}?tab=ideas`),
                 }}
               />
             ) : (

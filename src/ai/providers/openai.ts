@@ -2,7 +2,10 @@ import { getEnvVar } from "../utils.ts"
 import type { EmbedParams, EmbedResult, GenerateParams, GenerateResult, GenerateStreamResult } from "./types.ts"
 import { CircuitBreaker, fetchWithRetry, fetchWithTimeout } from "./utils.ts"
 
-const OPENAI_BASE_URL = "https://api.openai.com/v1";
+// Base URL is overridable so local/offline testing can target an
+// OpenAI-compatible server (e.g. Ollama at http://localhost:11434/v1)
+// without touching production keys or paid providers.
+const OPENAI_BASE_URL = getEnvVar("OPENAI_BASE_URL") ?? "https://api.openai.com/v1";
 const DEFAULT_TIMEOUT_MS = 30_000;
 const EMBED_TIMEOUT_MS = 10_000;
 const RETRY_BACKOFF_MS = [1_000, 2_000, 4_000];

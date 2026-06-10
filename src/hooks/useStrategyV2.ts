@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { mapDecisionToArtifactStatus, type StrategyArtifactDecision } from "@/lib/strategy/v2/approvals";
+import { clientOperationsKeys } from "@/hooks/useClientOperations";
 
 export interface StrategyV2BriefRecord {
   id: string;
@@ -157,11 +158,31 @@ export function useReviewStrategyArtifactV2() {
         .select("*")
         .single();
       if (error) throw error;
+
+      if (decision === "approved") {
+        const db = supabase as any;
+        const { data: artifactRow, error: artifactLookupError } = await db
+          .from("strategy_artifacts_v2")
+          .select("published_to_strategy_id")
+          .eq("id", artifactId)
+          .maybeSingle();
+        if (artifactLookupError) throw artifactLookupError;
+
+        if (artifactRow?.published_to_strategy_id) {
+          const { error: materializeError } = await db.rpc("materialize_strategy_approved_work", {
+            p_strategy_id: artifactRow.published_to_strategy_id,
+            p_reason: "strategy_plan_approved",
+          });
+          if (materializeError) throw materializeError;
+        }
+      }
+
       return data as StrategyArtifactApprovalV2Record;
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["strategy-v2-artifacts", variables.clientId] });
       queryClient.invalidateQueries({ queryKey: ["strategy-v2-approvals", variables.clientId] });
+      queryClient.invalidateQueries({ queryKey: clientOperationsKeys.executionTasks(variables.clientId) });
     },
   });
 }

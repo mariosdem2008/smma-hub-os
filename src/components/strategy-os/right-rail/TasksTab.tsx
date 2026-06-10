@@ -9,8 +9,8 @@ import {
   useDeleteTask,
   useGenerateTasksFromModule,
   usePushTaskToPipeline,
-  getTaskCounts,
 } from '@/hooks/useStrategyTasks';
+import { useClientExecutionTasks } from '@/hooks/useClientOperations';
 import { useAddHistoryEvent } from '@/hooks/useStrategyHistory';
 import { TASK_PRIORITY_CONFIG } from '@/lib/strategy/constants';
 import type { TaskStatus, TaskPriority, StrategyModule } from '@/lib/strategy/types';
@@ -44,6 +44,7 @@ export function TasksTab() {
   const navigate = useNavigate();
   const currentModule = useCurrentModule();
   const { data: tasks = [], isLoading } = useStrategyTasks(clientId, strategyId);
+  const { data: executionTasks = [], isLoading: executionTasksLoading } = useClientExecutionTasks(clientId);
   const createTask = useCreateTask();
   const updateStatus = useUpdateTaskStatus();
   const deleteTask = useDeleteTask();
@@ -54,13 +55,49 @@ export function TasksTab() {
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [isCreating, setIsCreating] = useState(false);
 
-  // Filter tasks for current module if viewing a module
-  const filteredTasks =
+  // Lower-risk bridge choice: surface operational tasks beside strategy tasks
+  // instead of reconciling statuses across two existing task tables.
+  const filteredStrategyTasks =
     activeView === 'mission-control'
       ? tasks
       : tasks.filter((t) => t.module === activeView);
 
-  const taskCounts = getTaskCounts(filteredTasks);
+  const visibleTasks = [
+    ...filteredStrategyTasks.map((task) => ({
+      id: task.id,
+      source: 'strategy' as const,
+      title: task.title,
+      description: task.description,
+      status: task.status,
+      priority: task.priority,
+      module: task.module,
+      projectId: task.project_id,
+    })),
+    ...executionTasks.map((task) => ({
+      id: task.id,
+      source: 'execution' as const,
+      title: task.title,
+      description: task.description,
+      status: task.status,
+      priority: task.priority,
+      module: null,
+      projectId: null,
+    })),
+  ];
+
+  const taskCounts = {
+    todo: visibleTasks.filter((task) =>
+      task.source === 'strategy'
+        ? task.status === 'todo'
+        : ['todo', 'waiting_on_client', 'blocked'].includes(task.status)
+    ).length,
+    in_progress: visibleTasks.filter((task) => task.status === 'in_progress').length,
+    completed: visibleTasks.filter((task) =>
+      task.source === 'strategy'
+        ? task.status === 'completed' || task.status === 'pushed'
+        : task.status === 'done' || task.status === 'cancelled'
+    ).length,
+  };
 
   const handleCreateTask = async () => {
     if (!newTaskTitle.trim()) return;
@@ -176,7 +213,7 @@ export function TasksTab() {
         <div className="flex items-center justify-between mb-2">
           <h3 className="font-medium text-sm">Tasks</h3>
           <Badge variant="secondary" className="text-xs">
-            {filteredTasks.length} total
+            {visibleTasks.length} total
           </Badge>
         </div>
         <div className="flex gap-2 text-xs text-muted-foreground">
@@ -240,44 +277,57 @@ export function TasksTab() {
       {/* Task List */}
       <ScrollArea className="flex-1">
         <div className="p-3 space-y-2">
-          {isLoading ? (
+          {isLoading || executionTasksLoading ? (
             <div className="flex items-center justify-center h-20">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
-          ) : filteredTasks.length === 0 ? (
+          ) : visibleTasks.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-20 text-center">
               <ListTodo className="h-6 w-6 text-muted-foreground mb-2" />
               <p className="text-xs text-muted-foreground">No tasks yet</p>
             </div>
           ) : (
-            filteredTasks.map((task) => {
+            visibleTasks.map((task) => {
               const priorityConfig = TASK_PRIORITY_CONFIG[task.priority as TaskPriority];
-              const isCompleted = task.status === 'completed' || task.status === 'pushed';
+              const isCompleted =
+                task.source === 'strategy'
+                  ? task.status === 'completed' || task.status === 'pushed'
+                  : task.status === 'done' || task.status === 'cancelled';
 
               return (
                 <div
-                  key={task.id}
+                  key={`${task.source}:${task.id}`}
                   className={cn(
                     'p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors',
                     isCompleted && 'opacity-60'
                   )}
                 >
                   <div className="flex items-start gap-2">
-                    <button
-                      onClick={() =>
-                        handleStatusChange(
-                          task.id,
-                          task.status === 'completed' ? 'todo' : 'completed'
-                        )
-                      }
-                      className="mt-0.5 flex-shrink-0"
-                    >
+                    {task.source === 'strategy' ? (
+                      <button
+                        onClick={() =>
+                          handleStatusChange(
+                            task.id,
+                            task.status === 'completed' ? 'todo' : 'completed'
+                          )
+                        }
+                        className="mt-0.5 flex-shrink-0"
+                      >
+                        {isCompleted ? (
+                          <CheckCircle className="h-4 w-4 text-green-400" />
+                        ) : (
+                          <Circle className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                        )}
+                      </button>
+                    ) : (
+                      <span className="mt-0.5 flex-shrink-0">
                       {isCompleted ? (
                         <CheckCircle className="h-4 w-4 text-green-400" />
                       ) : (
-                        <Circle className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                        <Circle className="h-4 w-4 text-muted-foreground" />
                       )}
-                    </button>
+                      </span>
+                    )}
 
                     <div className="flex-1 min-w-0">
                       <p
@@ -295,9 +345,17 @@ export function TasksTab() {
                         >
                           {priorityConfig?.label}
                         </Badge>
+                        <Badge variant="outline" className="text-[10px] px-1.5 capitalize">
+                          {task.source === 'strategy' ? 'Strategy' : 'Operational'}
+                        </Badge>
                         {task.status === 'pushed' && (
                           <Badge variant="secondary" className="text-[10px] px-1.5 bg-green-500/10">
                             Pushed
+                          </Badge>
+                        )}
+                        {task.source === 'execution' && (
+                          <Badge variant="secondary" className="text-[10px] px-1.5 capitalize">
+                            {task.status.replace(/_/g, ' ')}
                           </Badge>
                         )}
                       </div>
@@ -310,25 +368,34 @@ export function TasksTab() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-        {task.status !== 'pushed' && (
-          <DropdownMenuItem onClick={() => handlePushToPipeline(task.id, task.module)}>
-            <ArrowRight className="h-4 w-4 mr-2" />
-            Push to Pipeline
-          </DropdownMenuItem>
-        )}
-        {task.project_id && (
-          <DropdownMenuItem onClick={() => navigate(`/clients/${clientId}?tab=pipeline&projectId=${task.project_id}`)}>
-            <ArrowRight className="h-4 w-4 mr-2" />
-            Open in Pipeline
-          </DropdownMenuItem>
-        )}
-        <DropdownMenuItem
-          onClick={() => handleDelete(task.id)}
-          className="text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
+                        {task.source === 'strategy' ? (
+                          <>
+                            {task.status !== 'pushed' && (
+                              <DropdownMenuItem onClick={() => handlePushToPipeline(task.id, task.module)}>
+                                <ArrowRight className="h-4 w-4 mr-2" />
+                                Push to Pipeline
+                              </DropdownMenuItem>
+                            )}
+                            {task.projectId && (
+                              <DropdownMenuItem onClick={() => navigate(`/clients/${clientId}?tab=pipeline&projectId=${task.projectId}`)}>
+                                <ArrowRight className="h-4 w-4 mr-2" />
+                                Open in Pipeline
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem
+                              onClick={() => handleDelete(task.id)}
+                              className="text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </>
+                        ) : (
+                          <DropdownMenuItem onClick={() => navigate(`/clients/${clientId}?tab=tasks`)}>
+                            <ArrowRight className="h-4 w-4 mr-2" />
+                            Open operational tasks
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>

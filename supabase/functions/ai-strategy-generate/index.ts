@@ -24,6 +24,7 @@ import { writeCheckpoint } from "../_shared/executor-checkpoints.ts";
 import { buildClientOperatingBriefV2, buildReadinessArtifact, evaluateReadinessArtifact } from "../../../src/lib/strategy/v2/briefBuilder.ts";
 import { buildDefaultDiagnosisInputSummary, buildStrategyPlanArtifact, evaluateDiagnosisArtifact, evaluateRecommendationArtifact } from "../../../src/lib/strategy/v2/agents.ts";
 import { allowsRecommendationFromReadiness, buildFallbackTrace, getReadinessDeepLinkStage } from "../../../src/lib/strategy/v2/workflow.ts";
+import { buildStrategyExecutionBridgeDraft, type ContentBriefDraft, type ContentPlanItemDraft } from "../../../src/lib/strategy/contentPlan.ts";
 import {
   createAgentRunV2,
   createArtifactEvaluationV2,
@@ -705,10 +706,6 @@ async function finalizePublishedStrategySideEffects(args: {
       p_client_id: args.clientId,
       p_reason: "strategy_generation",
     });
-    await args.supabase.rpc("refresh_client_execution_tasks", {
-      p_client_id: args.clientId,
-      p_reason: "strategy_generation",
-    });
   } catch (error) {
     console.error("client_post_generation_refresh_failed", {
       agencyId: args.agencyId,
@@ -903,6 +900,74 @@ function buildBlockerTasks(args: {
     }
   }
   return tasks;
+}
+
+function slugifyForDedupe(value: unknown, fallback: string) {
+  const raw = typeof value === "string" && value.trim() ? value.trim() : fallback;
+  const slug = raw
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+  return slug || fallback;
+}
+
+function normalizeStrategyTaskPayload(tasks: Array<Record<string, unknown>>) {
+  return tasks.map((task, index) => {
+    const module = typeof task.module === "string" && task.module.trim() ? task.module.trim() : "general";
+    const periodKey = typeof task.period_key === "string" && task.period_key.trim() ? task.period_key.trim() : "base";
+    const slug = typeof task.slug === "string" && task.slug.trim()
+      ? task.slug.trim()
+      : slugifyForDedupe(task.dedupe_key ?? task.title, `task-${index + 1}`);
+    const dedupeKey = typeof task.dedupe_key === "string" && task.dedupe_key.trim()
+      ? task.dedupe_key.trim()
+      : `strategy:${module}:${periodKey}:${slug}`;
+
+    return {
+      ...task,
+      period_key: periodKey,
+      slug,
+      dedupe_key: dedupeKey,
+    };
+  });
+}
+
+function planItemToRpcPayload(item: ContentPlanItemDraft) {
+  return {
+    dedupe_key: item.dedupeKey,
+    week_index: item.weekIndex,
+    sequence_index: item.sequenceIndex,
+    window_start: item.windowStart,
+    window_end: item.windowEnd,
+    scheduled_for: item.scheduledFor,
+    pillar_id: item.pillarId,
+    pillar_name: item.pillarName,
+    pillar_coverage_percent: item.pillarCoveragePercent,
+    channel: item.channel,
+    calendar_platform: item.calendarPlatform,
+    content_type: item.contentType,
+    working_title: item.workingTitle,
+    hook: item.hook,
+    cta: item.cta,
+    status: item.status,
+    campaign_id: item.campaignId,
+    campaign_name: item.campaignName,
+    source_modules: item.sourceModules,
+  };
+}
+
+function contentBriefToRpcPayload(brief: ContentBriefDraft) {
+  return {
+    brief_key: brief.briefKey,
+    plan_item_dedupe_key: brief.planItemDedupeKey,
+    angle: brief.angle,
+    key_message: brief.keyMessage,
+    proof_to_use: brief.proofToUse,
+    format_spec: brief.formatSpec,
+    dos: brief.dos,
+    donts: brief.donts,
+    status: brief.status,
+  };
 }
 
 async function safeInsertAiRun(
@@ -2279,7 +2344,11 @@ serve(async (req: Request) => {
       }
       return map;
     }, new Map<string, any>());
-    const tasksPayload = Array.from(dedupedTasks.values());
+    const tasksPayload = normalizeStrategyTaskPayload(Array.from(dedupedTasks.values()));
+    const executionBridgeDraft = buildStrategyExecutionBridgeDraft({
+      modules: repairedOutput.modules as any,
+      startDate: new Date(),
+    });
 
     const rpcResult = await supabase.rpc("create_strategy_snapshot", {
       p_client_id: clientId,
@@ -2314,9 +2383,42 @@ serve(async (req: Request) => {
       return jsonResponse({ error: "Failed to save strategy snapshot", code: "PERSISTENCE_ERROR" }, 500, corsHeaders(req));
     }
 
+    const createdStrategyId = (rpcResult as any)?.data?.strategy_id;
+    const createdDocumentId = (rpcResult as any)?.data?.document_id;
+    let executionBridgeResult: Record<string, unknown> | null = null;
+
+    if (createdStrategyId) {
+      const bridgeRpcResult = await supabase.rpc("persist_strategy_execution_bridge", {
+        p_agency_id: agencyId,
+        p_client_id: clientId,
+        p_strategy_id: createdStrategyId,
+        p_user_id: actingUserId,
+        p_plan_items: executionBridgeDraft.planItems.map(planItemToRpcPayload),
+        p_content_briefs: executionBridgeDraft.contentBriefs.map(contentBriefToRpcPayload),
+      });
+
+      if (bridgeRpcResult?.error) {
+        await safeInsertAiRun(supabase, {
+          agencyId,
+          clientId,
+          userId: actingUserId,
+          model: repairedAiResult?.meta?.model ?? (Deno.env.get("STRATEGY_MODEL_ID") ?? "gpt-4o-mini"),
+          tokensIn: 0,
+          tokensOut: 0,
+          costUsd: 0,
+          startTime,
+          success: false,
+          unknown: false,
+          citations: emptySources(),
+          metadata: { code: "EXECUTION_BRIDGE_ERROR", error: bridgeRpcResult.error.message },
+        });
+        return jsonResponse({ error: "Failed to save strategy execution bridge", code: "EXECUTION_BRIDGE_ERROR" }, 500, corsHeaders(req));
+      }
+
+      executionBridgeResult = (bridgeRpcResult?.data ?? null) as Record<string, unknown> | null;
+    }
+
     if (useCompactPublicationContext) {
-      const createdStrategyId = (rpcResult as any)?.data?.strategy_id;
-      const createdDocumentId = (rpcResult as any)?.data?.document_id;
       const strategyPlanArtifact = buildStrategyPlanArtifact({
         briefVersion: briefRow.version,
         agencyModuleVersions: agencyModuleVersionMap,
@@ -2467,14 +2569,13 @@ serve(async (req: Request) => {
             strategy_plan_artifact_id: strategyPlanArtifactRow.id,
           },
           document: (rpcResult as any)?.data ?? null,
+          execution_bridge: executionBridgeResult,
         },
         200,
         corsHeaders(req),
       );
     }
 
-    const createdStrategyId = (rpcResult as any)?.data?.strategy_id;
-    const createdDocumentId = (rpcResult as any)?.data?.document_id;
     const strategyPlanArtifact = buildStrategyPlanArtifact({
     briefVersion: briefRow.version,
     agencyModuleVersions: agencyModuleVersionMap,
@@ -2635,6 +2736,7 @@ serve(async (req: Request) => {
         strategy_plan_artifact_id: strategyPlanArtifactRow.id,
       },
         document: rpcResult?.data ?? null,
+        execution_bridge: executionBridgeResult,
       },
       200,
       corsHeaders(req),
