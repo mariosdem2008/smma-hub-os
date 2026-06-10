@@ -62,6 +62,19 @@ serve(async (req) => {
         metadata: { user_id: user.id },
       });
       customerId = customer.id;
+
+      // Persist immediately so webhook events that arrive by customer id
+      // (subscription.updated/deleted) can resolve this user, and so we
+      // don't create a duplicate Stripe customer on the next checkout.
+      const { error: persistError } = await supabase
+        .from('subscriptions')
+        .upsert(
+          { user_id: user.id, stripe_customer_id: customerId },
+          { onConflict: 'user_id' }
+        );
+      if (persistError) {
+        console.error('Failed to persist stripe_customer_id:', persistError);
+      }
     }
 
     // Map plan types to Stripe price IDs

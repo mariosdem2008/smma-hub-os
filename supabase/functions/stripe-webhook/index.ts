@@ -107,10 +107,11 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     updateData.current_period_end = new Date(subscription.current_period_end * 1000).toISOString();
   }
 
+  // Upsert: the subscriptions row may not exist yet if checkout happened
+  // before the app ever called check-subscription for this user.
   const { error } = await supabase
     .from('subscriptions')
-    .update(updateData)
-    .eq('user_id', userId);
+    .upsert({ user_id: userId, ...updateData }, { onConflict: 'user_id' });
 
   if (error) {
     console.error('Error updating subscription:', error);
@@ -138,7 +139,11 @@ async function handleSubscriptionChange(subscription: Stripe.Subscription) {
     .from('subscriptions')
     .update({
       stripe_subscription_id: subscription.id,
-      status: subscription.status === 'active' ? 'active' : subscription.status === 'past_due' ? 'past_due' : 'canceled',
+      status: ['active', 'trialing'].includes(subscription.status)
+        ? 'active'
+        : subscription.status === 'past_due'
+          ? 'past_due'
+          : 'canceled',
       current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
     })
     .eq('user_id', subData.user_id);

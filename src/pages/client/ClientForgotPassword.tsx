@@ -29,7 +29,7 @@ export default function ClientForgotPassword() {
       }
       
       const { data, error } = await supabase
-        .from("clients")
+        .from("portal_public_clients")
         .select("id, name")
         .eq("portal_slug", portalSlug)
         .eq("portal_enabled", true)

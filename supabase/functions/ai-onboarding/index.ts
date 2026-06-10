@@ -22,6 +22,8 @@ import {
 } from "../../../src/ai/onboardingScript.ts";
 import { generateSpanId, generateTraceId, logOtelSpan } from "../../../src/ai/otel.ts";
 import { getV5ProgressSummary } from "../../../src/lib/onboarding/progress.ts";
+import { ingestBrainDocumentForRag } from "../_shared/brain-documents.ts";
+import { materializeAgencyOnboardingBrainDocuments } from "../_shared/agency-onboarding-brain.ts";
 
 const FN_VERSION = "2.0.0";
 
@@ -3116,6 +3118,33 @@ serve(async (req: Request) => {
         const parsedComplete = responseSchema.safeParse(completedPayload);
         if (!parsedComplete.success) {
           return jsonResponse(req, { error: "Invalid response contract", v: FN_VERSION }, 500);
+        }
+
+        // Materialize the agency draft snapshot into approved brain_documents so
+        // strategy generation, RAG retrieval, and readiness scoring can use it.
+        // Failures are logged but never block onboarding completion.
+        if (scope === "agency") {
+          try {
+            await materializeAgencyOnboardingBrainDocuments({
+              supabase,
+              agencyId,
+              userId: user.id,
+              snapshot: draftSnapshot,
+              ingestBrainDocumentForRag,
+              log: (level, event, logPayload) => {
+                if (level === "error") {
+                  console.error(event, logPayload);
+                } else {
+                  console.log(event, logPayload);
+                }
+              },
+            });
+          } catch (materializeError) {
+            console.error("agency_onboarding_brain_materialize_failed", {
+              agency_id: agencyId,
+              message: materializeError instanceof Error ? materializeError.message : String(materializeError),
+            });
+          }
         }
 
         await supabase

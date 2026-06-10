@@ -1415,6 +1415,25 @@ serve(async (req: Request) => {
     agencyOperatingModules.map((row) => [row.module_key, row.version]),
   );
 
+  // Agency governance from the AI Setup wizard (foundations, guardrails,
+  // workflow). Without this, banned claims, quality standards, and approval
+  // rules configured by the agency never reach the strategy agents.
+  const { data: setupStatusRow } = await supabase
+    .from("agency_ai_setup_status_v2")
+    .select("meta_json")
+    .eq("agency_id", agencyId)
+    .maybeSingle();
+  const setupMeta = ((setupStatusRow as any)?.meta_json ?? {}) as Record<string, unknown>;
+  const agencyGovernanceContext = [
+    "AgencyGovernance (configured by the agency; binding on all outputs):",
+    JSON.stringify({
+      foundations: setupMeta.foundations ?? null,
+      guardrails: setupMeta.guardrails ?? null,
+      workflow: setupMeta.workflow ?? null,
+    }),
+    "GovernanceRules:\n- Never violate guardrails (banned claims, restricted topics, required disclaimers).\n- Match the agency's quality standards and service model.\n- Respect approval and escalation rules from workflow.",
+  ].join("\n");
+
   const briefBuild = buildClientOperatingBriefV2({
     clientId,
     agencyId,
@@ -1563,6 +1582,7 @@ serve(async (req: Request) => {
       ),
     ),
     `ReadinessArtifact:\n${JSON.stringify(readinessArtifact)}`,
+    agencyGovernanceContext,
   ].join("\n\n");
 
   let diagnosisResult: any = null;
@@ -1695,6 +1715,7 @@ serve(async (req: Request) => {
     `Brief:\n${JSON.stringify(briefBuild.brief)}`,
     `DiagnosisArtifact:\n${JSON.stringify(diagnosisArtifact)}`,
     `AgencyModules:\n${JSON.stringify(agencyOperatingModules.map((row) => row.content_json))}`,
+    agencyGovernanceContext,
   ].join("\n\n");
 
   let recommendationResult: any = null;
@@ -1784,10 +1805,16 @@ serve(async (req: Request) => {
         .select("module, content_json, updated_at")
         .eq("strategy_id", latestStrategy.id)
     : { data: [] };
-  const useCompactPublicationContext = true;
+  // Publisher mode for the final strategy plan. "llm" (default) runs the
+  // STRATEGY_PLAN model with full RAG context and falls back to the
+  // deterministic V2 publisher on any failure. Set STRATEGY_PLAN_PUBLISHER
+  // to "deterministic" to skip the model entirely.
+  const useCompactPublicationContext =
+    (Deno.env.get("STRATEGY_PLAN_PUBLISHER") ?? "llm").toLowerCase() === "deterministic";
   let context = "";
   let selectedMatches: any[] = [];
   let brainAiDocumentRows: any[] = [];
+  let brainDocReferences: any[] = [];
   let referencesSection = "## References\n- Client Operating Brief V2\n- Strategy Diagnosis V2\n- Strategy Recommendation V2";
   let contextTruncated = false;
   let retrievalCount = 0;
@@ -1799,6 +1826,7 @@ serve(async (req: Request) => {
   let failedBrainDocChunksCount = 0;
 
   if (!useCompactPublicationContext) {
+    try {
     const useRagPolicy = shouldUseRagPolicy({ agencyId, clientId });
     const ragConfig = getRagConfig(TaskType.STRATEGY_PLAN);
     const minSimilarity = 0.0;
@@ -1824,16 +1852,7 @@ serve(async (req: Request) => {
           citations: emptySources(),
           metadata: { code: "MISSING_API_KEY", error: message },
         });
-        return jsonResponse(
-          {
-            error: "AI configuration missing",
-            message: "Please configure GEMINI_API_KEY (or OPENAI_API_KEY if using OpenAI) in your Supabase project secrets.",
-            code: "MISSING_API_KEY",
-            trace_id: traceId,
-          },
-          500,
-          corsHeaders(req),
-        );
+        throw error;
       }
       await safeInsertAiRun(supabase, {
         agencyId,
@@ -1849,7 +1868,7 @@ serve(async (req: Request) => {
         citations: emptySources(),
         metadata: { code: "RAG_FAILURE", error: message },
       });
-      return jsonResponse({ error: "Embedding failed", code: "RAG_FAILURE" }, 500, corsHeaders(req));
+      throw error;
     }
 
     const legacyClientDocTypes = ["client_guidelines", "client_notes", "approved_posts", "ai_artifact", "strategy_draft"];
@@ -1903,7 +1922,7 @@ serve(async (req: Request) => {
         citations: emptySources(),
         metadata: { code: "RAG_FAILURE", error: message },
       });
-      return jsonResponse({ error: "Failed to retrieve context", code: "RAG_FAILURE" }, 500, corsHeaders(req));
+      throw new Error(message);
     }
 
     let matches = [...(clientMatches || []), ...(agencyMatches || []), ...(exemplarMatches || [])];
@@ -1961,7 +1980,7 @@ serve(async (req: Request) => {
           .in("id", brainDocAiDocumentIds)
       : { data: [] };
     brainAiDocumentRows = (brainAiDocumentRowsData ?? []) as any[];
-    const brainDocReferences = buildBrainDocumentReferences({
+    brainDocReferences = buildBrainDocumentReferences({
       matches: selectedMatches,
       aiDocuments: brainAiDocumentRows,
       maxReferences: 20,
@@ -1978,6 +1997,21 @@ serve(async (req: Request) => {
           .eq("embedding_status", "failed")
       : { count: 0 };
     failedBrainDocChunksCount = failedChunksResult.count ?? 0;
+    } catch (ragError) {
+      // Retrieval is an enhancement, not a hard dependency: degrade to the
+      // structured V2 artifacts (brief + diagnosis + recommendation) rather
+      // than failing the whole generation.
+      console.error("strategy_plan_rag_degraded", {
+        agencyId,
+        clientId,
+        traceId,
+        error: ragError instanceof Error ? ragError.message : String(ragError),
+      });
+      context = "";
+      selectedMatches = [];
+      brainAiDocumentRows = [];
+      ragPolicyVersion = "rag_failed";
+    }
   }
 
   const promptContext = [
@@ -2012,6 +2046,7 @@ serve(async (req: Request) => {
     `Strategy Diagnosis V2:\n${JSON.stringify(diagnosisArtifact)}`,
     `Strategy Recommendation V2:\n${JSON.stringify(recommendationArtifact)}`,
     `Structured Strategy:\n${JSON.stringify(moduleRows ?? [])}`,
+    agencyGovernanceContext,
     `RAG Context:\n${context}`,
     referencesSection,
   ].join("\n\n");
@@ -2019,7 +2054,59 @@ serve(async (req: Request) => {
   const outputSchema = buildStrategyOutputSchema();
   let aiResult: any = null;
   let output: StrategyOutput | null = null;
-  if (useCompactPublicationContext) {
+  let planFallbackReason: string | null = useCompactPublicationContext ? "publisher_deterministic_mode" : null;
+  if (!useCompactPublicationContext) {
+    try {
+      aiResult = await ai.run({
+        taskType: TaskType.STRATEGY_PLAN,
+        input: "",
+        context: { agencyId, clientId, userId: actingUserId, environment: "prod", supabase, skipUsageLog: true },
+        metadata: { context: promptContext, instruction, client_brain: effectiveBrain },
+        outputSchema,
+      });
+      output = (aiResult.output ?? null) as StrategyOutput | null;
+
+      if (aiResult?.unknown || (aiResult?.output as any)?.unknown === true) {
+        planFallbackReason = "plan_unknown";
+        output = null;
+      } else if (!aiResult?.schemaOk || !output) {
+        planFallbackReason = "plan_schema_invalid";
+        output = null;
+      }
+    } catch (error: any) {
+      const isTimeout = error instanceof DOMException && error.name === "AbortError";
+      const message = error?.message ?? String(error);
+      const missingApiKey = typeof message === "string" && message.includes("API_KEY is not configured");
+      planFallbackReason = missingApiKey
+        ? "missing_api_key"
+        : isTimeout
+          ? "plan_timeout"
+          : `plan_error: ${truncate(message, 300)}`;
+      output = null;
+    }
+
+    if (planFallbackReason) {
+      // The model path failed; record it and publish via the deterministic
+      // V2 builder below so the agency still gets a reviewable strategy.
+      console.error("strategy_plan_llm_fallback", { agencyId, clientId, traceId, reason: planFallbackReason });
+      await safeInsertAiRun(supabase, {
+        agencyId,
+        clientId,
+        userId: actingUserId,
+        model: aiResult?.meta?.model ?? (Deno.env.get("STRATEGY_MODEL_ID") ?? "strategy-plan"),
+        tokensIn: 0,
+        tokensOut: 0,
+        costUsd: 0,
+        startTime,
+        success: false,
+        unknown: planFallbackReason === "plan_unknown",
+        citations: emptySources(),
+        metadata: { code: "STRATEGY_PLAN_FALLBACK", reason: planFallbackReason, trace_id: traceId },
+      });
+    }
+  }
+
+  if (!output) {
     try {
       output = buildDeterministicStrategyOutputFromV2({
         brief: briefBuild.brief,
@@ -2051,110 +2138,6 @@ serve(async (req: Request) => {
       });
       return jsonResponse({ error: "Failed to build deterministic strategy output", code: "DETERMINISTIC_BUILD_ERROR", trace_id: traceId }, 500, corsHeaders(req));
     }
-  } else {
-    try {
-      aiResult = await ai.run({
-        taskType: TaskType.STRATEGY_PLAN,
-        input: "",
-        context: { agencyId, clientId, userId: actingUserId, environment: "prod", supabase, skipUsageLog: true },
-        metadata: { context: promptContext, instruction, client_brain: effectiveBrain },
-        outputSchema,
-      });
-      output = (aiResult.output ?? null) as StrategyOutput | null;
-    } catch (error: any) {
-      const isTimeout = error instanceof DOMException && error.name === "AbortError";
-      const message = error?.message ?? String(error);
-      const missingApiKey = typeof message === "string" && message.includes("API_KEY is not configured");
-
-      if (missingApiKey) {
-        const keyMatch = message.match(/\b(OPENAI_API_KEY|GEMINI_API_KEY|ANTHROPIC_API_KEY)\b/);
-        const keyName = keyMatch?.[1] ?? "GEMINI_API_KEY";
-        await safeInsertAiRun(supabase, {
-          agencyId,
-          clientId,
-          userId: actingUserId,
-          model: "missing-ai-api-key",
-          tokensIn: 0,
-          tokensOut: 0,
-          costUsd: 0,
-          startTime,
-          success: false,
-          unknown: false,
-          citations: emptySources(),
-          metadata: { code: "MISSING_API_KEY", error: message, trace_id: traceId, required_key: keyName },
-        });
-        return jsonResponse(
-          {
-            error: "AI configuration missing",
-            message: `Please configure ${keyName} in your Supabase project secrets.`,
-            code: "MISSING_API_KEY",
-            trace_id: traceId,
-          },
-          500,
-          corsHeaders(req),
-        );
-      }
-
-      const code = isTimeout ? "GENERATION_TIMEOUT" : "GENERATION_ERROR";
-      const status = isTimeout ? 504 : 500;
-      await safeInsertAiRun(supabase, {
-        agencyId,
-        clientId,
-        userId: actingUserId,
-        model: aiResult?.meta?.model ?? (Deno.env.get("STRATEGY_MODEL_ID") ?? "gpt-4o-mini"),
-        tokensIn: 0,
-        tokensOut: 0,
-        costUsd: 0,
-        startTime,
-        success: false,
-        unknown: false,
-        citations: emptySources(),
-        metadata: { code, error: message, trace_id: traceId },
-      });
-      return jsonResponse({ error: "Failed to generate strategy", code, trace_id: traceId }, status, corsHeaders(req));
-    }
-
-    if (aiResult?.unknown || (aiResult?.output as any)?.unknown === true) {
-      await safeInsertAiRun(supabase, {
-        agencyId,
-        clientId,
-        userId: actingUserId,
-        model: aiResult?.meta?.model ?? (Deno.env.get("STRATEGY_MODEL_ID") ?? "gpt-4o-mini"),
-        tokensIn: 0,
-        tokensOut: 0,
-        costUsd: 0,
-        startTime,
-        success: false,
-        unknown: true,
-        citations: emptySources(),
-        metadata: { code: "GENERATION_ERROR", reason: "ai_run_unknown" },
-      });
-      return jsonResponse({ error: "Strategy generation failed. Please retry.", code: "GENERATION_ERROR" }, 500, corsHeaders(req));
-    }
-
-    if (!aiResult?.schemaOk || !output) {
-      const runtimeModel = aiResult?.meta?.model ?? (Deno.env.get("STRATEGY_MODEL_ID") ?? "gpt-4o-mini");
-      const tokensIn = estimateTokensForCost(context);
-      const tokensOut = 0;
-      const costUsd = calculateCost(aiResult?.meta?.provider ?? "openai", runtimeModel, tokensIn, tokensOut);
-
-      await safeInsertAiRun(supabase, {
-        agencyId,
-        clientId,
-        userId: actingUserId,
-        model: runtimeModel,
-        tokensIn,
-        tokensOut,
-        costUsd,
-        startTime,
-        success: false,
-        unknown: false,
-        citations: emptySources(),
-        metadata: { code: "STRATEGY_SCHEMA_INVALID" },
-      });
-
-      return jsonResponse({ error: "Strategy JSON invalid", code: "STRATEGY_SCHEMA_INVALID" }, 500, corsHeaders(req));
-    }
   }
 
   try {
@@ -2162,7 +2145,7 @@ serve(async (req: Request) => {
 
     // Post-generation quality repair loop: if the rules engine finds blockers, attempt limited repair passes.
     // This improves completeness while staying compatible with the existing StrategyPlan schema.
-    const MAX_REPAIR_PASSES = useCompactPublicationContext ? 0 : 2;
+    const MAX_REPAIR_PASSES = planFallbackReason ? 0 : 2;
     let repairedOutput = output;
     let repairedAiResult = aiResult;
 
@@ -2442,7 +2425,9 @@ serve(async (req: Request) => {
           context_truncated: contextTruncated,
           doc_types_used: docTypesUsed,
           rag_policy_version: ragPolicyVersion,
-          publication_mode: "v2_compact_deterministic",
+          publication_mode: planFallbackReason ? "deterministic" : "llm",
+          plan_mode: planFallbackReason ? "deterministic_fallback" : "model_output",
+          plan_fallback_reason: planFallbackReason,
           recommendation_mode: recommendationFallbackReason ? "deterministic_fallback" : "model_output",
           diagnosis_mode: diagnosisFallbackReason ? "deterministic_fallback" : "model_output",
           ...(citationValidation.valid ? {} : { citation_errors: citationValidation.errors }),
@@ -2600,6 +2585,8 @@ serve(async (req: Request) => {
       context_truncated: contextTruncated,
       doc_types_used: docTypesUsed,
       rag_policy_version: ragPolicyVersion,
+      plan_mode: planFallbackReason ? "deterministic_fallback" : "model_output",
+      plan_fallback_reason: planFallbackReason,
       recommendation_mode: recommendationFallbackReason ? "deterministic_fallback" : "model_output",
       diagnosis_mode: diagnosisFallbackReason ? "deterministic_fallback" : "model_output",
       ...(citationValidation.valid ? {} : { citation_errors: citationValidation.errors }),

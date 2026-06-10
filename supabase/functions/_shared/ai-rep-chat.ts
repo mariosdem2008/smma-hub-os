@@ -1,4 +1,5 @@
 import type { ClientBriefV1 } from "./client-brief-v1.ts";
+import type { ChatMessage } from "../../../src/ai/providers/types.ts";
 
 export type AiRepChatResult = {
   assistant_message: string;
@@ -6,6 +7,110 @@ export type AiRepChatResult = {
   used_sections: string[];
   unknown: boolean;
 };
+
+export type AiRepChatTurn = { role: "user" | "assistant"; content: string };
+
+export const AI_REP_SUGGESTIONS_MARKER = "SUGGESTIONS:";
+
+const MAX_HISTORY_MESSAGES = 8;
+const MAX_HISTORY_CHARS = 600;
+
+function formatBriefList(values: unknown): string {
+  const items = (Array.isArray(values) ? values : [])
+    .map((value) => String(value).trim())
+    .filter(Boolean);
+  return items.length > 0 ? items.join("; ") : "(not provided)";
+}
+
+export function buildAiRepSystemPrompt(opts: {
+  brief: ClientBriefV1;
+  retrievedSnippets?: string[];
+}): string {
+  const { brief } = opts;
+  const snippets = (opts.retrievedSnippets ?? []).map((snippet) => snippet.trim()).filter(Boolean);
+  const docsBlock = snippets.length > 0
+    ? snippets.map((snippet, idx) => `[doc ${idx + 1}] ${snippet}`).join("\n\n")
+    : "(no documents retrieved for this question)";
+
+  return [
+    "You are the AI account representative for one specific client of a social media marketing agency.",
+    "You support the account team operationally: concrete next actions, content angles grounded in the pillars, and interpretation of performance the user shares. You are not a generic assistant.",
+    "",
+    "CLIENT CONTEXT (client_brief_v1 — the only source of truth about this client):",
+    `- Positioning: ${brief.positioning?.trim() || "(not provided)"}`,
+    `- Core offer: ${brief.offers?.core?.trim() || "(not provided)"}`,
+    `- Supporting offers: ${formatBriefList(brief.offers?.supporting)}`,
+    `- Primary audience: ${brief.audience?.primary?.trim() || "(not provided)"}`,
+    `- Audience pains: ${formatBriefList(brief.audience?.pains)}`,
+    `- Audience desires: ${formatBriefList(brief.audience?.desires)}`,
+    `- Content pillars: ${formatBriefList(brief.pillars)}`,
+    `- Tone rules (do): ${formatBriefList(brief.tone_rules?.do)}`,
+    `- Tone rules (don't): ${formatBriefList(brief.tone_rules?.dont)}`,
+    `- CTA styles: ${formatBriefList(brief.cta_styles)}`,
+    `- Taboo topics (never write about or recommend these): ${formatBriefList(brief.taboo_topics)}`,
+    "",
+    "RETRIEVED CONTEXT (approved client documents; reference them as [doc N] when you rely on them):",
+    docsBlock,
+    "",
+    "RULES:",
+    "1. Answer only from the client context and retrieved documents above. Never invent client facts, metrics, results, or history.",
+    "2. If the question needs context you do not have, say so explicitly and ask one focused follow-up question instead of guessing.",
+    "3. Respect the taboo topics and tone rules in every answer. Only suggest CTAs drawn from the listed CTA styles.",
+    "4. Keep answers operational and specific to this client: next actions, content angles, or performance interpretation.",
+    "5. Keep replies under roughly 250 words, formatted for a busy account manager.",
+    "",
+    `After the answer, finish with one final line in exactly this format (2-4 short follow-up messages the user could send next, separated by " | "):`,
+    `${AI_REP_SUGGESTIONS_MARKER} <follow-up 1> | <follow-up 2> | <follow-up 3>`,
+  ].join("\n");
+}
+
+export function buildAiRepChatMessages(opts: {
+  brief: ClientBriefV1;
+  message: string;
+  retrievedSnippets?: string[];
+  history?: AiRepChatTurn[];
+}): ChatMessage[] {
+  const historyMessages: ChatMessage[] = (opts.history ?? [])
+    .filter((turn) => turn && (turn.role === "user" || turn.role === "assistant") && String(turn.content ?? "").trim().length > 0)
+    .slice(-MAX_HISTORY_MESSAGES)
+    .map((turn) => ({ role: turn.role, content: String(turn.content).slice(0, MAX_HISTORY_CHARS) }));
+
+  return [
+    { role: "system", content: buildAiRepSystemPrompt({ brief: opts.brief, retrievedSnippets: opts.retrievedSnippets }) },
+    ...historyMessages,
+    { role: "user", content: opts.message },
+  ];
+}
+
+export function parseAiRepLlmReply(text: string): {
+  assistant_message: string;
+  suggestions: AiRepChatResult["suggestions"];
+} {
+  const trimmed = text.trim();
+  const markerIdx = trimmed.toUpperCase().lastIndexOf(AI_REP_SUGGESTIONS_MARKER);
+  if (markerIdx === -1) {
+    return { assistant_message: trimmed, suggestions: [] };
+  }
+
+  const assistantMessage = trimmed.slice(0, markerIdx).trim();
+  const suggestions = trimmed
+    .slice(markerIdx + AI_REP_SUGGESTIONS_MARKER.length)
+    .trim()
+    .split("|")
+    .map((item) => item.trim().replace(/^[-*•\d.)\s]+/, "").trim())
+    .filter(Boolean)
+    .slice(0, 4)
+    .map((item, idx) => ({
+      id: `followup-${idx + 1}`,
+      label: item.length > 60 ? `${item.slice(0, 57)}...` : item,
+      user_message: item,
+    }));
+
+  return {
+    assistant_message: assistantMessage.length > 0 ? assistantMessage : trimmed,
+    suggestions,
+  };
+}
 
 function missingBriefField(brief: ClientBriefV1 | null): { missing: string; question: string } | null {
   if (!brief) {

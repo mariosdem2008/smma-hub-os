@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from "../_shared/env.ts";
-import { decideAiRepResponse } from "../_shared/ai-rep-chat.ts";
+import { buildAiRepChatMessages, decideAiRepResponse, parseAiRepLlmReply, type AiRepChatTurn } from "../_shared/ai-rep-chat.ts";
 import { capMatchesByTokenBudget, clampMatchCount, getInitialMatchCount, applyScoreRerank } from "../_shared/retrieval.ts";
 import { embedQueryForRag, getMatchRpcName } from "../_shared/rag-index.ts";
 import { getEndpointGuardResponse } from "../_shared/endpoint-guard.ts";
@@ -178,6 +178,33 @@ async function safeRetrieveContext(opts: {
   }
 }
 
+async function safeLoadRecentTurns(opts: {
+  supabase: any;
+  agencyId: string;
+  clientId: string;
+  threadId: string;
+}): Promise<AiRepChatTurn[]> {
+  try {
+    const { data } = await opts.supabase
+      .from("ai_episodic_buffers")
+      .select("turns_json")
+      .eq("agency_id", opts.agencyId)
+      .eq("client_id", opts.clientId)
+      .eq("thread_id", opts.threadId)
+      .maybeSingle();
+
+    const turns = Array.isArray((data as any)?.turns_json) ? (data as any).turns_json : [];
+    return turns.flatMap((turn: any) => {
+      const out: AiRepChatTurn[] = [];
+      if (typeof turn?.u === "string" && turn.u.trim()) out.push({ role: "user", content: turn.u });
+      if (typeof turn?.a === "string" && turn.a.trim()) out.push({ role: "assistant", content: turn.a });
+      return out;
+    });
+  } catch {
+    return [];
+  }
+}
+
 serve(async (req: Request) => {
   const traceId = generateTraceId();
   const spanId = generateSpanId();
@@ -307,16 +334,61 @@ serve(async (req: Request) => {
   });
 
   const decision = decideAiRepResponse({ brief, message, retrievedSnippets });
+  const threadId = (typeof body.thread_id === "string" && body.thread_id.trim())
+    ? String(body.thread_id).trim().slice(0, 160)
+    : `rep-chat:${clientId}`;
+
+  // Governed generation: only call the LLM when the brief passed the deterministic gate.
+  // On any LLM failure we fall back to the deterministic mapping and record why.
+  let assistantMessage = decision.assistant_message;
+  let suggestions = decision.suggestions;
+  let llmModel: string | null = null;
+  let llmUsage: { inputTokens?: number; outputTokens?: number } | undefined;
+  let llmLatencyMs = 0;
+  let fallbackReason: string | null = null;
+
+  if (!decision.unknown && brief) {
+    const llmStart = Date.now();
+    try {
+      const history = await safeLoadRecentTurns({
+        supabase,
+        agencyId: clientRow.agency_id,
+        clientId,
+        threadId,
+      });
+      const llm = await ai.run({
+        taskType: TaskType.CHAT_GENERAL,
+        messages: buildAiRepChatMessages({ brief, message, retrievedSnippets, history }),
+        context: {
+          agencyId: clientRow.agency_id,
+          clientId,
+          userId,
+          environment: "prod",
+          supabase,
+          skipUsageLog: true,
+        },
+      });
+      llmLatencyMs = Date.now() - llmStart;
+      if (!llm.unknown && !llm.error && typeof llm.text === "string" && llm.text.trim().length > 0) {
+        const parsed = parseAiRepLlmReply(llm.text);
+        assistantMessage = parsed.assistant_message;
+        suggestions = parsed.suggestions.length >= 2 ? parsed.suggestions : decision.suggestions;
+        llmModel = llm.meta?.model ?? null;
+        llmUsage = llm.usage;
+      } else {
+        fallbackReason = llm.error ?? (llm.unknown ? "llm_returned_unknown" : "llm_empty_response");
+      }
+    } catch (err) {
+      llmLatencyMs = Date.now() - llmStart;
+      fallbackReason = err instanceof Error ? `llm_error: ${err.message}`.slice(0, 200) : "llm_error";
+    }
+  }
 
   // Phase 2: episodic memory capture (0 cross-tenant leaks; tenant scoped by agency_id + client_id).
   // Disabled by default behind ENABLE_EPISODIC_MEMORY.
   if (isEpisodicMemoryEnabled() && isPhase2EnabledForAgency(clientRow.agency_id)) {
-    const threadId = (typeof body.thread_id === "string" && body.thread_id.trim())
-      ? String(body.thread_id).trim().slice(0, 160)
-      : `rep-chat:${clientId}`;
-
     const turnUser = String(message).slice(0, 600);
-    const turnAssistant = String(decision.assistant_message ?? "").slice(0, 600);
+    const turnAssistant = String(assistantMessage ?? "").slice(0, 600);
     const turnText = `User: ${turnUser}\nAssistant: ${turnAssistant}`;
 
     // Minimal PII scan to avoid persisting obvious secrets; treat anything suspicious as "do not store".
@@ -432,18 +504,22 @@ serve(async (req: Request) => {
     agency_id: clientRow.agency_id,
     client_id: clientId,
     endpoint: "ai-rep-chat",
-    model: Deno.env.get("CHAT_MODEL_ID") ?? "mapping-only",
-    tokens_estimate: Math.ceil(message.length / 4),
-    tokens_in: Math.ceil(message.length / 4),
-    tokens_out: Math.ceil(decision.assistant_message.length / 4),
-    latency_ms: 0,
+    model: llmModel ?? Deno.env.get("CHAT_MODEL_ID") ?? "mapping-only",
+    tokens_estimate: llmUsage?.inputTokens ?? Math.ceil(message.length / 4),
+    tokens_in: llmUsage?.inputTokens ?? Math.ceil(message.length / 4),
+    tokens_out: llmUsage?.outputTokens ?? Math.ceil(assistantMessage.length / 4),
+    latency_ms: llmLatencyMs,
     unknown: decision.unknown,
+    metadata: {
+      generation: llmModel ? "llm" : "deterministic",
+      fallback_reason: fallbackReason,
+    },
   });
 
     return jsonResponse(
       {
-        assistant_message: decision.assistant_message,
-        suggestions: decision.suggestions,
+        assistant_message: assistantMessage,
+        suggestions,
         used_sections: decision.used_sections,
         unknown: decision.unknown,
       },
