@@ -18,6 +18,24 @@ const WHATS_INCLUDED = [
   "Guided rollout scoped to your workflow reality",
 ];
 
+const TIERS = [
+  {
+    name: "Operate",
+    price: "€199/mo",
+    fit: "Established agency, up to roughly 10 active clients",
+  },
+  {
+    name: "Scale",
+    price: "€349/mo",
+    fit: "Growing agency, up to roughly 25 active clients",
+  },
+  {
+    name: "Agency",
+    price: "€499/mo",
+    fit: "Larger team, advanced governance, higher client volume",
+  },
+];
+
 export default function Pricing() {
   const sectionRef = useSectionTracking("Pricing");
   const isInView = useInView(sectionRef, { once: true, amount: 0.3 });
@@ -36,11 +54,11 @@ export default function Pricing() {
           eyebrow={<Pill icon={CreditCard}>Pricing</Pill>}
           title={
             <>
-              Start with fit.
-              <span className="block text-gradient-premium">Then scope the rollout.</span>
+              Infrastructure from €199/month.
+              <span className="block text-gradient-premium">Scope the rollout after fit.</span>
             </>
           }
-          lede="Most agencies begin with a Strategy Audit so we can map the operating model, define what to systemize first, and scope the right rollout path."
+          lede="Most agencies begin with a Strategy Audit so we can map the operating model, define what to systemize first, and confirm the right Operate, Scale, or Agency rollout path."
         />
 
         <div className="mt-[44px] mx-auto max-w-6xl grid gap-[12px] lg:grid-cols-2 lg:items-start">
@@ -53,6 +71,18 @@ export default function Pricing() {
               <div className="text-sm font-semibold tracking-tight text-foreground">What's included</div>
               <div className="mt-[6px] text-sm text-text-muted">
                 Core capabilities included across plans. Exact scope depends on your workflow.
+              </div>
+
+              <div className="mt-[16px] grid gap-[10px]">
+                {TIERS.map((tier) => (
+                  <div key={tier.name} className="rounded-md border border-border/70 bg-background/45 p-[14px]">
+                    <div className="flex flex-wrap items-baseline justify-between gap-[8px]">
+                      <div className="text-sm font-semibold text-foreground">{tier.name}</div>
+                      <div className="font-display text-xl font-semibold text-brand-primary">{tier.price}</div>
+                    </div>
+                    <div className="mt-[4px] text-small-text text-text-muted">{tier.fit}</div>
+                  </div>
+                ))}
               </div>
 
               <ul className="mt-[16px] space-y-[10px]">
@@ -109,7 +139,7 @@ export default function Pricing() {
               </div>
 
               <div className="mt-[16px] text-small-text text-text-muted">
-                No hard sell. Just a clear plan and realistic numbers.
+                No free plan. No beginner tier. Just a fit call and realistic infrastructure scope.
               </div>
             </LandingCard>
           </motion.div>

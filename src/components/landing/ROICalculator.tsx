@@ -7,11 +7,11 @@ import { track } from "@/lib/analytics";
 
 const CAL_LINK = marketing.calUrl;
 
-// Price points for ROI calculation (real high-ticket pricing)
+// Locked infrastructure price points for ROI calculation.
 const PLAN_PRICES = {
-  starter: 399,
-  growth: 799,
-  scale_pro: 1299,
+  operate: 199,
+  scale: 349,
+  agency: 499,
 };
 
 export function ROICalculator() {
@@ -25,8 +25,8 @@ export function ROICalculator() {
     const monthlySavings = monthlyCost * savingsPercent;
     const annualSavings = monthlySavings * 12;
 
-    // Calculate payback period based on Growth plan
-    const planCost = PLAN_PRICES.growth;
+    // Calculate payback period based on the common Scale fit.
+    const planCost = PLAN_PRICES.scale;
     const paybackDays = Math.ceil((planCost / monthlySavings) * 30);
 
     return {
@@ -40,7 +40,7 @@ export function ROICalculator() {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: "USD",
+      currency: "EUR",
       maximumFractionDigits: 0,
     }).format(value);
   };
@@ -100,7 +100,7 @@ export function ROICalculator() {
               <label className="text-sm font-medium text-foreground">
                 Your team's hourly cost
               </label>
-              <span className="text-2xl font-bold text-primary">${hourlyRate}</span>
+              <span className="text-2xl font-bold text-primary">€{hourlyRate}</span>
             </div>
             <input
               type="range"
@@ -112,8 +112,8 @@ export function ROICalculator() {
               className="w-full h-2 bg-card rounded-full appearance-none cursor-pointer accent-primary [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:shadow-glow-sm"
             />
             <div className="flex justify-between text-xs text-muted-foreground">
-              <span>$25</span>
-              <span>$150</span>
+              <span>€25</span>
+              <span>€150</span>
             </div>
           </div>
         </div>
@@ -184,7 +184,7 @@ export function ROICalculator() {
               </span>
             </div>
             <p className="text-sm text-muted-foreground">
-              At $799/month (Growth plan), SMMAHUB pays for itself in{" "}
+              At €349/month (Scale plan), SMMAHUB pays for itself in{" "}
               <span className="text-primary font-semibold">
                 {calculations.paybackDays} days
               </span>

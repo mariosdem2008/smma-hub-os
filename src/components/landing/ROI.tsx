@@ -22,7 +22,7 @@ const LEVERS = [
   {
     icon: TrendingUp,
     title: "Capacity unlocked",
-    body: "Free up delivery bandwidth so you can take on more clients without sacrificing quality.",
+    body: "Open delivery bandwidth so you can take on more clients without sacrificing quality.",
   },
 ];
 

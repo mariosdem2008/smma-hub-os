@@ -28,8 +28,8 @@ const FAQS = [
     a: "Agencies with multiple active clients, recurring delivery work, and enough workflow complexity that scattered context and approvals create weekly drag.",
   },
   {
-    q: "Why book a strategy audit instead of starting a free trial immediately?",
-    a: "Because this product is operationally serious. The audit helps determine fit, map the workflow, and define where the AI employee layer should safely support the agency first.",
+    q: "Why book a strategy audit instead of using self-serve checkout?",
+    a: "Because this product is operationally serious. The audit determines fit, maps the workflow, and defines where governed AI should safely support the agency first.",
   },
 ];
 

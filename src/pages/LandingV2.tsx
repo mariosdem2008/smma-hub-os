@@ -3,12 +3,11 @@ import { motion, useScroll, useSpring } from "framer-motion";
 import {
   ArrowRight,
   BadgeCheck,
-  BarChart3,
   Check,
   ChevronRight,
+  CircleSlash,
   ClipboardCheck,
   Layers3,
-  LockKeyhole,
   Play,
   ShieldCheck,
   Sparkles,
@@ -26,25 +25,30 @@ const DEMO_LINK = marketing.demoUrl;
 const navItems = [
   { href: "#system", label: "System" },
   { href: "#workflow", label: "Workflow" },
-  { href: "#proof", label: "Proof" },
+  { href: "#proof", label: "Fit" },
   { href: "#pricing", label: "Pricing" },
 ];
 
 const valueProps = [
   {
-    icon: ShieldCheck,
-    title: "AI stays inside your rules",
-    description: "Strategy, content, and client replies inherit your approved playbooks, tone, quality bar, and escalation rules.",
+    icon: Layers3,
+    title: "Context encoded once",
+    description: "Offers, ICPs, SOPs, client constraints, and founder taste stop living across Slack, Docs, and memory.",
   },
   {
-    icon: Workflow,
-    title: "Every client runs from one operating model",
-    description: "Onboarding, approvals, content status, and next actions sit in one calm command layer.",
+    icon: ShieldCheck,
+    title: "Governed AI execution",
+    description: "Strategy, content, and replies inherit your quality bar, escalation rules, and approval standards before work moves.",
   },
   {
     icon: ClipboardCheck,
-    title: "Nothing ships without approval",
-    description: "Agency owners keep final control while the system prepares the work and flags what needs attention.",
+    title: "Fewer owner bottlenecks",
+    description: "Account managers get the context and next actions they need without routing every non-trivial decision back to the owner.",
+  },
+  {
+    icon: Workflow,
+    title: "Premium client delivery",
+    description: "A calmer client-facing portal keeps approvals, assets, status, and reporting in one governed operating layer.",
   },
 ];
 
@@ -52,24 +56,46 @@ const workflow = [
   {
     step: "01",
     title: "Configure expertise",
-    description: "Capture offers, ICPs, guardrails, quality standards, and delivery preferences once.",
+    description: "Capture offers, ICPs, guardrails, review standards, escalation triggers, and delivery preferences once.",
   },
   {
     step: "02",
     title: "Attach client context",
-    description: "Each client gets goals, assets, constraints, approvals, and a live operating history.",
+    description: "Each client gets goals, assets, constraints, approvals, channel notes, and a live operating history.",
   },
   {
     step: "03",
     title: "Run governed execution",
-    description: "AI drafts strategy and production inputs, then routes them through your review workflow.",
+    description: "AI supports strategy and production inputs, then routes decisions through the review workflow your team already trusts.",
   },
 ];
 
-const proofStats = [
-  { value: "14", label: "days to structured rollout" },
-  { value: "3.6x", label: "faster client context lookup" },
-  { value: "0", label: "unguarded publishing paths" },
+const fitStats = [
+  { value: "5-25", label: "active client accounts" },
+  { value: "€15k-€100k", label: "monthly agency revenue" },
+  { value: "2-10", label: "person delivery team" },
+];
+
+const tierPlans = [
+  {
+    name: "Operate",
+    price: "€199",
+    description: "For an established agency standardizing delivery across up to roughly 10 active clients.",
+    features: ["Agency expertise setup", "Client context hub", "Approval workflows"],
+  },
+  {
+    name: "Scale",
+    price: "€349",
+    description: "For a growing multi-seat team carrying more client volume and recurring approval load.",
+    features: ["Everything in Operate", "Multi-seat operating visibility", "Expanded client workflow coverage"],
+    featured: true,
+  },
+  {
+    name: "Agency",
+    price: "€499",
+    description: "For higher-volume teams that need advanced governance, deeper rollout support, and more control.",
+    features: ["Everything in Scale", "Advanced governance", "Higher-volume rollout planning"],
+  },
 ];
 
 function ScrollProgressIndicator() {
@@ -238,7 +264,7 @@ export default function LandingV2() {
                   rel="noreferrer"
                   onClick={() => track("cta_book_strategy_audit_click", { location: "nav" })}
                 >
-                  Book audit
+                  Book strategy audit
                 </a>
               </Button>
             </div>
@@ -252,14 +278,15 @@ export default function LandingV2() {
             <div className="grid gap-12 py-16 md:py-24 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
               <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}>
                 <Badge variant="secondary" className="mb-5">
-                  Governed AI for agency operators
+                  Infrastructure for 5-25 client agencies
                 </Badge>
                 <h1 className="font-display text-h1-mobile text-foreground md:text-h1">
                   Configure your agency's expertise once. Run it across every client with governed AI.
                 </h1>
                 <p className="mt-6 max-w-[64ch] text-lg leading-8 text-muted-foreground">
-                  SMMAHUB gives agency owners a premium operating system for client context, approvals, delivery state,
-                  and AI-assisted execution that never bypasses human control.
+                  For agencies juggling 10+ retainers across Slack, Docs, spreadsheets, and approval threads. SMMAHUB
+                  encodes your context, keeps AI inside your rules, and gives your team a premium client-facing
+                  operating layer without making the owner the bottleneck.
                 </p>
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                   <Button asChild size="lg">
@@ -295,7 +322,7 @@ export default function LandingV2() {
                   )}
                 </div>
                 <div className="mt-7 flex flex-wrap gap-2 text-sm text-muted-foreground">
-                  {["Human approval", "Client context", "Audit trail", "Premium portal"].map((item) => (
+                  {["5-25 clients", "Team delivery", "Owner approval", "Premium portal"].map((item) => (
                     <span key={item} className="rounded-md border border-border/80 bg-muted/40 px-3 py-2">
                       {item}
                     </span>
@@ -317,14 +344,14 @@ export default function LandingV2() {
         <section id="system" className="border-b border-border/70 py-16 md:py-24">
           <LandingShell>
             <div className="max-w-3xl">
-              <div className="page-eyebrow">The control layer</div>
-              <h2 className="mt-3 section-title">AI output is only valuable when the system knows what good means.</h2>
+              <div className="page-eyebrow">Operating infrastructure</div>
+              <h2 className="mt-3 section-title">Encode the context your team keeps re-explaining.</h2>
               <p className="mt-5 text-lg leading-8 text-muted-foreground">
                 SMMAHUB turns founder taste, SOPs, client constraints, and approval rules into reusable operating
-                context for every account.
+                context so work does not depend on whoever remembers the latest Slack thread.
               </p>
             </div>
-            <div className="mt-10 grid gap-4 md:grid-cols-3">
+            <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               {valueProps.map((item) => (
                 <article key={item.title} className="rounded-xl border border-border/80 bg-card p-5 shadow-card">
                   <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -345,8 +372,8 @@ export default function LandingV2() {
                 <div className="page-eyebrow">How it works</div>
                 <h2 className="mt-3 section-title">From founder memory to repeatable client execution.</h2>
                 <p className="mt-5 text-lg leading-8 text-muted-foreground">
-                  The product is designed for busy agency owners who need less chasing, fewer loose decisions, and a
-                  cleaner way to supervise AI work.
+                  The product is designed for operators who need less approval chasing, fewer loose decisions, and a
+                  cleaner way for a real team to supervise AI-supported delivery.
                 </p>
               </div>
               <div className="space-y-3">
@@ -368,14 +395,14 @@ export default function LandingV2() {
           <LandingShell>
             <div className="grid gap-8 lg:grid-cols-[1fr_0.9fr] lg:items-center">
               <div>
-                <div className="page-eyebrow">Early proof</div>
-                <h2 className="mt-3 section-title">Built for agencies that sell trust, not prompt volume.</h2>
+                <div className="page-eyebrow">Who it's for</div>
+                <h2 className="mt-3 section-title">For established agencies already carrying real delivery load.</h2>
                 <p className="mt-5 text-lg leading-8 text-muted-foreground">
-                  Phase 1 uses conservative social proof placeholders until founder-approved case studies are published.
-                  The promise is operational clarity: fewer hidden risks and more controlled output.
+                  SMMAHUB is for Tier-2 operators with clients, a team, and enough delivery complexity that context loss
+                  and owner bottlenecks are already costing margin.
                 </p>
                 <div className="mt-8 grid gap-3 sm:grid-cols-3">
-                  {proofStats.map((stat) => (
+                  {fitStats.map((stat) => (
                     <div key={stat.label} className="rounded-xl border border-border/80 bg-card p-5 shadow-card">
                       <div className="metric-number text-3xl font-bold text-primary">{stat.value}</div>
                       <div className="mt-2 text-sm leading-5 text-muted-foreground">{stat.label}</div>
@@ -383,13 +410,27 @@ export default function LandingV2() {
                   ))}
                 </div>
               </div>
-              <figure className="rounded-2xl border border-border/80 bg-card p-6 shadow-panel">
-                <BadgeCheck className="h-8 w-8 text-primary" />
-                <blockquote className="mt-6 font-display text-2xl font-semibold leading-snug">
-                  "This is the first AI workflow that feels like an agency control room instead of another blank chat box."
-                </blockquote>
-                <figcaption className="mt-5 text-sm text-muted-foreground">Founder review placeholder, case study pending</figcaption>
-              </figure>
+              <div className="rounded-2xl border border-border/80 bg-card p-6 shadow-panel">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <CircleSlash className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className="font-display text-xl font-semibold">Not a beginner tier</div>
+                    <div className="text-sm text-muted-foreground">Qualification is part of the product.</div>
+                  </div>
+                </div>
+                <p className="mt-6 text-base leading-7 text-muted-foreground">
+                  If you are solo, under €5k/month, or looking for a free playground, this will feel too structured.
+                  SMMAHUB is built for agencies with recurring delivery, client expectations, and decisions worth governing.
+                </p>
+                <div className="mt-6 rounded-lg border border-border/70 bg-muted/30 p-4">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                    <BadgeCheck className="h-4 w-4 text-primary" />
+                    Founder-approved case studies will sit here after review.
+                  </div>
+                </div>
+              </div>
             </div>
           </LandingShell>
         </section>
@@ -399,48 +440,53 @@ export default function LandingV2() {
             <div className="grid gap-6 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
               <div>
                 <div className="page-eyebrow">Pricing</div>
-                <h2 className="mt-3 section-title">Start with fit. Scope the rollout after the audit.</h2>
+                <h2 className="mt-3 section-title">Infrastructure from €199/month.</h2>
                 <p className="mt-5 text-lg leading-8 text-muted-foreground">
-                  Most agencies begin with a strategy audit so the rollout can match their service model, approval load,
-                  and client portfolio.
+                  Operate, Scale, and Agency plans are presented after fit is confirmed. The audit maps your service
+                  model, approval load, and client portfolio before rollout.
+                </p>
+                <p className="mt-4 text-sm leading-6 text-muted-foreground">
+                  No free plan. No beginner tier. The entry point is a serious agency buying operating infrastructure.
                 </p>
               </div>
-              <div className="grid gap-4 md:grid-cols-2">
-                <article className="rounded-xl border border-border/80 bg-card p-6 shadow-card">
-                  <LockKeyhole className="h-6 w-6 text-primary" />
-                  <h3 className="mt-5 font-display text-2xl font-semibold">Strategy Audit</h3>
-                  <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                    Map your operating model, identify bottlenecks, and define the governed AI rollout path.
-                  </p>
-                  <Button asChild className="mt-6 w-full">
-                    <a
-                      href={CAL_LINK}
-                      target="_blank"
-                      rel="noreferrer"
-                      onClick={() => track("cta_book_strategy_audit_click", { location: "pricing" })}
-                    >
-                      Book audit
-                      <ArrowRight className="h-4 w-4" />
-                    </a>
-                  </Button>
-                </article>
-                <article className="rounded-xl border border-primary/30 bg-primary/10 p-6 shadow-card">
-                  <BarChart3 className="h-6 w-6 text-primary" />
-                  <h3 className="mt-5 font-display text-2xl font-semibold">Rollout plan</h3>
-                  <ul className="mt-4 space-y-3 text-sm text-muted-foreground">
-                    {["Agency expertise setup", "Client operating layer", "Approval workflow", "Dashboard and reporting"].map((item) => (
-                      <li key={item} className="flex gap-2">
-                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                        <span>{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <Button asChild variant="outline" className="mt-6 w-full">
-                    <a href="/pricing" onClick={() => track("pricing_view_click", { location: "pricing" })}>
-                      See plans
-                    </a>
-                  </Button>
-                </article>
+              <div className="grid gap-4 md:grid-cols-3">
+                {tierPlans.map((plan) => (
+                  <article
+                    key={plan.name}
+                    className={`rounded-xl border p-5 shadow-card ${
+                      plan.featured ? "border-primary/40 bg-primary/10" : "border-border/80 bg-card"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <h3 className="font-display text-2xl font-semibold">{plan.name}</h3>
+                      {plan.featured ? <Badge variant="secondary">Common fit</Badge> : null}
+                    </div>
+                    <div className="mt-5 flex items-end gap-1">
+                      <span className="font-display text-4xl font-bold text-primary">{plan.price}</span>
+                      <span className="pb-1 text-sm text-muted-foreground">/month</span>
+                    </div>
+                    <p className="mt-4 text-sm leading-6 text-muted-foreground">{plan.description}</p>
+                    <ul className="mt-5 space-y-3 text-sm text-muted-foreground">
+                      {plan.features.map((feature) => (
+                        <li key={feature} className="flex gap-2">
+                          <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                          <span>{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <Button asChild className="mt-6 w-full" variant={plan.featured ? "default" : "outline"}>
+                      <a
+                        href={CAL_LINK}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={() => track("cta_book_strategy_audit_click", { location: `pricing_${plan.name.toLowerCase()}` })}
+                      >
+                        Book strategy audit
+                        <ArrowRight className="h-4 w-4" />
+                      </a>
+                    </Button>
+                  </article>
+                ))}
               </div>
             </div>
           </LandingShell>
@@ -457,7 +503,7 @@ export default function LandingV2() {
                   </Badge>
                   <h2 className="mt-5 section-title">Give your clients a calmer, more premium agency experience.</h2>
                   <p className="mt-5 max-w-3xl text-lg leading-8 text-muted-foreground">
-                    Keep the strategy and approvals under control while SMMAHUB handles the operating context around the work.
+                    Keep strategy, context, and approvals under control while SMMAHUB gives your team the operating layer around the work.
                   </p>
                 </div>
                 <Button asChild size="lg">
