@@ -9,6 +9,16 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Map secrets to env once: the `secrets` context is NOT allowed in step
+    # `if:` conditions (using it there invalidates the whole workflow at startup,
+    # which is why every CI run silently failed). Optional staging-backed gates
+    # below gate on `env.*` instead.
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      WF_CLIENT_DETAIL_BASE_URL: ${{ secrets.WF_CLIENT_DETAIL_BASE_URL }}
+      WF_CLIENT_ONBOARDING_BASE_URL: ${{ secrets.WF_CLIENT_ONBOARDING_BASE_URL }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -69,7 +79,7 @@ jobs:
         run: npm run build
 
       - name: Onboarding golden quality gate (staging-backed, optional)
-        if: ${{ secrets.SUPABASE_URL != '' && secrets.SUPABASE_ANON_KEY != '' && secrets.SUPABASE_SERVICE_ROLE_KEY != '' }}
+        if: ${{ env.SUPABASE_URL != '' && env.SUPABASE_ANON_KEY != '' && env.SUPABASE_SERVICE_ROLE_KEY != '' }}
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
@@ -77,11 +87,11 @@ jobs:
         run: npm run quality:onboarding:golden:gate
 
       - name: Install Playwright Chromium (client-detail gate)
-        if: ${{ secrets.WF_CLIENT_DETAIL_BASE_URL != '' && secrets.SUPABASE_URL != '' && secrets.SUPABASE_SERVICE_ROLE_KEY != '' }}
+        if: ${{ env.WF_CLIENT_DETAIL_BASE_URL != '' && env.SUPABASE_URL != '' && env.SUPABASE_SERVICE_ROLE_KEY != '' }}
         run: npx playwright install --with-deps chromium
 
       - name: Client-detail deep quality gate (staging-backed, optional)
-        if: ${{ secrets.WF_CLIENT_DETAIL_BASE_URL != '' && secrets.SUPABASE_URL != '' && secrets.SUPABASE_SERVICE_ROLE_KEY != '' }}
+        if: ${{ env.WF_CLIENT_DETAIL_BASE_URL != '' && env.SUPABASE_URL != '' && env.SUPABASE_SERVICE_ROLE_KEY != '' }}
         env:
           WF_CLIENT_DETAIL_BASE_URL: ${{ secrets.WF_CLIENT_DETAIL_BASE_URL }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -89,11 +99,11 @@ jobs:
         run: npm run quality:client-detail:deep:gate
 
       - name: Install Playwright Chromium (client-onboarding chat gate)
-        if: ${{ secrets.WF_CLIENT_ONBOARDING_BASE_URL != '' && secrets.SUPABASE_URL != '' && secrets.SUPABASE_SERVICE_ROLE_KEY != '' }}
+        if: ${{ env.WF_CLIENT_ONBOARDING_BASE_URL != '' && env.SUPABASE_URL != '' && env.SUPABASE_SERVICE_ROLE_KEY != '' }}
         run: npx playwright install --with-deps chromium
 
       - name: Client-onboarding chat quality gate (staging-backed, optional)
-        if: ${{ secrets.WF_CLIENT_ONBOARDING_BASE_URL != '' && secrets.SUPABASE_URL != '' && secrets.SUPABASE_SERVICE_ROLE_KEY != '' }}
+        if: ${{ env.WF_CLIENT_ONBOARDING_BASE_URL != '' && env.SUPABASE_URL != '' && env.SUPABASE_SERVICE_ROLE_KEY != '' }}
         env:
           WF_CLIENT_ONBOARDING_BASE_URL: ${{ secrets.WF_CLIENT_ONBOARDING_BASE_URL }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
