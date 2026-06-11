@@ -8,7 +8,6 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { useUpgradeModal } from "@/contexts/UpgradeModalContext";
 import { useUpgradeAssistantTriggers } from "@/hooks/useUpgradeAssistantTriggers";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Search, Sparkles, UserPlus } from "lucide-react";
 import { InviteTeamMemberDialog } from "./InviteTeamMemberDialog";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
@@ -67,7 +66,7 @@ export function AppLayout() {
   if (isOnboarding) {
     return (
       <div className="h-[100dvh] w-full overflow-x-hidden overflow-y-hidden">
-        <main className="h-full min-h-0 overflow-x-hidden overflow-y-hidden p-0">
+        <main id="main-content" className="h-full min-h-0 overflow-x-hidden overflow-y-hidden p-0" tabIndex={-1}>
           <Outlet />
         </main>
       </div>
@@ -77,6 +76,9 @@ export function AppLayout() {
   return (
     <SidebarProvider>
       <div className="saas-onboarding-theme flex h-[100dvh] w-full overflow-x-hidden overflow-y-hidden">
+        <a href="#main-content" className="skip-to-content">
+          Skip to content
+        </a>
         {!isMobile && <AppSidebar />}
         <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-hidden">
           <header className="glass-header sticky top-0 z-20 flex h-16 items-center gap-3 px-3 md:px-5">
@@ -90,10 +92,10 @@ export function AppLayout() {
                   </span>
                 ))}
               </div>
-              <h1 className="truncate font-display text-base font-semibold text-foreground md:text-lg">{pageTitle}</h1>
+              <div className="truncate font-display text-base font-semibold text-foreground md:text-lg">{pageTitle}</div>
             </div>
             <div className="hidden min-w-[260px] items-center gap-2 rounded-md border border-border/80 bg-surface/70 px-3 py-2 text-sm text-muted-foreground shadow-xs lg:flex">
-              <Search className="h-4 w-4" />
+              <Search className="h-4 w-4" aria-hidden="true" />
               <span className="truncate">Search clients, approvals, or actions</span>
               <kbd className="ml-auto rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">Cmd K</kbd>
             </div>
@@ -101,14 +103,14 @@ export function AppLayout() {
               <NotificationCenter />
               <ThemeToggle />
               {upgradeBadgeText && !isMobile && (
-                <Badge
-                  variant="secondary"
-                  className="cursor-pointer border-primary/25 bg-primary/10 text-primary hover:bg-primary/20"
+                <button
+                  type="button"
+                  className="focus-ring inline-flex min-h-[36px] items-center rounded-full border border-primary/25 bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
                   onClick={() => openUpgradeModal()}
                 >
-                  <Sparkles className="mr-1 h-3 w-3" />
+                  <Sparkles className="mr-1 h-3 w-3" aria-hidden="true" />
                   {upgradeBadgeText}
-                </Badge>
+                </button>
               )}
               {canManageTeam && !isMobile && (
                 <Button
@@ -124,6 +126,8 @@ export function AppLayout() {
             </div>
           </header>
           <main
+            id="main-content"
+            tabIndex={-1}
             className={
               isClientOnboarding
                 ? isMobile

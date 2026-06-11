@@ -14,8 +14,8 @@ export function ThemeToggle() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="h-9 w-9 px-0">
-          <Palette className="h-4 w-4" />
+        <Button variant="ghost" size="sm" className="h-9 w-9 px-0" aria-label="Theme options">
+          <Palette className="h-4 w-4" aria-hidden="true" />
           <span className="sr-only">Theme options</span>
         </Button>
       </DropdownMenuTrigger>

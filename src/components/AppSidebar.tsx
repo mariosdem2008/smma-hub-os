@@ -63,11 +63,11 @@ export function AppSidebar() {
   ];
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar collapsible="icon" aria-label="Agency workspace sidebar">
       <SidebarHeader className="px-3 py-4">
         <div className="flex items-center gap-3 rounded-lg border border-sidebar-border/80 bg-sidebar-accent/50 p-2">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
-            <Layers3 className="h-4 w-4" />
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
+            <Layers3 className="h-4 w-4" aria-hidden="true" />
           </div>
           {!isCollapsed && (
             <div className="min-w-0">
@@ -97,6 +97,7 @@ export function AppSidebar() {
                           className={`ml-1 h-4 w-4 transition-colors duration-200 ${
                             active ? "text-sidebar-primary" : "text-sidebar-foreground/50"
                           }`}
+                          aria-hidden="true"
                         />
                         {!isCollapsed && <span className="ml-2">{item.title}</span>}
                       </NavLink>
@@ -115,8 +116,9 @@ export function AppSidebar() {
               <Button
                 onClick={() => openUpgradeModal()}
                 className="w-full"
+                aria-label="Upgrade plan"
               >
-                <ArrowUpCircle className="h-4 w-4" />
+                <ArrowUpCircle className="h-4 w-4" aria-hidden="true" />
                 {!isCollapsed && <span className="ml-2 font-semibold">Upgrade</span>}
               </Button>
             </SidebarGroupContent>
@@ -125,8 +127,8 @@ export function AppSidebar() {
       </SidebarContent>
       <SidebarFooter>
         <div className="flex items-center gap-2 px-2 py-2">
-          <Button variant="ghost" className="flex-1 justify-start text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground" onClick={signOut}>
-            <LogOut className="h-4 w-4" />
+          <Button variant="ghost" className="flex-1 justify-start text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground" onClick={signOut} aria-label="Sign out">
+            <LogOut className="h-4 w-4" aria-hidden="true" />
             {!isCollapsed && <span className="ml-2">Sign out</span>}
           </Button>
         </div>

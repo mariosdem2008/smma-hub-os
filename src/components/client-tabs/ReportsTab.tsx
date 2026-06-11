@@ -53,6 +53,7 @@ export default function ReportsTab({ clientId, agencyId }: ReportsTabProps) {
     <PremiumPage
       eyebrow="Reporting"
       title="Client Reports"
+      headingLevel="h2"
       description="Generate and review monthly analytics reports with AI-powered insights."
     >
       {/* Generate Report Card */}

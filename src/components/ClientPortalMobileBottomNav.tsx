@@ -41,8 +41,9 @@ export function ClientPortalMobileBottomNav() {
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
               style={{ minHeight: "44px", minWidth: "44px" }}
+              aria-current={active ? "page" : undefined}
             >
-              <Icon className="h-5 w-5" />
+              <Icon className="h-5 w-5" aria-hidden="true" />
               <span className="text-[10px] font-medium">{item.label}</span>
             </Link>
           );

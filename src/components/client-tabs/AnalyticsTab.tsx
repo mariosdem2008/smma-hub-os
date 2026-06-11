@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -14,13 +14,17 @@ import { AiWorkflowBlockNotice } from "@/components/ai/AiWorkflowBlockNotice";
 import { buildAssistantBlockStateFromError, type AiWorkflowBlockState } from "@/lib/aiWorkflowBlock";
 import { PremiumInlineEmpty, PremiumLoading, PremiumPage, PremiumStatCard } from "@/components/shared/PremiumPage";
 import { Eye, Users, Heart, TrendingUp, TrendingDown, Instagram, Facebook, RefreshCw, Wand2, Copy } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
-import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
 interface AnalyticsTabProps {
   clientId: string;
 }
+
+const ProfileGrowthLineChart = lazy(() =>
+  import("@/components/charts/ProfileGrowthLineChart").then((module) => ({
+    default: module.ProfileGrowthLineChart,
+  })),
+);
 
 export default function AnalyticsTab({ clientId }: AnalyticsTabProps) {
   const { toast } = useToast();
@@ -187,6 +191,7 @@ export default function AnalyticsTab({ clientId }: AnalyticsTabProps) {
     <PremiumPage
       eyebrow="Measurement"
       title="Performance Analytics"
+      headingLevel="h2"
       description="Last 30 days of profile, post, reach, and engagement signals."
       actions={
         <>
@@ -269,38 +274,9 @@ export default function AnalyticsTab({ clientId }: AnalyticsTabProps) {
             {trendsLoading ? (
               <Skeleton className="h-64 w-full" />
             ) : (
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={trends}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis
-                    dataKey="date"
-                    tickFormatter={(value) => format(new Date(value), "MMM d")}
-                    className="text-xs"
-                  />
-                  <YAxis className="text-xs" />
-                  <Tooltip
-                    labelFormatter={(value) => format(new Date(value), "MMM d, yyyy")}
-                    contentStyle={{ backgroundColor: "hsl(var(--background))", border: "1px solid hsl(var(--border))" }}
-                  />
-                  <Legend />
-                  <Line
-                    type="monotone"
-                    dataKey="followers"
-                    stroke="hsl(var(--success))"
-                    strokeWidth={2}
-                    dot={{ r: 3 }}
-                    name="Followers"
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="impressions"
-                    stroke="hsl(var(--primary))"
-                    strokeWidth={2}
-                    dot={{ r: 3 }}
-                    name="Impressions"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              <Suspense fallback={<Skeleton className="h-64 w-full" />}>
+                <ProfileGrowthLineChart trends={trends} showImpressions showLegend />
+              </Suspense>
             )}
           </CardContent>
         </Card>

@@ -218,7 +218,7 @@ export default function ClientLogin() {
 
         <div className="text-center text-sm">
           {portalSlug ? (
-            <Link to={`/client/forgot-password/${portalSlug}`} className="text-primary hover:text-primary-hover hover:underline">
+            <Link to={`/client/forgot-password/${portalSlug}`} className="focus-ring rounded-md text-primary hover:text-primary-hover hover:underline">
               Forgot password?
             </Link>
           ) : (

@@ -33,7 +33,7 @@ export function MobileBottomNav() {
               to={item.path}
               onClick={() => hapticSelection()}
               className={cn(
-                "flex flex-col items-center justify-center gap-1 transition-colors touch-manipulation",
+                "focus-ring flex flex-col items-center justify-center gap-1 rounded-lg transition-colors touch-manipulation",
                 "active:scale-95 active:opacity-70 transition-transform duration-100",
                 active
                   ? "text-primary"
@@ -41,7 +41,7 @@ export function MobileBottomNav() {
               )}
               style={{ minHeight: "44px", minWidth: "44px" }}
             >
-              <Icon className="h-5 w-5" />
+              <Icon className="h-5 w-5" aria-hidden="true" />
               <span className="text-[10px] font-semibold">{item.label}</span>
             </Link>
           );

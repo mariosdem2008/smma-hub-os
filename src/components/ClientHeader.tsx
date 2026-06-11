@@ -357,9 +357,9 @@ export default function ClientHeader({
           <div className="flex flex-col gap-3">
             <div className="flex flex-col sm:flex-row sm:items-center gap-2">
               <div className="flex items-center gap-3">
-                <h1 className="font-display text-2xl font-bold text-foreground sm:text-3xl">
+                <h2 className="font-display text-2xl font-bold text-foreground sm:text-3xl">
                   {name}
-                </h1>
+                </h2>
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>

@@ -197,6 +197,7 @@ export default function AdsTab({ clientId, agencyId }: AdsTabProps) {
     <PremiumPage
       eyebrow="Paid Media"
       title="Meta Ads Performance"
+      headingLevel="h2"
       description="Last 30 days of spend, reach, clicks, and campaign delivery."
       actions={
         <>

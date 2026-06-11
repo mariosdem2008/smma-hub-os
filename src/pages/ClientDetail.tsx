@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { lazy, Suspense, useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,21 +35,6 @@ import {
 } from "@/data";
 import { isPermissionError } from "@/data/supabase";
 import ClientHeader from "@/components/ClientHeader";
-import OverviewTab from "@/components/client-tabs/OverviewTab";
-import AnalyticsTab from "@/components/client-tabs/AnalyticsTab";
-import BrandIdentityTab from "@/components/client-tabs/BrandIdentityTab";
-import SocialProfilesTab from "@/components/SocialProfilesTab";
-import PipelineTab from "@/components/client-tabs/PipelineTab";
-import CalendarTab from "@/components/client-tabs/CalendarTab";
-import ClientUploadsTab from "@/components/client-tabs/ClientUploadsTab";
-import { ClientPortalTab } from "@/components/client-tabs/ClientPortalTab";
-import LibraryTab from "@/components/client-tabs/LibraryTab";
-import TasksTab from "@/components/client-tabs/TasksTab";
-import ReportsTab from "@/components/client-tabs/ReportsTab";
-import AdsTab from "@/components/client-tabs/AdsTab";
-import StrategyHubTab from "@/components/client-tabs/StrategyHubTab";
-import IdeaScriptingTab from "@/components/client-tabs/IdeaScriptingTab";
-import { ClientRightPanel, ClientRightPanelTrigger } from "@/components/client-detail/ClientRightPanel";
 import { cn } from "@/lib/utils";
 import { isFeatureEnabled } from "@/lib/featureFlags";
 import {
@@ -72,6 +58,7 @@ import {
   CheckCircle2,
   Wrench,
   RefreshCw,
+  MessageSquare,
 } from "lucide-react";
 
 interface Client {
@@ -116,6 +103,26 @@ const secondaryTabs = [
 
 const allTabs = [...primaryTabs, ...secondaryTabs];
 
+const OverviewTab = lazy(() => import("@/components/client-tabs/OverviewTab"));
+const AnalyticsTab = lazy(() => import("@/components/client-tabs/AnalyticsTab"));
+const BrandIdentityTab = lazy(() => import("@/components/client-tabs/BrandIdentityTab"));
+const SocialProfilesTab = lazy(() => import("@/components/SocialProfilesTab"));
+const PipelineTab = lazy(() => import("@/components/client-tabs/PipelineTab"));
+const CalendarTab = lazy(() => import("@/components/client-tabs/CalendarTab"));
+const ClientUploadsTab = lazy(() => import("@/components/client-tabs/ClientUploadsTab"));
+const ClientPortalTab = lazy(() =>
+  import("@/components/client-tabs/ClientPortalTab").then((module) => ({ default: module.ClientPortalTab })),
+);
+const LibraryTab = lazy(() => import("@/components/client-tabs/LibraryTab"));
+const TasksTab = lazy(() => import("@/components/client-tabs/TasksTab"));
+const ReportsTab = lazy(() => import("@/components/client-tabs/ReportsTab"));
+const AdsTab = lazy(() => import("@/components/client-tabs/AdsTab"));
+const StrategyHubTab = lazy(() => import("@/components/client-tabs/StrategyHubTab"));
+const IdeaScriptingTab = lazy(() => import("@/components/client-tabs/IdeaScriptingTab"));
+const ClientRightPanel = lazy(() =>
+  import("@/components/client-detail/ClientRightPanel").then((module) => ({ default: module.ClientRightPanel })),
+);
+
 const workspaceStatusTone = {
   ready: "border-success/30 bg-success/10 text-success",
   warning: "border-warning/30 bg-warning/10 text-warning",
@@ -138,6 +145,38 @@ function deliveryStateLabel(state: string | undefined) {
   if (state === "blocked") return "Blocked";
   if (state === "at_risk") return "At risk";
   return "On track";
+}
+
+function ClientWorkspaceTabFallback() {
+  return (
+    <div className="space-y-4" aria-label="Loading workspace tab">
+      <Card>
+        <CardContent className="space-y-4 p-5">
+          <Skeleton className="h-7 w-52" />
+          <Skeleton className="h-4 w-full max-w-xl" />
+          <div className="grid gap-4 md:grid-cols-3">
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-24 w-full" />
+          </div>
+          <Skeleton className="h-48 w-full" />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function ClientRightPanelTrigger({ onClick }: { onClick: () => void }) {
+  return (
+    <Button
+      onClick={onClick}
+      size="lg"
+      className="fixed bottom-20 right-4 z-40 h-14 w-14 rounded-full shadow-lg md:bottom-6"
+      aria-label="Open AI assistant panel"
+    >
+      <MessageSquare className="h-6 w-6" aria-hidden="true" />
+    </Button>
+  );
 }
 
 export default function ClientDetail() {
@@ -572,9 +611,10 @@ export default function ClientDetail() {
           <div className="space-y-3 border-b border-border/70 p-4">
             <button
               onClick={() => navigate("/clients")}
+              aria-label="Back to clients"
               className="focus-ring flex items-center gap-1 rounded-md px-1 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
             >
-              <ChevronLeft className="h-3 w-3" />
+              <ChevronLeft className="h-3 w-3" aria-hidden="true" />
               <span>Clients</span>
             </button>
             <ClientHeader
@@ -608,7 +648,7 @@ export default function ClientDetail() {
                     )}
                     aria-current={isActive ? "page" : undefined}
                   >
-                    <Icon className="h-4 w-4 flex-shrink-0" />
+                    <Icon className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
                     <span className="truncate flex-1">{tab.label}</span>
                     {badgeCount > 0 && (
                       <Badge
@@ -626,16 +666,17 @@ export default function ClientDetail() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                    className={cn(
+                  aria-label="Open more client workspace tabs"
+                  className={cn(
                     "focus-ring flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors",
                     secondaryTabs.some((tab) => tab.id === activeTab)
                       ? "bg-surface-raised text-foreground"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground",
                   )}
                 >
-                  <MoreHorizontal className="h-4 w-4 flex-shrink-0" />
+                  <MoreHorizontal className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
                   <span className="truncate">More</span>
-                  <ChevronDown className="ml-auto h-4 w-4 opacity-70" />
+                  <ChevronDown className="ml-auto h-4 w-4 opacity-70" aria-hidden="true" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-52">
@@ -643,7 +684,7 @@ export default function ClientDetail() {
                   const Icon = tab.icon;
                   return (
                     <DropdownMenuItem key={tab.id} onClick={() => handleTabChange(tab.id)}>
-                      <Icon className="mr-2 h-4 w-4" />
+                      <Icon className="mr-2 h-4 w-4" aria-hidden="true" />
                       {tab.label}
                     </DropdownMenuItem>
                   );
@@ -692,7 +733,7 @@ export default function ClientDetail() {
                   aria-current={activeTab === tab.id ? "page" : undefined}
                 >
                   <div className="relative">
-                    <Icon className="h-4 w-4" />
+                    <Icon className="h-4 w-4" aria-hidden="true" />
                     {badgeCount > 0 && (
                       <span className="absolute -top-1.5 -right-1.5 h-4 min-w-[16px] px-1 text-[9px] font-bold bg-destructive text-destructive-foreground rounded-full flex items-center justify-center">
                         {badgeCount > 9 ? "9+" : badgeCount}
@@ -706,6 +747,7 @@ export default function ClientDetail() {
             <Sheet open={mobileMoreOpen} onOpenChange={setMobileMoreOpen}>
               <SheetTrigger asChild>
                 <button
+                  aria-label="Open more client workspace tabs"
                   className={cn(
                     "focus-ring flex min-w-[64px] flex-shrink-0 flex-col items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium transition-colors",
                     secondaryTabs.some((tab) => tab.id === activeTab)
@@ -713,7 +755,7 @@ export default function ClientDetail() {
                       : "text-muted-foreground hover:bg-muted hover:text-foreground",
                   )}
                 >
-                  <MoreHorizontal className="h-4 w-4" />
+                  <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
                   <span className="truncate max-w-[60px]">More</span>
                 </button>
               </SheetTrigger>
@@ -749,14 +791,16 @@ export default function ClientDetail() {
       {/* Main Content */}
       <main className={cn("min-w-0 flex-1 overflow-auto", isMobile ? "p-4 pb-24" : "p-6")}>
         <div className="mx-auto w-full max-w-[1440px] space-y-5">
+        <h1 className="sr-only">{client.name} workspace</h1>
         {/* Show client header on mobile */}
         {isMobile && (
           <div className="mb-4 space-y-3">
             <button
               onClick={() => navigate("/clients")}
+              aria-label="Back to clients"
               className="focus-ring flex items-center gap-1 rounded-md px-1 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
             >
-              <ChevronLeft className="h-3 w-3" />
+              <ChevronLeft className="h-3 w-3" aria-hidden="true" />
               <span>Clients</span>
             </button>
             <ClientHeader
@@ -1103,7 +1147,9 @@ export default function ClientDetail() {
           <div className="mt-0.5 opacity-90">{aiStatus.detail}</div>
         </div>
 
-        <div className="space-y-4">{renderTabContent()}</div>
+        <div className="space-y-4">
+          <Suspense fallback={<ClientWorkspaceTabFallback />}>{renderTabContent()}</Suspense>
+        </div>
         </div>
       </main>
 
@@ -1114,11 +1160,13 @@ export default function ClientDetail() {
 
       {/* Global Right Panel (AI Chat, Decisions, History, Tasks) - Hidden when feature flag is OFF */}
       {showRightPanel && rightPanelOpen && (
-        <ClientRightPanel
-          open={rightPanelOpen}
-          onOpenChange={setRightPanelOpen}
-          clientId={clientId}
-        />
+        <Suspense fallback={<span className="sr-only">Loading AI assistant panel...</span>}>
+          <ClientRightPanel
+            open={rightPanelOpen}
+            onOpenChange={setRightPanelOpen}
+            clientId={clientId}
+          />
+        </Suspense>
       )}
     </div>
   );

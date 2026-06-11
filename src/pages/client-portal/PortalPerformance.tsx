@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -10,13 +11,18 @@ import { useTopPostsWithGate } from "@/hooks/useTopPosts";
 import { useHasSupabaseSession } from "@/hooks/useHasSupabaseSession";
 import { useClientReports } from "@/hooks/useClientReports";
 import { Calendar, Eye, Users, Heart, TrendingUp, Instagram, Facebook, FileText } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { format } from "date-fns";
 
 interface OutletContext {
   client: { id: string; name: string };
   clientId: string;
 }
+
+const ProfileGrowthLineChart = lazy(() =>
+  import("@/components/charts/ProfileGrowthLineChart").then((module) => ({
+    default: module.ProfileGrowthLineChart,
+  })),
+);
 
 export function PortalPerformance() {
   const { clientId } = useOutletContext<OutletContext>();
@@ -86,29 +92,9 @@ export function PortalPerformance() {
             {trendsLoading ? (
               <Skeleton className="h-64 w-full" />
             ) : (
-              <ResponsiveContainer width="100%" height={250}>
-                <LineChart data={trends}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis
-                    dataKey="date"
-                    tickFormatter={(value) => format(new Date(value), "MMM d")}
-                    className="text-xs"
-                  />
-                  <YAxis className="text-xs" />
-                  <Tooltip
-                    labelFormatter={(value) => format(new Date(value), "MMM d, yyyy")}
-                    contentStyle={{ backgroundColor: "hsl(var(--background))", border: "1px solid hsl(var(--border))" }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="followers"
-                    stroke="hsl(var(--success))"
-                    strokeWidth={2}
-                    dot={{ r: 3 }}
-                    name="Followers"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              <Suspense fallback={<Skeleton className="h-64 w-full" />}>
+                <ProfileGrowthLineChart trends={trends} height={250} />
+              </Suspense>
             )}
           </CardContent>
         </Card>

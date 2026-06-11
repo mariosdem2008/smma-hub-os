@@ -745,7 +745,7 @@ export default function Dashboard() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Select value={viewMode} onValueChange={(value: ViewMode) => setViewMode(value)}>
-              <SelectTrigger className="w-[160px]">
+              <SelectTrigger className="w-[160px]" aria-label="Dashboard view mode">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -755,7 +755,7 @@ export default function Dashboard() {
             </Select>
 
             <Select value={period} onValueChange={(value: PeriodKey) => setPeriod(value)}>
-              <SelectTrigger className="w-[120px]">
+              <SelectTrigger className="w-[120px]" aria-label="Dashboard reporting period">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -1152,7 +1152,7 @@ export default function Dashboard() {
             <div>
               <Label>Onboarding path</Label>
               <Select value={clientFormData.onboardingMode} onValueChange={(value) => setClientFormData((prev) => ({ ...prev, onboardingMode: value }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger aria-label="Onboarding path"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="agency">Agency-led onboarding</SelectItem>
                   <SelectItem value="client">Client portal onboarding</SelectItem>
@@ -1179,7 +1179,7 @@ export default function Dashboard() {
             <div>
               <Label>Client</Label>
               <Select value={taskFormData.client_id} onValueChange={(value) => setTaskFormData((prev) => ({ ...prev, client_id: value }))}>
-                <SelectTrigger><SelectValue placeholder="Select client" /></SelectTrigger>
+                <SelectTrigger aria-label="Task client"><SelectValue placeholder="Select client" /></SelectTrigger>
                 <SelectContent>{clients.map((client) => (<SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>))}</SelectContent>
               </Select>
             </div>
@@ -1187,14 +1187,14 @@ export default function Dashboard() {
               <div>
                 <Label>Priority</Label>
                 <Select value={taskFormData.priority} onValueChange={(value) => setTaskFormData((prev) => ({ ...prev, priority: value }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger aria-label="Task priority"><SelectValue /></SelectTrigger>
                   <SelectContent>{PRIORITIES.map((priority) => (<SelectItem key={priority} value={priority}>{priority}</SelectItem>))}</SelectContent>
                 </Select>
               </div>
               <div>
                 <Label>Status</Label>
                 <Select value={taskFormData.status} onValueChange={(value) => setTaskFormData((prev) => ({ ...prev, status: value }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger aria-label="Task status"><SelectValue /></SelectTrigger>
                   <SelectContent>{TASK_STATUSES.map((status) => (<SelectItem key={status} value={status}>{status}</SelectItem>))}</SelectContent>
                 </Select>
               </div>
@@ -1204,7 +1204,7 @@ export default function Dashboard() {
               <div>
                 <Label>Assignee</Label>
                 <Select value={taskFormData.assigned_to || "unassigned"} onValueChange={(value) => setTaskFormData((prev) => ({ ...prev, assigned_to: value === "unassigned" ? "" : value }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger aria-label="Task assignee"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="unassigned">Unassigned</SelectItem>
                     {teamMembers.map((member) => (<SelectItem key={member.user_id} value={member.user_id}>{member.profiles?.full_name || member.profiles?.email || member.user_id}</SelectItem>))}

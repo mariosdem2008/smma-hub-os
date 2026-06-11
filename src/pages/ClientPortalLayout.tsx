@@ -49,7 +49,7 @@ const navItems = [
     label: "Social Profiles",
     key: "social_profiles",
     icon: () => (
-      <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
+      <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4" aria-hidden="true">
         <path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z" />
       </svg>
     ),
@@ -112,20 +112,20 @@ function ClientPortalLayoutContent() {
 
   if (portalLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <main className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-pulse text-muted-foreground">Loading portal...</div>
-      </div>
+      </main>
     );
   }
 
   if (notLinked) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <main className="min-h-screen flex items-center justify-center bg-background">
         <Card className="w-full max-w-md p-8 text-center">
           <h1 className="text-2xl font-bold mb-4">Account not linked to a portal</h1>
           <p className="text-muted-foreground">Please contact your agency for assistance.</p>
         </Card>
-      </div>
+      </main>
     );
   }
 
@@ -137,13 +137,16 @@ function ClientPortalLayoutContent() {
 
   return (
     <div className="min-h-screen bg-background">
+      <a href="#client-portal-main" className="skip-to-content">
+        Skip to content
+      </a>
       {/* Top Nav */}
       <header className="glass-header sticky top-0 z-50">
         <div className="container flex min-h-16 items-center justify-between gap-3 px-4 py-3 md:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-border bg-card shadow-xs">
               {client.logo_url ? (
-                <img src={client.logo_url} alt={client.name} className="h-9 w-9 object-contain" />
+                <img src={client.logo_url} alt={`${client.name} logo`} className="h-9 w-9 object-contain" />
               ) : (
                 <span className="font-display text-sm font-bold text-primary">
                   {client.name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase()}
@@ -151,14 +154,14 @@ function ClientPortalLayoutContent() {
               )}
             </div>
             <div>
-              <h1 className="truncate font-display text-lg font-semibold text-foreground md:text-xl">{client.name}</h1>
+              <div className="truncate font-display text-lg font-semibold text-foreground md:text-xl">{client.name}</div>
               <p className="hidden text-label uppercase tracking-wider text-primary md:block">Client Portal</p>
             </div>
           </div>
           <div className="flex items-center gap-2 md:gap-4">
             <ClientPortalNotificationCenter />
-            <Button variant="ghost" size="sm" onClick={handleSignOut}>
-              <LogOut className="h-4 w-4 md:mr-2" />
+            <Button variant="ghost" size="sm" onClick={handleSignOut} aria-label="Sign out of client portal">
+              <LogOut className="h-4 w-4 md:mr-2" aria-hidden="true" />
               <span className="hidden md:inline">Sign Out</span>
             </Button>
           </div>
@@ -187,7 +190,7 @@ function ClientPortalLayoutContent() {
                     )}
                     aria-current={isActive ? "page" : undefined}
                   >
-                    <Icon className="h-4 w-4" />
+                    <Icon className="h-4 w-4" aria-hidden="true" />
                     <span>{item.label}</span>
                   </Link>
                 );
@@ -197,7 +200,7 @@ function ClientPortalLayoutContent() {
         )}
 
         {/* Main Content */}
-        <main className="min-w-0 flex-1">
+        <main id="client-portal-main" className="min-w-0 flex-1" tabIndex={-1}>
           <Outlet context={{ client, clientId: client.id, clientUser: null }} />
         </main>
       </div>

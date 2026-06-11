@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 interface PremiumPageProps {
   eyebrow?: string;
   title: string;
+  headingLevel?: "h1" | "h2";
   description?: string;
   actions?: ReactNode;
   children: ReactNode;
@@ -18,18 +19,21 @@ interface PremiumPageProps {
 export function PremiumPage({
   eyebrow,
   title,
+  headingLevel = "h1",
   description,
   actions,
   children,
   className,
   contentClassName,
 }: PremiumPageProps) {
+  const Heading = headingLevel;
+
   return (
     <div className={cn("space-y-5 md:space-y-6", className)}>
       <div className="flex flex-col gap-4 rounded-lg border border-border/80 bg-card/80 p-4 shadow-card md:flex-row md:items-start md:justify-between md:p-5">
         <div className="min-w-0 space-y-1.5">
           {eyebrow ? <p className="page-eyebrow">{eyebrow}</p> : null}
-          <h1 className="font-display text-2xl font-bold leading-tight text-foreground md:text-3xl">{title}</h1>
+          <Heading className="font-display text-2xl font-bold leading-tight text-foreground md:text-3xl">{title}</Heading>
           {description ? <p className="max-w-3xl text-sm leading-6 text-muted-foreground">{description}</p> : null}
         </div>
         {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}

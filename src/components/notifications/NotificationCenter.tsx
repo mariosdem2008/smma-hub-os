@@ -122,8 +122,8 @@ export function NotificationCenter() {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5" />
+        <Button variant="ghost" size="icon" className="relative" aria-label="Open notifications">
+          <Bell className="h-5 w-5" aria-hidden="true" />
           {(unreadCount || 0) > 0 && (
             <Badge 
               variant="destructive" 
@@ -144,7 +144,7 @@ export function NotificationCenter() {
               className="text-xs"
               onClick={() => markAllRead()}
             >
-              <Check className="h-3 w-3 mr-1" />
+              <Check className="h-3 w-3 mr-1" aria-hidden="true" />
               Mark all read
             </Button>
           )}
@@ -168,9 +168,10 @@ export function NotificationCenter() {
                 <button
                   key={notification.id}
                   className={cn(
-                    'w-full p-4 text-left hover:bg-muted/50 transition-colors',
+                    'focus-ring w-full rounded-md p-4 text-left hover:bg-muted/50 transition-colors',
                     !notification.read_at && 'bg-primary/5'
                   )}
+                  aria-label={`Open notification: ${getNotificationTitle(notification)}`}
                   onClick={() => handleNotificationClick(notification)}
                 >
                   <div className="flex gap-3">

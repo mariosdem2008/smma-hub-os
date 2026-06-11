@@ -1,5 +1,5 @@
 import { useEffect, type ReactNode } from "react";
-import { motion, useScroll, useSpring } from "framer-motion";
+import { motion, useReducedMotion, useScroll, useSpring } from "framer-motion";
 import {
   ArrowRight,
   BadgeCheck,
@@ -100,13 +100,19 @@ const tierPlans = [
 
 function ScrollProgressIndicator() {
   const { scrollYProgress } = useScroll();
+  const shouldReduceMotion = useReducedMotion();
   const scaleX = useSpring(scrollYProgress, {
     stiffness: 80,
     damping: 28,
     restDelta: 0.001,
   });
 
-  return <motion.div className="fixed left-0 right-0 top-0 z-[100] h-0.5 origin-left bg-primary" style={{ scaleX }} />;
+  return (
+    <motion.div
+      className="fixed left-0 right-0 top-0 z-[100] h-0.5 origin-left bg-primary"
+      style={{ scaleX: shouldReduceMotion ? scrollYProgress : scaleX }}
+    />
+  );
 }
 
 function LandingShell({ children }: { children: ReactNode }) {
@@ -203,6 +209,8 @@ function ProductMockup() {
 }
 
 export default function LandingV2() {
+  const shouldReduceMotion = useReducedMotion();
+
   useEffect(() => {
     track("landing_view", { path: globalThis.location?.pathname ?? "/" });
 
@@ -276,7 +284,11 @@ export default function LandingV2() {
         <section className="relative overflow-hidden border-b border-border/70">
           <LandingShell>
             <div className="grid gap-12 py-16 md:py-24 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
-              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}>
+              <motion.div
+                initial={shouldReduceMotion ? false : { opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.45 }}
+              >
                 <Badge variant="secondary" className="mb-5">
                   Infrastructure for 5-25 client agencies
                 </Badge>
@@ -331,9 +343,9 @@ export default function LandingV2() {
               </motion.div>
 
               <motion.div
-                initial={{ opacity: 0, y: 18 }}
+                initial={shouldReduceMotion ? false : { opacity: 0, y: 18 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.55, delay: 0.12 }}
+                transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.55, delay: 0.12 }}
               >
                 <ProductMockup />
               </motion.div>
