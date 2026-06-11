@@ -88,6 +88,7 @@ export default function BrandingTab({ clientId, clientName = "Client Name" }: Br
       .maybeSingle();
 
     if (error) {
+      // Keep any existing branding state on a fetch error (best-effort load).
     } else if (data) {
       setBranding({
         id: data.id,

@@ -707,7 +707,8 @@ export function StrategyKnowledgeCenter({ clientId, agencyId }: StrategyKnowledg
       code === "BRAIN_INCOMPLETE" ||
       code === "MISSING_DOCUMENT";
     if (!expectedReadinessError) {
-          }
+      console.error("[StrategyKnowledgeCenter] strategy generation error", { code, message });
+    }
 
     toast({
       title,

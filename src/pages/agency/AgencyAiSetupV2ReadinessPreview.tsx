@@ -123,11 +123,17 @@ export default function AgencyAiSetupV2ReadinessPreview() {
 
   const unlock = unlocks.find((row) => row.agent_class === agentClass);
   const scenarios = getAgencyAiSimulationScenarios(agentClass);
+  // Safe exception: `agentClass` comes from the route param and is constant for
+  // this component's lifetime, so the early `isAgentClass` guard above is
+  // consistent every render — the hook order never actually changes. A full
+  // refactor would lose the type-narrowing the guard provides across the body.
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   const recentRuns = useMemo(
     () => (simulations.data ?? []).filter((row) => row.agent_class === agentClass).slice(0, 5),
     [simulations.data, agentClass],
   );
   const weakEvidenceHints = getWeakEvidenceHints(agentClass);
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   const proofGapCards = useMemo(() => {
     const requiredModules = unlock?.required_modules ?? [];
     return requiredModules

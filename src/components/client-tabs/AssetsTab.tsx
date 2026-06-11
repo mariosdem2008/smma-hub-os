@@ -220,6 +220,7 @@ export default function AssetsTab({ clientId, agencyId }: AssetsTabProps) {
           .remove([filePath]);
 
         if (storageError) {
+          // Best-effort storage cleanup; the DB record removal is authoritative.
         }
       }
 
@@ -237,6 +238,7 @@ export default function AssetsTab({ clientId, agencyId }: AssetsTabProps) {
             .remove([thumbPath]);
           
           if (thumbError) {
+            // Best-effort thumbnail cleanup; non-fatal to the delete.
           }
         }
       }

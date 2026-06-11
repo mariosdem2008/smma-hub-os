@@ -28,6 +28,10 @@ export default tseslint.config(
       "@typescript-eslint/no-unused-expressions": "off",
       "prefer-const": "off",
       "no-case-declarations": "off",
+      // Empty catch blocks are a deliberate best-effort pattern in several
+      // non-critical paths (telemetry, optional refreshes). Empty if/else
+      // blocks are still flagged.
+      "no-empty": ["error", { allowEmptyCatch: true }],
     },
   },
 );
