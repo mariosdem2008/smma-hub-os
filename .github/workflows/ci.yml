@@ -62,6 +62,9 @@ jobs:
       - name: Typecheck
         run: npx tsc -p .
 
+      - name: Unit tests
+        run: npx vitest run
+
       - name: Build
         run: npm run build
 
