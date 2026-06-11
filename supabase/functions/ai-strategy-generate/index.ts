@@ -13,6 +13,16 @@ import { calculateCost } from "../_shared/budgets.ts";
 import { capMatchesByTokenBudget, clampMatchCount, getInitialMatchCount, applyScoreRerank } from "../_shared/retrieval.ts";
 import { buildBrainDocumentReferences, formatBrainDocumentReferencesMarkdown } from "../_shared/strategy-references.ts";
 import { buildStrategyOutputSchema, type StrategyOutput } from "../_shared/strategy-output.ts";
+import {
+  deterministicGradeAgainstGovernance,
+  loadGovernanceForGrading,
+  persistAiGrading,
+  type GradingResult,
+} from "../_shared/answer-grading.ts";
+import {
+  extractStrategyGovernanceText,
+  type StrategyGovernanceTextExtraction,
+} from "../_shared/strategy-output-grading.ts";
 import { getEndpointGuardResponse } from "../_shared/endpoint-guard.ts";
 import { enforceAgencyAgentActivation } from "../_shared/agency-ai-setup.ts";
 import { fetchApprovedBrainDocuments, ingestBrainDocumentForRag } from "../_shared/brain-documents.ts";
@@ -650,6 +660,207 @@ function buildAiRunCitations(selectedMatches: any[]) {
     client_brain_fields: ["client_brain.summary"],
     agency_brain_fields: [],
   };
+}
+
+type StrategyGovernanceMetadata = {
+  accepted: boolean | null;
+  score: number | null;
+  hard_violation_count: number;
+  soft_issue_count: number;
+  requires_human_approval: boolean;
+  surface: "ai-strategy-generate";
+  content_type: "strategy";
+  extracted_surfaces: Array<{ surface: string; char_count: number }>;
+  ai_grading_persisted: boolean;
+  ai_grading_persist_error?: string | null;
+  module_flag_attached?: boolean;
+  module_flag_error?: string | null;
+  flag?: {
+    code: "governance_flags_to_review";
+    message: string;
+    hard_violations: GradingResult["hard_violations"];
+  };
+  grading_error?: string;
+};
+
+function summarizeExtractedStrategyText(extracted: StrategyGovernanceTextExtraction) {
+  return extracted.sections.map((section) => ({
+    surface: section.surface,
+    char_count: section.text.length,
+  }));
+}
+
+function buildStrategyGovernanceMetadata(args: {
+  grading: GradingResult;
+  extracted: StrategyGovernanceTextExtraction;
+  aiGradingPersisted: boolean;
+  aiGradingPersistError?: string | null;
+  moduleFlagAttached?: boolean;
+  moduleFlagError?: string | null;
+}): StrategyGovernanceMetadata {
+  const hardViolationCount = args.grading.hard_violations.length;
+  return {
+    accepted: args.grading.accepted,
+    score: args.grading.score,
+    hard_violation_count: hardViolationCount,
+    soft_issue_count: args.grading.soft_issues.length,
+    requires_human_approval: args.grading.requires_human_approval,
+    surface: "ai-strategy-generate",
+    content_type: "strategy",
+    extracted_surfaces: summarizeExtractedStrategyText(args.extracted),
+    ai_grading_persisted: args.aiGradingPersisted,
+    ai_grading_persist_error: args.aiGradingPersistError ?? null,
+    module_flag_attached: args.moduleFlagAttached,
+    module_flag_error: args.moduleFlagError ?? null,
+    ...(hardViolationCount > 0
+      ? {
+          flag: {
+            code: "governance_flags_to_review" as const,
+            message: `${hardViolationCount} governance flag(s) to review before client use.`,
+            hard_violations: args.grading.hard_violations,
+          },
+        }
+      : {}),
+  };
+}
+
+async function attachStrategyGovernanceBlocker(args: {
+  supabase: any;
+  agencyId: string;
+  clientId: string;
+  createdStrategyId: string | null;
+  grading: GradingResult;
+}): Promise<{ attached: boolean; error: string | null }> {
+  if (!args.createdStrategyId || args.grading.hard_violations.length === 0) {
+    return { attached: false, error: null };
+  }
+
+  try {
+    const { data, error: readError } = await args.supabase
+      .from("strategy_modules")
+      .select("blockers")
+      .eq("strategy_id", args.createdStrategyId)
+      .eq("module", "rules_constraints")
+      .maybeSingle();
+
+    if (readError) {
+      return { attached: false, error: readError.message ?? "strategy_module_blocker_read_failed" };
+    }
+
+    const existingBlockers = Array.isArray(data?.blockers) ? data.blockers : [];
+    const retainedBlockers = existingBlockers.filter((blocker: any) => blocker?.code !== "governance.flags_to_review");
+    const governanceBlocker = {
+      code: "governance.flags_to_review",
+      message: `${args.grading.hard_violations.length} governance flag(s) to review before client use.`,
+      severity: "high",
+      field_path: "rules_constraints",
+      score: args.grading.score,
+      hard_violations: args.grading.hard_violations.slice(0, 10),
+    };
+    const blockers = [...retainedBlockers, governanceBlocker];
+    const { error: updateError } = await args.supabase
+      .from("strategy_modules")
+      .update({
+        blockers,
+        blocker_count: blockers.length,
+      })
+      .eq("strategy_id", args.createdStrategyId)
+      .eq("module", "rules_constraints");
+
+    if (updateError) {
+      return { attached: false, error: updateError.message ?? "strategy_module_blocker_update_failed" };
+    }
+    return { attached: true, error: null };
+  } catch (error) {
+    return {
+      attached: false,
+      error: error instanceof Error ? error.message : "strategy_module_blocker_update_failed",
+    };
+  }
+}
+
+async function gradePublishedStrategyOutput(args: {
+  supabase: any;
+  agencyId: string;
+  clientId: string;
+  createdStrategyId: string | null;
+  userId: string | null;
+  output: StrategyOutput;
+  markdown: string;
+  effectiveBrain: Record<string, unknown>;
+}): Promise<StrategyGovernanceMetadata> {
+  try {
+    const extracted = extractStrategyGovernanceText({
+      modules: args.output.modules as Record<string, any>,
+      document: { markdown: args.markdown || args.output.document?.markdown },
+    });
+    const governance = await loadGovernanceForGrading({
+      supabase: args.supabase,
+      agencyId: args.agencyId,
+      clientId: args.clientId,
+      clientBrainJson: args.effectiveBrain,
+    });
+    const grading = deterministicGradeAgainstGovernance({
+      text: extracted.text,
+      governance,
+      contentType: "strategy",
+    });
+    const persisted = await persistAiGrading({
+      supabase: args.supabase,
+      agencyId: args.agencyId,
+      clientId: args.clientId,
+      contentType: "strategy",
+      surface: "ai-strategy-generate",
+      result: grading,
+      createdBy: args.userId,
+    });
+    const moduleFlag = await attachStrategyGovernanceBlocker({
+      supabase: args.supabase,
+      agencyId: args.agencyId,
+      clientId: args.clientId,
+      createdStrategyId: args.createdStrategyId,
+      grading,
+    });
+
+    if (persisted.error || moduleFlag.error) {
+      console.error("strategy_governance_grading_persist_warning", {
+        agencyId: args.agencyId,
+        clientId: args.clientId,
+        strategyId: args.createdStrategyId,
+        aiGradingError: persisted.error,
+        moduleFlagError: moduleFlag.error,
+      });
+    }
+
+    return buildStrategyGovernanceMetadata({
+      grading,
+      extracted,
+      aiGradingPersisted: persisted.ok,
+      aiGradingPersistError: persisted.error,
+      moduleFlagAttached: moduleFlag.attached,
+      moduleFlagError: moduleFlag.error,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "strategy_governance_grading_failed";
+    console.error("strategy_governance_grading_failed", {
+      agencyId: args.agencyId,
+      clientId: args.clientId,
+      strategyId: args.createdStrategyId,
+      error: message,
+    });
+    return {
+      accepted: null,
+      score: null,
+      hard_violation_count: 0,
+      soft_issue_count: 0,
+      requires_human_approval: false,
+      surface: "ai-strategy-generate",
+      content_type: "strategy",
+      extracted_surfaces: [],
+      ai_grading_persisted: false,
+      grading_error: message,
+    };
+  }
 }
 
 async function finalizePublishedStrategySideEffects(args: {
@@ -2473,6 +2684,17 @@ serve(async (req: Request) => {
         moduleEvaluations,
       });
 
+      const strategyGovernance = await gradePublishedStrategyOutput({
+        supabase,
+        agencyId,
+        clientId,
+        createdStrategyId: createdStrategyId ?? null,
+        userId: actingUserId,
+        output: repairedOutput,
+        markdown,
+        effectiveBrain: effectiveBrain as Record<string, unknown>,
+      });
+
       const runtimeModel = aiResult?.meta?.model ?? "v2-deterministic-publisher";
       const tokensIn = estimateTokensForCost(context);
       const tokensOut = estimateTokensForCost(markdown);
@@ -2570,6 +2792,7 @@ serve(async (req: Request) => {
           },
           document: (rpcResult as any)?.data ?? null,
           execution_bridge: executionBridgeResult,
+          governance: strategyGovernance,
         },
         200,
         corsHeaders(req),
@@ -2627,6 +2850,17 @@ serve(async (req: Request) => {
       clientId,
       createdStrategyId: createdStrategyId ?? null,
       moduleEvaluations,
+    });
+
+    const strategyGovernance = await gradePublishedStrategyOutput({
+      supabase,
+      agencyId,
+      clientId,
+      createdStrategyId: createdStrategyId ?? null,
+      userId: actingUserId,
+      output: repairedOutput,
+      markdown,
+      effectiveBrain: effectiveBrain as Record<string, unknown>,
     });
 
     const usage = extractUsageFromRaw(aiResult?.raw);
@@ -2737,6 +2971,7 @@ serve(async (req: Request) => {
       },
         document: rpcResult?.data ?? null,
         execution_bridge: executionBridgeResult,
+        governance: strategyGovernance,
       },
       200,
       corsHeaders(req),
