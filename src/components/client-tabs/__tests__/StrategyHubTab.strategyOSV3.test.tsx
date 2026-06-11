@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import userEvent from "@testing-library/user-event";
 import StrategyHubTab from "@/components/client-tabs/StrategyHubTab";
 
@@ -83,12 +84,16 @@ vi.mock("@/hooks/useStrategyModules", () => ({
   }),
 }));
 
-const renderStrategyHub = (entry = "/") =>
-  render(
-    <MemoryRouter initialEntries={[entry]}>
-      <StrategyHubTab clientId="client-1" agencyId="agency-1" />
-    </MemoryRouter>,
+const renderStrategyHub = (entry = "/") => {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[entry]}>
+        <StrategyHubTab clientId="client-1" agencyId="agency-1" />
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
+};
 
 describe("StrategyHubTab Strategy Knowledge Center", () => {
   afterEach(() => {

@@ -27,7 +27,13 @@ describe("phase2 onboarding security guardrails", () => {
   it("keeps scoped embedding match RPC usage out of client code", () => {
     const srcRoot = resolve(process.cwd(), "src");
     const files = readAllFilesRecursive(srcRoot).filter((file) =>
-      file.endsWith(".ts") || file.endsWith(".tsx")
+      (file.endsWith(".ts") || file.endsWith(".tsx")) &&
+      // Generated Supabase types declare every RPC's signature; a type
+      // declaration is not client usage. Actual invocations
+      // (supabase.rpc("match_ai_embeddings_scoped", ...)) still live in hand-
+      // written hooks/components and are caught there. DB privilege
+      // (service-role-only) is the real enforcement, asserted separately.
+      !file.replace(/\\/g, "/").endsWith("src/integrations/supabase/types.ts")
     );
 
     const offenders = files.filter((file) => {

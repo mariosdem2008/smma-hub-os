@@ -29,6 +29,11 @@ vi.mock("@/hooks/useClientOperations", () => ({
   useAgencyMemberOptions: vi.fn(),
 }));
 
+vi.mock("@/hooks/useClientBlockers", () => ({
+  useClientBlockers: () => ({ data: null, isLoading: false }),
+  useScanClientBlockers: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }),
+}));
+
 vi.mock("@/hooks/use-toast", () => ({
   useToast: () => ({ toast: vi.fn() }),
 }));

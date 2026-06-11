@@ -20,7 +20,12 @@ function readAllFilesRecursive(root: string): string[] {
 describe("phase5 persona prompt security guardrails", () => {
   it("keeps persona table access out of client-side code", () => {
     const srcRoot = resolve(process.cwd(), "src");
-    const files = readAllFilesRecursive(srcRoot).filter((file) => file.endsWith(".ts") || file.endsWith(".tsx"));
+    const files = readAllFilesRecursive(srcRoot).filter((file) =>
+      (file.endsWith(".ts") || file.endsWith(".tsx")) &&
+      // Generated Supabase types declare every table; a type declaration is not
+      // client-side access. Real queries (.from("ai_persona_vectors")) live in
+      // hand-written code and are caught there. RLS is the real enforcement.
+      !file.replace(/\\/g, "/").endsWith("src/integrations/supabase/types.ts"));
 
     const offenders = files.filter((file) => {
       const source = readFileSync(file, "utf8");
