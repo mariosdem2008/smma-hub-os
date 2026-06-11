@@ -25,6 +25,7 @@
     "quality:client-onboarding:premium:gate": "npm run quality:onboarding:golden:score && npm run quality:client-onboarding:premium:score",
     "traceability:ai-guided-onboarding:generate": "node scripts/traceability/ai-guided-onboarding.mjs",
     "traceability:ai-guided-onboarding:check": "node scripts/traceability/ai-guided-onboarding.mjs --check",
+    "e2e:happy": "node scripts/e2e-happy-path.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
