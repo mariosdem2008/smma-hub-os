@@ -1,8 +1,8 @@
 # SMMAHUB Current State
-**Date:** 2026-04-04
+**Date:** 2026-06-11
 **Type:** Current Reality — Not Target State
-**Authority:** Product owner + code audit
-**Reviewed by:** Claude (Cowork audit session)
+**Authority:** Product owner + code audit + verified execution session
+**Reviewed by:** Claude (founder execution session, 2026-06-10/11)
 
 ---
 
@@ -25,7 +25,7 @@ If this document is wrong, update it. Do not let it become optimistic.
 | Routing | React Router v6 | Stable |
 | Auth (agency) | Supabase Auth (email/password) | Working |
 | Auth (client portal) | Custom client auth system via Supabase | Working |
-| Billing | Stripe (checkout + subscriptions + webhooks) | ⚠️ Webhook secret not configured in prod |
+| Billing | Stripe (checkout + subscriptions + webhooks) | ✅ Webhook configured + verified; pricing model migration to €199 floor pending Stripe price IDs |
 | Social publishing | Meta OAuth (Instagram + Facebook) | Working |
 | AI backend | Supabase Edge Functions (Deno) | Partial — depth varies by function |
 | Testing | Vitest (unit) + Playwright (E2E) | Partial coverage |
@@ -124,43 +124,41 @@ If this document is wrong, update it. Do not let it become optimistic.
 
 ---
 
-## 4. What Is Partially Built
+## 4. Governed AI — Verified (2026-06-11 session)
 
-### 4.1 Agency AI Setup V2
+The AI systems previously marked "uncertain" were audited, hardened, validated with local models (no paid keys), and verified in production this session. See [AUDIT_VERDICT_2026-06-10](AUDIT_VERDICT_2026-06-10.md) and `docs/codex-briefs/`.
 
-- 11-step wizard UI: Imports, Foundations, Modules, Guardrails, Workflow, Readiness, Activation, Control Center
-- Navigation through wizard steps works
-- Form capture at each step appears to work
-- **Unclear:** How much of the wizard is wired to real AI execution vs. stored answers
-- **Unclear:** Whether completing the wizard produces a behaviorally meaningful agency brain
-- Brain module editor exists for: rep policy, strategy SOP, scripting SOP, tone/voice, FAQ/objections, AI permissions, offer stack, quality bar
+### 4.1 Agency AI Setup V2 → Agency Brain — Verified governing
 
-### 4.2 Strategy Hub
+- The wizard's foundations/guardrails/workflow (`agency_ai_setup_status_v2.meta_json`) are now injected into the strategy agents' prompts (diagnosis, recommendation, plan), traced end-to-end (metadata.context → prompt builder → user message).
+- **Verified:** a strategy generated against a configured brain demonstrably obeys it — a strong-model governance probe (`scripts/agent-governance-probe.ts`, local `qwen2.5:7b-instruct`) shows the governed run avoids banned claims and routes them to "donts", measurably stricter than the no-governance control.
+- Agency onboarding now materializes the completed draft into approved `brain_documents` + RAG ingestion (was previously stored and never consumed).
 
-- `StrategyKnowledgeCenter` component mounted at client detail → Strategy tab
-- Strategy generation edge function exists (`ai-strategy-generate`)
-- **Unclear:** Whether generated strategies are grounded in real client context and agency brain
-- **Unclear:** Strategy-to-execution conversion (brief → task creation)
+### 4.2 Strategy Hub → Strategy + Execution — Verified end-to-end
 
-### 4.3 AI Onboarding
+- Strategy generation runs the V2 pipeline (readiness → diagnosis → recommendation → plan); LLM publisher enabled (`STRATEGY_PLAN_PUBLISHER`) with deterministic fallback.
+- **Verified:** a published strategy automatically creates real work — `content_plan_items`, `content_briefs`, draft pipeline `projects`, and `scheduled_posts` (draft = autopublish-safe) — proven by the `npm run e2e:happy` harness (44/44) against live Supabase.
+- Strategy output is now graded against the brain (deterministic, non-blocking) — governance flags surfaced for review.
 
-- Multiple versions exist: agency onboarding, client onboarding, client onboarding chat (V3)
-- Chat-based client onboarding is the current primary flow
-- **Issue:** Multiple overlapping edge functions suggest version instability
-- Active flow: `ai-onboarding-v3` for client, `ai-onboarding` for agency
+### 4.3 AI Onboarding — Consolidated
 
-### 4.4 Reports
+- Dead onboarding edge functions removed (`ai-onboarding-v3`, `-guide`, `-copilot`). Active: `ai-onboarding` (agency), `ai-onboarding-client-chat` (client), `-scan`/`-suggest` (helpers).
 
-- Monthly report generation edge function exists
-- PDF generation edge function exists
-- Report detail page exists in client tabs
-- **Unclear:** Whether reports are useful and complete or skeleton-level
+### 4.4 Reports — Grounded + governed
+
+- `generate-monthly-report` upgraded to a reporting-insight agent: grounded in agency brain + client strategy + blocker/delivery state + real KPIs, structured JSON output, and the client-facing narrative graded before delivery. Full report detail view wired for agency + client portal.
 
 ### 4.5 Performance Analytics
 
-- Analytics hooks exist (`useClientAnalytics`, `useProfileTrends`, `useMetaAds`)
-- Portal performance tab exists
-- **Unclear:** Whether real Meta API data flows through correctly
+- Analytics hooks exist (`useClientAnalytics`, `useProfileTrends`, `useMetaAds`); portal performance tab renders charts from real data. Real Meta API end-to-end data flow remains the one area not independently re-verified this session.
+
+### 4.6 Governed agent team (new this session)
+
+- **Grading** (`ai-answer-quality-check` + `_shared/answer-grading.ts`) — enforces the brain on rep-chat, content generation, and strategy output; `ai_gradings` audit table.
+- **Blocker detection** (`ai-blocker-scan` + `client_blockers`) — per-client delivery state, owner routing, next actions; surfaced in dashboard + workspace.
+- **Reporting insight** — see 4.4.
+- **Agency Pulse** (`ai-agency-pulse`) — orchestration: one prioritized attention queue across clients on the dashboard, verified live.
+- All deterministic-first (work with no paid keys), validated via `scripts/{grader,blocker,pulse,blocker}-validate.ts`.
 
 ---
 
@@ -176,7 +174,7 @@ All previously identified dead files have been removed. No dead code remains.
 | AiFieldDemo.tsx | ✅ Deleted |
 | heelper.txt | ✅ Deleted |
 | PR_DESCRIPTION.md | ✅ Deleted |
-| Multiple overlapping AI onboarding edge functions | ⚠️ Not yet consolidated — document which is active before beta |
+| Overlapping AI onboarding edge functions | ✅ Consolidated — `ai-onboarding-v3`, `-guide`, `-copilot` removed |
 
 ---
 
@@ -184,17 +182,22 @@ All previously identified dead files have been removed. No dead code remains.
 
 | Area | Status | Notes |
 |---|---|---|
-| Auth | ✅ Ready | Both systems working |
+| Auth + tenant isolation | ✅ Ready | Both systems working; anon RLS leak fixed + verified |
 | Client management | ✅ Ready | Core CRUD working |
 | Content pipeline | ✅ Ready | 8-stage pipeline working |
 | Social publishing | ✅ Ready | Meta posting working |
-| Client portal | ✅ Ready | Core portal working |
-| Billing | ⚠️ Blocked | Stripe webhook secret not configured |
-| Agency AI Setup | ⚠️ Uncertain | UI complete, AI depth unknown |
-| Strategy Hub | ⚠️ Uncertain | Exists, depth unknown |
-| AI onboarding | ⚠️ Uncertain | Multiple versions, one is active |
-| Performance analytics | ⚠️ Uncertain | Hooks exist, real data flow unclear |
-| Dead code cleanup | ✅ Done | All dead files removed |
+| Client portal | ✅ Ready | Approvals, reminders (email), AI assistant proposals, report detail wired |
+| Billing (webhook) | ✅ Ready | Webhook verified end-to-end; idempotency/upsert fixes shipped |
+| Billing (pricing model) | ⚠️ Blocked on owner | Code still ships legacy €29–€129 tiers; needs Stripe price IDs for €199/€349/€499 + free-plan removal (see 3.9) |
+| Agency Brain / AI Setup | ✅ Verified | Wizard governance reaches + governs strategy output (probe-verified) |
+| Strategy + Execution | ✅ Verified | Strategy creates real work; 44/44 E2E harness |
+| Governed AI enforcement | ✅ Ready | Grader enforces brain on rep-chat, content, strategy |
+| Agent team + orchestration | ✅ Ready | Grading, blocker, reporting, pulse — live on dashboard |
+| AI onboarding | ✅ Ready | Consolidated; agency onboarding materializes brain |
+| Performance analytics | ⚠️ Partial | Renders real data; Meta API end-to-end not re-verified this session |
+| UX / design system | ✅ Ready | Premium redesign live on smmahub.net; ErrorBoundary wraps routes |
+| Dead code cleanup | ✅ Done | Dead files + onboarding functions removed |
+| E2E regression | ✅ Ready | `npm run e2e:happy` (44/44) covers the core loop |
 
 ---
 
